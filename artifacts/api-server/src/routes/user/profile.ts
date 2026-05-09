@@ -11,6 +11,7 @@ import {
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { getPreferences, getRecommendations, learnPreference } from "../../sovereign/ai-learning";
+import { resolveIdentity } from "../../sovereign/identity-engine";
 
 const router = Router();
 
@@ -20,6 +21,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
     let user: Record<string, unknown> = { id: req.user!.id, email: req.user!.email, roles: req.user!.roles };
     let profile: Record<string, unknown> | null = null;
+    let identity: Record<string, unknown> | null = null;
     let userTasks: unknown[] = [];
     let userCalendar: unknown[] = [];
     let userComplaints: unknown[] = [];
@@ -41,6 +43,9 @@ router.get("/", requireAuth, async (req, res, next) => {
         searchHistory = Array.isArray(profileResults[0].searchHistory) ? (profileResults[0].searchHistory as string[]) : [];
       }
 
+      const resolved = await resolveIdentity(dbId);
+      if (resolved) identity = resolved as unknown as Record<string, unknown>;
+
       userTasks = await db.select().from(tasksTable).where(eq(tasksTable.assignedTo, dbId)).limit(20);
       userCalendar = await db.select().from(calendarEventsTable).limit(10);
       userComplaints = await db.select().from(complaintsTable).where(eq(complaintsTable.officerId, dbId)).limit(10);
@@ -52,6 +57,7 @@ router.get("/", requireAuth, async (req, res, next) => {
     res.json({
       user,
       profile,
+      identity,
       tasks: userTasks,
       calendarEvents: userCalendar,
       complaintHistory: userComplaints,
@@ -72,31 +78,65 @@ router.put("/", requireAuth, async (req, res, next) => {
       res.status(400).json({ error: "User must be registered in the system to update profile" });
       return;
     }
-    const { bio, preferredJurisdiction, aiPreferences } = req.body as {
+
+    const {
+      bio,
+      preferredJurisdiction,
+      aiPreferences,
+      legalName,
+      preferredName,
+      tribalName,
+      nickname,
+      title,
+      familyGroup,
+      jurisdictionTags,
+      welfareTags,
+      notificationPreferences,
+    } = req.body as {
       bio?: string;
       preferredJurisdiction?: string;
       aiPreferences?: object;
+      legalName?: string;
+      preferredName?: string;
+      tribalName?: string;
+      nickname?: string;
+      title?: string;
+      familyGroup?: string;
+      jurisdictionTags?: string[];
+      welfareTags?: string[];
+      notificationPreferences?: object;
     };
 
     const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
+
+    const updates = {
+      bio: bio ?? existing[0]?.bio,
+      preferredJurisdiction: preferredJurisdiction ?? existing[0]?.preferredJurisdiction,
+      aiPreferences: aiPreferences ?? existing[0]?.aiPreferences,
+      legalName: legalName ?? existing[0]?.legalName,
+      preferredName: preferredName ?? existing[0]?.preferredName,
+      tribalName: tribalName ?? existing[0]?.tribalName,
+      nickname: nickname ?? existing[0]?.nickname,
+      title: title ?? existing[0]?.title,
+      familyGroup: familyGroup ?? existing[0]?.familyGroup,
+      jurisdictionTags: jurisdictionTags ?? existing[0]?.jurisdictionTags,
+      welfareTags: welfareTags ?? existing[0]?.welfareTags,
+      notificationPreferences: notificationPreferences ?? existing[0]?.notificationPreferences,
+      updatedAt: new Date(),
+    };
 
     let profile;
     if (existing[0]) {
       const [updated] = await db
         .update(profilesTable)
-        .set({
-          bio: bio ?? existing[0].bio,
-          preferredJurisdiction: preferredJurisdiction ?? existing[0].preferredJurisdiction,
-          aiPreferences: aiPreferences ?? existing[0].aiPreferences,
-          updatedAt: new Date(),
-        })
+        .set(updates)
         .where(eq(profilesTable.userId, dbId))
         .returning();
       profile = updated;
     } else {
       const [created] = await db
         .insert(profilesTable)
-        .values({ userId: dbId, bio, preferredJurisdiction, aiPreferences })
+        .values({ userId: dbId, ...updates })
         .returning();
       profile = created;
     }

@@ -21,6 +21,7 @@ import AdminPage from "@/pages/admin";
 import ProfilePage from "@/pages/profile";
 import TemplatesPage from "@/pages/templates";
 import WelfarePage from "@/pages/welfare";
+import NotificationsPage from "@/pages/notifications";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -57,6 +58,7 @@ function Router() {
         </Route>
         <Route path="/tasks" component={TasksPage} />
         <Route path="/calendar" component={CalendarPage} />
+        <Route path="/notifications" component={NotificationsPage} />
         <Route path="/search" component={SearchPage} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/profile" component={ProfilePage} />

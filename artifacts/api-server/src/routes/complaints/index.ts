@@ -11,6 +11,8 @@ import {
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText } from "../../lib/doctrine";
+import { runIntakeFilter } from "../../sovereign/intake-filter";
+import { notifyComplaintFiled, notifyRedFlag } from "../../sovereign/notification-engine";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -31,6 +33,7 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
     }
 
     const classification = classifyText(text);
+    const intakeFilter = runIntakeFilter(text);
     const officerId = await findAvailableOfficer();
 
     const [complaint] = await db
@@ -38,7 +41,18 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
       .values({
         text: text.substring(0, 10000),
         pdfPath: req.file ? req.file.originalname : undefined,
-        classification,
+        classification: {
+          ...classification,
+          intakeFilter: {
+            indianStatusViolation: intakeFilter.indianStatusViolation,
+            redFlag: intakeFilter.redFlag,
+            troRecommended: intakeFilter.troRecommended,
+            nfrRecommended: intakeFilter.nfrRecommended,
+            violations: intakeFilter.violations,
+            doctrinesTriggered: intakeFilter.doctrinesTriggered,
+            canonicalPosture: intakeFilter.canonicalPosture,
+          },
+        },
         officerId: officerId ?? undefined,
         status: "open",
       })
@@ -53,10 +67,10 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
     const [calEvent] = await db
       .insert(calendarEventsTable)
       .values({
-        title: `Complaint Follow-up #${complaint.id}`,
-        description: `Follow up on complaint regarding: ${classification.actionType} (${classification.landStatus})`,
+        title: `Complaint Follow-up #${complaint.id}${intakeFilter.redFlag ? " — RED FLAG" : ""}`,
+        description: `Follow up on complaint regarding: ${classification.actionType} (${classification.landStatus})${intakeFilter.redFlag ? " | RED FLAG: " + intakeFilter.violations.join("; ") : ""}`,
         date: dueDate,
-        type: "complaint_followup",
+        type: intakeFilter.troRecommended ? "tro_hearing" : "complaint_followup",
         relatedId: complaint.id,
         relatedType: "complaint",
       })
@@ -65,8 +79,8 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
     const [task] = await db
       .insert(tasksTable)
       .values({
-        title: `Handle Complaint #${complaint.id}`,
-        description: `Review and respond to complaint. Actor: ${classification.actorType}, Land: ${classification.landStatus}, Action: ${classification.actionType}`,
+        title: `Handle Complaint #${complaint.id}${intakeFilter.redFlag ? " — RED FLAG" : ""}`,
+        description: `Review and respond to complaint. Actor: ${classification.actorType}, Land: ${classification.landStatus}, Action: ${classification.actionType}${intakeFilter.redFlag ? `\n\nRED FLAG: ${intakeFilter.violations.join("; ")}\nPosture: ${intakeFilter.canonicalPosture}` : ""}`,
         dueDate,
         status: "pending",
         assignedTo: officerId ?? undefined,
@@ -79,10 +93,32 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
       entityType: "complaint",
       entityId: String(complaint.id),
       content: `${text.substring(0, 500)} ${classification.actorType} ${classification.landStatus} ${classification.actionType}`,
-      metadata: { classification, officerId, status: complaint.status },
+      metadata: { classification, officerId, status: complaint.status, redFlag: intakeFilter.redFlag },
     });
 
-    res.status(201).json({ complaint, task, calendarEvent: calEvent, classification, officerId });
+    await notifyComplaintFiled({
+      complaintId: complaint.id,
+      officerId: officerId ?? undefined,
+      classification,
+      redFlag: intakeFilter.redFlag,
+    });
+
+    if (intakeFilter.redFlag && intakeFilter.violations.length > 0) {
+      await notifyRedFlag({
+        violations: intakeFilter.violations,
+        relatedId: complaint.id,
+        relatedType: "complaint",
+      });
+    }
+
+    res.status(201).json({
+      complaint,
+      task,
+      calendarEvent: calEvent,
+      classification,
+      officerId,
+      intakeFilter,
+    });
   } catch (err) {
     next(err);
   }

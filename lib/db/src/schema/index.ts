@@ -12,3 +12,5 @@ export * from "./ai-learning";
 export * from "./trust-instruments";
 export * from "./trust-filings";
 export * from "./welfare-instruments";
+export * from "./welfare-acts";
+export * from "./notifications";

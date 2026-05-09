@@ -10,26 +10,27 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="w-64 border-r bg-card flex flex-col">
         <div className="p-6 border-b">
           <h1 className="font-serif text-xl font-bold text-primary tracking-tight">Sovereign Office</h1>
-          <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Chief Justice & Trustee</p>
+          <p className="text-xs text-muted-foreground uppercase tracking-widest mt-1">Chief Justice &amp; Trustee</p>
         </div>
-        <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
-          <NavLink href={`/dashboard/${activeRole}`} label="Dashboard" />
-          <NavLink href="/instruments" label="Trust Instruments" />
-          <NavLink href="/filings" label="Filings" />
-          <NavLink href="/nfr" label="NFR Documents" />
-          <NavLink href="/welfare" label="Welfare Instruments" />
-          <NavLink href="/classify" label="Classification" />
-          <NavLink href="/complaints" label="Complaints" />
-          <NavLink href="/tasks" label="Tasks" />
-          <NavLink href="/calendar" label="Calendar" />
-          <NavLink href="/search" label="Search" />
-          {activeRole === "admin" && <NavLink href="/admin" label="Administration" />}
-          <NavLink href="/profile" label="Profile" />
-          <NavLink href="/templates" label="Templates" />
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
+          <NavLink href={`/dashboard/${activeRole}`} label="Dashboard" location={location} />
+          <NavLink href="/instruments" label="Trust Instruments" location={location} />
+          <NavLink href="/filings" label="Filings" location={location} />
+          <NavLink href="/nfr" label="NFR Documents" location={location} />
+          <NavLink href="/welfare" label="Welfare Instruments" location={location} />
+          <NavLink href="/classify" label="Classification" location={location} />
+          <NavLink href="/complaints" label="Complaints" location={location} />
+          <NavLink href="/tasks" label="Tasks" location={location} />
+          <NavLink href="/calendar" label="Calendar" location={location} />
+          <NavLink href="/notifications" label="Notifications" location={location} highlight />
+          <NavLink href="/search" label="Search" location={location} />
+          {activeRole === "admin" && <NavLink href="/admin" label="Administration" location={location} />}
+          <NavLink href="/profile" label="Profile &amp; Identity" location={location} />
+          <NavLink href="/templates" label="Templates" location={location} />
         </nav>
         <div className="p-4 border-t">
-          <select 
-            value={activeRole} 
+          <select
+            value={activeRole}
             onChange={(e) => switchRole(e.target.value as any)}
             className="w-full bg-input text-foreground border rounded p-2 text-sm"
           >
@@ -49,11 +50,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
   );
 }
 
-function NavLink({ href, label }: { href: string; label: string }) {
-  const [location] = useLocation();
-  const active = location.startsWith(href);
+function NavLink({ href, label, location, highlight }: { href: string; label: string; location: string; highlight?: boolean }) {
+  const active = location === href || (href !== "/" && location.startsWith(href));
   return (
-    <Link href={href} className={`block px-3 py-2 rounded-md text-sm font-medium transition-colors ${active ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:bg-secondary hover:text-foreground"}`}>
+    <Link
+      href={href}
+      className={[
+        "block px-3 py-2 rounded-md text-sm font-medium transition-colors",
+        active
+          ? "bg-primary text-primary-foreground"
+          : highlight
+          ? "text-orange-700 dark:text-orange-400 hover:bg-secondary hover:text-foreground font-semibold"
+          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+      ].join(" ")}
+    >
       {label}
     </Link>
   );

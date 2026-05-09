@@ -1,0 +1,178 @@
+INSTRUCTION: Final Sovereign System Tweaks (Identity, Intake Filter, Welfare Authority, Notifications, Calendar, UI, Governance)
+
+Apply the following system-wide enhancements to complete the next-generation Tribal Governance, Welfare, and Justice Platform.
+
+────────────────────────────────────────
+1. Identity Engine (Unified Profile Tags)
+────────────────────────────────────────
+
+Create / update:
+/src/sovereign/identity-engine.ts
+/src/db/schema.sql
+/src/routes/profile.ts
+
+Add the following fields to every user profile:
+
+legalName TEXT
+preferredName TEXT
+tribalName TEXT
+nickname TEXT
+title TEXT
+familyGroup TEXT
+jurisdictionTags JSONB
+welfareTags JSONB
+notificationPreferences JSONB
+
+Identity engine must expose a unified identity object used across:
+- dashboards
+- welfare instruments
+- trust instruments
+- ICWA notices
+- TRO declarations
+- recorder filings
+- notifications
+- calendar events
+
+Preferred/tribal name is used in UI.
+Legal name is used in PDFs and court captions.
+
+────────────────────────────────────────
+2. Intake Red‑Flag Filter (Always On)
+────────────────────────────────────────
+
+Create:
+/src/sovereign/intake-filter.ts
+
+Integrate into:
+- complaints intake
+- welfare generation
+- trust instruments
+- NFR pipeline
+- recorder filings
+
+Filter must detect:
+- narrowing or misuse of “Indian”
+- denial of tribal status
+- misclassification of Indian land
+- ICWA violations
+- state/county jurisdictional overreach
+
+When triggered:
+- set indian_status_violation: true
+- apply Indian Canons of Construction
+- apply federal Indian law (Worcester, Snyder, ICWA, etc.)
+- recommend NFR posture
+- recommend TRO posture if harm is imminent
+- surface a red banner in UI
+
+────────────────────────────────────────
+3. Welfare Authority Engine (Extensible)
+────────────────────────────────────────
+
+Extend:
+/src/sovereign/welfare-authority.ts
+/src/sovereign/welfare-engine.ts
+/src/lib/doctrine.ts
+/src/routes/court/welfare.ts
+
+Add DB tables:
+/welfare_acts
+/welfare_provisions
+
+Welfare acts must be fully extensible via dashboard:
+- ICWA
+- Snyder Act
+- IHCIA
+- Tribal Family Code
+- Emergency Orders
+- Protective Orders
+- TRO-supporting declarations
+- Any new act added by admin
+
+Engine must:
+- load act + provisions
+- apply doctrine overlays
+- detect TRO triggers
+- route to familyGroup
+- support Intake prepare / Trustee issue workflow
+- log all actions in audit logs
+
+────────────────────────────────────────
+4. Notification Engine (Subscriptions)
+────────────────────────────────────────
+
+Create:
+/src/sovereign/notification-engine.ts
+/src/routes/notifications.ts
+
+Add subscription channels:
+- family governance
+- welfare updates
+- trust instruments
+- recorder filings
+- court hearings
+- tribal announcements
+
+Support:
+- dashboard alerts
+- email
+- push notifications (stub for now)
+
+Use notificationPreferences from identity engine.
+
+────────────────────────────────────────
+5. Calendar Broadcasting Engine
+────────────────────────────────────────
+
+Create:
+/src/sovereign/calendar-engine.ts
+/src/routes/calendar.ts
+
+Every major action can create a calendar event:
+- welfare hearings
+- family governance meetings
+- recorder deadlines
+- NFR review deadlines
+- TRO hearings
+- officer tasks
+- trustee announcements
+
+Events support:
+- Zoom link
+- attached documents
+- role-based visibility
+- familyGroup visibility
+- emergency flags
+
+────────────────────────────────────────
+6. UI Polish (Clarity + Consistency)
+────────────────────────────────────────
+
+Update frontend:
+- highlight active sidebar route
+- consistent spacing + card layout
+- strong status badges:
+  draft, issued, TRO-sensitive, red-flag, recorder-rejected
+- friendly empty states
+- louder visual treatment for welfare/TRO items
+
+────────────────────────────────────────
+7. Governance Safety Net (Authority Control)
+────────────────────────────────────────
+
+Ensure:
+- audit logs capture doctrines applied + TRO flags
+- only sovereign_admin can:
+  - change roles
+  - edit doctrine
+  - edit welfare acts
+  - edit recorder rules
+- sensitive actions require explicit permissions:
+  - NFR generation
+  - TRO issuance
+  - welfare issuance
+  - doctrine editing
+
+────────────────────────────────────────
+
+This completes the final sovereign-grade enhancements and prepares the system for ZIP export.

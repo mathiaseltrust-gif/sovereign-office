@@ -1,13 +1,66 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { welfareInstrumentsTable } from "@workspace/db";
+import { welfareInstrumentsTable, welfareActsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { generateWelfareInstrument, type WelfareInstrumentRequest } from "../../sovereign/welfare-engine";
 import { buildWelfarePdf } from "../../lib/pdf-builder";
+import { runIntakeFilter } from "../../sovereign/intake-filter";
+import { notifyWelfareGenerated, notifyTroGenerated, notifyRedFlag } from "../../sovereign/notification-engine";
+import {
+  listWelfareActs,
+  getWelfareAct,
+  createWelfareAct,
+  ensureWelfareActsSeeded,
+} from "../../sovereign/welfare-authority";
 import { logger } from "../../lib/logger";
 
 const router = Router();
+
+router.get("/acts", requireAuth, async (_req, res, next) => {
+  try {
+    const acts = await listWelfareActs();
+    res.json(acts);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/acts/:code", requireAuth, async (req, res, next) => {
+  try {
+    const act = await getWelfareAct(req.params.code);
+    if (!act) {
+      res.status(404).json({ error: "Welfare act not found" });
+      return;
+    }
+    res.json(act);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/acts", requireAuth, requireRole("admin"), async (req, res, next) => {
+  try {
+    const { code, label, description, federalStatutes, doctrines, troEligible, emergencyEligible } = req.body as {
+      code: string;
+      label: string;
+      description?: string;
+      federalStatutes?: string[];
+      doctrines?: string[];
+      troEligible?: boolean;
+      emergencyEligible?: boolean;
+    };
+    if (!code || !label) {
+      res.status(400).json({ error: "code and label are required" });
+      return;
+    }
+    const userId: string = (req as any).user?.id ?? "system";
+    const act = await createWelfareAct({ code, label, description, federalStatutes, doctrines, troEligible, emergencyEligible, createdBy: userId });
+    res.status(201).json(act);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/", requireAuth, async (_req, res, next) => {
   try {
@@ -56,6 +109,11 @@ router.post("/generate", requireAuth, async (req, res, next) => {
       return;
     }
 
+    const intakeText = JSON.stringify({ ...body.caseDetails, ...body.parties, relief: body.requestedRelief });
+    const intakeFilter = runIntakeFilter(intakeText);
+
+    await ensureWelfareActsSeeded();
+
     const instrument = generateWelfareInstrument(body);
 
     const auditEntry = {
@@ -63,6 +121,15 @@ router.post("/generate", requireAuth, async (req, res, next) => {
       action: "generated",
       userId,
       detail: `Generated ${instrument.instrumentType} under ${instrument.welfareAct}`,
+      doctrinesApplied: instrument.doctrinesApplied,
+      troSensitive: instrument.troSensitive,
+      emergencyOrder: instrument.emergencyOrder,
+      intakeFlags: {
+        redFlag: intakeFilter.redFlag,
+        indianStatusViolation: intakeFilter.indianStatusViolation,
+        troRecommended: intakeFilter.troRecommended,
+        violations: intakeFilter.violations,
+      },
     };
 
     const inserted = await db
@@ -88,9 +155,26 @@ router.post("/generate", requireAuth, async (req, res, next) => {
 
     logger.info({ id: inserted[0]?.id, welfareAct: instrument.welfareAct, troSensitive: instrument.troSensitive }, "Welfare instrument created");
 
+    await notifyWelfareGenerated({
+      instrumentId: inserted[0]!.id,
+      instrumentType: instrument.instrumentType,
+      welfareAct: instrument.welfareAct,
+      troSensitive: instrument.troSensitive,
+      emergency: instrument.emergencyOrder,
+    });
+
+    if (intakeFilter.redFlag && intakeFilter.violations.length > 0) {
+      await notifyRedFlag({
+        violations: intakeFilter.violations,
+        relatedId: inserted[0]!.id,
+        relatedType: "welfare_instrument",
+      });
+    }
+
     res.status(201).json({
       id: inserted[0]?.id,
       ...instrument,
+      intakeFilter,
       dbRecord: inserted[0],
     });
   } catch (err) {
@@ -124,6 +208,9 @@ router.post("/tro", requireAuth, async (req, res, next) => {
       action: "tro_generated",
       userId,
       detail: "TRO-supporting declaration generated",
+      doctrinesApplied: instrument.doctrinesApplied,
+      troSensitive: true,
+      emergencyOrder: true,
     };
 
     const inserted = await db
@@ -146,6 +233,11 @@ router.post("/tro", requireAuth, async (req, res, next) => {
         auditLog: [auditEntry],
       })
       .returning();
+
+    await notifyTroGenerated({
+      instrumentId: inserted[0]!.id,
+      caseNumber: body.caseDetails?.caseNumber,
+    });
 
     res.status(201).json({
       id: inserted[0]?.id,
@@ -201,6 +293,12 @@ router.post("/:id/issue", requireAuth, requireRole("trustee"), async (req, res, 
   try {
     const id = Number(req.params.id);
     const userId: string = (req as any).user?.id ?? "unknown";
+    const userRoles: string[] = (req as any).user?.roles ?? [];
+
+    if (!userRoles.some((r) => ["admin", "trustee"].includes(r))) {
+      res.status(403).json({ error: "Only Chief Justice & Trustee or Admin may issue welfare instruments" });
+      return;
+    }
 
     const rows = await db.select().from(welfareInstrumentsTable).where(eq(welfareInstrumentsTable.id, id)).limit(1);
     if (!rows[0]) {
@@ -214,6 +312,7 @@ router.post("/:id/issue", requireAuth, requireRole("trustee"), async (req, res, 
       action: "issued",
       userId,
       detail: "Issued by Chief Justice & Trustee",
+      doctrinesApplied: existing.doctrinesApplied,
     }];
 
     const updated = await db
