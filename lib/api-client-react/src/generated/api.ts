@@ -42,6 +42,9 @@ import type {
   TrustInstrumentResponse,
   TrustInstrumentSummary,
   UserProfile,
+  WelfareInstrumentInput,
+  WelfareInstrumentRecord,
+  WelfareInstrumentResult,
 } from "./api.schemas";
 
 import { customFetch } from "../custom-fetch";
@@ -52,6 +55,526 @@ type AwaitedInput<T> = PromiseLike<T> | T;
 type Awaited<O> = O extends AwaitedInput<infer T> ? T : never;
 
 type SecondParameter<T extends (...args: never) => unknown> = Parameters<T>[1];
+
+/**
+ * @summary List all welfare instruments
+ */
+export const getListWelfareInstrumentsUrl = () => {
+  return `/api/court/welfare`;
+};
+
+export const listWelfareInstruments = async (
+  options?: RequestInit,
+): Promise<WelfareInstrumentRecord[]> => {
+  return customFetch<WelfareInstrumentRecord[]>(
+    getListWelfareInstrumentsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getListWelfareInstrumentsQueryKey = () => {
+  return [`/api/court/welfare`] as const;
+};
+
+export const getListWelfareInstrumentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listWelfareInstruments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWelfareInstruments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListWelfareInstrumentsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listWelfareInstruments>>
+  > = ({ signal }) => listWelfareInstruments({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listWelfareInstruments>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListWelfareInstrumentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listWelfareInstruments>>
+>;
+export type ListWelfareInstrumentsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all welfare instruments
+ */
+
+export function useListWelfareInstruments<
+  TData = Awaited<ReturnType<typeof listWelfareInstruments>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listWelfareInstruments>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListWelfareInstrumentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Generate a welfare instrument (ICWA, IHCIA, Tribal Code, etc.)
+ */
+export const getGenerateWelfareInstrumentUrl = () => {
+  return `/api/court/welfare/generate`;
+};
+
+export const generateWelfareInstrument = async (
+  welfareInstrumentInput: WelfareInstrumentInput,
+  options?: RequestInit,
+): Promise<WelfareInstrumentResult> => {
+  return customFetch<WelfareInstrumentResult>(
+    getGenerateWelfareInstrumentUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(welfareInstrumentInput),
+    },
+  );
+};
+
+export const getGenerateWelfareInstrumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateWelfareInstrument>>,
+    TError,
+    { data: BodyType<WelfareInstrumentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateWelfareInstrument>>,
+  TError,
+  { data: BodyType<WelfareInstrumentInput> },
+  TContext
+> => {
+  const mutationKey = ["generateWelfareInstrument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateWelfareInstrument>>,
+    { data: BodyType<WelfareInstrumentInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateWelfareInstrument(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateWelfareInstrumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateWelfareInstrument>>
+>;
+export type GenerateWelfareInstrumentMutationBody =
+  BodyType<WelfareInstrumentInput>;
+export type GenerateWelfareInstrumentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate a welfare instrument (ICWA, IHCIA, Tribal Code, etc.)
+ */
+export const useGenerateWelfareInstrument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateWelfareInstrument>>,
+    TError,
+    { data: BodyType<WelfareInstrumentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateWelfareInstrument>>,
+  TError,
+  { data: BodyType<WelfareInstrumentInput> },
+  TContext
+> => {
+  return useMutation(getGenerateWelfareInstrumentMutationOptions(options));
+};
+
+/**
+ * @summary Generate a TRO-supporting declaration
+ */
+export const getGenerateTroDeclarationUrl = () => {
+  return `/api/court/welfare/tro`;
+};
+
+export const generateTroDeclaration = async (
+  welfareInstrumentInput: WelfareInstrumentInput,
+  options?: RequestInit,
+): Promise<WelfareInstrumentResult> => {
+  return customFetch<WelfareInstrumentResult>(getGenerateTroDeclarationUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(welfareInstrumentInput),
+  });
+};
+
+export const getGenerateTroDeclarationMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateTroDeclaration>>,
+    TError,
+    { data: BodyType<WelfareInstrumentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof generateTroDeclaration>>,
+  TError,
+  { data: BodyType<WelfareInstrumentInput> },
+  TContext
+> => {
+  const mutationKey = ["generateTroDeclaration"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof generateTroDeclaration>>,
+    { data: BodyType<WelfareInstrumentInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return generateTroDeclaration(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GenerateTroDeclarationMutationResult = NonNullable<
+  Awaited<ReturnType<typeof generateTroDeclaration>>
+>;
+export type GenerateTroDeclarationMutationBody =
+  BodyType<WelfareInstrumentInput>;
+export type GenerateTroDeclarationMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Generate a TRO-supporting declaration
+ */
+export const useGenerateTroDeclaration = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof generateTroDeclaration>>,
+    TError,
+    { data: BodyType<WelfareInstrumentInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof generateTroDeclaration>>,
+  TError,
+  { data: BodyType<WelfareInstrumentInput> },
+  TContext
+> => {
+  return useMutation(getGenerateTroDeclarationMutationOptions(options));
+};
+
+/**
+ * @summary Get a welfare instrument by ID
+ */
+export const getGetWelfareInstrumentUrl = (id: number) => {
+  return `/api/court/welfare/${id}`;
+};
+
+export const getWelfareInstrument = async (
+  id: number,
+  options?: RequestInit,
+): Promise<WelfareInstrumentRecord> => {
+  return customFetch<WelfareInstrumentRecord>(getGetWelfareInstrumentUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetWelfareInstrumentQueryKey = (id: number) => {
+  return [`/api/court/welfare/${id}`] as const;
+};
+
+export const getGetWelfareInstrumentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getWelfareInstrument>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWelfareInstrument>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetWelfareInstrumentQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getWelfareInstrument>>
+  > = ({ signal }) => getWelfareInstrument(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getWelfareInstrument>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetWelfareInstrumentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getWelfareInstrument>>
+>;
+export type GetWelfareInstrumentQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a welfare instrument by ID
+ */
+
+export function useGetWelfareInstrument<
+  TData = Awaited<ReturnType<typeof getWelfareInstrument>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getWelfareInstrument>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetWelfareInstrumentQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Download welfare instrument as PDF
+ */
+export const getDownloadWelfareInstrumentPdfUrl = (id: number) => {
+  return `/api/court/welfare/${id}/pdf`;
+};
+
+export const downloadWelfareInstrumentPdf = async (
+  id: number,
+  options?: RequestInit,
+): Promise<Blob> => {
+  return customFetch<Blob>(getDownloadWelfareInstrumentPdfUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getDownloadWelfareInstrumentPdfQueryKey = (id: number) => {
+  return [`/api/court/welfare/${id}/pdf`] as const;
+};
+
+export const getDownloadWelfareInstrumentPdfQueryOptions = <
+  TData = Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getDownloadWelfareInstrumentPdfQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>
+  > = ({ signal }) =>
+    downloadWelfareInstrumentPdf(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type DownloadWelfareInstrumentPdfQueryResult = NonNullable<
+  Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>
+>;
+export type DownloadWelfareInstrumentPdfQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Download welfare instrument as PDF
+ */
+
+export function useDownloadWelfareInstrumentPdf<
+  TData = Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>,
+  TError = ErrorType<unknown>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof downloadWelfareInstrumentPdf>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getDownloadWelfareInstrumentPdfQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Issue a welfare instrument (Chief Justice & Trustee only)
+ */
+export const getIssueWelfareInstrumentUrl = (id: number) => {
+  return `/api/court/welfare/${id}/issue`;
+};
+
+export const issueWelfareInstrument = async (
+  id: number,
+  options?: RequestInit,
+): Promise<WelfareInstrumentRecord> => {
+  return customFetch<WelfareInstrumentRecord>(
+    getIssueWelfareInstrumentUrl(id),
+    {
+      ...options,
+      method: "POST",
+    },
+  );
+};
+
+export const getIssueWelfareInstrumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof issueWelfareInstrument>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof issueWelfareInstrument>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["issueWelfareInstrument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof issueWelfareInstrument>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return issueWelfareInstrument(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type IssueWelfareInstrumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof issueWelfareInstrument>>
+>;
+
+export type IssueWelfareInstrumentMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Issue a welfare instrument (Chief Justice & Trustee only)
+ */
+export const useIssueWelfareInstrument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof issueWelfareInstrument>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof issueWelfareInstrument>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getIssueWelfareInstrumentMutationOptions(options));
+};
 
 /**
  * @summary Health check

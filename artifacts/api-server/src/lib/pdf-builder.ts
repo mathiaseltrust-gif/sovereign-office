@@ -328,6 +328,148 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
   };
 }
 
+export interface WelfarePdfInput {
+  id: number;
+  title: string;
+  welfareAct: string;
+  troSensitive: boolean;
+  emergencyOrder: boolean;
+  parties: Record<string, string>;
+  content: string;
+  doctrinesApplied: string[];
+}
+
+export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult> {
+  const pdfDoc = await PDFDocument.create();
+  const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+
+  let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
+  let pageNum = 1;
+
+  function addNewPage(): PDFPage {
+    const p = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    pageNum++;
+    drawCentered(p, `Page ${pageNum} of XX`, MARGIN_BOTTOM - 4, timesRoman, FONT_SMALL_SIZE, rgb(0.3, 0.3, 0.3));
+    return p;
+  }
+
+  let currentY = PAGE_H - 12;
+
+  page.drawText("SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.1, 0.1, 0.4) });
+  currentY -= 12;
+  page.drawText("Office of Tribal Welfare Instruments & Protective Orders", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
+
+  if (input.troSensitive || input.emergencyOrder) {
+    const alertText = input.emergencyOrder ? "⚑ EMERGENCY ORDER — IMMEDIATE ACTION REQUIRED" : "⚑ TRO-SENSITIVE INSTRUMENT";
+    const alertColor = rgb(0.65, 0.1, 0.1);
+    const alertW = timesBold.widthOfTextAtSize(alertText, FONT_BODY_SIZE + 1);
+    const alertX = (PAGE_W - alertW) / 2;
+    page.drawRectangle({ x: alertX - 8, y: PAGE_H - 44, width: alertW + 16, height: 16, color: rgb(0.97, 0.93, 0.93) });
+    page.drawText(alertText, { x: alertX, y: PAGE_H - 42, size: FONT_BODY_SIZE + 1, font: timesBold, color: alertColor });
+  }
+
+  page.drawLine({
+    start: { x: MARGIN_LEFT, y: MARGIN_TOP - 4 },
+    end: { x: PAGE_W - MARGIN_RIGHT, y: MARGIN_TOP - 4 },
+    thickness: 1.5,
+    color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
+  });
+
+  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 26, timesBold, FONT_TITLE_SIZE);
+  drawCentered(page, `Welfare Act: ${input.welfareAct}`, CONTENT_TOP_Y + 8, timesItalic, FONT_BODY_SIZE, rgb(0.3, 0.1, 0.1));
+
+  const sealArea = `[ TRIBAL COURT SEAL — ${input.welfareAct} AUTHORITY ]`;
+  drawCentered(page, sealArea, CONTENT_TOP_Y - 8, timesRoman, FONT_SMALL_SIZE, rgb(0.4, 0.4, 0.4));
+
+  currentY = CONTENT_TOP_Y - 28;
+
+  page.drawLine({
+    start: { x: MARGIN_LEFT, y: currentY + 2 },
+    end: { x: PAGE_W - MARGIN_RIGHT, y: currentY + 2 },
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
+  });
+  currentY -= 16;
+
+  if (Object.keys(input.parties).length > 0) {
+    page.drawText("PARTIES:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+    currentY -= LINE_HEIGHT_BODY;
+    for (const [role, name] of Object.entries(input.parties)) {
+      const label = `${role.toUpperCase()}: `;
+      const labelW = timesBold.widthOfTextAtSize(label, FONT_BODY_SIZE);
+      page.drawText(label, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+      page.drawText(name, { x: MARGIN_LEFT + 12 + labelW, y: currentY, size: FONT_BODY_SIZE, font: timesRoman });
+      currentY -= LINE_HEIGHT_BODY;
+      if (currentY < CONTENT_BOTTOM_Y + 72) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
+    }
+    currentY -= 6;
+  }
+
+  if (input.doctrinesApplied.length > 0) {
+    page.drawText("DOCTRINES APPLIED:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+    currentY -= LINE_HEIGHT_BODY;
+    for (const d of input.doctrinesApplied) {
+      if (currentY < CONTENT_BOTTOM_Y + 72) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
+      const truncated = d.length > 120 ? d.substring(0, 117) + "…" : d;
+      page.drawText(`• ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
+      currentY -= LINE_HEIGHT_BODY - 2;
+    }
+    currentY -= 6;
+  }
+
+  const contentLines = input.content.split("\n");
+  for (const line of contentLines) {
+    if (currentY < CONTENT_BOTTOM_Y + 80) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
+    const trimmed = line.trim();
+    if (!trimmed) { currentY -= LINE_HEIGHT_BODY * 0.4; continue; }
+    if (trimmed === trimmed.toUpperCase() && trimmed.length > 0 && !trimmed.startsWith("•")) {
+      if (currentY < CONTENT_BOTTOM_Y + 100) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
+      currentY = drawTextWrapped(page, trimmed, MARGIN_LEFT, currentY, CONTENT_WIDTH, timesBold, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+    } else {
+      currentY = drawTextWrapped(page, trimmed, MARGIN_LEFT, currentY, CONTENT_WIDTH, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+    }
+  }
+
+  const sigY = CONTENT_BOTTOM_Y + 1.8 * PT_PER_INCH;
+  if (currentY < sigY + 60) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
+
+  currentY = sigY + 52;
+  page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 10 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 10 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText("SIGNATURE BLOCK — SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
+  currentY -= LINE_HEIGHT_BODY + 6;
+
+  const midX = PAGE_W / 2;
+  page.drawText(input.emergencyOrder ? "Emergency Order — Chief Justice Signature:" : "Chief Justice & Trustee Signature:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  page.drawText("Date:", { x: midX + 18, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  currentY -= 4;
+  page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 16 }, end: { x: midX - 18, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  page.drawLine({ start: { x: midX + 48, y: currentY - 16 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  currentY -= 30;
+
+  page.drawText("Intake Officer Signature:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  page.drawText("Badge/ID:", { x: midX + 18, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  currentY -= 4;
+  page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 16 }, end: { x: midX - 18, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  page.drawLine({ start: { x: midX + 70, y: currentY - 16 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+
+  drawCentered(page, `Page 1 of XX`, MARGIN_BOTTOM - 4, timesRoman, FONT_SMALL_SIZE, rgb(0.3, 0.3, 0.3));
+
+  const pdfBytes = await pdfDoc.save();
+  const crypto = await import("node:crypto");
+  const checksum = crypto.createHash("sha256").update(pdfBytes).digest("hex").substring(0, 16);
+
+  logger.info({ id: input.id, welfareAct: input.welfareAct, troSensitive: input.troSensitive, pages: pageNum }, "Welfare instrument PDF generated");
+
+  return {
+    buffer: Buffer.from(pdfBytes),
+    pageCount: pageNum,
+    generatedAt: new Date().toISOString(),
+    checksum,
+  };
+}
+
 export async function buildNfrRecorderPdf(nfrId: number, content: string, classificationData?: Record<string, string>): Promise<PdfResult> {
   return buildRecorderPdf({
     title: `Notice of Fault and Remedies — NFR #${nfrId}`,

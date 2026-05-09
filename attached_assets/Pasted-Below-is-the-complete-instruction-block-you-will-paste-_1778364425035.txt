@@ -1,0 +1,237 @@
+Below is the complete instruction block you will paste into Replit to provision this authority.
+It includes:
+
+Indian Canons of Construction
+
+Federal Indian law supremacy
+
+Tribal jurisdiction
+
+Trust‑land protections
+
+TRO‑ready outputs
+
+Automatic doctrine application
+
+Welfare Act–specific provisions
+
+This becomes part of the Office of the Chief Justice & Trustee.
+
+⭐ INSTRUCTION BLOCK
+Provision Tribal Court Authority to Generate Indian Welfare Act Instruments
+Create or update:
+
+/src/sovereign/authority.ts
+
+/src/sovereign/welfare-engine.ts
+
+/src/routes/court/welfare.ts
+
+/src/lib/doctrine.ts
+
+/src/lib/pdf-builder.ts
+
+Purpose
+Provision the Tribal Court so that either Intake or the Office of the Chief Justice & Trustee may generate any instrument, notice, certification, or protective order authorized under:
+
+Indian Child Welfare Act (ICWA)
+
+Indian Health Care Improvement Act
+
+Indian Self‑Determination & Education Assistance Act
+
+Snyder Act
+
+Tribal Family Protection Codes
+
+Tribal Welfare Codes
+
+Tribal Court Protective Orders
+
+Emergency Welfare Orders
+
+TRO‑related welfare protections
+
+Capabilities
+1. Welfare Instrument Generator
+Implement /src/sovereign/welfare-engine.ts with the ability to generate:
+
+ICWA notices
+
+ICWA transfer requests
+
+ICWA jurisdiction declarations
+
+Tribal family placement preferences
+
+Tribal welfare certifications
+
+Tribal medical necessity certifications
+
+Tribal protective orders
+
+Emergency welfare orders
+
+TRO‑supporting welfare declarations
+
+Each instrument must:
+
+Pull in applicable federal statutes
+
+Pull in tribal welfare code provisions
+
+Pull in trust‑land protections
+
+Pull in Indian Canons of Construction
+
+Auto‑insert sovereign jurisdiction statements
+
+Auto‑insert federal preemption clauses
+
+2. Doctrine‑Aware Provision Selection
+When a welfare instrument is requested, the system must:
+
+Identify the welfare act
+
+Identify the applicable provisions
+
+Apply doctrine automatically
+
+Insert required statutory language
+
+Insert tribal jurisdiction language
+
+Insert trust‑land protections
+
+Insert federal supremacy clauses
+
+Doctrine engine must apply:
+
+Indian Canons of Construction
+
+Worcester v. Georgia
+
+Snyder Act
+
+ICWA supremacy
+
+Montoya tribal authority
+
+Federal preemption over state welfare agencies
+
+3. TRO‑Ready Output
+For any welfare instrument involving:
+
+removal of a child
+
+denial of medical care
+
+interference by state agencies
+
+refusal to recognize tribal jurisdiction
+
+denial of ICWA transfer
+
+denial of tribal placement preferences
+
+The system must:
+
+Mark the instrument as TRO‑sensitive
+
+Generate a TRO‑supporting declaration
+
+Include facts relevant to emergency relief
+
+Include doctrine supporting TRO issuance
+
+Include federal supremacy language
+
+Include tribal jurisdiction language
+
+4. PDF Generation
+Use the existing recorder‑compliant PDF builder, but add:
+
+Welfare‑specific formatting
+
+Required statutory citations
+
+Tribal seal stamping
+
+Emergency order formatting
+
+Welfare‑specific metadata
+
+5. Intake + Authority Access
+Both:
+
+Intake Officers, and
+
+Chief Justice & Trustee
+
+must be able to generate welfare instruments.
+
+Rules:
+
+Intake may prepare
+
+Chief Justice & Trustee may issue
+
+All actions logged in audit logs
+
+6. Endpoints
+Create:
+
+POST /api/court/welfare/generate
+
+POST /api/court/welfare/tro
+
+GET /api/court/welfare/:id/pdf
+
+Payload:
+
+Code
+{
+  welfareAct: "ICWA" | "SNYDER" | "IHCIA" | "TRIBAL_CODE" | ...,
+  caseDetails: {...},
+  child: {...},
+  parties: {...},
+  landStatus: {...},
+  emergency: boolean,
+  requestedRelief: [...],
+  doctrineContext: [...]
+}
+7. Audit Logging
+Every welfare instrument must log:
+
+who generated it
+
+who issued it
+
+which welfare act was invoked
+
+which doctrine rules were applied
+
+whether TRO‑sensitive
+
+whether emergency relief was requested
+
+8. Dashboard Integration
+Add a new menu item:
+
+“Welfare Instruments”
+
+With:
+
+Create new
+
+View all
+
+TRO queue
+
+Emergency orders
+
+ICWA notices
+
+Transfer requests
+
+Protective orders

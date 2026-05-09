@@ -31,9 +31,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeRole, setActiveRole] = useState<Role>("trustee");
   const user = DEV_USERS[activeRole];
 
+  setAuthTokenGetter(() => makeToken(user));
+
   useEffect(() => {
-    setAuthTokenGetter(() => makeToken(user));
-  }, [user]);
+    return () => { setAuthTokenGetter(null); };
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, activeRole, switchRole: setActiveRole }}>

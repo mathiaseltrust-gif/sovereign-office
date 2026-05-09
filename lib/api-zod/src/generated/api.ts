@@ -8,6 +8,163 @@
 import * as zod from "zod";
 
 /**
+ * @summary List all welfare instruments
+ */
+export const ListWelfareInstrumentsResponseItem = zod.object({
+  id: zod.number(),
+  welfareAct: zod.string(),
+  instrumentType: zod.string(),
+  status: zod.string(),
+  troSensitive: zod.boolean(),
+  emergencyOrder: zod.boolean(),
+  caseDetails: zod.object({}).passthrough().nullish(),
+  childInfo: zod.object({}).passthrough().nullish(),
+  parties: zod.object({}).passthrough().nullish(),
+  requestedRelief: zod.array(zod.string()).nullish(),
+  doctrinesApplied: zod.array(zod.string()).nullish(),
+  content: zod.string().nullish(),
+  pdfUrl: zod.string().nullish(),
+  generatedBy: zod.string().nullish(),
+  issuedBy: zod.string().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListWelfareInstrumentsResponse = zod.array(
+  ListWelfareInstrumentsResponseItem,
+);
+
+/**
+ * @summary Generate a welfare instrument (ICWA, IHCIA, Tribal Code, etc.)
+ */
+export const GenerateWelfareInstrumentBody = zod.object({
+  welfareAct: zod.enum([
+    "ICWA",
+    "SNYDER",
+    "IHCIA",
+    "ISDEAA",
+    "TRIBAL_CODE",
+    "TRIBAL_WELFARE",
+    "TRIBAL_PROTECTIVE_ORDER",
+    "EMERGENCY_WELFARE",
+    "TRO_WELFARE",
+  ]),
+  instrumentType: zod.enum([
+    "icwa_notice",
+    "icwa_transfer_request",
+    "icwa_jurisdiction_declaration",
+    "tribal_family_placement_preference",
+    "tribal_welfare_certification",
+    "tribal_medical_necessity_certification",
+    "tribal_protective_order",
+    "emergency_welfare_order",
+    "tro_supporting_declaration",
+  ]),
+  caseDetails: zod.record(zod.string(), zod.string()),
+  child: zod.record(zod.string(), zod.string()).optional(),
+  parties: zod.record(zod.string(), zod.string()),
+  landStatus: zod.record(zod.string(), zod.string()).optional(),
+  emergency: zod.boolean(),
+  requestedRelief: zod.array(zod.string()),
+  doctrineContext: zod.array(zod.string()).optional(),
+});
+
+/**
+ * @summary Generate a TRO-supporting declaration
+ */
+export const GenerateTroDeclarationBody = zod.object({
+  welfareAct: zod.enum([
+    "ICWA",
+    "SNYDER",
+    "IHCIA",
+    "ISDEAA",
+    "TRIBAL_CODE",
+    "TRIBAL_WELFARE",
+    "TRIBAL_PROTECTIVE_ORDER",
+    "EMERGENCY_WELFARE",
+    "TRO_WELFARE",
+  ]),
+  instrumentType: zod.enum([
+    "icwa_notice",
+    "icwa_transfer_request",
+    "icwa_jurisdiction_declaration",
+    "tribal_family_placement_preference",
+    "tribal_welfare_certification",
+    "tribal_medical_necessity_certification",
+    "tribal_protective_order",
+    "emergency_welfare_order",
+    "tro_supporting_declaration",
+  ]),
+  caseDetails: zod.record(zod.string(), zod.string()),
+  child: zod.record(zod.string(), zod.string()).optional(),
+  parties: zod.record(zod.string(), zod.string()),
+  landStatus: zod.record(zod.string(), zod.string()).optional(),
+  emergency: zod.boolean(),
+  requestedRelief: zod.array(zod.string()),
+  doctrineContext: zod.array(zod.string()).optional(),
+});
+
+/**
+ * @summary Get a welfare instrument by ID
+ */
+export const GetWelfareInstrumentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetWelfareInstrumentResponse = zod.object({
+  id: zod.number(),
+  welfareAct: zod.string(),
+  instrumentType: zod.string(),
+  status: zod.string(),
+  troSensitive: zod.boolean(),
+  emergencyOrder: zod.boolean(),
+  caseDetails: zod.object({}).passthrough().nullish(),
+  childInfo: zod.object({}).passthrough().nullish(),
+  parties: zod.object({}).passthrough().nullish(),
+  requestedRelief: zod.array(zod.string()).nullish(),
+  doctrinesApplied: zod.array(zod.string()).nullish(),
+  content: zod.string().nullish(),
+  pdfUrl: zod.string().nullish(),
+  generatedBy: zod.string().nullish(),
+  issuedBy: zod.string().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Download welfare instrument as PDF
+ */
+export const DownloadWelfareInstrumentPdfParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+/**
+ * @summary Issue a welfare instrument (Chief Justice & Trustee only)
+ */
+export const IssueWelfareInstrumentParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const IssueWelfareInstrumentResponse = zod.object({
+  id: zod.number(),
+  welfareAct: zod.string(),
+  instrumentType: zod.string(),
+  status: zod.string(),
+  troSensitive: zod.boolean(),
+  emergencyOrder: zod.boolean(),
+  caseDetails: zod.object({}).passthrough().nullish(),
+  childInfo: zod.object({}).passthrough().nullish(),
+  parties: zod.object({}).passthrough().nullish(),
+  requestedRelief: zod.array(zod.string()).nullish(),
+  doctrinesApplied: zod.array(zod.string()).nullish(),
+  content: zod.string().nullish(),
+  pdfUrl: zod.string().nullish(),
+  generatedBy: zod.string().nullish(),
+  issuedBy: zod.string().nullish(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
  * @summary Health check
  */
 export const HealthCheckResponse = zod.object({

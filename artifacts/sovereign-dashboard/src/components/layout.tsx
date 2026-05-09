@@ -17,6 +17,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <NavLink href="/instruments" label="Trust Instruments" />
           <NavLink href="/filings" label="Filings" />
           <NavLink href="/nfr" label="NFR Documents" />
+          <NavLink href="/welfare" label="Welfare Instruments" />
           <NavLink href="/classify" label="Classification" />
           <NavLink href="/complaints" label="Complaints" />
           <NavLink href="/tasks" label="Tasks" />

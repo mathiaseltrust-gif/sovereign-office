@@ -359,6 +359,120 @@ export interface AdminActionResult {
   message?: string | null;
 }
 
+export type WelfareInstrumentInputWelfareAct =
+  (typeof WelfareInstrumentInputWelfareAct)[keyof typeof WelfareInstrumentInputWelfareAct];
+
+export const WelfareInstrumentInputWelfareAct = {
+  ICWA: "ICWA",
+  SNYDER: "SNYDER",
+  IHCIA: "IHCIA",
+  ISDEAA: "ISDEAA",
+  TRIBAL_CODE: "TRIBAL_CODE",
+  TRIBAL_WELFARE: "TRIBAL_WELFARE",
+  TRIBAL_PROTECTIVE_ORDER: "TRIBAL_PROTECTIVE_ORDER",
+  EMERGENCY_WELFARE: "EMERGENCY_WELFARE",
+  TRO_WELFARE: "TRO_WELFARE",
+} as const;
+
+export type WelfareInstrumentInputInstrumentType =
+  (typeof WelfareInstrumentInputInstrumentType)[keyof typeof WelfareInstrumentInputInstrumentType];
+
+export const WelfareInstrumentInputInstrumentType = {
+  icwa_notice: "icwa_notice",
+  icwa_transfer_request: "icwa_transfer_request",
+  icwa_jurisdiction_declaration: "icwa_jurisdiction_declaration",
+  tribal_family_placement_preference: "tribal_family_placement_preference",
+  tribal_welfare_certification: "tribal_welfare_certification",
+  tribal_medical_necessity_certification:
+    "tribal_medical_necessity_certification",
+  tribal_protective_order: "tribal_protective_order",
+  emergency_welfare_order: "emergency_welfare_order",
+  tro_supporting_declaration: "tro_supporting_declaration",
+} as const;
+
+export type WelfareInstrumentInputCaseDetails = { [key: string]: string };
+
+export type WelfareInstrumentInputChild = { [key: string]: string };
+
+export type WelfareInstrumentInputParties = { [key: string]: string };
+
+export type WelfareInstrumentInputLandStatus = { [key: string]: string };
+
+export interface WelfareInstrumentInput {
+  welfareAct: WelfareInstrumentInputWelfareAct;
+  instrumentType: WelfareInstrumentInputInstrumentType;
+  caseDetails: WelfareInstrumentInputCaseDetails;
+  child?: WelfareInstrumentInputChild;
+  parties: WelfareInstrumentInputParties;
+  landStatus?: WelfareInstrumentInputLandStatus;
+  emergency: boolean;
+  requestedRelief: string[];
+  doctrineContext?: string[];
+}
+
+export interface WelfareInstrumentResult {
+  id?: number;
+  instrumentType: string;
+  welfareAct: string;
+  title: string;
+  troSensitive: boolean;
+  emergencyOrder: boolean;
+  doctrinesApplied: string[];
+  federalStatutes?: string[];
+  provisions: string[];
+  /** @nullable */
+  troDeclaration?: string | null;
+  content: string;
+}
+
+/**
+ * @nullable
+ */
+export type WelfareInstrumentRecordCaseDetails = {
+  [key: string]: unknown;
+} | null;
+
+/**
+ * @nullable
+ */
+export type WelfareInstrumentRecordChildInfo = {
+  [key: string]: unknown;
+} | null;
+
+/**
+ * @nullable
+ */
+export type WelfareInstrumentRecordParties = { [key: string]: unknown } | null;
+
+export interface WelfareInstrumentRecord {
+  id: number;
+  welfareAct: string;
+  instrumentType: string;
+  status: string;
+  troSensitive: boolean;
+  emergencyOrder: boolean;
+  /** @nullable */
+  caseDetails?: WelfareInstrumentRecordCaseDetails;
+  /** @nullable */
+  childInfo?: WelfareInstrumentRecordChildInfo;
+  /** @nullable */
+  parties?: WelfareInstrumentRecordParties;
+  /** @nullable */
+  requestedRelief?: string[] | null;
+  /** @nullable */
+  doctrinesApplied?: string[] | null;
+  /** @nullable */
+  content?: string | null;
+  /** @nullable */
+  pdfUrl?: string | null;
+  /** @nullable */
+  generatedBy?: string | null;
+  /** @nullable */
+  issuedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type ListInstrumentTemplates200 = {
   templates?: string[];
 };

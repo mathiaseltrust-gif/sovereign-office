@@ -12,6 +12,7 @@ import searchRouter from "./search/index";
 import userProfileRouter from "./user/profile";
 import adminEntraRouter from "./admin/entra";
 import adminBootstrapRouter from "./admin/bootstrap";
+import welfareRouter from "./court/welfare";
 
 const router: IRouter = Router();
 
@@ -29,5 +30,6 @@ router.use("/search", searchRouter);
 router.use("/user/profile", userProfileRouter);
 router.use("/admin/entra", adminEntraRouter);
 router.use("/admin/bootstrap", adminBootstrapRouter);
+router.use("/court/welfare", welfareRouter);
 
 export default router;

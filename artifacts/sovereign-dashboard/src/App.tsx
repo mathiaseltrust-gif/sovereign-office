@@ -20,6 +20,7 @@ import SearchPage from "@/pages/search";
 import AdminPage from "@/pages/admin";
 import ProfilePage from "@/pages/profile";
 import TemplatesPage from "@/pages/templates";
+import WelfarePage from "@/pages/welfare";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -60,6 +61,7 @@ function Router() {
         <Route path="/admin" component={AdminPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/templates" component={TemplatesPage} />
+        <Route path="/welfare" component={WelfarePage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

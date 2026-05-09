@@ -29,7 +29,122 @@ tags:
     description: User profile
   - name: admin
     description: Administrative operations
+  - name: welfare
+    description: Tribal welfare instruments (ICWA, IHCIA, ISDEAA, protective orders, TRO)
 paths:
+  /court/welfare:
+    get:
+      operationId: listWelfareInstruments
+      tags: [welfare]
+      summary: List all welfare instruments
+      responses:
+        "200":
+          description: List of welfare instruments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WelfareInstrumentRecord"
+
+  /court/welfare/generate:
+    post:
+      operationId: generateWelfareInstrument
+      tags: [welfare]
+      summary: Generate a welfare instrument (ICWA, IHCIA, Tribal Code, etc.)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WelfareInstrumentInput"
+      responses:
+        "201":
+          description: Generated welfare instrument with doctrine and provisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareInstrumentResult"
+
+  /court/welfare/tro:
+    post:
+      operationId: generateTroDeclaration
+      tags: [welfare]
+      summary: Generate a TRO-supporting declaration
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WelfareInstrumentInput"
+      responses:
+        "201":
+          description: TRO-supporting declaration with emergency provisions
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareInstrumentResult"
+
+  /court/welfare/{id}:
+    get:
+      operationId: getWelfareInstrument
+      tags: [welfare]
+      summary: Get a welfare instrument by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Welfare instrument record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareInstrumentRecord"
+        "404":
+          description: Not found
+
+  /court/welfare/{id}/pdf:
+    get:
+      operationId: downloadWelfareInstrumentPdf
+      tags: [welfare]
+      summary: Download welfare instrument as PDF
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PDF binary
+          content:
+            application/pdf:
+              schema:
+                type: string
+                format: binary
+
+  /court/welfare/{id}/issue:
+    post:
+      operationId: issueWelfareInstrument
+      tags: [welfare]
+      summary: Issue a welfare instrument (Chief Justice & Trustee only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Issued welfare instrument
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WelfareInstrumentRecord"
+
   /healthz:
     get:
       operationId: healthCheck
@@ -772,3 +887,77 @@ components:
         user: { type: ["object", "null"] }
         users: { type: ["array", "null"], items: { type: object } }
         message: { type: ["string", "null"] }
+
+    WelfareInstrumentInput:
+      type: object
+      properties:
+        welfareAct:
+          type: string
+          enum: [ICWA, SNYDER, IHCIA, ISDEAA, TRIBAL_CODE, TRIBAL_WELFARE, TRIBAL_PROTECTIVE_ORDER, EMERGENCY_WELFARE, TRO_WELFARE]
+        instrumentType:
+          type: string
+          enum: [icwa_notice, icwa_transfer_request, icwa_jurisdiction_declaration, tribal_family_placement_preference, tribal_welfare_certification, tribal_medical_necessity_certification, tribal_protective_order, emergency_welfare_order, tro_supporting_declaration]
+        caseDetails:
+          type: object
+          additionalProperties: { type: string }
+        child:
+          type: object
+          additionalProperties: { type: string }
+        parties:
+          type: object
+          additionalProperties: { type: string }
+        landStatus:
+          type: object
+          additionalProperties: { type: string }
+        emergency: { type: boolean }
+        requestedRelief:
+          type: array
+          items: { type: string }
+        doctrineContext:
+          type: array
+          items: { type: string }
+      required: [welfareAct, instrumentType, caseDetails, parties, emergency, requestedRelief]
+
+    WelfareInstrumentResult:
+      type: object
+      properties:
+        id: { type: integer }
+        instrumentType: { type: string }
+        welfareAct: { type: string }
+        title: { type: string }
+        troSensitive: { type: boolean }
+        emergencyOrder: { type: boolean }
+        doctrinesApplied:
+          type: array
+          items: { type: string }
+        federalStatutes:
+          type: array
+          items: { type: string }
+        provisions:
+          type: array
+          items: { type: string }
+        troDeclaration: { type: ["string", "null"] }
+        content: { type: string }
+      required: [instrumentType, welfareAct, title, troSensitive, emergencyOrder, doctrinesApplied, provisions, content]
+
+    WelfareInstrumentRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        welfareAct: { type: string }
+        instrumentType: { type: string }
+        status: { type: string }
+        troSensitive: { type: boolean }
+        emergencyOrder: { type: boolean }
+        caseDetails: { type: ["object", "null"] }
+        childInfo: { type: ["object", "null"] }
+        parties: { type: ["object", "null"] }
+        requestedRelief: { type: ["array", "null"], items: { type: string } }
+        doctrinesApplied: { type: ["array", "null"], items: { type: string } }
+        content: { type: ["string", "null"] }
+        pdfUrl: { type: ["string", "null"] }
+        generatedBy: { type: ["string", "null"] }
+        issuedBy: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, welfareAct, instrumentType, status, troSensitive, emergencyOrder, createdAt, updatedAt]
