@@ -7,10 +7,30 @@ const router = Router();
 
 router.post("/", async (req, res, next) => {
   try {
-    const existing = await db.select().from(usersTable).where(eq(usersTable.role, "admin")).limit(1);
+    const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
+    if (!bootstrapSecret) {
+      res.status(503).json({ error: "Bootstrap is not configured on this server." });
+      return;
+    }
+
+    const providedSecret =
+      (req.headers["x-bootstrap-secret"] as string | undefined) ?? req.body.bootstrapSecret;
+
+    if (!providedSecret || providedSecret !== bootstrapSecret) {
+      res.status(401).json({ error: "Invalid or missing bootstrap secret." });
+      return;
+    }
+
+    const existing = await db
+      .select()
+      .from(usersTable)
+      .where(eq(usersTable.role, "admin"))
+      .limit(1);
+
     if (existing.length > 0) {
       res.status(403).json({
-        error: "Bootstrap is disabled after the first admin account is created. Use POST /api/admin/entra to manage users.",
+        error:
+          "Bootstrap is disabled after the first admin account is created. Use POST /api/admin/entra to manage users.",
       });
       return;
     }
