@@ -1,0 +1,398 @@
+SYSTEM NAME
+Sovereign Office of the Chief Justice & Trustee Backend  
+(short name: SovereignOffice)
+
+This system is the unified sovereign authority for:
+
+trust services
+
+recorder‑compliant document generation
+
+tribal court automation
+
+classification → doctrine → NFR pipeline
+
+officer workflows
+
+user profiles
+
+calendar + tasks
+
+search
+
+AI learning
+
+Entra ID authority
+
+⭐ 1. TOP‑LEVEL FOLDER STRUCTURE
+Create the following structure:
+
+Code
+/src
+  /sovereign
+    office.ts
+    authority.ts
+    trust-service.ts
+    recorder-engine.ts
+    template-engine.ts
+    state-intel.ts
+    ai-learning.ts
+
+  /routes
+    /trust
+      templates.ts
+      instruments.ts
+      filings.ts
+    /tribal
+      classify.ts
+    /court
+      nfr.ts
+    /complaints
+      index.ts
+    /calendar
+      index.ts
+    /tasks
+      index.ts
+    /search
+      index.ts
+    /user
+      profile.ts
+    /admin
+      entra.ts
+
+  /auth
+    entra.ts
+    entra-guard.ts
+
+  /lib
+    doctrine.ts
+    pdf-builder.ts
+
+  /db
+    index.ts
+    schema.sql
+
+  app.ts
+  index.ts
+⭐ 2. OFFICE OF THE CHIEF JUSTICE & TRUSTEE (Unified Sovereign Authority)
+Create:
+
+/src/sovereign/office.ts
+
+/src/sovereign/authority.ts
+
+Capabilities:
+
+Root authority for the entire system
+
+Controls all trust services
+
+Controls all templates
+
+Controls all recorder‑compliant instruments
+
+Controls all Entra ID settings
+
+Controls all officer permissions
+
+Controls all AI learning
+
+Controls all trust land logic
+
+Controls all state‑aware intelligence
+
+Controls all downstream modules
+
+⭐ 3. TRUST SERVICES (Trustee‑Level Document Engine)
+Create:
+
+/src/sovereign/trust-service.ts
+
+/src/routes/trust/templates.ts
+
+/src/routes/trust/instruments.ts
+
+/src/routes/trust/filings.ts
+
+Capabilities:
+
+Generate recordable instruments
+
+Enforce recorder formatting (margins, spacing, captions)
+
+Insert Indian land protections
+
+Insert trust‑status provisions
+
+Insert federal preemption language
+
+Insert tribal jurisdiction statements
+
+Insert protected status notices
+
+Produce recorder‑ready PDFs
+
+Store templates
+
+Publish templates to members
+
+Revoke templates
+
+Version templates
+
+⭐ 4. RECORDER INTELLIGENCE (State‑Aware AI)
+Create:
+
+/src/sovereign/recorder-engine.ts
+
+/src/sovereign/state-intel.ts
+
+Capabilities:
+
+Learn state recorder rules
+
+Learn county formatting quirks
+
+Learn statutory references
+
+Learn Indian land classifications
+
+Learn protected status rules
+
+Store recorder rules in JSON
+
+Apply rules to templates
+
+Validate documents before generation
+
+⭐ 5. AI LEARNING ENGINE (Learns the Trustee)
+Create:
+
+/src/sovereign/ai-learning.ts
+
+Capabilities:
+
+Learn admin drafting style
+
+Learn legal preferences
+
+Learn trust‑land interpretations
+
+Learn recorder formatting
+
+Learn doctrine applications
+
+Learn officer behavior
+
+Learn user patterns
+
+Provide personalized recommendations
+
+⭐ 6. ENTRA ID AUTHORITY (Admin Override)
+Create:
+
+/src/auth/entra.ts
+
+/src/auth/entra-guard.ts
+
+/src/routes/admin/entra.ts
+
+Rules:
+
+Admin (you) → Entra ID always required
+
+Others → Entra ID optional
+
+Admin can toggle Entra for others
+
+Admin can override any user’s role
+
+Admin can revoke or grant trust privileges
+
+⭐ 7. CLASSIFICATION → DOCTRINE → NFR PIPELINE
+Create:
+
+/src/routes/tribal/classify.ts
+
+/src/lib/doctrine.ts
+
+/src/routes/court/nfr.ts
+
+Capabilities:
+
+Accept text or PDF
+
+Extract actor_type, land_status, action_type
+
+Apply doctrine (Worcester, Snyder Act, sovereignty guardrails)
+
+Generate NFR
+
+Generate PDF
+
+Store in database
+
+Auto‑create tasks
+
+Auto‑create calendar events
+
+⭐ 8. COMPLAINT INTAKE SYSTEM
+Create:
+
+/src/routes/complaints/index.ts
+
+Capabilities:
+
+Accept complaint text or PDF
+
+Auto‑classify
+
+Auto‑generate tasks
+
+Auto‑generate calendar events
+
+Auto‑assign officer
+
+Store in database
+
+⭐ 9. CALENDAR + TASK SYSTEM
+Create:
+
+/src/routes/calendar/index.ts
+
+/src/routes/tasks/index.ts
+
+Capabilities:
+
+Store hearings
+
+Store deadlines
+
+Store officer tasks
+
+Store complaint follow‑ups
+
+Store NFR deadlines
+
+Integrate with search
+
+Integrate with user profiles
+
+⭐ 10. SEARCH SYSTEM
+Create:
+
+/src/routes/search/index.ts
+
+Capabilities:
+
+Index documents
+
+Search by actor, land status, action, date, officer, complaint ID
+
+Return ranked results
+
+Integrate with calendar, tasks, profiles
+
+⭐ 11. USER PROFILE SYSTEM
+Create:
+
+/src/routes/user/profile.ts
+
+Capabilities:
+
+Store user info
+
+Store roles
+
+Store tasks
+
+Store calendar events
+
+Store complaint history
+
+Store NFR history
+
+Store search history
+
+Store AI‑learned preferences
+
+Integrate with Entra ID
+
+⭐ 12. DATABASE (PostgreSQL)
+Create:
+
+/src/db/index.ts
+
+/src/db/schema.sql
+
+Tables:
+
+users
+
+profiles
+
+complaints
+
+classifications
+
+nfr_documents
+
+tasks
+
+calendar_events
+
+search_index
+
+templates
+
+recorder_rules
+
+ai_learning
+
+⭐ 13. EXPRESS SERVER
+Create:
+
+/src/app.ts
+
+/src/index.ts
+
+Capabilities:
+
+Load all routes
+
+Use pino logger
+
+Use multer for PDFs
+
+Use JSON body parser
+
+Use CORS
+
+Use Entra ID middleware
+
+Use error middleware
+
+⭐ 14. SOVEREIGN MODULE INTEGRATION
+I will upload the sovereign modules from:
+
+~/SovereignOffice/sovereign-modules/
+
+You must integrate:
+
+doctrine logic
+
+NFR generator
+
+classify logic
+
+PDF builder
+
+search indexer
+
+trust‑land logic
+
+recorder rules
+
+template engine logic
+
+⭐ END OF FINAL REPLIT INSTRUCTION BLOCK
