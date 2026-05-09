@@ -5,6 +5,7 @@ import multer from "multer";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { entraMiddleware } from "./auth/entra";
+import { requireEntraIfRequired } from "./auth/entra-guard";
 import { sovereignOffice } from "./sovereign/office";
 
 const app: Express = express();
@@ -33,6 +34,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 app.use(entraMiddleware);
+app.use(requireEntraIfRequired);
 
 logger.info({ authority: sovereignOffice.getAuthority() }, "Sovereign authority online");
 
