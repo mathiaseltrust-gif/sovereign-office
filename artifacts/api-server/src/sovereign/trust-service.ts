@@ -9,11 +9,11 @@ export interface RecorderFormattingRules {
 }
 
 export const DEFAULT_RECORDER_FORMAT: RecorderFormattingRules = {
-  marginTop: 1.0,
-  marginBottom: 1.0,
-  marginLeft: 1.5,
-  marginRight: 1.0,
-  fontSize: 12,
+  marginTop: 2.5,
+  marginBottom: 0.5,
+  marginLeft: 0.5,
+  marginRight: 0.5,
+  fontSize: 11,
   fontFamily: "Times New Roman",
   captionRequired: true,
 };
@@ -27,6 +27,28 @@ export interface InstrumentOptions {
   trustStatus?: boolean;
   federalPreemption?: boolean;
   tribalJurisdiction?: boolean;
+  title?: string;
+  land?: {
+    description?: string;
+    apn?: string;
+    county?: string;
+    state?: string;
+    classification?: string;
+  };
+  partiesMap?: Record<string, string>;
+  provisions?: string[];
+  trusteeNotes?: string;
+  recorderMetadata?: {
+    returnAddress?: string;
+    apn?: string;
+    county?: string;
+    state?: string;
+    documentType?: string;
+    filingCategory?: string;
+    trustStatus?: string;
+    landClassification?: string;
+    requiresNotary?: boolean;
+  };
 }
 
 export function buildInstrumentContent(opts: InstrumentOptions): string {
@@ -38,7 +60,7 @@ export function buildInstrumentContent(opts: InstrumentOptions): string {
   lines.push(`JURISDICTION: ${opts.jurisdiction}`);
   lines.push("");
 
-  if (opts.indianLandProtection) {
+  if (opts.indianLandProtection ?? true) {
     lines.push(
       "INDIAN LAND PROTECTION NOTICE: This instrument involves Indian trust land or restricted Indian land and is subject to applicable federal laws governing Indian land transactions, including but not limited to 25 U.S.C. § 177 and related statutes.",
     );
@@ -50,7 +72,7 @@ export function buildInstrumentContent(opts: InstrumentOptions): string {
     );
   }
 
-  if (opts.federalPreemption) {
+  if (opts.federalPreemption ?? true) {
     lines.push(
       "FEDERAL PREEMPTION NOTICE: Federal law preempts any state law that would impair the rights of Indian tribes or individual Indians in this transaction. Worcester v. Georgia, 31 U.S. 515 (1832); McClanahan v. Arizona State Tax Comm'n, 411 U.S. 164 (1973).",
     );
@@ -68,18 +90,15 @@ export function buildInstrumentContent(opts: InstrumentOptions): string {
   return lines.join("\n");
 }
 
-export function validateInstrumentForRecorder(content: string, _format: RecorderFormattingRules): { valid: boolean; errors: string[] } {
+export function validateInstrumentForRecorder(
+  content: string,
+  _format: RecorderFormattingRules,
+): { valid: boolean; errors: string[] } {
   const errors: string[] = [];
 
-  if (!content.includes("INSTRUMENT TYPE:")) {
-    errors.push("Missing instrument type declaration");
-  }
-  if (!content.includes("LEGAL DESCRIPTION:")) {
-    errors.push("Missing legal description");
-  }
-  if (!content.includes("JURISDICTION:")) {
-    errors.push("Missing jurisdiction statement");
-  }
+  if (!content.includes("INSTRUMENT TYPE:")) errors.push("Missing instrument type declaration");
+  if (!content.includes("LEGAL DESCRIPTION:")) errors.push("Missing legal description");
+  if (!content.includes("JURISDICTION:") && !content.includes("jurisdiction")) errors.push("Missing jurisdiction statement");
 
   return { valid: errors.length === 0, errors };
 }

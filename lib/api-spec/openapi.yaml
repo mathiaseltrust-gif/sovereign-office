@@ -1,22 +1,40 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Sovereign Office of the Chief Justice & Trustee API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: instruments
+    description: Trust instrument operations
+  - name: filings
+    description: Trust filing operations
+  - name: classify
+    description: Tribal classification pipeline
+  - name: nfr
+    description: Notice of Fault and Remedies documents
+  - name: complaints
+    description: Complaint intake and management
+  - name: tasks
+    description: Task management
+  - name: calendar
+    description: Calendar events
+  - name: search
+    description: Cross-entity search
+  - name: profile
+    description: User profile
+  - name: admin
+    description: Administrative operations
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
       summary: Health check
-      description: Returns server health status
       responses:
         "200":
           description: Healthy
@@ -24,6 +42,436 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /trust/instruments:
+    get:
+      operationId: listInstruments
+      tags: [instruments]
+      summary: List all trust instruments
+      responses:
+        "200":
+          description: List of instruments
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrustInstrumentSummary"
+    post:
+      operationId: createInstrument
+      tags: [instruments]
+      summary: Create and generate a recorder-compliant trust instrument
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TrustInstrumentInput"
+      responses:
+        "201":
+          description: Created instrument with PDF
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustInstrumentResponse"
+
+  /trust/instruments/templates:
+    get:
+      operationId: listInstrumentTemplates
+      tags: [instruments]
+      summary: List available built-in templates
+      responses:
+        "200":
+          description: Template list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  templates:
+                    type: array
+                    items:
+                      type: string
+
+  /trust/instruments/{id}:
+    get:
+      operationId: getInstrument
+      tags: [instruments]
+      summary: Get trust instrument by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Trust instrument
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustInstrumentDetail"
+        "404":
+          description: Not found
+
+  /trust/instruments/{id}/file:
+    post:
+      operationId: fileInstrument
+      tags: [instruments]
+      summary: File an instrument with a county recorder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FilingInput"
+      responses:
+        "201":
+          description: Filing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustFiling"
+
+  /trust/instruments/{id}/submit:
+    post:
+      operationId: submitInstrument
+      tags: [instruments]
+      summary: Submit instrument to recorder
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SubmitInput"
+      responses:
+        "201":
+          description: Submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustFiling"
+
+  /trust/filings:
+    get:
+      operationId: listFilings
+      tags: [filings]
+      summary: List all trust filings
+      responses:
+        "200":
+          description: List of filings
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TrustFiling"
+    post:
+      operationId: createFiling
+      tags: [filings]
+      summary: Create a trust filing
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FilingInput"
+      responses:
+        "201":
+          description: Filing created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustFiling"
+
+  /trust/filings/{id}:
+    get:
+      operationId: getFiling
+      tags: [filings]
+      summary: Get filing by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Filing
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TrustFiling"
+        "404":
+          description: Not found
+
+  /tribal/classify:
+    post:
+      operationId: classifyText
+      tags: [classify]
+      summary: Classify text through doctrine pipeline (creates NFR + task + calendar)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ClassifyInput"
+      responses:
+        "201":
+          description: Classification result with NFR, task, and calendar event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClassifyResponse"
+
+  /court/nfr:
+    get:
+      operationId: listNfrs
+      tags: [nfr]
+      summary: List all NFR documents
+      responses:
+        "200":
+          description: NFR document list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/NfrDocument"
+
+  /court/nfr/{id}:
+    get:
+      operationId: getNfr
+      tags: [nfr]
+      summary: Get NFR document by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: NFR document
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NfrDocument"
+
+  /court/nfr/{id}/export-pdf:
+    post:
+      operationId: exportNfrPdf
+      tags: [nfr]
+      summary: Generate recorder-compliant PDF for an NFR document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: PDF export result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PdfExportResult"
+
+  /complaints:
+    get:
+      operationId: listComplaints
+      tags: [complaints]
+      summary: List all complaints
+      responses:
+        "200":
+          description: Complaint list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Complaint"
+    post:
+      operationId: createComplaint
+      tags: [complaints]
+      summary: Submit a complaint (auto-classifies and creates task/calendar event)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ComplaintInput"
+      responses:
+        "201":
+          description: Complaint created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ComplaintResponse"
+
+  /complaints/{id}:
+    get:
+      operationId: getComplaint
+      tags: [complaints]
+      summary: Get complaint by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Complaint
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Complaint"
+
+  /tasks:
+    get:
+      operationId: listTasks
+      tags: [tasks]
+      summary: List all tasks
+      responses:
+        "200":
+          description: Task list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Task"
+    post:
+      operationId: createTask
+      tags: [tasks]
+      summary: Create a task
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskInput"
+      responses:
+        "201":
+          description: Task created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+
+  /calendar:
+    get:
+      operationId: listCalendarEvents
+      tags: [calendar]
+      summary: List all calendar events
+      responses:
+        "200":
+          description: Calendar event list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CalendarEvent"
+
+  /search:
+    get:
+      operationId: searchEntities
+      tags: [search]
+      summary: Cross-entity search with filters
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+        - name: type
+          in: query
+          schema:
+            type: string
+        - name: actorType
+          in: query
+          schema:
+            type: string
+        - name: landStatus
+          in: query
+          schema:
+            type: string
+        - name: actionType
+          in: query
+          schema:
+            type: string
+        - name: officer
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SearchResponse"
+
+  /user/profile:
+    get:
+      operationId: getUserProfile
+      tags: [profile]
+      summary: Get authenticated user profile with aggregated data
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+
+  /admin/entra/users:
+    get:
+      operationId: listAdminUsers
+      tags: [admin]
+      summary: List all system users
+      responses:
+        "200":
+          description: User list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SystemUser"
+
+  /admin/entra:
+    post:
+      operationId: adminAction
+      tags: [admin]
+      summary: Perform admin action (toggle_entra, override_role, revoke_trust, grant_trust, list_users)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminActionInput"
+      responses:
+        "200":
+          description: Action result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminActionResult"
+
 components:
   schemas:
     HealthStatus:
@@ -31,6 +479,296 @@ components:
       properties:
         status:
           type: string
-      required:
-        - status
+      required: [status]
 
+    TrustInstrumentSummary:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        instrumentType: { type: string }
+        status: { type: string }
+        jurisdiction: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        county: { type: ["string", "null"] }
+        landClassification: { type: ["string", "null"] }
+        pdfUrl: { type: ["string", "null"] }
+        validationErrors: { type: ["array", "null"], items: { type: string } }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, title, instrumentType, status, createdAt, updatedAt]
+
+    TrustInstrumentDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        instrumentType: { type: string }
+        content: { type: string }
+        status: { type: string }
+        jurisdiction: { type: ["string", "null"] }
+        state: { type: ["string", "null"] }
+        county: { type: ["string", "null"] }
+        landClassification: { type: ["string", "null"] }
+        pdfUrl: { type: ["string", "null"] }
+        validationErrors: { type: ["array", "null"], items: { type: string } }
+        trusteeNotes: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, title, instrumentType, content, status, createdAt, updatedAt]
+
+    TrustInstrumentInput:
+      type: object
+      properties:
+        type: { type: string, description: "Instrument type (e.g. trust_deed, allotment_lease)" }
+        title: { type: string }
+        parties: { type: ["array", "null"], items: { type: string } }
+        landDescription: { type: string }
+        jurisdiction: { type: string }
+        state: { type: string }
+        templateKey: { type: string, description: "Use a built-in template key" }
+        templateVariables:
+          type: array
+          items:
+            type: object
+            properties:
+              key: { type: string }
+              value: { type: string }
+        indianLandProtection: { type: boolean }
+        trustStatus: { type: boolean }
+        federalPreemption: { type: boolean }
+        tribalJurisdiction: { type: boolean }
+        trusteeNotes: { type: string }
+        recorderMetadata:
+          type: object
+          properties:
+            returnAddress: { type: string }
+            apn: { type: string }
+            county: { type: string }
+            state: { type: string }
+            documentType: { type: string }
+            requiresNotary: { type: boolean }
+
+    TrustInstrumentResponse:
+      type: object
+      properties:
+        instrument:
+          $ref: "#/components/schemas/TrustInstrumentDetail"
+        validation:
+          type: object
+          properties:
+            errors: { type: array, items: { type: string } }
+            warnings: { type: array, items: { type: string } }
+            valid: { type: boolean }
+        pdf:
+          type: object
+          properties:
+            pages: { type: integer }
+            checksum: { type: string }
+            generatedAt: { type: string }
+            downloadUrl: { type: string }
+
+    FilingInput:
+      type: object
+      properties:
+        county: { type: string }
+        state: { type: string }
+        instrumentId: { type: integer }
+        documentType: { type: string }
+        notes: { type: string }
+      required: [county, state]
+
+    SubmitInput:
+      type: object
+      properties:
+        county: { type: string }
+        state: { type: string }
+
+    TrustFiling:
+      type: object
+      properties:
+        id: { type: integer }
+        instrumentId: { type: integer }
+        county: { type: string }
+        state: { type: string }
+        filingStatus: { type: string }
+        filingNumber: { type: ["string", "null"] }
+        documentType: { type: ["string", "null"] }
+        trustStatus: { type: ["string", "null"] }
+        landClassification: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        submittedAt: { type: ["string", "null"] }
+        acceptedAt: { type: ["string", "null"] }
+        rejectedAt: { type: ["string", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, instrumentId, county, state, filingStatus, createdAt, updatedAt]
+
+    ClassifyInput:
+      type: object
+      properties:
+        text: { type: string }
+      required: [text]
+
+    ClassifyResponse:
+      type: object
+      properties:
+        classification:
+          type: object
+          properties:
+            id: { type: integer }
+            actorType: { type: string }
+            landStatus: { type: string }
+            actionType: { type: string }
+            rawText: { type: string }
+        doctrine: { type: object }
+        nfr: { type: object }
+        task: { type: object }
+        calendarEvent: { type: object }
+
+    NfrDocument:
+      type: object
+      properties:
+        id: { type: integer }
+        classificationId: { type: integer }
+        content: { type: string }
+        pdfUrl: { type: ["string", "null"] }
+        status: { type: string }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, classificationId, content, status, createdAt, updatedAt]
+
+    PdfExportResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        pdfUrl: { type: string }
+        downloadUrl: { type: string }
+        pages: { type: integer }
+        checksum: { type: string }
+        generatedAt: { type: string }
+
+    Complaint:
+      type: object
+      properties:
+        id: { type: integer }
+        text: { type: string }
+        status: { type: string }
+        officerId: { type: ["integer", "null"] }
+        classification: { type: ["object", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, text, status, createdAt, updatedAt]
+
+    ComplaintInput:
+      type: object
+      properties:
+        text: { type: string }
+      required: [text]
+
+    ComplaintResponse:
+      type: object
+      properties:
+        complaint:
+          $ref: "#/components/schemas/Complaint"
+        task: { type: object }
+        calendarEvent: { type: object }
+        classification: { type: object }
+        officerId: { type: ["integer", "null"] }
+
+    Task:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        status: { type: string }
+        dueDate: { type: ["string", "null"] }
+        assignedTo: { type: ["integer", "null"] }
+        complaintId: { type: ["integer", "null"] }
+        calendarEventId: { type: ["integer", "null"] }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, title, status, createdAt, updatedAt]
+
+    TaskInput:
+      type: object
+      properties:
+        title: { type: string }
+        description: { type: string }
+        dueDate: { type: string }
+        assignedTo: { type: integer }
+        complaintId: { type: integer }
+      required: [title]
+
+    CalendarEvent:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        description: { type: ["string", "null"] }
+        date: { type: string }
+        type: { type: string }
+        relatedId: { type: ["integer", "null"] }
+        relatedType: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required: [id, title, date, type, createdAt]
+
+    SearchResponse:
+      type: object
+      properties:
+        total: { type: integer }
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              entityType: { type: string }
+              entityId: { type: string }
+              content: { type: string }
+              score: { type: integer }
+      required: [total, results]
+
+    UserProfile:
+      type: object
+      properties:
+        user: { type: object }
+        profile: { type: ["object", "null"] }
+        tasks: { type: array, items: { type: object } }
+        calendarEvents: { type: array, items: { type: object } }
+        complaintHistory: { type: array, items: { type: object } }
+        nfrHistory: { type: array, items: { type: object } }
+        searchHistory: { type: array, items: { type: string } }
+        aiPreferences: { type: array, items: { type: object } }
+        recommendations: { type: array, items: { type: string } }
+      required: [user, tasks, calendarEvents, searchHistory]
+
+    SystemUser:
+      type: object
+      properties:
+        id: { type: integer }
+        email: { type: string }
+        name: { type: string }
+        role: { type: string }
+        entraRequired: { type: boolean }
+        trustPrivileges: { type: boolean }
+        createdAt: { type: string }
+      required: [id, email, name, role, entraRequired, trustPrivileges, createdAt]
+
+    AdminActionInput:
+      type: object
+      properties:
+        action: { type: string, enum: [toggle_entra, override_role, revoke_trust, grant_trust, list_users] }
+        userId: { type: integer }
+        entraRequired: { type: boolean }
+        role: { type: string }
+      required: [action]
+
+    AdminActionResult:
+      type: object
+      properties:
+        action: { type: string }
+        success: { type: ["boolean", "null"] }
+        user: { type: ["object", "null"] }
+        users: { type: ["array", "null"], items: { type: object } }
+        message: { type: ["string", "null"] }

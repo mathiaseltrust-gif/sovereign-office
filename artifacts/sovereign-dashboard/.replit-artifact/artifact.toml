@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/sovereign-dashboard/"
+title = "Sovereign Office Dashboard"
+version = "1.0.0"
+id = "artifacts/sovereign-dashboard"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/sovereign-dashboard/" ]
+localPort = 23241
+
+[services.development]
+run = "pnpm --filter @workspace/sovereign-dashboard run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/sovereign-dashboard", "run", "build" ]
+publicDir = "artifacts/sovereign-dashboard/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23241"
+BASE_PATH = "/sovereign-dashboard/"

@@ -11,7 +11,7 @@ import {
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText, applyDoctrine } from "../../lib/doctrine";
-import { buildNfrPdf } from "../../lib/pdf-builder";
+import { buildNfrRecorderPdf } from "../../lib/pdf-builder";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -82,10 +82,11 @@ router.post("/", requireAuth, requireRole("officer"), upload.single("pdf"), asyn
       return;
     }
 
-    const pdfResult = buildNfrPdf(nfr.id, nfrContent);
+    await buildNfrRecorderPdf(nfr.id, nfrContent);
+    const nfrPdfUrl = `/api/court/nfr/${nfr.id}/pdf`;
     await db
       .update(nfrDocumentsTable)
-      .set({ pdfUrl: pdfResult.pdfUrl, updatedAt: new Date() })
+      .set({ pdfUrl: nfrPdfUrl, updatedAt: new Date() })
       .where(eq(nfrDocumentsTable.id, nfr.id));
 
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
@@ -123,7 +124,7 @@ router.post("/", requireAuth, requireRole("officer"), upload.single("pdf"), asyn
 
     res.status(201).json({
       classification,
-      nfr: { ...nfr, pdfUrl: pdfResult.pdfUrl },
+      nfr: { ...nfr, pdfUrl: nfrPdfUrl },
       task,
       calendarEvent: calEvent,
       doctrine,

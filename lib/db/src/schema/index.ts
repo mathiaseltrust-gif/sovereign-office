@@ -9,3 +9,5 @@ export * from "./search-index";
 export * from "./templates";
 export * from "./recorder-rules";
 export * from "./ai-learning";
+export * from "./trust-instruments";
+export * from "./trust-filings";
