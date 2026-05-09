@@ -1,5 +1,8 @@
 import type { Request, Response, NextFunction } from "express";
 import { hasRole, type Role } from "../sovereign/authority";
+import { db } from "@workspace/db";
+import { usersTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
@@ -33,4 +36,26 @@ export function requireTrustee(req: Request, res: Response, next: NextFunction):
 
 export function requireOfficer(req: Request, res: Response, next: NextFunction): void {
   requireRole("officer")(req, res, next);
+}
+
+export async function requireEntraIfRequired(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user) {
+    next();
+    return;
+  }
+  if (!req.user.dbId) {
+    next();
+    return;
+  }
+  try {
+    const dbUsers = await db.select().from(usersTable).where(eq(usersTable.id, req.user.dbId)).limit(1);
+    const dbUser = dbUsers[0];
+    if (dbUser?.entraRequired && !req.user.entraId && !req.user.dbId) {
+      res.status(401).json({ error: "Entra ID authentication is required for your account." });
+      return;
+    }
+  } catch {
+    // allow through if DB check fails
+  }
+  next();
 }

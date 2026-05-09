@@ -6,6 +6,7 @@ declare global {
         email: string;
         roles: string[];
         entraId?: string;
+        dbId?: number;
       };
     }
   }

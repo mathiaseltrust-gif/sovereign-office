@@ -10,33 +10,53 @@ import {
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { getPreferences, getRecommendations } from "../../sovereign/ai-learning";
+import { getPreferences, getRecommendations, learnPreference } from "../../sovereign/ai-learning";
 
 const router = Router();
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
-    const userId = Number(req.user!.id);
-    const userResults = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-    const user = userResults[0];
+    const dbId = req.user!.dbId;
 
-    const profileResults = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
-    const profile = profileResults[0] ?? null;
+    let user: Record<string, unknown> = { id: req.user!.id, email: req.user!.email, roles: req.user!.roles };
+    let profile: Record<string, unknown> | null = null;
+    let userTasks: unknown[] = [];
+    let userCalendar: unknown[] = [];
+    let userComplaints: unknown[] = [];
+    let userNfrs: unknown[] = [];
+    let searchHistory: string[] = [];
+    let aiPreferences: unknown[] = [];
+    let recommendations: string[] = ["Begin using the system to receive personalized recommendations"];
 
-    const userTasks = await db.select().from(tasksTable).where(eq(tasksTable.assignedTo, userId)).limit(20);
-    const userCalendar = await db.select().from(calendarEventsTable).limit(10);
-    const userComplaints = await db.select().from(complaintsTable).where(eq(complaintsTable.officerId, userId)).limit(10);
-    const userNfrs = await db.select().from(nfrDocumentsTable).limit(10);
-    const aiPreferences = await getPreferences(userId);
-    const recommendations = await getRecommendations(userId);
+    if (dbId) {
+      const userResults = await db.select().from(usersTable).where(eq(usersTable.id, dbId)).limit(1);
+      if (userResults[0]) {
+        const u = userResults[0];
+        user = { id: u.id, email: u.email, name: u.name, role: u.role, entraRequired: u.entraRequired, trustPrivileges: u.trustPrivileges, createdAt: u.createdAt };
+      }
+
+      const profileResults = await db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
+      if (profileResults[0]) {
+        profile = profileResults[0] as unknown as Record<string, unknown>;
+        searchHistory = Array.isArray(profileResults[0].searchHistory) ? (profileResults[0].searchHistory as string[]) : [];
+      }
+
+      userTasks = await db.select().from(tasksTable).where(eq(tasksTable.assignedTo, dbId)).limit(20);
+      userCalendar = await db.select().from(calendarEventsTable).limit(10);
+      userComplaints = await db.select().from(complaintsTable).where(eq(complaintsTable.officerId, dbId)).limit(10);
+      userNfrs = await db.select().from(nfrDocumentsTable).limit(10);
+      aiPreferences = await getPreferences(dbId);
+      recommendations = await getRecommendations(dbId);
+    }
 
     res.json({
-      user: user ?? { id: userId, ...req.user },
+      user,
       profile,
       tasks: userTasks,
       calendarEvents: userCalendar,
       complaintHistory: userComplaints,
       nfrHistory: userNfrs,
+      searchHistory,
       aiPreferences,
       recommendations,
     });
@@ -47,14 +67,18 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.put("/", requireAuth, async (req, res, next) => {
   try {
-    const userId = Number(req.user!.id);
+    const dbId = req.user!.dbId;
+    if (!dbId) {
+      res.status(400).json({ error: "User must be registered in the system to update profile" });
+      return;
+    }
     const { bio, preferredJurisdiction, aiPreferences } = req.body as {
       bio?: string;
       preferredJurisdiction?: string;
       aiPreferences?: object;
     };
 
-    const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
+    const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
 
     let profile;
     if (existing[0]) {
@@ -66,13 +90,13 @@ router.put("/", requireAuth, async (req, res, next) => {
           aiPreferences: aiPreferences ?? existing[0].aiPreferences,
           updatedAt: new Date(),
         })
-        .where(eq(profilesTable.userId, userId))
+        .where(eq(profilesTable.userId, dbId))
         .returning();
       profile = updated;
     } else {
       const [created] = await db
         .insert(profilesTable)
-        .values({ userId, bio, preferredJurisdiction, aiPreferences })
+        .values({ userId: dbId, bio, preferredJurisdiction, aiPreferences })
         .returning();
       profile = created;
     }
@@ -85,14 +109,17 @@ router.put("/", requireAuth, async (req, res, next) => {
 
 router.post("/learn", requireAuth, async (req, res, next) => {
   try {
-    const userId = Number(req.user!.id);
+    const dbId = req.user!.dbId;
+    if (!dbId) {
+      res.status(400).json({ error: "User must be registered in the system to record preferences" });
+      return;
+    }
     const { category, key, value } = req.body as { category: string; key: string; value: unknown };
     if (!category || !key) {
       res.status(400).json({ error: "category and key are required" });
       return;
     }
-    const { learnPreference } = await import("../../sovereign/ai-learning");
-    await learnPreference(userId, category, key, value);
+    await learnPreference(dbId, category, key, value);
     res.json({ success: true, message: "Preference recorded" });
   } catch (err) {
     next(err);

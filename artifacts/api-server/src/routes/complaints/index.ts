@@ -8,7 +8,7 @@ import {
   usersTable,
   searchIndexTable,
 } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText } from "../../lib/doctrine";
 
@@ -16,11 +16,7 @@ const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
 
 async function findAvailableOfficer(): Promise<number | null> {
-  const officers = await db
-    .select()
-    .from(usersTable)
-    .where(eq(usersTable.role, "officer"))
-    .limit(1);
+  const officers = await db.select().from(usersTable).where(eq(usersTable.role, "officer")).limit(1);
   return officers[0]?.id ?? null;
 }
 
@@ -132,7 +128,5 @@ router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) =
     next(err);
   }
 });
-
-void and;
 
 export default router;
