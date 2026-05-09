@@ -7,6 +7,7 @@ import { logger } from "./lib/logger";
 import { entraMiddleware } from "./auth/entra";
 import { requireEntraIfRequired } from "./auth/entra-guard";
 import { sovereignOffice } from "./sovereign/office";
+import { initBootstrapToken } from "./lib/bootstrap-token";
 
 const app: Express = express();
 
@@ -37,6 +38,7 @@ app.use(entraMiddleware);
 app.use(requireEntraIfRequired);
 
 logger.info({ authority: sovereignOffice.getAuthority() }, "Sovereign authority online");
+void initBootstrapToken();
 
 app.use("/api", router);
 

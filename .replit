@@ -30,5 +30,3 @@ externalPort = 80
 [userenv]
 
 [userenv.shared]
-BOOTSTRAP_SECRET_HINT = "set-as-secret-via-requestEnvVar"
-BOOTSTRAP_SECRET = "98424017a6ea966b7112fca9b1129edcd6afbc90066f9bb9fdbefbb6ad036ff2"

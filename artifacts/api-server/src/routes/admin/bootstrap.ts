@@ -2,22 +2,26 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { getBootstrapToken, consumeBootstrapToken } from "../../lib/bootstrap-token";
 
 const router = Router();
 
 router.post("/", async (req, res, next) => {
   try {
-    const bootstrapSecret = process.env.BOOTSTRAP_SECRET;
-    if (!bootstrapSecret) {
-      res.status(503).json({ error: "Bootstrap is not configured on this server." });
+    const activeToken = getBootstrapToken();
+    if (!activeToken) {
+      res.status(403).json({
+        error:
+          "Bootstrap is not available. An admin account already exists — use POST /api/admin/entra to manage users.",
+      });
       return;
     }
 
-    const providedSecret =
-      (req.headers["x-bootstrap-secret"] as string | undefined) ?? req.body.bootstrapSecret;
+    const providedToken =
+      (req.headers["x-bootstrap-token"] as string | undefined) ?? req.body.bootstrapToken;
 
-    if (!providedSecret || providedSecret !== bootstrapSecret) {
-      res.status(401).json({ error: "Invalid or missing bootstrap secret." });
+    if (!providedToken || providedToken !== activeToken) {
+      res.status(401).json({ error: "Invalid or missing bootstrap token." });
       return;
     }
 
@@ -28,6 +32,7 @@ router.post("/", async (req, res, next) => {
       .limit(1);
 
     if (existing.length > 0) {
+      consumeBootstrapToken();
       res.status(403).json({
         error:
           "Bootstrap is disabled after the first admin account is created. Use POST /api/admin/entra to manage users.",
@@ -46,8 +51,10 @@ router.post("/", async (req, res, next) => {
       .values({ email, name, role: "admin", entraRequired: false, trustPrivileges: true })
       .returning();
 
+    consumeBootstrapToken();
+
     res.status(201).json({
-      message: "First admin account created. Bootstrap endpoint is now locked.",
+      message: "First admin account created. Bootstrap endpoint is now permanently locked.",
       user: admin,
     });
   } catch (err) {
