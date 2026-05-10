@@ -243,6 +243,196 @@ const BUILT_IN_TEMPLATES: Record<string, Omit<PdfBuildInput, "recorderMetadata">
     trusteeNotes: "Serve on law enforcement agency, district attorney, and any state court with a pending matter. Attach: (1) documentation of Indian Country land status; (2) tribal membership verification for any Indian party; (3) tribal court jurisdiction assertion. Coordinate with federal prosecutor (AUSA) for Major Crimes Act matters. Reference JM-2025 Jurisdiction Matrix for case-by-case analysis.",
   },
 
+  trust_land_status_report: {
+    title: "TRUST LAND STATUS REPORT (TSR)",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Beneficial Owner(s)": "[BENEFICIAL OWNER FULL NAME(S)]",
+      "Tribal Nation": "Mathias El Tribe",
+      Trustee: "Office of the Chief Justice & Trustee",
+    },
+    land: {
+      description: "Tract No.: [TRACT NUMBER] | Legal Description: [INSERT FULL LEGAL DESCRIPTION] | County / State: [COUNTY], [STATE]",
+      classification: "[OWNERSHIP TYPE: Tribal Trust / Individual Trust / Restricted Fee]",
+    },
+    provisions: [
+      "I. IDENTIFICATION\nTract Number: [TRACT NUMBER]\nLegal Description: [INSERT FULL LEGAL DESCRIPTION]\nCounty / State: [COUNTY], [STATE]\nTribal Nation: Mathias El Tribe\nBeneficial Owner(s): [BENEFICIAL OWNER FULL NAME(S)]\nOwnership Type: [Tribal Trust / Individual Trust / Restricted Fee]",
+      "II. TITLE STATUS SUMMARY\nCurrent Title Condition: [DESCRIBE CURRENT TITLE CONDITION]\nEncumbrances of Record: [LIST ANY ENCUMBRANCES]\nActive Leases / Rights-of-Way: [LIST ACTIVE LEASES OR ROW]\nTitle Defects (if any): [DESCRIBE DEFECTS OR STATE NONE]",
+      "III. CHAIN OF TITLE (ABRIDGED)\n1. [FIRST TITLE EVENT — GRANTOR, GRANTEE, DATE]\n2. [SECOND TITLE EVENT]\n3. [THIRD TITLE EVENT]",
+      "IV. CERTIFICATION\nThis report reflects the trust-land status as maintained by the Office of the Chief Justice & Trustee. It is issued under the federal trust responsibility and the inherent sovereign authority of the Mathias El Tribe. All trust-land protections under 25 U.S.C. § 5108 (Indian Reorganization Act), 25 U.S.C. § 177 (Non-Intercourse Act), and applicable federal regulations apply to the property described herein.",
+    ],
+    trusteeNotes: "Obtain current Title Status Report (TSR) from BIA Land Records prior to issuance. File with tribal trust land records. Distribute to beneficial owner(s), BIA Agency, and tribal land management office. Cite tract number and BIA case reference on all related filings.",
+  },
+
+  trust_land_decision_letter: {
+    title: "DECISION LETTER - TRUST LAND ACTION",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Re: Request for": "[DESCRIBE THE REQUEST]",
+      "Applicant / Petitioner": "[APPLICANT FULL NAME]",
+      "Member ID": "[MEMBER ID]",
+    },
+    land: {
+      description: "This Decision Letter pertains to a trust-land action submitted to the Office of the Chief Justice & Trustee for determination under tribal law, federal Indian law, and applicable trust-land protections.",
+      classification: "Trust Land Action - Sovereign Determination",
+    },
+    provisions: [
+      "REVIEW BASIS\nAfter review of the submitted documents, applicable tribal law, federal Indian law, and trust-land protections — including 25 U.S.C. § 5108 (IRA), 25 U.S.C. § 177 (Non-Intercourse Act), the Federal Trust Responsibility, and the Indian Canons of Construction — the Office issues the following determination.",
+      "DETERMINATION\n[INSERT FINAL DETERMINATION — APPROVED / DENIED / CONDITIONALLY APPROVED / REFERRED FOR FURTHER REVIEW]",
+      "FINDINGS\n1. [FIRST FINDING — state the factual or legal basis]\n2. [SECOND FINDING]\n3. [THIRD FINDING]",
+      "CONDITIONS / REQUIREMENTS\n- [FIRST CONDITION OR REQUIREMENT, if any]\n- [SECOND CONDITION OR REQUIREMENT, if any]\n\nIf this determination is conditional, all listed conditions must be satisfied before the authorized action may proceed.",
+      "APPEAL RIGHTS\nThis determination may be appealed to the Mathias El Tribe Supreme Court within [NUMBER] days of receipt. Appeals must be submitted in writing and state the specific grounds for review. This decision is issued under the authority of the Office of the Chief Justice & Trustee pursuant to tribal law and the federal trust responsibility.",
+    ],
+    trusteeNotes: "Serve on applicant via certified mail, return receipt requested. File with tribal trust-land records and BIA Agency Office. Attach all supporting documents reviewed. Note any time-sensitive conditions and calendar deadlines.",
+  },
+
+  trust_land_instrument: {
+    title: "TRUST LAND INSTRUMENT (Tribal Trust / Individual Trust / Restricted Fee)",
+    parties: {
+      "Grantor / Beneficial Owner": "[GRANTOR / BENEFICIAL OWNER FULL NAME]",
+      Trustee: "Office of the Chief Justice & Trustee",
+      "Recording Requested By": "Office of the Chief Justice & Trustee",
+      "When Recorded Return To": "[NAME AND ADDRESS]",
+    },
+    land: {
+      description: "[INSERT FULL LEGAL DESCRIPTION — ATTACH EXHIBIT A IF NECESSARY]",
+      classification: "[Tribal Trust / Individual Trust / Restricted Fee]",
+    },
+    provisions: [
+      "I. PARTIES\nGrantor / Beneficial Owner: [GRANTOR / BENEFICIAL OWNER FULL NAME]\nTrustee: Office of the Chief Justice & Trustee\n\nSPACE ABOVE THIS LINE FOR RECORDER USE ONLY",
+      "II. LEGAL DESCRIPTION\n[INSERT FULL LEGAL DESCRIPTION]\n(Attach Exhibit A if necessary)",
+      "III. PURPOSE OF INSTRUMENT\n[DESCRIBE THE PURPOSE — e.g., conveyance, lease, right-of-way, encumbrance, protective declaration]",
+      "IV. TRUST STATUS\nThis land is held in: [Tribal Trust / Individual Trust / Restricted Fee]\nand is subject to federal Indian trust protections including: 25 U.S.C. § 5108 (Indian Reorganization Act — trust land restrictions on alienation); 25 U.S.C. § 177 (Non-Intercourse Act — federal consent required for conveyance); 25 U.S.C. § 415 (BIA approval required for leases exceeding applicable term); and all applicable federal trust regulations.",
+      "V. AUTHORITY\nIssued pursuant to tribal law, federal Indian law, and trust-land doctrine. This instrument is self-executing upon signature of the Trustee and shall be recorded in the chain of title for the described property. It shall run with the land and bind all successors in interest.",
+      "VI. EXECUTION\nGrantor Signature: ____________________\nTrustee Signature: ____________________\nDate: __________\n\nACKNOWLEDGMENT\nState of _____________, County of _____________\nBefore me, a Notary Public, personally appeared _____________________________, known to me to be the person(s) whose name(s) are subscribed to the within instrument and acknowledged that they executed the same.\nNotary Public: ____________________   Commission Expires: __________",
+    ],
+    trusteeNotes: "Record in the county recorder's office and with the BIA Land Records Office. Obtain APN and legal description from county assessor prior to recording. Secretary of Interior approval may be required for alienation of trust land under 25 U.S.C. § 177. File executed instrument with tribal trust records.",
+  },
+
+  trust_land_intake_form: {
+    title: "TRUST LAND INTAKE FORM",
+    parties: {
+      "Applicant Name": "[APPLICANT FULL NAME]",
+      "Tract Number (if known)": "[TRACT NUMBER OR N/A]",
+      "Receiving Office": "Office of the Chief Justice & Trustee",
+    },
+    land: {
+      description: "Intake request for trust-land matter submitted to the Office of the Chief Justice & Trustee for review, classification, and action.",
+      classification: "[To be determined upon review]",
+    },
+    provisions: [
+      "TYPE OF REQUEST\n[Check all that apply]\n- Title Update\n- Encumbrance Review\n- Probate / Heirship\n- Lease / Rights-of-Way\n- Trust Protection Inquiry\n- Other: [DESCRIBE]",
+      "SUPPORTING DOCUMENTS ATTACHED\n[Check all that apply]\n- Deed / Conveyance\n- Probate Order\n- Survey / Legal Description\n- Lease / Rights-of-Way Document\n- Identification\n- Other: [DESCRIBE]",
+      "DESCRIPTION OF REQUEST\n[APPLICANT'S DESCRIPTION OF THE MATTER, CONCERN, OR ACTION REQUESTED — Include relevant dates, parties, tract numbers, and any known adverse claims or pending proceedings]",
+      "STAFF NOTES\n[INTAKE OFFICER USE ONLY — Record date received, documents reviewed, preliminary classification, urgency level, and any immediate action required]\nDate Received: ___________   Received By: ___________________   Priority: [Routine / Urgent / Emergency]",
+    ],
+    trusteeNotes: "Assign a case or intake number. Log in tribal trust-land intake registry. Forward to the appropriate case officer within [NUMBER] business days. If urgent or involves pending legal proceedings, escalate immediately to the Chief Justice & Trustee.",
+  },
+
+  trust_land_probate_summary: {
+    title: "TRUST LAND PROBATE SUMMARY",
+    parties: {
+      Decedent: "[DECEDENT FULL NAME]",
+      "Date of Death": "[DATE OF DEATH]",
+      "Probate Case No.": "[PROBATE CASE NUMBER]",
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+    },
+    land: {
+      description: "This summary pertains to the probate and heirship determination for trust-land interests held by the above-named decedent, subject to federal Indian probate law under 25 U.S.C. §§ 2201-2216 (American Indian Probate Reform Act) and applicable BIA regulations.",
+      classification: "[Trust / Restricted — as applicable per tract]",
+    },
+    provisions: [
+      "I. OWNERSHIP INTERESTS\nTract: [TRACT NUMBER AND LOCATION]\nFractional Interest: [FRACTIONAL INTEREST — e.g., 1/4 undivided interest]\nStatus: [Trust / Restricted]",
+      "II. HEIRSHIP FINDINGS\nPursuant to the American Indian Probate Reform Act (AIPRA), 25 U.S.C. §§ 2201-2216, and applicable tribal law, the following heirs have been identified:\n1. [HEIR NAME — relationship — fractional share]\n2. [HEIR NAME — relationship — fractional share]\n3. [HEIR NAME — relationship — fractional share]",
+      "III. DISTRIBUTION SUMMARY\n- Heir: [HEIR NAME] -> [PERCENTAGE]%\n- Heir: [HEIR NAME] -> [PERCENTAGE]%\n- Heir: [HEIR NAME] -> [PERCENTAGE]%\n\nTotal distribution must equal 100% of the decedent's interest. Interests of less than 5% that are not devised by will may be subject to consolidation under AIPRA's fractional interest provisions (25 U.S.C. § 2206).",
+      "IV. CERTIFICATION\nThis Probate Summary is prepared under the authority of the Office of the Chief Justice & Trustee and reflects the tribal heirship determination for the trust-land interests of the above-named decedent. This summary shall be submitted to the BIA Probate Office for administrative probate proceedings and filed with tribal trust-land records.\nPrepared by: ____________________   Date: __________",
+    ],
+    trusteeNotes: "Coordinate with BIA Regional Probate Office for federal administrative probate. Obtain all deeds, trust patents, and prior title documents. Verify heirship through lineage records, tribal enrollment, and family tree documentation. Reference AIPRA (25 U.S.C. §§ 2201-2216) for fractional interest consolidation rules. File final order with BIA Land Records.",
+  },
+
+  encumbrance_review: {
+    title: "ENCUMBRANCE REVIEW - TRUST LAND",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Property Owner / Beneficial Interest": "[OWNER / BENEFICIAL INTEREST HOLDER]",
+      "Tract Number": "[TRACT NUMBER]",
+    },
+    land: {
+      description: "Tract No.: [TRACT NUMBER] | Legal Description: [INSERT LEGAL DESCRIPTION]",
+      classification: "[Tribal Trust / Individual Trust / Restricted Fee]",
+    },
+    provisions: [
+      "I. PROPERTY IDENTIFICATION\nTract Number: [TRACT NUMBER]\nLegal Description: [INSERT FULL LEGAL DESCRIPTION]\nOwnership Type: [Tribal Trust / Individual Trust / Restricted Fee]",
+      "II. EXISTING ENCUMBRANCES OF RECORD\n- Lease(s): [LIST ALL ACTIVE LEASES WITH DATES AND PARTIES OR STATE NONE]\n- Mortgage(s): [LIST ALL MORTGAGES WITH LENDER AND RECORDING INFORMATION OR STATE NONE]\n- Rights-of-Way: [LIST ALL ROW WITH HOLDER, PURPOSE, AND EXPIRATION OR STATE NONE]\n- Liens / Claims: [LIST ALL LIENS OR ADVERSE CLAIMS OR STATE NONE]",
+      "III. FINDINGS\n1. [FIRST FINDING — state whether encumbrances are consistent with trust status and federal law]\n2. [SECOND FINDING — identify any conflicts with trust land protections or required approvals]\n3. [THIRD FINDING — recommend curative action if any encumbrance is improper or unauthorized]",
+      "IV. DETERMINATION\n[ENCUMBRANCE APPROVED / ENCUMBRANCE DENIED / ADDITIONAL DOCUMENTATION REQUIRED]\n\nBasis: [STATE THE LEGAL AND FACTUAL BASIS FOR THIS DETERMINATION — including applicable statutes, BIA regulations, and tribal law]\n\nIf additional documentation is required, provide to this Office within [NUMBER] days.",
+    ],
+    trusteeNotes: "Obtain current Title Status Report from BIA prior to review. Verify all leases and ROW instruments were properly approved under 25 U.S.C. § 415 and applicable BIA regulations. Any unapproved encumbrance on trust land is void under federal law. File determination with BIA Land Records and tribal trust files.",
+  },
+
+  notice_of_title_defect: {
+    title: "NOTICE OF TITLE DEFECT",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Re: Tract": "[TRACT NUMBER]",
+      "Directed To": "[RECORD OWNER / HOLDER / RESPONSIBLE PARTY]",
+    },
+    land: {
+      description: "Tract No.: [TRACT NUMBER] | Legal Description: [INSERT LEGAL DESCRIPTION]",
+      classification: "[Tribal Trust / Individual Trust / Restricted Fee]",
+    },
+    provisions: [
+      "NOTICE OF TITLE DEFECT\nA defect has been identified in the title record for the above-referenced tract. This Notice is issued pursuant to the authority of the Office of the Chief Justice & Trustee and the federal trust responsibility to maintain clear and accurate title for Indian trust lands.",
+      "DESCRIPTION OF DEFECT\n[DESCRIBE THE DEFECT WITH SPECIFICITY — e.g., gap in chain of title, unauthorized conveyance, missing signature, recording error, undisclosed encumbrance, improper alienation under 25 U.S.C. § 177]",
+      "LEGAL BASIS\nThe identified defect implicates the following legal authorities: 25 U.S.C. § 177 (Non-Intercourse Act — prohibiting unauthorized alienation of Indian land); 25 U.S.C. § 5108 (Indian Reorganization Act — trust land restrictions); federal trust responsibility (United States v. Mitchell II, 463 U.S. 206, 1983); and applicable BIA title regulations.",
+      "REQUIRED CURATIVE ACTION\n[DESCRIBE SPECIFICALLY WHAT MUST BE DONE TO CURE THE DEFECT — e.g., record a corrective deed, obtain missing signatures, file a scrivener's affidavit, submit BIA approval, correct the legal description]\n\nDeadline for Correction: __________________\n\nFailure to cure this defect within the specified deadline may delay or prevent trust-land actions, including leasing, conveyance, probate distribution, and BIA approvals, and may result in further action by this Office.",
+    ],
+    trusteeNotes: "Serve on all record title holders and responsible parties via certified mail, return receipt requested. File with BIA Land Records Office and tribal trust files. Calendar the deadline for curative action. If defect involves unauthorized alienation, refer to tribal legal counsel and BIA immediately.",
+  },
+
+  certification: {
+    title: "CERTIFICATION - OFFICE OF THE CHIEF JUSTICE & TRUSTEE",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Chief Justice & Trustee": "[CHIEF JUSTICE FULL NAME]",
+      "Tribal Nation": "Mathias El Tribe",
+    },
+    land: {
+      description: "This Certification is issued under the authority of the Office of the Chief Justice & Trustee and attests to the trust-land status, sovereign protections, and legal authenticity of the instrument or matter described herein.",
+      classification: "Sovereign Certification - Federal Trust Authority",
+    },
+    provisions: [
+      "CERTIFICATION\nI certify that this instrument is issued under the authority of the Office of the Chief Justice & Trustee of the Mathias El Tribe and reflects the trust-land status and protections applicable to the described property or matter.",
+      "AUTHORITY\nThis Certification is issued pursuant to: the inherent sovereign authority of the Mathias El Tribe; the Federal Trust Responsibility (Seminole Nation v. United States, 316 U.S. 286, 1942; United States v. Mitchell II, 463 U.S. 206, 1983); 25 U.S.C. § 5108 (Indian Reorganization Act); 25 U.S.C. § 177 (Non-Intercourse Act); and applicable tribal law and governance.",
+      "ATTESTATION\nI further certify that: (1) the facts stated herein are true and correct to the best of my knowledge; (2) this instrument was prepared and issued in accordance with tribal law and applicable federal Indian law; (3) the trust-land protections referenced herein are currently in full force and effect; and (4) this Certification is self-executing and requires no external validation for legal effect.",
+      "EXECUTION\nSignature: ____________________\nTitle: Chief Justice & Trustee, Mathias El Tribe\nDate: __________\n\n[OFFICIAL SEAL OF THE MATHIAS EL TRIBE]",
+    ],
+    trusteeNotes: "Affix the official seal of the Mathias El Tribe. File executed certification with the instrument it accompanies. Serve on all relevant parties. This certification may be used as a standalone attestation in BIA proceedings, state court filings, and federal agency correspondence.",
+  },
+
+  cascade_engine_template: {
+    title: "CASCADE ENGINE OUTPUT - OFFICE OF THE CHIEF JUSTICE & TRUSTEE",
+    parties: {
+      "Issuing Authority": "Office of the Chief Justice & Trustee",
+      "Matter Type": "[MATTER TYPE]",
+      "Required Authority": "[REQUIRED AUTHORITY LEVEL]",
+    },
+    land: {
+      description: "Cascade Engine output document produced by the Sovereign AI Drafting Engine. All triggers, provisions, and document references are generated from the input captured below.",
+      classification: "[JURISDICTION — Tribal / County / State / Federal]",
+    },
+    provisions: [
+      "I. INPUT CAPTURED\n- Document Type: [DOCUMENT TYPE]\n- Parties: [PARTIES]\n- Identity Tags: [IDENTITY TAGS]\n- Land Status: [LAND STATUS]\n- Violations: [VIOLATIONS IF ANY]\n- Risk Posture: [RISK POSTURE]\n- Location: [LOCATION]",
+      "II. CLASSIFICATION\n- Matter Type: [MATTER TYPE]\n- Jurisdiction: [JURISDICTION]\n- Required Authority: [REQUIRED AUTHORITY]\n- Doctrine Overlays: [APPLICABLE DOCTRINE OVERLAYS]",
+      "III. TRIGGERS ACTIVATED\n- Mandatory Triggers: [MANDATORY TRIGGERS]\n- Conditional Triggers: [CONDITIONAL TRIGGERS]\n- Bond Triggers: [BOND TRIGGERS]\n- Notice Triggers: [NOTICE TRIGGERS]\n- Document Triggers: [DOCUMENT TRIGGERS]",
+      "IV. PROVISIONS APPLIED\n- Trust Protections: [TRUST PROTECTIONS]\n- Federal Indian Law: [FEDERAL LAW CITATIONS]\n- Tribal Law: [TRIBAL LAW CITATIONS]\n- Recorder Requirements: [RECORDER RULES]\n- Identity Authority: [IDENTITY AUTHORITY]",
+      "V. DOCUMENTS GENERATED\n- Primary Document: [PRIMARY DOCUMENT]\n- Supporting Documents: [SUPPORTING DOCUMENTS]\n- Notices: [NOTICES ISSUED]",
+      "VI. WHAT NOW / WHAT NEXT\nA. Immediate Actions\n   [IMMEDIATE ACTIONS REQUIRED]\n\nB. Required Steps\n   [REQUIRED STEPS IN ORDER]\n\nC. Conditional Steps\n   [STEPS CONTINGENT ON FINDINGS OR RESPONSES]\n\nD. Recommended Steps\n   [RECOMMENDED BEST-PRACTICE STEPS]\n\nE. System Actions (Auto)\n   [AUTOMATED ACTIONS TRIGGERED BY THIS ENGINE]",
+      "VII. CALENDAR + NOTIFICATIONS\n- Deadlines Created: [DEADLINES]\n- Notifications Sent: [NOTIFICATIONS]\n- Follow-Up Events: [FOLLOW-UP EVENTS]",
+    ],
+    trusteeNotes: "This is a Cascade Engine output record. File with the primary document it accompanies. All triggered documents referenced in Section V should be generated and served concurrently. Calendar all deadlines in Section VII immediately upon issuance.",
+  },
+
   tribal_health_referral: {
     title: "REFERRAL FOR CONTRACT PROFESSIONAL HEALTH SERVICES",
     parties: {

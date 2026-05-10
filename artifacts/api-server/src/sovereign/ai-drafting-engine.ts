@@ -18,7 +18,15 @@ export type DocumentKind =
   | "verification_letter"
   | "jurisdictional_statement"
   | "trust_deed"
-  | "sovereign_declaration";
+  | "sovereign_declaration"
+  | "trust_land_status_report"
+  | "trust_land_decision_letter"
+  | "trust_land_instrument"
+  | "trust_land_intake_form"
+  | "trust_land_probate_summary"
+  | "encumbrance_review"
+  | "notice_of_title_defect"
+  | "certification";
 
 export interface DraftingInput {
   identity: UnifiedIdentity;
@@ -116,6 +124,14 @@ function ruleBased(input: DraftingInput): DraftingOutput {
     jurisdictional_statement: "JURISDICTIONAL_STATEMENT",
     trust_deed: "TRUST_DEED_BIA",
     sovereign_declaration: "SOVEREIGN_RESTORATION_DECLARATION",
+    trust_land_status_report: "TRUST_LAND_STATUS_REPORT_TSR",
+    trust_land_decision_letter: "TRUST_LAND_DECISION_LETTER",
+    trust_land_instrument: "TRUST_LAND_INSTRUMENT_RECORDER",
+    trust_land_intake_form: "TRUST_LAND_INTAKE_FORM",
+    trust_land_probate_summary: "TRUST_LAND_PROBATE_SUMMARY_AIPRA",
+    encumbrance_review: "ENCUMBRANCE_REVIEW_TRUST_LAND",
+    notice_of_title_defect: "NOTICE_OF_TITLE_DEFECT",
+    certification: "CERTIFICATION_CHIEF_JUSTICE_TRUSTEE",
   };
 
   const jurisFraming: Record<string, string> = {
@@ -217,6 +233,14 @@ export async function runAiDraftingEngine(input: DraftingInput): Promise<Draftin
   if (input.identity.trustInheritance) tags.push("trust-land", "ira");
   if (input.documentType === "medical_note") tags.push("health", "snyder");
   if (input.documentType === "nfr") tags.push("tribal-jurisdiction");
+  const trustLandTypes: DocumentKind[] = [
+    "trust_land_status_report", "trust_land_decision_letter", "trust_land_instrument",
+    "trust_land_intake_form", "trust_land_probate_summary", "encumbrance_review",
+    "notice_of_title_defect", "certification",
+  ];
+  if (trustLandTypes.includes(input.documentType)) {
+    tags.push("trust-land", "ira", "non-intercourse", "trust-title", "bia-land-records");
+  }
 
   let lawContext = "";
   try {
