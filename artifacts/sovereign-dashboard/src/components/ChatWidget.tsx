@@ -117,7 +117,7 @@ export function ChatWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${makeToken(user)}`,
+          ...(user ? { Authorization: `Bearer ${makeToken(user)}` } : {}),
         },
         body: JSON.stringify({ message: trimmed }),
       });

@@ -52,7 +52,7 @@ export default function Login() {
           <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold uppercase tracking-widest">Token Login</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">Paste your base64-encoded bearer token from the API or Azure Entra ID.</p>
+              <p className="text-xs text-muted-foreground mt-1">Paste your base64-encoded JSON token. Use the format shown below, or generate one from your API server.</p>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleTokenLogin} className="space-y-3">
