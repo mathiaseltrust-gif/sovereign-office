@@ -118,8 +118,8 @@ export default function InstrumentDetail() {
       <Layout>
         <div className="p-6 text-center">
           <p className="text-destructive font-medium">Instrument not found.</p>
-          <Link href="/instruments">
-            <a className="mt-2 text-sm text-primary hover:underline">← Back to instruments</a>
+          <Link href="/instruments" className="mt-2 text-sm text-primary hover:underline">
+            ← Back to instruments
           </Link>
         </div>
       </Layout>
@@ -135,10 +135,11 @@ export default function InstrumentDetail() {
     <Layout>
       <div className="p-6 max-w-5xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/instruments">
-            <a className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Instruments
-            </a>
+          <Link
+            href="/instruments"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Instruments
           </Link>
           <span className="text-muted-foreground/40">/</span>
           <span className="text-sm text-foreground font-medium truncate">{inst.title}</span>

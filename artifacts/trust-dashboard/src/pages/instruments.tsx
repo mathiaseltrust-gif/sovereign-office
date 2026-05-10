@@ -6,9 +6,13 @@ import { Link } from "wouter";
 import { Plus, Search, FolderOpen, FileDown, ChevronRight } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
+import { useAuth } from "@/lib/auth";
+import { getRoleConfig } from "@/lib/role-config";
 
 export default function Instruments() {
   const [search, setSearch] = useState("");
+  const { user } = useAuth();
+  const config = getRoleConfig(user?.roles ?? []);
 
   const { data: instruments = [], isLoading } = useQuery<TrustInstrument[]>({
     queryKey: ["instruments"],
@@ -37,12 +41,15 @@ export default function Instruments() {
               {instruments.length} instrument{instruments.length !== 1 ? "s" : ""} on record
             </p>
           </div>
-          <Link href="/instruments/new">
-            <a className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm">
+          {config.canCreateInstrument && (
+            <Link
+              href="/instruments/new"
+              className="flex items-center gap-2 px-4 py-2 bg-primary text-primary-foreground text-sm font-semibold rounded-lg hover:opacity-90 transition-opacity shadow-sm"
+            >
               <Plus className="w-4 h-4" />
               New Instrument
-            </a>
-          </Link>
+            </Link>
+          )}
         </div>
 
         <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
@@ -70,11 +77,12 @@ export default function Instruments() {
               <p className="text-sm font-medium text-foreground">
                 {search ? "No instruments match your search." : "No instruments yet."}
               </p>
-              {!search && (
-                <Link href="/instruments/new">
-                  <a className="mt-2 inline-block text-sm text-primary font-medium hover:underline">
-                    Create your first instrument →
-                  </a>
+              {!search && config.canCreateInstrument && (
+                <Link
+                  href="/instruments/new"
+                  className="mt-2 inline-block text-sm text-primary font-medium hover:underline"
+                >
+                  Create your first instrument →
                 </Link>
               )}
             </div>
@@ -97,10 +105,11 @@ export default function Instruments() {
                   {filtered.map((inst) => (
                     <tr key={inst.id} className="hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3">
-                        <Link href={`/instruments/${inst.id}`}>
-                          <a className="font-medium text-foreground hover:text-primary transition-colors line-clamp-1">
-                            {inst.title}
-                          </a>
+                        <Link
+                          href={`/instruments/${inst.id}`}
+                          className="font-medium text-foreground hover:text-primary transition-colors line-clamp-1"
+                        >
+                          {inst.title}
                         </Link>
                       </td>
                       <td className="px-4 py-3 text-muted-foreground capitalize whitespace-nowrap">
@@ -139,10 +148,11 @@ export default function Instruments() {
                         )}
                       </td>
                       <td className="px-4 py-3">
-                        <Link href={`/instruments/${inst.id}`}>
-                          <a className="text-muted-foreground hover:text-foreground transition-colors">
-                            <ChevronRight className="w-4 h-4" />
-                          </a>
+                        <Link
+                          href={`/instruments/${inst.id}`}
+                          className="text-muted-foreground hover:text-foreground transition-colors"
+                        >
+                          <ChevronRight className="w-4 h-4" />
                         </Link>
                       </td>
                     </tr>

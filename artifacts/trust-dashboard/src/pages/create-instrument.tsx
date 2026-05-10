@@ -128,8 +128,8 @@ export default function CreateInstrument() {
       <Layout>
         <div className="p-6 text-center">
           <p className="text-sm text-muted-foreground">You need Trustee access to create instruments.</p>
-          <Link href="/instruments">
-            <a className="text-sm text-primary hover:underline mt-2 inline-block">← Back</a>
+          <Link href="/instruments" className="text-sm text-primary hover:underline mt-2 inline-block">
+            ← Back
           </Link>
         </div>
       </Layout>
@@ -140,10 +140,11 @@ export default function CreateInstrument() {
     <Layout>
       <div className="p-6 max-w-3xl mx-auto">
         <div className="flex items-center gap-3 mb-6">
-          <Link href="/instruments">
-            <a className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-              <ArrowLeft className="w-4 h-4" /> Instruments
-            </a>
+          <Link
+            href="/instruments"
+            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="w-4 h-4" /> Instruments
           </Link>
           <span className="text-muted-foreground/40">/</span>
           <span className="text-sm text-foreground font-medium">New Instrument</span>
@@ -387,10 +388,11 @@ export default function CreateInstrument() {
                 </>
               )}
             </button>
-            <Link href="/instruments">
-              <a className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
-                Cancel
-              </a>
+            <Link
+              href="/instruments"
+              className="px-4 py-2.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              Cancel
             </Link>
           </div>
         </form>

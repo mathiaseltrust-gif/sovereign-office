@@ -1,31 +1,24 @@
 import { Link, useLocation } from "wouter";
-import { useAuth } from "@/lib/auth";
+import { useAuth, ELDER_ROLES } from "@/lib/auth";
+import { getRoleConfig } from "@/lib/role-config";
 import { cn } from "@/lib/utils";
-import {
-  FileText,
-  FolderOpen,
-  LayoutDashboard,
-  LogOut,
-  Scale,
-  Plus,
-  ChevronRight,
-} from "lucide-react";
-
-interface NavItem {
-  label: string;
-  href: string;
-  icon: React.ComponentType<{ className?: string }>;
-}
-
-const NAV_ITEMS: NavItem[] = [
-  { label: "Overview", href: "/", icon: LayoutDashboard },
-  { label: "Instruments", href: "/instruments", icon: FolderOpen },
-  { label: "Filings", href: "/filings", icon: FileText },
-];
+import { LogOut, Scale, ChevronRight, Plus } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+
+  const roles = user?.roles ?? [];
+  const config = getRoleConfig(roles);
+
+  const identityTag = roles.find((r) => ELDER_ROLES.has(r));
+
+  const groups = config.navItems.reduce<Record<string, typeof config.navItems>>((acc, item) => {
+    const g = item.group ?? "";
+    if (!acc[g]) acc[g] = [];
+    acc[g].push(item);
+    return acc;
+  }, {});
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
@@ -46,36 +39,52 @@ export function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
 
-        <nav className="flex-1 py-4 px-3 space-y-0.5 overflow-y-auto">
-          {NAV_ITEMS.map((item) => {
-            const Icon = item.icon;
-            const active = location === item.href || (item.href !== "/" && location.startsWith(item.href));
-            return (
-              <Link key={item.href} href={item.href}>
-                <a
-                  className={cn(
-                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                    active
-                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                  )}
-                >
-                  <Icon className="w-4 h-4 flex-shrink-0" />
-                  {item.label}
-                  {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
-                </a>
-              </Link>
-            );
-          })}
+        <nav className="flex-1 py-4 px-3 space-y-4 overflow-y-auto">
+          {Object.entries(groups).map(([group, items]) => (
+            <div key={group}>
+              {group && (
+                <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-sidebar-foreground/40">
+                  {group}
+                </p>
+              )}
+              <div className="space-y-0.5">
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const active =
+                    location === item.href ||
+                    (item.href !== "/" && location.startsWith(item.href));
+                  return (
+                    <Link
+                      key={item.href}
+                      href={item.href}
+                      className={cn(
+                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                        active
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                      )}
+                    >
+                      <Icon className="w-4 h-4 flex-shrink-0" />
+                      {item.label}
+                      {active && <ChevronRight className="w-3 h-3 ml-auto opacity-60" />}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
 
-          <div className="pt-3 mt-3 border-t border-sidebar-border">
-            <Link href="/instruments/new">
-              <a className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors">
+          {config.canCreateInstrument && (
+            <div className="pt-1">
+              <Link
+                href="/instruments/new"
+                className="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium bg-sidebar-primary/10 text-sidebar-primary hover:bg-sidebar-primary hover:text-sidebar-primary-foreground transition-colors"
+              >
                 <Plus className="w-4 h-4 flex-shrink-0" />
                 New Instrument
-              </a>
-            </Link>
-          </div>
+              </Link>
+            </div>
+          )}
         </nav>
 
         <div className="px-3 py-4 border-t border-sidebar-border">
@@ -88,8 +97,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
               </div>
               <div className="flex-1 min-w-0">
                 <p className="text-xs font-semibold text-sidebar-foreground truncate">{user.name}</p>
-                <p className="text-[10px] text-sidebar-foreground/50 truncate capitalize">
-                  {user.roles.join(", ")}
+                <p className="text-[10px] text-sidebar-foreground/50 truncate">
+                  {identityTag ? config.roleLabel : config.roleLabel}
                 </p>
               </div>
               <button
@@ -104,9 +113,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
-      <main className="flex-1 overflow-y-auto">
-        {children}
-      </main>
+      <main className="flex-1 overflow-y-auto">{children}</main>
     </div>
   );
 }

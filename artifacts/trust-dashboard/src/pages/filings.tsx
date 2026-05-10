@@ -128,8 +128,11 @@ export default function Filings() {
                         </td>
                         <td className="px-4 py-3">
                           {filing.instrumentId ? (
-                            <Link href={`/instruments/${filing.instrumentId}`}>
-                              <a className="text-primary hover:underline text-xs">#{filing.instrumentId}</a>
+                            <Link
+                              href={`/instruments/${filing.instrumentId}`}
+                              className="text-primary hover:underline text-xs"
+                            >
+                              #{filing.instrumentId}
                             </Link>
                           ) : "—"}
                         </td>
