@@ -70,7 +70,7 @@ const BUILT_IN_TEMPLATES: Record<string, Omit<PdfBuildInput, "recorderMetadata">
     trusteeNotes: "File with BIA Land Records Office. Obtain Title Status Report prior to execution.",
   },
   nfr: {
-    title: "NOTICE OF FAULT AND REMEDIES",
+    title: "NOTICE OF FEDERAL REVIEW",
     parties: {
       "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee",
       Respondent: "[RESPONDENT FULL NAME]",
@@ -81,7 +81,7 @@ const BUILT_IN_TEMPLATES: Record<string, Omit<PdfBuildInput, "recorderMetadata">
       classification: "Indian Trust Land",
     },
     provisions: [
-      "NOTICE OF FAULT: You are hereby notified that your actions, described herein, constitute a violation of federal Indian law, tribal law, and/or the terms of the trust described herein.",
+      "NOTICE OF FEDERAL REVIEW: You are hereby notified that your actions, described herein, constitute a violation of federal Indian law, tribal law, and/or the terms of the trust described herein.",
       "REMEDY REQUIRED: You are required to cure the fault described herein within [NUMBER] days of service of this notice.",
       "CONSEQUENCE OF NON-COMPLIANCE: Failure to comply with the terms of this notice may result in further legal action under tribal and federal law.",
     ],

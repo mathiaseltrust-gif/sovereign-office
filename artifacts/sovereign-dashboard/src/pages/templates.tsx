@@ -19,7 +19,7 @@ const TEMPLATE_DESCRIPTIONS: Record<string, { description: string; type: string 
     type: "Transfer",
   },
   nfr: {
-    description: "Notice of Fault and Remedies — sovereign notification instrument for recording fault, asserting remedies, and establishing legal record.",
+    description: "Notice of Federal Review — sovereign notification instrument for documenting federal Indian law violations and establishing legal record.",
     type: "Notice",
   },
 };

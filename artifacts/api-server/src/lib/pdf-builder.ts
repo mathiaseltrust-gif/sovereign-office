@@ -539,7 +539,7 @@ function splitIntoParagraphs(text: string): string[] {
 export async function buildNfrRecorderPdf(nfrId: number, content: string, classificationData?: Record<string, string>): Promise<PdfResult> {
   const paragraphs = splitIntoParagraphs(content);
   return buildRecorderPdf({
-    title: `Notice of Fault and Remedies — NFR #${nfrId}`,
+    title: `Notice of Federal Review — NFR #${nfrId}`,
     parties: {
       "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee",
       "Subject": sanitizeForPdf(classificationData?.actorType ?? "Respondent"),
@@ -550,7 +550,7 @@ export async function buildNfrRecorderPdf(nfrId: number, content: string, classi
     },
     provisions: paragraphs.length > 0 ? paragraphs : [sanitizeForPdf(content)],
     recorderMetadata: {
-      documentType: "NOTICE OF FAULT AND REMEDIES",
+      documentType: "NOTICE OF FEDERAL REVIEW",
       filingCategory: "Court Document",
       trustStatus: "Federal Trust Land",
       requiresNotary: false,
