@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useListComplaints, useGetComplaint, getGetComplaintQueryKey, useCreateComplaint, getListComplaintsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -123,7 +123,6 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const { data: complaint, isLoading, refetch } = useGetComplaint(id, { query: { enabled: !!id, queryKey: getGetComplaintQueryKey(id) } });
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
   const [officerId, setOfficerId] = useState("");
   const [updating, setUpdating] = useState(false);
 
@@ -134,7 +133,7 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
 
   async function updateComplaint(patch: { status?: string; officerId?: number }) {
     setUpdating(true);
-    const token = user ? btoa(JSON.stringify(user)) : "";
+    const token = getCurrentBearerToken();
     try {
       const res = await fetch(`/api/complaints/${id}`, {
         method: "PUT",

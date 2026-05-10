@@ -156,7 +156,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="w-64 border-r bg-card flex flex-col shrink-0">
         <div className="p-5 border-b flex flex-col items-center text-center">
           <img
-            src="/sovereign-dashboard/tribal-seal.png"
+            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
             alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
             className="w-20 h-20 object-contain mb-3 drop-shadow-md"
           />

@@ -38,6 +38,12 @@ function makeToken(user: User) {
   return btoa(JSON.stringify(user));
 }
 
+let _currentTokenGetter: (() => string) | null = null;
+
+export function getCurrentBearerToken(): string | null {
+  return _currentTokenGetter ? _currentTokenGetter() : null;
+}
+
 function roleFromStrings(roles: string[]): Role {
   const priority: Record<string, number> = {
     chief_justice: 100, sovereign_admin: 90, trustee: 80, officer: 70,
@@ -70,8 +76,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (user) {
       const token = makeToken(user);
-      setAuthTokenGetter(() => token);
+      const getter = () => token;
+      _currentTokenGetter = getter;
+      setAuthTokenGetter(getter);
     } else {
+      _currentTokenGetter = null;
       setAuthTokenGetter(null);
     }
   }, [user]);

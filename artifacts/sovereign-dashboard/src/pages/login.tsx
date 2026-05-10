@@ -40,7 +40,7 @@ export default function Login() {
       <div className="w-full max-w-2xl">
         <div className="text-center mb-8">
           <img
-            src="/sovereign-dashboard/tribal-seal.png"
+            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
             alt="Office of the Chief Justice and Trustee"
             className="w-20 h-20 object-contain mx-auto mb-4 drop-shadow-md"
           />
@@ -80,10 +80,10 @@ export default function Login() {
             </CardContent>
           </Card>
 
-          <Card>
+          {import.meta.env.DEV && <Card>
             <CardHeader>
               <CardTitle className="text-sm font-semibold uppercase tracking-widest">Dev Access</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">Quick access for development and demonstration — no token required.</p>
+              <p className="text-xs text-muted-foreground mt-1">Quick access for development — not available in production.</p>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
@@ -100,7 +100,7 @@ export default function Login() {
                 ))}
               </div>
             </CardContent>
-          </Card>
+          </Card>}
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-6">
