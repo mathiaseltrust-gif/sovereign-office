@@ -2,13 +2,14 @@ import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth } from "@/lib/auth";
+import { AuthProvider, useAuth, ELDER_ROLES } from "@/lib/auth";
 import Login from "@/pages/login";
 import Overview from "@/pages/overview";
 import Instruments from "@/pages/instruments";
 import InstrumentDetail from "@/pages/instrument-detail";
 import CreateInstrument from "@/pages/create-instrument";
 import Filings from "@/pages/filings";
+import VisitorDashboard from "@/pages/visitor-dashboard";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -25,6 +26,10 @@ function AuthenticatedRouter() {
 
   if (!user) {
     return <Login />;
+  }
+
+  if (user.roles.includes("visitor_media")) {
+    return <VisitorDashboard />;
   }
 
   return (

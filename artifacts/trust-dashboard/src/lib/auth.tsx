@@ -23,6 +23,10 @@ const ROLE_HIERARCHY: Record<string, number> = {
   trustee: 4,
   officer: 3,
   medical_provider: 3,
+  elder: 3,
+  community_elder: 3,
+  family_elder: 2,
+  grandparent_elder: 2,
   adult_with_dependents: 2,
   niac_role: 2,
   charitable_trust_role: 2,
@@ -30,6 +34,21 @@ const ROLE_HIERARCHY: Record<string, number> = {
   adult: 1,
   minor: 1,
   member: 1,
+  visitor_media: 0,
+};
+
+export const ELDER_ROLES = new Set([
+  "elder",
+  "community_elder",
+  "family_elder",
+  "grandparent_elder",
+]);
+
+export const IDENTITY_TAGS: Record<string, string> = {
+  elder: "Elder",
+  community_elder: "Community Elder",
+  family_elder: "Family Elder",
+  grandparent_elder: "Grandparent Elder",
 };
 
 export function AuthProvider({ children }: { children: ReactNode }) {

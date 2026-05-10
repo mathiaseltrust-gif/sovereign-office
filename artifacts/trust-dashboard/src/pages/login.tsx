@@ -7,8 +7,13 @@ const ROLES = [
   { value: "trustee", label: "Trustee" },
   { value: "officer", label: "Officer" },
   { value: "medical_provider", label: "Medical Provider" },
+  { value: "elder", label: "Elder" },
+  { value: "community_elder", label: "Community Elder" },
+  { value: "family_elder", label: "Family Elder" },
+  { value: "grandparent_elder", label: "Grandparent Elder" },
   { value: "adult", label: "Member (Adult)" },
   { value: "minor", label: "Member (Minor)" },
+  { value: "visitor_media", label: "Visitor / Media" },
 ];
 
 export default function Login() {
@@ -88,8 +93,8 @@ export default function Login() {
           </form>
         </div>
 
-        <p className="text-center text-xs text-muted-foreground mt-4">
-          Mathias El Tribe Supreme Court
+        <p className="text-center text-xs text-muted-foreground mt-4 leading-relaxed max-w-xs mx-auto">
+          Mathias El Tribe — A Sovereign Nation Exercising Inherent Authority Under Tribal, Federal, and International Law.
         </p>
       </div>
     </div>
