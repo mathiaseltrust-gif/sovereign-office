@@ -30,7 +30,11 @@ import { renderTemplate, getBuiltInTemplate, listBuiltInTemplates } from "../../
 
 const router = Router();
 
-router.get("/", async (_req, res, next) => {
+router.get("/", requireAuth, async (req, res, next) => {
+  if (req.user?.roles?.includes("visitor_media")) {
+    res.status(403).json({ error: "Access denied. Trust instruments are restricted to registered tribal members and officers." });
+    return;
+  }
   try {
     const instruments = await db
       .select({

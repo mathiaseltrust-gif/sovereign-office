@@ -71,6 +71,16 @@ export function computeDelegatedAuthorities(
     };
   }
 
+  if (r === "chief_justice") {
+    return {
+      medicalNotes: "clinical_provider", welfareActions: true, familyDocuments: true,
+      trustFilings: true, familyGovernance: true, lineageAccess: "full", allAuthorities: true,
+      memberType: "chief_justice", orgAccess: FULL_ORG, elderAuthority: true,
+      clinicalAuthority: true, canGenerateTribalId: true, canApproveInstruments: true,
+      canViewTrustAssets: true, canIssueTrustDirectives: true,
+    };
+  }
+
   if (r === "trustee") {
     return {
       medicalNotes: "self_and_dependents", welfareActions: true, familyDocuments: true,

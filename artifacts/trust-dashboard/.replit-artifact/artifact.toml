@@ -1,31 +1,32 @@
 kind = "web"
-previewPath = "/dashboard/"
-title = "Trust Instruments Dashboard"
-version = "1.0.0"
-id = "artifacts/trust-dashboard"
-router = "path"
+  previewPath = "/trust-dashboard/"
+  title = "Trust Instruments Dashboard"
+  version = "1.0.0"
+  id = "artifacts/trust-dashboard"
+  router = "path"
 
-[[integratedSkills]]
-name = "react-vite"
-version = "1.0.0"
+  [[integratedSkills]]
+  name = "react-vite"
+  version = "1.0.0"
 
-[[services]]
-name = "web"
-paths = [ "/dashboard/" ]
-localPort = 22428
+  [[services]]
+  name = "web"
+  paths = [ "/trust-dashboard/" ]
+  localPort = 22428
 
-[services.development]
-run = "pnpm --filter @workspace/trust-dashboard run dev"
+  [services.development]
+  run = "pnpm --filter @workspace/trust-dashboard run dev"
 
-[services.production]
-build = [ "pnpm", "--filter", "@workspace/trust-dashboard", "run", "build" ]
-publicDir = "artifacts/trust-dashboard/dist/public"
-serve = "static"
+  [services.production]
+  build = [ "pnpm", "--filter", "@workspace/trust-dashboard", "run", "build" ]
+  publicDir = "artifacts/trust-dashboard/dist/public"
+  serve = "static"
 
-[[services.production.rewrites]]
-from = "/*"
-to = "/index.html"
+  [[services.production.rewrites]]
+  from = "/*"
+  to = "/index.html"
 
-[services.env]
-PORT = "22428"
-BASE_PATH = "/dashboard/"
+  [services.env]
+  PORT = "22428"
+  BASE_PATH = "/trust-dashboard/"
+  

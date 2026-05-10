@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import { logger } from "./logger";
 
-// ── Tribal seal loader ──────────────────────────────────────────────────────
+// -- Tribal seal loader ------------------------------------------------------
 // The B&W State of Mathias El seal is embedded in all printed documents.
 // Lazy-loaded once and cached; falls back gracefully if the file is missing.
 let _sealBytes: Uint8Array | null | undefined = undefined; // undefined = not yet tried
@@ -20,7 +20,7 @@ function getSealBytes(): Uint8Array | null {
       return _sealBytes;
     } catch { /* try next */ }
   }
-  logger.warn("seal-bw.png not found — PDFs will render without the tribal seal");
+  logger.warn("seal-bw.png not found - PDFs will render without the tribal seal");
   _sealBytes = null;
   return null;
 }
@@ -218,14 +218,14 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
   const docTypeLine = meta.documentType ?? "TRUST INSTRUMENT";
   const titleY = CONTENT_TOP_Y + (MARGIN_TOP - CONTENT_TOP_Y + MARGIN_TOP) / 2;
 
-  // Tribal seal — centered in the recorder header area above the document title
+  // Tribal seal - centered in the recorder header area above the document title
   if (sealImage) drawSeal(page, sealImage, 56, CONTENT_TOP_Y + 58);
 
   drawCentered(page, "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", CONTENT_TOP_Y + 50, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
   drawCentered(page, docTypeLine.toUpperCase(), CONTENT_TOP_Y + 32, timesBold, FONT_TITLE_SIZE + 1);
   drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 14, timesBold, FONT_TITLE_SIZE - 1);
 
-  const noticeText = "NOTICE AFFECTING REAL PROPERTY — RECORD IN CHAIN OF TITLE";
+  const noticeText = "NOTICE AFFECTING REAL PROPERTY - RECORD IN CHAIN OF TITLE";
   drawCentered(page, noticeText, CONTENT_TOP_Y - 4, timesItalic, FONT_SMALL_SIZE + 1, rgb(0.3, 0.1, 0.1));
 
   currentY = CONTENT_TOP_Y - 26;
@@ -423,14 +423,14 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
     color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
   });
 
-  // Tribal seal — centered above the document title
+  // Tribal seal - centered above the document title
   if (sealImage) {
     drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
   }
   drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 38, timesBold, FONT_TITLE_SIZE);
   drawCentered(page, `Welfare Act: ${input.welfareAct}`, CONTENT_TOP_Y + 20, timesItalic, FONT_BODY_SIZE, rgb(0.3, 0.1, 0.1));
   // Authority line (replaces old text placeholder)
-  drawCentered(page, `MATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT`, CONTENT_TOP_Y + 4, timesRoman, FONT_SMALL_SIZE - 1, rgb(0.35, 0.35, 0.35));
+  drawCentered(page, `MATHIAS EL TRIBE - SEAT OF THE TRIBAL GOVERNMENT`, CONTENT_TOP_Y + 4, timesRoman, FONT_SMALL_SIZE - 1, rgb(0.35, 0.35, 0.35));
 
   currentY = CONTENT_TOP_Y - 16;
 
@@ -462,7 +462,7 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
     for (const d of input.doctrinesApplied) {
       if (currentY < CONTENT_BOTTOM_Y + 72) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
       const truncated = d.length > 120 ? d.substring(0, 117) + "..." : d;
-      page.drawText(`• ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
+      page.drawText(`* ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= LINE_HEIGHT_BODY - 2;
     }
     currentY -= 6;
@@ -473,7 +473,7 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
     if (currentY < CONTENT_BOTTOM_Y + 80) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
     const trimmed = line.trim();
     if (!trimmed) { currentY -= LINE_HEIGHT_BODY * 0.4; continue; }
-    if (trimmed === trimmed.toUpperCase() && trimmed.length > 0 && !trimmed.startsWith("•")) {
+    if (trimmed === trimmed.toUpperCase() && trimmed.length > 0 && !trimmed.startsWith("*")) {
       if (currentY < CONTENT_BOTTOM_Y + 100) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
       currentY = drawTextWrapped(page, trimmed, MARGIN_LEFT, currentY, CONTENT_WIDTH, timesBold, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
     } else {
@@ -486,11 +486,11 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
 
   currentY = sigY + 52;
   page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 10 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 10 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) });
-  page.drawText("SIGNATURE BLOCK — SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText("SIGNATURE BLOCK - SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
   currentY -= LINE_HEIGHT_BODY + 6;
 
   const midX = PAGE_W / 2;
-  page.drawText(input.emergencyOrder ? "Emergency Order — Chief Justice Signature:" : "Chief Justice & Trustee Signature:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  page.drawText(input.emergencyOrder ? "Emergency Order - Chief Justice Signature:" : "Chief Justice & Trustee Signature:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
   page.drawText("Date:", { x: midX + 18, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
   currentY -= 4;
   page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 16 }, end: { x: midX - 18, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
@@ -539,7 +539,7 @@ function splitIntoParagraphs(text: string): string[] {
 export async function buildNfrRecorderPdf(nfrId: number, content: string, classificationData?: Record<string, string>): Promise<PdfResult> {
   const paragraphs = splitIntoParagraphs(content);
   return buildRecorderPdf({
-    title: `Notice of Federal Review — NFR #${nfrId}`,
+    title: `Notice of Federal Review - NFR #${nfrId}`,
     parties: {
       "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee",
       "Subject": sanitizeForPdf(classificationData?.actorType ?? "Respondent"),
@@ -596,7 +596,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.1, 0.1, 0.4),
   });
   currentY -= 12;
-  page.drawText("Court Documents Division — Legacy Court Document Generator", {
+  page.drawText("Court Documents Division - Legacy Court Document Generator", {
     x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman, color: rgb(0.3, 0.3, 0.3),
   });
 
@@ -616,7 +616,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
   });
 
-  // Tribal seal — centered in the court document header
+  // Tribal seal - centered in the court document header
   if (sealImage) drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
 
   drawCentered(page, input.documentType.toUpperCase().replace(/_/g, " "), CONTENT_TOP_Y + 40, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
@@ -662,7 +662,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     if (currentY < CONTENT_BOTTOM_Y + 80) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
     const line = rawLine.trimEnd();
     if (!line.trim()) { currentY -= LINE_HEIGHT_BODY * 0.4; continue; }
-    if (line === line.toUpperCase() && line.trim().length > 2 && !line.startsWith("•")) {
+    if (line === line.toUpperCase() && line.trim().length > 2 && !line.startsWith("*")) {
       if (currentY < CONTENT_BOTTOM_Y + 100) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
       currentY = drawTextWrapped(page, line.trim(), MARGIN_LEFT, currentY, CONTENT_WIDTH, timesBold, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
     } else {
@@ -678,7 +678,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     for (const d of input.doctrinesApplied.slice(0, 8)) {
       if (currentY < CONTENT_BOTTOM_Y + 60) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
       const truncated = d.length > 110 ? d.substring(0, 107) + "..." : d;
-      page.drawText(`• ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
+      page.drawText(`* ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= LINE_HEIGHT_BODY - 2;
     }
   }
@@ -690,7 +690,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     currentY -= LINE_HEIGHT_BODY;
     for (const ref of input.lawRefs.slice(0, 6)) {
       if (currentY < CONTENT_BOTTOM_Y + 60) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
-      page.drawText(`• ${ref.citation} — ${ref.title}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
+      page.drawText(`* ${ref.citation} - ${ref.title}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= LINE_HEIGHT_BODY - 2;
     }
   }
@@ -726,7 +726,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
   return { buffer: Buffer.from(pdfBytes), pageCount: pageNum, generatedAt: new Date().toISOString(), checksum };
 }
 
-// ── Tribal ID PDF ─────────────────────────────────────────────────────────────
+// -- Tribal ID PDF -------------------------------------------------------------
 export interface TribalIdPdfInput {
   userId: number;
   legalName: string;
@@ -753,14 +753,14 @@ export interface TribalIdPdfResult {
 
 export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalIdPdfResult> {
   const pdfDoc = await PDFDocument.create();
-  const page = pdfDoc.addPage([612, 396]); // ID card landscape — 8.5 x 5.5 inches
+  const page = pdfDoc.addPage([612, 396]); // ID card landscape - 8.5 x 5.5 inches
   const { width, height } = page.getSize();
   const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Background — ivory
+  // Background - ivory
   page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.98, 0.97, 0.93) });
 
   // Top banner
@@ -780,7 +780,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   page.drawText(idNum, { x: width - 90, y: height - 24, size: 10, font: helveticaBold, color: rgb(1, 1, 1) });
   page.drawText(`Exp: ${input.expirationDate}`, { x: width - 90, y: height - 38, size: 7, font: helvetica, color: rgb(0.8, 0.8, 0.8) });
 
-  // Left column — identity fields
+  // Left column - identity fields
   let y = height - 80;
   const lx = 20;
   const LABEL_COLOR = rgb(0.45, 0.45, 0.45);
@@ -806,14 +806,14 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   if (input.isElder) {
     const elderLabel = input.elderStatus ? `${input.elderStatus.charAt(0).toUpperCase() + input.elderStatus.slice(1)} Elder` : "Elder";
     page.drawRectangle({ x: lx, y: y - 4, width: 90, height: 15, color: rgb(0.95, 0.85, 0.2) });
-    page.drawText(`★ ${elderLabel}`, { x: lx + 4, y: y - 1, size: 8, font: helveticaBold, color: rgb(0.2, 0.1, 0) });
+    page.drawText(`* ${elderLabel}`, { x: lx + 4, y: y - 1, size: 8, font: helveticaBold, color: rgb(0.2, 0.1, 0) });
     y -= 22;
   }
 
   // Divider
   page.drawLine({ start: { x: width / 2 - 20, y: 10 }, end: { x: width / 2 - 20, y: height - 68 }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });
 
-  // Right column — affiliations + QR
+  // Right column - affiliations + QR
   const rx = width / 2 - 8;
   let ry = height - 80;
 
@@ -827,7 +827,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
     page.drawText("AFFILIATIONS", { x: rx, y: ry, size: 6.5, font: helvetica, color: LABEL_COLOR });
     ry -= 11;
     for (const aff of input.orgAffiliations.slice(0, 5)) {
-      page.drawText(`• ${aff.substring(0, 38)}`, { x: rx, y: ry, size: 7.5, font: timesRoman, color: VALUE_COLOR });
+      page.drawText(`* ${aff.substring(0, 38)}`, { x: rx, y: ry, size: 7.5, font: timesRoman, color: VALUE_COLOR });
       ry -= 11;
     }
     ry -= 4;
@@ -865,7 +865,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   return { bytes: new Uint8Array(pdfBytes), generatedAt: new Date().toISOString() };
 }
 
-// ── Verification Letter PDF ───────────────────────────────────────────────────
+// -- Verification Letter PDF ---------------------------------------------------
 export interface VerificationLetterInput {
   userId: number;
   legalName: string;
@@ -973,7 +973,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
   page.drawText("VERIFICATION STATUS", { x: MARGIN, y, size: 8, font: timesBold, color: rgb(0.2, 0.2, 0.5) });
   y -= 12;
   for (const [label, status] of statusItems) {
-    const mark = status ? "✓" : "○";
+    const mark = status ? "+" : "-";
     const col = status ? rgb(0, 0.5, 0) : rgb(0.6, 0.1, 0.1);
     page.drawText(`${mark}  ${label}`, { x: MARGIN + 10, y, size: 9, font: status ? timesBold : timesRoman, color: col });
     y -= 12;
@@ -989,7 +989,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
   }
 
   if (input.ancestorChain.length > 0) {
-    page.drawText("Lineage Chain: " + input.ancestorChain.slice(0, 5).join(" → "), { x: MARGIN + 10, y, size: 8, font: timesItalic, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText("Lineage Chain: " + input.ancestorChain.slice(0, 5).join(" > "), { x: MARGIN + 10, y, size: 8, font: timesItalic, color: rgb(0.3, 0.3, 0.3) });
     y -= 14;
   }
   if (input.tribalNations.length > 0) {
@@ -1003,7 +1003,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
     page.drawText("DELEGATED AUTHORITIES", { x: MARGIN, y, size: 8, font: timesBold, color: rgb(0.2, 0.2, 0.5) });
     y -= 12;
     for (const auth of input.delegatedAuthorities.slice(0, 8)) {
-      page.drawText(`• ${auth}`, { x: MARGIN + 10, y, size: 8.5, font: timesRoman });
+      page.drawText(`* ${auth}`, { x: MARGIN + 10, y, size: 8.5, font: timesRoman });
       y -= 11;
     }
     y -= 4;
@@ -1014,7 +1014,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
     page.drawText("ORGANIZATIONAL AFFILIATIONS", { x: MARGIN, y, size: 8, font: timesBold, color: rgb(0.2, 0.2, 0.5) });
     y -= 12;
     for (const aff of input.orgAffiliations.slice(0, 6)) {
-      page.drawText(`• ${aff.org} — ${aff.role}${aff.active ? "" : " (inactive)"}`, { x: MARGIN + 10, y, size: 8.5, font: timesRoman });
+      page.drawText(`* ${aff.org} - ${aff.role}${aff.active ? "" : " (inactive)"}`, { x: MARGIN + 10, y, size: 8.5, font: timesRoman });
       y -= 11;
     }
     y -= 4;
@@ -1025,7 +1025,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
     page.drawText("JURISDICTIONAL PROTECTIONS", { x: MARGIN, y, size: 8, font: timesBold, color: rgb(0.2, 0.2, 0.5) });
     y -= 12;
     for (const prot of input.jurisdictionalProtections.slice(0, 6)) {
-      page.drawText(`⚑  ${prot.substring(0, 85)}`, { x: MARGIN + 10, y, size: 8, font: timesRoman, color: rgb(0.25, 0.25, 0.25) });
+      page.drawText(`*  ${prot.substring(0, 85)}`, { x: MARGIN + 10, y, size: 8, font: timesRoman, color: rgb(0.25, 0.25, 0.25) });
       y -= 11;
     }
     y -= 6;
@@ -1043,7 +1043,7 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
   // Signature block
   page.drawText("_______________________________________________", { x: MARGIN, y, size: 9, font: timesRoman });
   y -= 13;
-  page.drawText("Chief Justice & Trustee — Mathias El Tribe", { x: MARGIN, y, size: 9, font: timesBold });
+  page.drawText("Chief Justice & Trustee - Mathias El Tribe", { x: MARGIN, y, size: 9, font: timesBold });
   y -= 11;
   page.drawText("Sovereign Office of the Chief Justice & Trustee", { x: MARGIN, y, size: 8, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
   y -= 10;
@@ -1067,7 +1067,7 @@ export async function buildInstrumentRecorderPdf(
     trusteeNotes: inputOverride?.trusteeNotes,
     recorderMetadata: {
       documentType: "TRUST INSTRUMENT",
-      filingCategory: "Real Property — Indian Trust Land",
+      filingCategory: "Real Property - Indian Trust Land",
       trustStatus: "Federal Trust",
       requiresNotary: true,
       ...inputOverride?.recorderMetadata,
