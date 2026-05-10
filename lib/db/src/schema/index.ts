@@ -16,3 +16,4 @@ export * from "./welfare-acts";
 export * from "./notifications";
 export * from "./law-db";
 export * from "./court-documents";
+export * from "./family-lineage";

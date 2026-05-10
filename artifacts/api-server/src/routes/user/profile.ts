@@ -8,6 +8,7 @@ import {
   complaintsTable,
   nfrDocumentsTable,
 } from "@workspace/db";
+import { getLineageForUser, getKnowledgeOfSelfLinks } from "../../sovereign/family-tree-engine";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { getPreferences, getRecommendations, learnPreference } from "../../sovereign/ai-learning";
@@ -52,6 +53,26 @@ router.get("/", requireAuth, async (req, res, next) => {
       userNfrs = await db.select().from(nfrDocumentsTable).limit(10);
       aiPreferences = await getPreferences(dbId);
       recommendations = await getRecommendations(dbId);
+
+      const lineageData = await getLineageForUser(dbId).catch(() => ({ lineage: [], narratives: [] }));
+      const kosLinks = await getKnowledgeOfSelfLinks(dbId).catch(() => ({ narratives: [], linkedAncestors: [], records: [] }));
+
+      res.json({
+        user,
+        profile,
+        identity,
+        tasks: userTasks,
+        calendarEvents: userCalendar,
+        complaintHistory: userComplaints,
+        nfrHistory: userNfrs,
+        searchHistory,
+        aiPreferences,
+        recommendations,
+        lineage: lineageData.lineage,
+        lineageNarratives: lineageData.narratives,
+        knowledgeOfSelf: kosLinks,
+      });
+      return;
     }
 
     res.json({
@@ -65,6 +86,9 @@ router.get("/", requireAuth, async (req, res, next) => {
       searchHistory,
       aiPreferences,
       recommendations,
+      lineage: [],
+      lineageNarratives: [],
+      knowledgeOfSelf: { narratives: [], linkedAncestors: [], records: [] },
     });
   } catch (err) {
     next(err);

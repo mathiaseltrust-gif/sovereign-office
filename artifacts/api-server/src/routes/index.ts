@@ -17,6 +17,7 @@ import notificationsRouter from "./notifications";
 import lawRouter from "./law";
 import courtDocumentsRouter from "./court/documents";
 import intakeAiRouter from "./intake/ai";
+import familyTreeRouter from "./family-tree";
 
 const router: IRouter = Router();
 
@@ -39,5 +40,6 @@ router.use("/admin/bootstrap", adminBootstrapRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/law", lawRouter);
 router.use("/intake/ai", intakeAiRouter);
+router.use("/family-tree", familyTreeRouter);
 
 export default router;
