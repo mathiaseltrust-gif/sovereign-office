@@ -340,6 +340,17 @@ export interface AdminActionInput {
   role?: string;
 }
 
+export interface AdminSetPasswordInput {
+  userId: number;
+  /** @minLength 8 */
+  password: string;
+}
+
+export interface AdminSetPasswordResult {
+  success: boolean;
+  message: string;
+}
+
 /**
  * @nullable
  */

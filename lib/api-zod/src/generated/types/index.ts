@@ -11,6 +11,8 @@ export * from "./adminActionInputAction";
 export * from "./adminActionResult";
 export * from "./adminActionResultUser";
 export * from "./adminActionResultUsersItem";
+export * from "./adminSetPasswordInput";
+export * from "./adminSetPasswordResult";
 export * from "./calendarEvent";
 export * from "./classifyInput";
 export * from "./classifyResponse";

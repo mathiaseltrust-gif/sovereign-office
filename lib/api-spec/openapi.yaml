@@ -568,6 +568,29 @@ paths:
                 items:
                   $ref: "#/components/schemas/SystemUser"
 
+  /admin/entra/set-password:
+    post:
+      operationId: adminSetPassword
+      tags: [admin]
+      summary: Set a password for any user (admin only)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminSetPasswordInput"
+      responses:
+        "200":
+          description: Password set successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSetPasswordResult"
+        "400":
+          description: Validation error
+        "404":
+          description: User not found
+
   /admin/entra:
     post:
       operationId: adminAction
@@ -878,6 +901,20 @@ components:
         entraRequired: { type: boolean }
         role: { type: string }
       required: [action]
+
+    AdminSetPasswordInput:
+      type: object
+      properties:
+        userId: { type: integer }
+        password: { type: string, minLength: 8 }
+      required: [userId, password]
+
+    AdminSetPasswordResult:
+      type: object
+      properties:
+        success: { type: boolean }
+        message: { type: string }
+      required: [success, message]
 
     AdminActionResult:
       type: object

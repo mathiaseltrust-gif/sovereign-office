@@ -536,6 +536,21 @@ export const ListAdminUsersResponseItem = zod.object({
 export const ListAdminUsersResponse = zod.array(ListAdminUsersResponseItem);
 
 /**
+ * @summary Set a password for any user (admin only)
+ */
+export const adminSetPasswordBodyPasswordMin = 8;
+
+export const AdminSetPasswordBody = zod.object({
+  userId: zod.number(),
+  password: zod.string().min(adminSetPasswordBodyPasswordMin),
+});
+
+export const AdminSetPasswordResponse = zod.object({
+  success: zod.boolean(),
+  message: zod.string(),
+});
+
+/**
  * @summary Perform admin action (toggle_entra, override_role, revoke_trust, grant_trust, list_users)
  */
 export const AdminActionBody = zod.object({

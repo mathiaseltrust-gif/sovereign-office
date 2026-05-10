@@ -19,6 +19,8 @@ import type {
 import type {
   AdminActionInput,
   AdminActionResult,
+  AdminSetPasswordInput,
+  AdminSetPasswordResult,
   CalendarEvent,
   ClassifyInput,
   ClassifyResponse,
@@ -2427,6 +2429,92 @@ export function useListAdminUsers<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Set a password for any user (admin only)
+ */
+export const getAdminSetPasswordUrl = () => {
+  return `/api/admin/entra/set-password`;
+};
+
+export const adminSetPassword = async (
+  adminSetPasswordInput: AdminSetPasswordInput,
+  options?: RequestInit,
+): Promise<AdminSetPasswordResult> => {
+  return customFetch<AdminSetPasswordResult>(getAdminSetPasswordUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(adminSetPasswordInput),
+  });
+};
+
+export const getAdminSetPasswordMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetPassword>>,
+    TError,
+    { data: BodyType<AdminSetPasswordInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof adminSetPassword>>,
+  TError,
+  { data: BodyType<AdminSetPasswordInput> },
+  TContext
+> => {
+  const mutationKey = ["adminSetPassword"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof adminSetPassword>>,
+    { data: BodyType<AdminSetPasswordInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return adminSetPassword(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AdminSetPasswordMutationResult = NonNullable<
+  Awaited<ReturnType<typeof adminSetPassword>>
+>;
+export type AdminSetPasswordMutationBody = BodyType<AdminSetPasswordInput>;
+export type AdminSetPasswordMutationError = ErrorType<void>;
+
+/**
+ * @summary Set a password for any user (admin only)
+ */
+export const useAdminSetPassword = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof adminSetPassword>>,
+    TError,
+    { data: BodyType<AdminSetPasswordInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof adminSetPassword>>,
+  TError,
+  { data: BodyType<AdminSetPasswordInput> },
+  TContext
+> => {
+  return useMutation(getAdminSetPasswordMutationOptions(options));
+};
 
 /**
  * @summary Perform admin action (toggle_entra, override_role, revoke_trust, grant_trust, list_users)

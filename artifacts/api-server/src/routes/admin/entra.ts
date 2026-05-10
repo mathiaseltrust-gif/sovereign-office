@@ -227,6 +227,42 @@ router.post("/grant-trust", requireAuth, requireRegisteredUser, requireAdmin, as
   }
 });
 
+// Separate from /api/auth/set-password (self-service) — this endpoint lets admins
+// set a password for *any* user by userId and requires admin privileges.
+router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+  try {
+    const { userId, password } = req.body as { userId?: number; password?: string };
+    if (!userId) {
+      res.status(400).json({ error: "userId is required" });
+      return;
+    }
+    if (!password || password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters." });
+      return;
+    }
+
+    const { randomBytes, createHash, createHmac } = await import("crypto");
+    const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-me";
+    const salt = randomBytes(16).toString("hex");
+    const hash = createHash("sha256").update(`${salt}:${password}:${SESSION_SECRET}`).digest("hex");
+
+    const updated = await db
+      .update(usersTable)
+      .set({ passwordHash: hash, passwordSalt: salt, updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning();
+
+    if (!updated[0]) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+
+    res.json({ success: true, message: "Password set successfully." });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/create-user", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
   try {
     const { email, name, role, entraId } = req.body as {
