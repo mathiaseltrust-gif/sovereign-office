@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "t2pumP68RVmscTU1-UMe-"
+uri = "file://sovereign-office-system.zip"
+type = "unspecified"
+title = "Sovereign Office System — Full Source Code"
