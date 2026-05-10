@@ -5,7 +5,7 @@ import {
   trustFilingsTable,
   searchIndexTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import {
   buildInstrumentContent,
@@ -54,6 +54,60 @@ router.get("/", requireAuth, async (req, res, next) => {
       .from(trustInstrumentsTable)
       .orderBy(trustInstrumentsTable.createdAt);
     res.json(instruments);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/stats", requireAuth, async (_req, res, next) => {
+  try {
+    const [totals] = await db
+      .select({
+        total: count(),
+        draft: sql<number>`sum(case when ${trustInstrumentsTable.status} = 'draft' then 1 else 0 end)`,
+        valid: sql<number>`sum(case when ${trustInstrumentsTable.status} = 'valid' then 1 else 0 end)`,
+        filed: sql<number>`sum(case when ${trustInstrumentsTable.status} = 'filed' then 1 else 0 end)`,
+        submitted: sql<number>`sum(case when ${trustInstrumentsTable.status} = 'submitted' then 1 else 0 end)`,
+      })
+      .from(trustInstrumentsTable);
+    const [filingTotals] = await db
+      .select({
+        total: count(),
+        pending: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'submitted' then 1 else 0 end)`,
+        accepted: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'accepted' then 1 else 0 end)`,
+        rejected: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'rejected' then 1 else 0 end)`,
+      })
+      .from(trustFilingsTable);
+    res.json({
+      instruments: totals,
+      filings: filingTotals,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/render-template", async (req, res, next) => {
+  try {
+    const { templateKey, variables, recorderMetadata } = req.body as {
+      templateKey: string;
+      variables?: Array<{ key: string; value: string }>;
+      recorderMetadata?: Record<string, string>;
+    };
+    if (!templateKey) {
+      res.status(400).json({ error: "templateKey is required" });
+      return;
+    }
+    const rendered = await renderTemplate(
+      templateKey,
+      variables ?? [],
+      { ...(recorderMetadata ?? {}), documentType: "TRUST INSTRUMENT" },
+    );
+    if (!rendered) {
+      res.status(404).json({ error: `Template '${templateKey}' not found. Available: ${listBuiltInTemplates().join(", ")}` });
+      return;
+    }
+    res.json(rendered);
   } catch (err) {
     next(err);
   }
@@ -283,11 +337,29 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
       .set({ pdfUrl: `/api/trust/instruments/${instrument.id}/pdf` })
       .where(eq(trustInstrumentsTable.id, instrument.id));
 
+    const partyNames = Object.values(pdfInput!.parties).join(" ");
+    const searchContent = [
+      instrumentTitle,
+      body.type ?? body.templateKey ?? "",
+      pdfInput!.land.description ?? "",
+      pdfInput!.land.classification ?? "",
+      landClassification,
+      stateKey,
+      body.recorderMetadata?.county ?? "",
+      partyNames,
+    ].filter(Boolean).join(" ");
     await db.insert(searchIndexTable).values({
       entityType: "instrument",
       entityId: String(instrument.id),
-      content: `${instrumentTitle} ${pdfInput!.land.description ?? ""} ${stateKey}`,
-      metadata: { instrumentType: body.type, landClassification, state: stateKey, status: instrument.status },
+      content: searchContent,
+      metadata: {
+        instrumentType: body.type ?? body.templateKey,
+        landClassification,
+        state: stateKey,
+        county: body.recorderMetadata?.county,
+        status: instrument.status,
+        title: instrumentTitle,
+      },
     });
 
     res.status(201).json({

@@ -5,10 +5,26 @@ import {
   trustInstrumentsTable,
   searchIndexTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 
 const router = Router();
+
+router.get("/stats", async (_req, res, next) => {
+  try {
+    const [totals] = await db
+      .select({
+        total: count(),
+        submitted: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'submitted' then 1 else 0 end)`,
+        accepted: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'accepted' then 1 else 0 end)`,
+        rejected: sql<number>`sum(case when ${trustFilingsTable.filingStatus} = 'rejected' then 1 else 0 end)`,
+      })
+      .from(trustFilingsTable);
+    res.json(totals);
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/", async (_req, res, next) => {
   try {
@@ -99,11 +115,26 @@ router.post("/", requireAuth, async (req, res, next) => {
         .where(eq(trustInstrumentsTable.id, instrumentId));
     }
 
+    const filingSearchContent = [
+      documentType ?? instrumentType ?? "trust filing",
+      county,
+      state,
+      landClassification,
+      notes ?? "",
+      instrumentId ? `instrument:${instrumentId}` : "",
+    ].filter(Boolean).join(" ");
     await db.insert(searchIndexTable).values({
       entityType: "filing",
       entityId: String(filing.id),
-      content: `${documentType ?? "filing"} ${county} ${state} ${landClassification}`,
-      metadata: { county, state, status: filing.filingStatus, instrumentId },
+      content: filingSearchContent,
+      metadata: {
+        county,
+        state,
+        status: filing.filingStatus,
+        instrumentId,
+        documentType: documentType ?? instrumentType,
+        landClassification,
+      },
     });
 
     res.status(201).json(filing);
