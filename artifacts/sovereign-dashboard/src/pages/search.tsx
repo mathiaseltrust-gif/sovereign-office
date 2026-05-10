@@ -9,10 +9,16 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 
-const ENTITY_TYPES = ["", "classification", "nfr", "complaint", "task"];
-const ACTOR_TYPES = ["", "federal", "state", "tribal", "private"];
-const LAND_STATUSES = ["", "trust", "allotment", "fee", "public"];
-const ACTION_TYPES = ["", "trespass", "transfer", "lease", "sale", "encroachment"];
+const ENTITY_TYPES = ["__all__", "classification", "nfr", "complaint", "task"];
+const ACTOR_TYPES = ["__all__", "federal", "state", "tribal", "private"];
+const LAND_STATUSES = ["__all__", "trust", "allotment", "fee", "public"];
+const ACTION_TYPES = ["__all__", "trespass", "transfer", "lease", "sale", "encroachment"];
+const ENTITY_LABELS: Record<string, string> = { __all__: "All types" };
+const ACTOR_LABELS: Record<string, string> = { __all__: "Any actor" };
+const LAND_LABELS: Record<string, string> = { __all__: "Any status" };
+const ACTION_LABELS: Record<string, string> = { __all__: "Any action" };
+function toSentinel(v: string) { return v || "__all__"; }
+function fromSentinel(v: string) { return v === "__all__" ? "" : v; }
 
 export default function SearchPage() {
   const [query, setQuery] = useState({ q: "", type: "", actorType: "", landStatus: "", actionType: "" });
@@ -72,37 +78,37 @@ export default function SearchPage() {
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <div>
                 <Label>Entity Type</Label>
-                <Select value={query.type} onValueChange={(v) => setQuery({ ...query, type: v })}>
+                <Select value={toSentinel(query.type)} onValueChange={(v) => setQuery({ ...query, type: fromSentinel(v) })}>
                   <SelectTrigger data-testid="select-entity-type"><SelectValue placeholder="All types" /></SelectTrigger>
                   <SelectContent>
-                    {ENTITY_TYPES.map((t) => <SelectItem key={t} value={t}>{t || "All types"}</SelectItem>)}
+                    {ENTITY_TYPES.map((t) => <SelectItem key={t} value={t}>{ENTITY_LABELS[t] ?? t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Actor Type</Label>
-                <Select value={query.actorType} onValueChange={(v) => setQuery({ ...query, actorType: v })}>
+                <Select value={toSentinel(query.actorType)} onValueChange={(v) => setQuery({ ...query, actorType: fromSentinel(v) })}>
                   <SelectTrigger data-testid="select-actor-type"><SelectValue placeholder="Any actor" /></SelectTrigger>
                   <SelectContent>
-                    {ACTOR_TYPES.map((t) => <SelectItem key={t} value={t}>{t || "Any actor"}</SelectItem>)}
+                    {ACTOR_TYPES.map((t) => <SelectItem key={t} value={t}>{ACTOR_LABELS[t] ?? t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Land Status</Label>
-                <Select value={query.landStatus} onValueChange={(v) => setQuery({ ...query, landStatus: v })}>
+                <Select value={toSentinel(query.landStatus)} onValueChange={(v) => setQuery({ ...query, landStatus: fromSentinel(v) })}>
                   <SelectTrigger data-testid="select-land-status"><SelectValue placeholder="Any status" /></SelectTrigger>
                   <SelectContent>
-                    {LAND_STATUSES.map((t) => <SelectItem key={t} value={t}>{t || "Any status"}</SelectItem>)}
+                    {LAND_STATUSES.map((t) => <SelectItem key={t} value={t}>{LAND_LABELS[t] ?? t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
               <div>
                 <Label>Action Type</Label>
-                <Select value={query.actionType} onValueChange={(v) => setQuery({ ...query, actionType: v })}>
+                <Select value={toSentinel(query.actionType)} onValueChange={(v) => setQuery({ ...query, actionType: fromSentinel(v) })}>
                   <SelectTrigger data-testid="select-action-type"><SelectValue placeholder="Any action" /></SelectTrigger>
                   <SelectContent>
-                    {ACTION_TYPES.map((t) => <SelectItem key={t} value={t}>{t || "Any action"}</SelectItem>)}
+                    {ACTION_TYPES.map((t) => <SelectItem key={t} value={t}>{ACTION_LABELS[t] ?? t}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>

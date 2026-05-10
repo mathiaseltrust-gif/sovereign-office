@@ -100,10 +100,10 @@ export default function InstrumentsPage() {
                 </div>
                 <div>
                   <Label htmlFor="template">Template (optional)</Label>
-                  <Select value={form.templateKey} onValueChange={(v) => setForm({ ...form, templateKey: v })}>
+                  <Select value={form.templateKey || "__none__"} onValueChange={(v) => setForm({ ...form, templateKey: v === "__none__" ? "" : v })}>
                     <SelectTrigger data-testid="select-template"><SelectValue placeholder="Select template" /></SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">None</SelectItem>
+                      <SelectItem value="__none__">None</SelectItem>
                       {templates.map((t) => <SelectItem key={t} value={t}>{t}</SelectItem>)}
                     </SelectContent>
                   </Select>
