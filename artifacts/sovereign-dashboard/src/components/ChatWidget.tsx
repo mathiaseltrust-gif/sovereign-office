@@ -183,26 +183,77 @@ export function ChatWidget() {
     }
   };
 
+  const renderInline = (text: string, key: string | number) => {
+    const parts: React.ReactNode[] = [];
+    const boldRe = /\*\*(.+?)\*\*/g;
+    let last = 0;
+    let m: RegExpExecArray | null;
+    while ((m = boldRe.exec(text)) !== null) {
+      if (m.index > last) parts.push(text.slice(last, m.index));
+      parts.push(<strong key={`b-${m.index}`} style={{ fontWeight: 700 }}>{m[1]}</strong>);
+      last = m.index + m[0].length;
+    }
+    if (last < text.length) parts.push(text.slice(last));
+    return <span key={key}>{parts}</span>;
+  };
+
   const formatContent = (content: string) => {
-    return content.split("\n").map((line, i) => {
-      if (line.startsWith("• ")) {
-        return (
-          <div key={i} style={{ display: "flex", gap: 6, marginBottom: 2 }}>
-            <span style={{ color: "#b5a057", flexShrink: 0 }}>•</span>
-            <span>{line.slice(2)}</span>
+    const lines = content.split("\n");
+    const nodes: React.ReactNode[] = [];
+    let listItems: string[] = [];
+
+    const flushList = (i: number) => {
+      if (listItems.length) {
+        nodes.push(
+          <ul key={`ul-${i}`} style={{ margin: "4px 0 4px 0", paddingLeft: 0, listStyle: "none" }}>
+            {listItems.map((item, li) => (
+              <li key={li} style={{ display: "flex", gap: 6, marginBottom: 3 }}>
+                <span style={{ color: "#b5a057", flexShrink: 0, fontWeight: 700 }}>•</span>
+                <span>{renderInline(item, li)}</span>
+              </li>
+            ))}
+          </ul>
+        );
+        listItems = [];
+      }
+    };
+
+    lines.forEach((line, i) => {
+      if (line.startsWith("• ") || line.startsWith("- ") || line.startsWith("* ")) {
+        listItems.push(line.slice(2));
+        return;
+      }
+      const numberedMatch = line.match(/^(\d+)\.\s+(.+)$/);
+      if (numberedMatch) {
+        listItems.push(`${numberedMatch[1]}. ${numberedMatch[2]}`);
+        return;
+      }
+      flushList(i);
+      if (/^#{1,3}\s/.test(line)) {
+        const text = line.replace(/^#+\s/, "");
+        nodes.push(
+          <div key={i} style={{ fontWeight: 700, marginTop: i > 0 ? 12 : 4, marginBottom: 3, color: "#1a1a2e", fontSize: 14 }}>
+            {renderInline(text, i)}
           </div>
         );
+        return;
       }
       if (/^[A-Z][A-Z\s/()&–-]{3,}:/.test(line) && line.length < 80) {
-        return (
+        nodes.push(
           <div key={i} style={{ fontWeight: 700, marginTop: i > 0 ? 10 : 4, marginBottom: 2, color: "#1a1a2e" }}>
-            {line}
+            {renderInline(line, i)}
           </div>
         );
+        return;
       }
-      if (line === "") return <div key={i} style={{ height: 6 }} />;
-      return <div key={i}>{line}</div>;
+      if (line === "") {
+        nodes.push(<div key={i} style={{ height: 6 }} />);
+        return;
+      }
+      nodes.push(<div key={i}>{renderInline(line, i)}</div>);
     });
+    flushList(lines.length);
+    return nodes;
   };
 
   return (

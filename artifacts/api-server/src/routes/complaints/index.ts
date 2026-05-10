@@ -124,6 +124,19 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
   }
 });
 
+router.get("/officers", requireAuth, async (_req, res, next) => {
+  try {
+    const officers = await db
+      .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
+      .from(usersTable)
+      .where(eq(usersTable.role, "officer"))
+      .orderBy(usersTable.name);
+    res.json(officers);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const complaints = await db.select().from(complaintsTable).orderBy(complaintsTable.createdAt);

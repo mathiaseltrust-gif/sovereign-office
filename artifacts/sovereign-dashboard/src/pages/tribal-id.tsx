@@ -32,20 +32,23 @@ const PROTECTION_COLOR: Record<string, string> = {
 export default function TribalIdPage() {
   const { user } = useAuth();
   const { toast } = useToast();
-  if (!user) return null;
-  const token = makeToken(user);
   const [generating, setGenerating] = useState(false);
   const [genLetter, setGenLetter] = useState(false);
 
+  const token = user ? makeToken(user) : "";
+
   const { data, isLoading } = useQuery<GatewayData>({
-    queryKey: ["identity-gateway"],
+    queryKey: ["identity-gateway", user?.id],
     queryFn: async () => {
       const r = await fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${token}` } });
       if (!r.ok) throw new Error("Failed to load identity gateway");
       return r.json();
     },
+    enabled: !!user,
     staleTime: 60_000,
   });
+
+  if (!user) return null;
 
   const handleDownloadId = async () => {
     setGenerating(true);

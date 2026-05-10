@@ -1,16 +1,19 @@
 import { useState } from "react";
 import { useListComplaints, useGetComplaint, getGetComplaintQueryKey, useCreateComplaint, getListComplaintsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+
+interface OfficerEntry { id: number; name: string; email: string; }
 
 function statusVariant(status: string) {
   return status === "open" ? "destructive" : status === "closed" ? "secondary" : "outline";
@@ -126,6 +129,19 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const [officerId, setOfficerId] = useState("");
   const [updating, setUpdating] = useState(false);
 
+  const token = getCurrentBearerToken();
+  const { data: officers = [] } = useQuery<OfficerEntry[]>({
+    queryKey: ["complaints-officers"],
+    queryFn: async () => {
+      const r = await fetch("/api/complaints/officers", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 120_000,
+  });
+
   if (isLoading) return <div data-testid="page-complaint-detail"><Skeleton className="h-48" /></div>;
   if (!complaint) return <div data-testid="page-complaint-detail" className="text-muted-foreground">Complaint not found.</div>;
 
@@ -215,16 +231,31 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
           </div>
           <form onSubmit={handleAssignOfficer} className="flex items-end gap-2">
             <div className="flex-1">
-              <Label className="text-xs mb-1 block">Assign Officer (ID)</Label>
-              <input
-                data-testid="input-officer-id"
-                type="number"
-                min="1"
-                value={officerId}
-                onChange={(e) => setOfficerId(e.target.value)}
-                placeholder="Officer user ID"
-                className="w-full border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-              />
+              <Label className="text-xs mb-1 block">Assign Officer</Label>
+              {officers.length > 0 ? (
+                <Select value={officerId} onValueChange={setOfficerId}>
+                  <SelectTrigger data-testid="input-officer-id" className="h-9 text-sm">
+                    <SelectValue placeholder="Select an officer…" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {officers.map((o) => (
+                      <SelectItem key={o.id} value={String(o.id)}>
+                        {o.name || o.email} <span className="text-muted-foreground text-xs ml-1">#{o.id}</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              ) : (
+                <input
+                  data-testid="input-officer-id"
+                  type="number"
+                  min="1"
+                  value={officerId}
+                  onChange={(e) => setOfficerId(e.target.value)}
+                  placeholder="Officer ID"
+                  className="w-full border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                />
+              )}
             </div>
             <Button type="submit" size="sm" disabled={updating || !officerId.trim()}>
               Assign

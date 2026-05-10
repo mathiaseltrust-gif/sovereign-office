@@ -46,6 +46,8 @@ export default function SearchPage() {
 
   function entityLink(type: string, id: string) {
     switch (type) {
+      case "instrument": return `/trust/instruments/${id}`;
+      case "filing": return `/trust/filings/${id}`;
       case "classification": return `/nfr`;
       case "nfr": return `/nfr`;
       case "complaint": return `/complaints/${id}`;
@@ -58,7 +60,7 @@ export default function SearchPage() {
     <div data-testid="page-search">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Search</h1>
-        <p className="text-muted-foreground mt-1">Cross-entity search across classifications, NFRs, complaints, and tasks</p>
+        <p className="text-muted-foreground mt-1">Cross-entity search across trust instruments, filings, NFRs, complaints, and more</p>
       </div>
 
       <Card className="mb-6">
