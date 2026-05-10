@@ -16,13 +16,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
           <NavLink href={`/dashboard/${activeRole}`} label="Dashboard" location={location} />
           <NavLink href="/instruments" label="Trust Instruments" location={location} />
           <NavLink href="/filings" label="Filings" location={location} />
-          <NavLink href="/nfr" label="NFR Documents" location={location} />
+          <NavLink href="/nfr" label="Notice of Federal Review" location={location} />
           <NavLink href="/welfare" label="Welfare Instruments" location={location} />
+          <NavLink href="/documents" label="Court Documents" location={location} />
           <NavLink href="/classify" label="Classification" location={location} />
           <NavLink href="/complaints" label="Complaints" location={location} />
           <NavLink href="/tasks" label="Tasks" location={location} />
           <NavLink href="/calendar" label="Calendar" location={location} />
           <NavLink href="/notifications" label="Notifications" location={location} highlight />
+          <NavLink href="/law" label="Law Library" location={location} />
+          <NavLink href="/intake-ai" label="AI Intake Review" location={location} />
           <NavLink href="/search" label="Search" location={location} />
           {activeRole === "admin" && <NavLink href="/admin" label="Administration" location={location} />}
           <NavLink href="/profile" label="Profile &amp; Identity" location={location} />

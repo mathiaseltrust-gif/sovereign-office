@@ -35,8 +35,8 @@ export default function NfrPage() {
   return (
     <div data-testid="page-nfr">
       <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-foreground">NFR Documents</h1>
-        <p className="text-muted-foreground mt-1">Notices of Fault and Remedies — recorder-compliant PDFs</p>
+        <h1 className="text-3xl font-serif font-bold text-foreground">Notice of Federal Review</h1>
+        <p className="text-muted-foreground mt-1">NFR — Notice of Federal Review issued upon violations of federal Indian law</p>
       </div>
       {isLoading ? (
         <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>

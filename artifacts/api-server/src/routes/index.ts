@@ -14,6 +14,9 @@ import adminEntraRouter from "./admin/entra";
 import adminBootstrapRouter from "./admin/bootstrap";
 import welfareRouter from "./court/welfare";
 import notificationsRouter from "./notifications";
+import lawRouter from "./law";
+import courtDocumentsRouter from "./court/documents";
+import intakeAiRouter from "./intake/ai";
 
 const router: IRouter = Router();
 
@@ -24,6 +27,8 @@ router.use("/trust/instruments", trustInstrumentsRouter);
 router.use("/trust/filings", trustFilingsRouter);
 router.use("/tribal/classify", classifyRouter);
 router.use("/court/nfr", nfrRouter);
+router.use("/court/documents", courtDocumentsRouter);
+router.use("/court/welfare", welfareRouter);
 router.use("/complaints", complaintsRouter);
 router.use("/calendar", calendarRouter);
 router.use("/tasks", tasksRouter);
@@ -31,7 +36,8 @@ router.use("/search", searchRouter);
 router.use("/user/profile", userProfileRouter);
 router.use("/admin/entra", adminEntraRouter);
 router.use("/admin/bootstrap", adminBootstrapRouter);
-router.use("/court/welfare", welfareRouter);
 router.use("/notifications", notificationsRouter);
+router.use("/law", lawRouter);
+router.use("/intake/ai", intakeAiRouter);
 
 export default router;

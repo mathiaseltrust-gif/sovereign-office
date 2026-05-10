@@ -48,9 +48,14 @@ const ICWA_VIOLATION_PATTERNS = [
   /child\s+is\s+not\s+(an?\s+)?indian\s+child/i,
   /deny\s+icwa\s+transfer/i,
   /no\s+icwa\s+notice/i,
+  /without\s+icwa\s+notice/i,
   /bypass\s+icwa/i,
   /circumvent\s+icwa/i,
   /ignore\s+icwa/i,
+  /removed?\s+(native|indian|tribal)\s+child/i,
+  /took\s+(the\s+)?(native|indian|tribal)\s+child/i,
+  /failed\s+to\s+(provide|give|send)\s+icwa/i,
+  /no\s+notice\s+to\s+(the\s+)?tribe/i,
 ];
 
 const STATE_OVERREACH_PATTERNS = [

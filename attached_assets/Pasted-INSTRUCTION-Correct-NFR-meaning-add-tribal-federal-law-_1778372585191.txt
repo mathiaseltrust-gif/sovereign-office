@@ -1,0 +1,87 @@
+INSTRUCTION: Correct NFR meaning, add tribal/federal law database, reincorporate legacy court-doc generator, and activate AI intake agent.
+
+1. Correct NFR Definition
+NFR stands for “Notice of Federal Review.” 
+When any triggering action occurs (classification, recorder rejection, welfare violation, jurisdictional conflict, Indian status violation), the system must automatically generate an NFR as part of due process. 
+Update all references, comments, UI labels, and backend constants to reflect:
+NFR = Notice of Federal Review.
+
+2. Tribal Law + Federal Indian Law Database
+Create / update:
+/src/sovereign/law-db.ts
+/src/db/schema.sql
+/src/routes/law.ts
+
+Add tables:
+tribal_law (id, title, citation, body, tags, updated_at)
+federal_indian_law (id, title, citation, body, tags, updated_at)
+doctrine_sources (id, case_name, citation, summary, tags)
+
+The law database must be queryable by:
+- classification engine
+- welfare engine
+- trust instrument generator
+- NFR generator
+- intake filter
+- AI agent
+
+3. Reincorporate Legacy Court Document Generator
+Import the ZIP contents into:
+ /src/legacy/court-docs/
+
+Then integrate:
+- templates
+- PDF layouts
+- signature blocks
+- recorder formatting
+- jurisdictional statements
+- TRO templates
+- ICWA notices
+- protective orders
+- trust deed formats
+
+All endpoints must match the new system:
+POST /api/court/documents/generate
+GET /api/court/documents/:id/pdf
+
+Map legacy template names → new template IDs.
+Ensure recorder compliance and doctrine overlays are applied.
+
+4. AI Intake Agent Activation
+Create:
+/src/sovereign/ai-intake-agent.ts
+
+The AI agent must run on:
+- complaints
+- welfare requests
+- trust instruments
+- recorder filings
+- NFR triggers
+
+The agent must:
+- detect red flags
+- detect Indian status violations
+- detect jurisdictional conflicts
+- detect welfare/TRO triggers
+- pull from tribal + federal law database
+- recommend NFR or TRO posture
+- summarize facts for officer review
+- attach doctrineApplied[] and intakeFlags[] to audit logs
+
+5. Endpoint Alignment
+Ensure all modules use unified endpoints:
+- /api/court/welfare/*
+- /api/court/documents/*
+- /api/trust/instruments/*
+- /api/trust/filings/*
+- /api/nfr/*
+- /api/law/*
+- /api/intake/ai
+
+6. UI Updates
+Update UI labels:
+“NFR Documents” → “Notice of Federal Review”
+Add “Law Library” tab for tribal + federal Indian law.
+Add “AI Intake Review” tab for agent summaries.
+
+This completes the correction, reintegration, and activation.

@@ -14,3 +14,5 @@ export * from "./trust-filings";
 export * from "./welfare-instruments";
 export * from "./welfare-acts";
 export * from "./notifications";
+export * from "./law-db";
+export * from "./court-documents";

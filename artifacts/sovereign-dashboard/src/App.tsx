@@ -22,6 +22,9 @@ import ProfilePage from "@/pages/profile";
 import TemplatesPage from "@/pages/templates";
 import WelfarePage from "@/pages/welfare";
 import NotificationsPage from "@/pages/notifications";
+import LawLibraryPage from "@/pages/law";
+import IntakeAiPage from "@/pages/intake-ai";
+import CourtDocumentsPage from "@/pages/court-documents";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -59,6 +62,9 @@ function Router() {
         <Route path="/tasks" component={TasksPage} />
         <Route path="/calendar" component={CalendarPage} />
         <Route path="/notifications" component={NotificationsPage} />
+        <Route path="/law" component={LawLibraryPage} />
+        <Route path="/intake-ai" component={IntakeAiPage} />
+        <Route path="/documents" component={CourtDocumentsPage} />
         <Route path="/search" component={SearchPage} />
         <Route path="/admin" component={AdminPage} />
         <Route path="/profile" component={ProfilePage} />
