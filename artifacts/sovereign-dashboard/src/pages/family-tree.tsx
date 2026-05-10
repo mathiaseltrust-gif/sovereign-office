@@ -284,7 +284,7 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
             </CardContent>
           </Card>
 
-          {result.summary && (() => {
+          {!!result.summary && (() => {
             const s = result.summary as Record<string, unknown>;
             return (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -315,7 +315,7 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
             );
           })()}
 
-          {result.identityTags && (
+          {!!result.identityTags && (
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Identity Tags Generated</CardTitle></CardHeader>
               <CardContent>

@@ -32,6 +32,7 @@ const PROTECTION_COLOR: Record<string, string> = {
 export default function TribalIdPage() {
   const { user } = useAuth();
   const { toast } = useToast();
+  if (!user) return null;
   const token = makeToken(user);
   const [generating, setGenerating] = useState(false);
   const [genLetter, setGenLetter] = useState(false);

@@ -281,7 +281,7 @@ export default function MedicalNotesPage() {
                       <Badge className={`${PROTECTION_STYLES[(generatedMeta.protectionLevel as string)] ?? ""} text-xs`}>
                         {(generatedMeta.protectionLevel as string)?.toUpperCase()} Protection
                       </Badge>
-                      {generatedMeta.icwaEligible && (
+                      {!!generatedMeta.icwaEligible && (
                         <Badge className="bg-blue-700 text-white text-xs">ICWA</Badge>
                       )}
                     </div>
@@ -328,7 +328,7 @@ export default function MedicalNotesPage() {
                 </CardContent>
               </Card>
 
-              {generatedMeta.whatNext && (() => {
+              {!!generatedMeta.whatNext && (() => {
                 const wn = generatedMeta.whatNext as { immediate: string[]; next: string[]; protected: string[] };
                 return wn.immediate.length + wn.next.length > 0 ? (
                   <Card>

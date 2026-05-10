@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth } from "./auth-provider";
 import { useLocation } from "wouter";
 
-const makeToken = (user: { id: number; email: string; roles: string[]; name: string }) =>
+const makeToken = (user: { id: number | string; email: string; roles: string[]; name: string }) =>
   btoa(JSON.stringify(user));
 
 interface ChatLawRef {
@@ -237,7 +237,7 @@ export function ChatWidget() {
           <span style={{ fontSize: 22, lineHeight: 1 }}>✕</span>
         ) : (
           <img
-            src="/sovereign-dashboard/tribal-seal.png"
+            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
             alt="Sovereign Office Assistant"
             style={{ width: 38, height: 38, objectFit: "contain", borderRadius: "50%" }}
           />
@@ -302,7 +302,7 @@ export function ChatWidget() {
             }}
           >
             <img
-              src="/sovereign-dashboard/tribal-seal.png"
+              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
               alt="Seal"
               style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }}
             />
@@ -346,7 +346,7 @@ export function ChatWidget() {
             {messages.length === 0 && !loading && (
               <div style={{ textAlign: "center", color: "#6b7280", padding: "20px 0" }}>
                 <img
-                  src="/sovereign-dashboard/tribal-seal.png"
+                  src={`${import.meta.env.BASE_URL}tribal-seal.png`}
                   alt="Sovereign Office"
                   style={{ width: 64, height: 64, objectFit: "contain", marginBottom: 8 }}
                 />
@@ -553,7 +553,7 @@ export function ChatWidget() {
                   }}
                 >
                   <img
-                    src="/sovereign-dashboard/tribal-seal.png"
+                    src={`${import.meta.env.BASE_URL}tribal-seal.png`}
                     alt="Seal"
                     style={{ width: 24, height: 24, objectFit: "contain" }}
                   />
