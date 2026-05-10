@@ -53,7 +53,7 @@ export const DEFAULT_RECORDER_SPEC: RecorderFormatSpec = {
   requireTribalSeal: false,
 };
 
-const REQUIRED_LEGAL_PROVISIONS = [
+const REQUIRED_LAND_PROVISIONS = [
   "TRUST STATUS",
   "INDIAN LAND PROTECTION",
   "FEDERAL PREEMPTION",
@@ -64,7 +64,31 @@ const REQUIRED_LEGAL_PROVISIONS = [
   "PROTECTED STATUS",
 ];
 
+const REQUIRED_DOCTRINE_PROVISIONS = [
+  "RESERVATION OF RIGHTS",
+  "SOVEREIGNTY",
+];
+
 const APN_PATTERN = /^\d{3}-\d{3}-\d{2,3}(-\d+)?$|^\d{4}-\d{3}-\d{3}(-\d+)?$|^[A-Z0-9]{2,}-[A-Z0-9-]+$/;
+
+const DOCTRINE_TEMPLATE_KEYS = new Set([
+  "sovereign_restoration_declaration",
+  "inherent_sovereignty_declaration",
+  "state_prohibition_notice",
+  "jurisdiction_enforcement_notice",
+  "disability_enforcement_notice",
+  "medical_protection_decree",
+  "tribal_health_referral",
+]);
+
+export function isDoctrineTemplate(templateKey?: string): boolean {
+  return templateKey ? DOCTRINE_TEMPLATE_KEYS.has(templateKey) : false;
+}
+
+export const DOCTRINE_RECORDER_SPEC: RecorderFormatSpec = {
+  ...DEFAULT_RECORDER_SPEC,
+  requireApn: false,
+};
 
 export interface ValidationResult {
   valid: boolean;
@@ -81,17 +105,24 @@ export function validateRecorderDocument(
     hasNotaryBlock?: boolean;
     hasPageNumbers?: boolean;
     documentType?: string;
+    documentCategory?: "land" | "doctrine" | "medical" | "notice";
+    templateKey?: string;
   },
   spec: RecorderFormatSpec = DEFAULT_RECORDER_SPEC,
 ): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
+  const isDoctrine = metadata.documentCategory === "doctrine" ||
+    metadata.documentCategory === "medical" ||
+    metadata.documentCategory === "notice" ||
+    isDoctrineTemplate(metadata.templateKey);
+
   if (spec.requireReturnAddress && !metadata.returnAddress) {
-    errors.push("Missing required recorder return address block (top-left of first page within 2.5-inch margin)");
+    warnings.push("Return address recommended for recorder filing (top-left of first page within 2.5-inch margin)");
   }
 
-  if (spec.requireApn) {
+  if (spec.requireApn && !isDoctrine) {
     if (!metadata.apn && !content.includes("APN:")) {
       errors.push("Missing required Assessor's Parcel Number (APN) block");
     } else if (metadata.apn && !APN_PATTERN.test(metadata.apn)) {
@@ -100,9 +131,16 @@ export function validateRecorderDocument(
   }
 
   if (spec.requireTitleBlock) {
-    const hasTitle = content.includes("TRUST INSTRUMENT") || content.includes("NOTICE AFFECTING REAL PROPERTY") || content.includes("INSTRUMENT TYPE:");
+    const hasTitle =
+      content.includes("TRUST INSTRUMENT") ||
+      content.includes("NOTICE AFFECTING REAL PROPERTY") ||
+      content.includes("INSTRUMENT TYPE:") ||
+      content.includes("DECLARATION") ||
+      content.includes("DECREE") ||
+      content.includes("NOTICE OF") ||
+      content.includes("DOCTRINE");
     if (!hasTitle) {
-      errors.push("Missing required title block. Document must contain 'TRUST INSTRUMENT' or 'NOTICE AFFECTING REAL PROPERTY'");
+      errors.push("Missing required title block");
     }
   }
 
@@ -118,19 +156,30 @@ export function validateRecorderDocument(
     warnings.push("Page numbering is required; ensure bottom-center page numbers are present");
   }
 
-  const missingProvisions = REQUIRED_LEGAL_PROVISIONS.filter(
-    (p) => !content.toUpperCase().includes(p),
-  );
-  if (missingProvisions.length > 0) {
-    errors.push(`Missing required legal provisions: ${missingProvisions.join(", ")}`);
-  }
-
-  if (!content.includes("LEGAL DESCRIPTION") && !content.includes("PARTIES")) {
-    errors.push("Missing legal description and parties sections");
-  } else if (!content.includes("LEGAL DESCRIPTION")) {
-    errors.push("Missing legal description of land");
-  } else if (!content.includes("PARTIES")) {
-    warnings.push("Parties section not found — ensure grantor/grantee are identified");
+  if (isDoctrine) {
+    const missingDoctrineProvisions = REQUIRED_DOCTRINE_PROVISIONS.filter(
+      (p) => !content.toUpperCase().includes(p),
+    );
+    if (missingDoctrineProvisions.length > 0) {
+      warnings.push(`Recommended sovereign provisions not found: ${missingDoctrineProvisions.join(", ")}`);
+    }
+    if (!content.includes("PARTIES")) {
+      warnings.push("Parties section not found — ensure issuing authority and directed parties are identified");
+    }
+  } else {
+    const missingProvisions = REQUIRED_LAND_PROVISIONS.filter(
+      (p) => !content.toUpperCase().includes(p),
+    );
+    if (missingProvisions.length > 0) {
+      errors.push(`Missing required legal provisions: ${missingProvisions.join(", ")}`);
+    }
+    if (!content.includes("LEGAL DESCRIPTION") && !content.includes("PARTIES")) {
+      errors.push("Missing legal description and parties sections");
+    } else if (!content.includes("LEGAL DESCRIPTION")) {
+      errors.push("Missing legal description of land");
+    } else if (!content.includes("PARTIES")) {
+      warnings.push("Parties section not found — ensure grantor/grantee are identified");
+    }
   }
 
   return { valid: errors.length === 0, errors, warnings };

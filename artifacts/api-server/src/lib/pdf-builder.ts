@@ -362,7 +362,7 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
   page.drawText("Office of Tribal Welfare Instruments & Protective Orders", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
 
   if (input.troSensitive || input.emergencyOrder) {
-    const alertText = input.emergencyOrder ? "⚑ EMERGENCY ORDER — IMMEDIATE ACTION REQUIRED" : "⚑ TRO-SENSITIVE INSTRUMENT";
+    const alertText = input.emergencyOrder ? "** EMERGENCY ORDER -- IMMEDIATE ACTION REQUIRED **" : "** TRO-SENSITIVE INSTRUMENT **";
     const alertColor = rgb(0.65, 0.1, 0.1);
     const alertW = timesBold.widthOfTextAtSize(alertText, FONT_BODY_SIZE + 1);
     const alertX = (PAGE_W - alertW) / 2;
@@ -412,7 +412,7 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
     currentY -= LINE_HEIGHT_BODY;
     for (const d of input.doctrinesApplied) {
       if (currentY < CONTENT_BOTTOM_Y + 72) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
-      const truncated = d.length > 120 ? d.substring(0, 117) + "…" : d;
+      const truncated = d.length > 120 ? d.substring(0, 117) + "..." : d;
       page.drawText(`• ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= LINE_HEIGHT_BODY - 2;
     }
@@ -533,7 +533,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
   });
 
   if (input.troSensitive || input.emergencyOrder) {
-    const alertText = input.emergencyOrder ? "⚑ EMERGENCY ORDER — IMMEDIATE ACTION REQUIRED" : "⚑ TRO-SENSITIVE DOCUMENT";
+    const alertText = input.emergencyOrder ? "** EMERGENCY ORDER -- IMMEDIATE ACTION REQUIRED **" : "** TRO-SENSITIVE DOCUMENT **";
     const alertColor = rgb(0.65, 0.1, 0.1);
     const alertW = timesBold.widthOfTextAtSize(alertText, FONT_BODY_SIZE + 1);
     const alertX = (PAGE_W - alertW) / 2;
@@ -606,7 +606,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     currentY -= LINE_HEIGHT_BODY;
     for (const d of input.doctrinesApplied.slice(0, 8)) {
       if (currentY < CONTENT_BOTTOM_Y + 60) { page = addNewPage(); currentY = CONTENT_TOP_Y; }
-      const truncated = d.length > 110 ? d.substring(0, 107) + "…" : d;
+      const truncated = d.length > 110 ? d.substring(0, 107) + "..." : d;
       page.drawText(`• ${truncated}`, { x: MARGIN_LEFT + 12, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= LINE_HEIGHT_BODY - 2;
     }

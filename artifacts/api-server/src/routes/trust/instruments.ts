@@ -22,6 +22,8 @@ import {
   validateRecorderDocument,
   validateMargins,
   DEFAULT_RECORDER_SPEC,
+  DOCTRINE_RECORDER_SPEC,
+  isDoctrineTemplate,
 } from "../../sovereign/recorder-engine";
 import { getStateIntel, getIndianLandClassification } from "../../sovereign/state-intel";
 import { renderTemplate, getBuiltInTemplate, listBuiltInTemplates } from "../../sovereign/template-engine";
@@ -219,6 +221,9 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
       pdfInput = { ...pdfInput!, ...body.pdfInput };
     }
 
+    const isDoctrineInstrument = isDoctrineTemplate(body.templateKey);
+    const recorderSpec = isDoctrineInstrument ? DOCTRINE_RECORDER_SPEC : DEFAULT_RECORDER_SPEC;
+
     const legacyValidation = validateInstrumentForRecorder(content, DEFAULT_RECORDER_FORMAT);
     const recorderValidation = validateRecorderDocument(content, {
       apn: pdfInput!.recorderMetadata.apn ?? pdfInput!.land.apn,
@@ -226,7 +231,9 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
       hasSignatureBlock: true,
       hasNotaryBlock: !!pdfInput!.recorderMetadata.requiresNotary,
       hasPageNumbers: true,
-    }, DEFAULT_RECORDER_SPEC);
+      templateKey: body.templateKey,
+      documentCategory: isDoctrineInstrument ? "doctrine" : "land",
+    }, recorderSpec);
 
     const marginValidation = validateMargins(DEFAULT_RECORDER_SPEC);
 

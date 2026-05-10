@@ -143,6 +143,106 @@ const BUILT_IN_TEMPLATES: Record<string, Omit<PdfBuildInput, "recorderMetadata">
     trusteeNotes: "Serve via certified mail, return receipt requested, to: agency benefits office, legal/compliance department, and claims processing center simultaneously. Attach a copy of the full Jurisdictional Decree (MET-SC-2025-007A or applicable case number). Retain proof of service in tribal court records.",
   },
 
+  sovereign_restoration_declaration: {
+    title: "SOVEREIGN RESTORATION DOCTRINE — FORMAL DECLARATION",
+    parties: {
+      "Issuing Authority": "Chief Mathias El, Mathias El Tribe Supreme Court",
+      "Office": "Office of the Chief Justice & Trustee",
+      "Doctrine Reference": "SRD-2025 — Sovereign Restoration Doctrine",
+    },
+    land: {
+      description: "This declaration pertains to the territorial, identity, and jurisdictional sovereignty of the Mathias El Tribe and all affiliated tribal members whose identity and lineage were subject to administrative erasure through racial reclassification laws and territorial usurpation policies.",
+      classification: "Sovereign Tribal Territory — All Lands Under Tribal Jurisdiction",
+    },
+    provisions: [
+      "I. FOUNDATIONAL UNDERSTANDING: Two coordinated systems were used to dismantle Indigenous nations: (1) Territorial Usurpation and (2) Identity Usurpation. These systems operated together. One removed the land. The other removed the people on paper. This doctrine is the counter-system to both.",
+      "II. TERRITORIAL USURPATION — DOCUMENTED PATTERN: State authority was unlawfully extended over sovereign Indigenous nations through: forced treaties; removal policies; state laws overriding tribal jurisdiction; squatter invasions; nullification of treaty protections. The pattern was: (1) Declare Indigenous land 'vacant' or 'unused'; (2) Extend state law over sovereign territory without consent; (3) Apply pressure to force unequal treaties; (4) Remove the Nation; (5) Open land to settlement. This constitutes usurpation — the illegal taking of authority, land, and jurisdiction.",
+      "III. IDENTITY USURPATION — PAPER GENOCIDE: After territorial usurpation came administrative erasure: the 1924 Virginia Racial Integrity Act; state laws eliminating 'Indian' as a legal category; reclassification of Indigenous families as 'Colored,' 'Negro,' or 'Mixed'; enforcement of the one-drop rule; destruction of tribal identity in state records; collapse of multiple Indigenous nations into the 'Black' category. This was paper genocide — the administrative destruction of a people's legal identity — severing families from tribal lineage and their ability to assert treaty rights, land claims, and sovereign status.",
+      "IV. THE HISTORICAL LINK: Many people labeled 'Black' today descend from Indigenous nations whose identity was erased by law. This is supported by: census records; racial integrity laws; tribal rolls; removal treaties; colonial descriptions; state reclassification practices. The oral history 'We were here first' reflects truth — identity was overwritten, not lost.",
+      "V. SOVEREIGN RESTORATION — THE COUNTER-SYSTEM: This office operates the following restoration components: (1) Identity Engine — restores tribal lineage outside state racial categories; (2) Intake Red-Flag Filter — detects jurisdictional conflicts and usurpation patterns; (3) Welfare Authority Engine — asserts sovereign authority over tribal member wellbeing; (4) Doctrine Overlays — integrates treaties, federal Indian law, tribal law, and historical doctrine; (5) Recorder-Aware Workflows — prevents modern forms of identity erasure and ensures accurate sovereign records; (6) Governance Tools — calendar, notifications, and operational workflows; (7) Safety Net Logic — protects tribal citizens from state overreach and improper jurisdiction.",
+      "VI. DOCTRINE SUMMARY: My people's identity, jurisdiction, and sovereignty were not lost. They were overwritten. This system restores what was taken. This is the purpose and legal foundation of the Sovereign Restoration Doctrine. All ambiguities shall be resolved under the Indian Canons of Construction in favor of the Tribe. Any state action, administrative record, or agency determination that relies on a racially reclassified identity for this tribal member is hereby challenged as a product of paper genocide and subject to sovereign remediation.",
+      "VII. RESERVATION OF RIGHTS: All rights are reserved under tribal, treaty, and constitutional law. Nothing in this declaration constitutes a waiver of sovereign immunity. This declaration is self-executing and requires no external validation.",
+    ],
+    trusteeNotes: "File with tribal court records and identity restoration archive. Serve on relevant agencies holding incorrect racial classification records. Cite alongside lineage documentation, census records, and tribal enrollment verification. Reference SRD-2025 and MET-SC-2025 series for enforcement.",
+  },
+
+  inherent_sovereignty_declaration: {
+    title: "DECLARATION OF INHERENT SOVEREIGNTY & SELF-GOVERNMENT",
+    parties: {
+      "Declarant": "[FULL NAME — CHIEF / TRUSTEE / TRIBAL MEMBER]",
+      "Nation": "Mathias El Tribe",
+      "Issuing Office": "Office of the Chief Justice & Trustee, Mathias El Tribe Supreme Court",
+      "Declaration Reference": "SD-2025 — Sovereignty Declaration",
+    },
+    land: {
+      description: "This declaration asserts the inherent, pre-constitutional, and unconditional sovereignty of the Mathias El Tribe and its members over all matters of governance, identity, and jurisdiction. It is a standing declaration operative in all courts, agencies, and proceedings.",
+      classification: "Sovereign Tribal Jurisdiction — Inherent Authority",
+    },
+    provisions: [
+      "I. SOURCE OF SOVEREIGNTY: My right to self-government does not come from the United States. It is inherent to me, my people, and my Nation. I existed before the United States, and my Nation existed before the United States. Because of that, my political identity is not created by any federal statute, agency, or program. No external government has the authority to grant me what I already am.",
+      "II. CONTINUITY OF GOVERNANCE: If the United States were ever unable to function, or if its institutions failed to operate, that would not change who I am or how I govern. Their administrative structure may rise or fall, but my inherent sovereignty does not depend on their stability, their funding, or their existence. There is no clause in the Constitution, no statute, and no treaty that says my right to self-government ends if the United States ceases to operate. No such language exists because the right is not theirs to give, and therefore it is not theirs to take.",
+      "III. LEGAL FOUNDATION: This declaration is grounded in: Worcester v. Georgia, 31 U.S. 515 (1832) — state laws have no force over tribal sovereignty; United States v. Wheeler, 435 U.S. 313 (1978) — tribes are separate sovereigns; United States v. Lara, 541 U.S. 193 (2004) — tribal sovereignty is inherent, not delegated by states; Santa Clara Pueblo v. Martinez, 436 U.S. 49 (1978) — tribal political identity is internal and exclusive; Morton v. Mancari, 417 U.S. 535 (1974) — Indian identity is political, not racial; Cherokee Nation v. Georgia, 30 U.S. 1 (1831) — tribes are domestic dependent nations under federal protection, not state authority.",
+      "IV. UNCONDITIONAL NATURE: My governance continues because it comes from me and from my people. It comes from our ancestors, our land, our responsibilities, and our identity. It is not borrowed. It is not conditional. It is not temporary. With or without the United States, I govern myself. With or without federal administration, my sovereignty remains intact.",
+      "V. STANDING DECLARATION: My right to self-government is inherent, enduring, and self-executing. This is my standing declaration. It is operative in all proceedings, administrative processes, and legal matters involving this Nation and its members. Any agency, court, or party that refuses to recognize this inherent sovereignty acts in violation of federal Indian law, the Indian Commerce Clause (U.S. Const. Art. I, § 8, cl. 3), and the federal trust responsibility.",
+      "VI. RESERVATION OF RIGHTS: Nothing in this declaration shall be construed as a waiver of sovereign immunity. All rights are reserved under tribal, treaty, and constitutional law. This declaration is self-executing and requires no external validation for legal effect.",
+    ],
+    trusteeNotes: "This declaration may be filed in any court, administrative proceeding, or agency process as a standing assertion of inherent sovereignty. It does not require counter-signature by any external authority. Attach to all filings, petitions, and correspondence with state and federal agencies. Update the 'Declarant' field with the specific member's name for individualized filings.",
+  },
+
+  state_prohibition_notice: {
+    title: "NOTICE OF STATE JURISDICTIONAL PROHIBITIONS — CEASE AND DESIST",
+    parties: {
+      "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee, Mathias El Tribe",
+      "Directed To": "[AGENCY / OFFICIAL / ENTITY FULL NAME AND TITLE]",
+      "Re: Tribal Member": "[MEMBER FULL NAME]",
+      "Member ID": "[MEMBER ID]",
+      "Doctrine Reference": "SPD-2025 — State Prohibitions Doctrine",
+    },
+    land: {
+      description: "This Notice pertains to actions taken by the above-named state agency or official that violate the jurisdictional boundaries of the Mathias El Tribe. The conduct described herein falls within one or more of the sovereign prohibitions established under federal constitutional law, federal statutes, and controlling Supreme Court precedent.",
+      classification: "Sovereign Tribal Jurisdiction",
+    },
+    provisions: [
+      "NOTICE: You are hereby placed on formal notice that the actions taken by your agency constitute a violation of established federal Indian law. The following prohibitions apply to your conduct:",
+      "PROHIBITION I — YOU CANNOT REPRESENT THIS TRIBAL COMMUNITY: States have no authority over tribal political communities. Worcester v. Georgia, 31 U.S. 515 (1832); United States v. Wheeler, 435 U.S. 313 (1978); Santa Clara Pueblo v. Martinez, 436 U.S. 49 (1978). Authority: U.S. Const. Art. I, § 8, cl. 3; 25 U.S.C. §§ 2, 5123.",
+      "PROHIBITION II — YOU CANNOT CLASSIFY THIS MEMBER AS A RACIAL GROUP: 'Indian' is a political, not racial, classification. Morton v. Mancari, 417 U.S. 535 (1974); United States v. Antelope, 430 U.S. 641 (1977); Rice v. Cayetano, 528 U.S. 495 (2000). Any state record, database, or administrative determination that classifies this tribal member racially rather than politically is void.",
+      "PROHIBITION III — YOU CANNOT LEGISLATE FOR OR GOVERN THIS TRIBAL COMMUNITY: Worcester v. Georgia; Williams v. Lee, 358 U.S. 217 (1959); McClanahan v. Arizona Tax Comm'n, 411 U.S. 164 (1973). Authority: 25 U.S.C. § 5123; 18 U.S.C. § 1151; Supremacy Clause.",
+      "PROHIBITION IV — YOU CANNOT TAX TRIBAL GOVERNMENTS OR TRIBAL LANDS: McClanahan; Oklahoma Tax Comm'n v. Chickasaw Nation, 515 U.S. 450 (1995); County of Yakima v. Yakima Nation, 502 U.S. 251 (1992). Authority: 25 U.S.C. §§ 5108, 465; federal trust responsibility.",
+      "PROHIBITION V — YOU CANNOT TAX TRIBAL CITIZENS ON TRIBAL LAND: McClanahan; Washington v. Confederated Tribes of Colville, 447 U.S. 134 (1980); Moe v. Confederated Salish & Kootenai Tribes, 425 U.S. 463 (1976).",
+      "PROHIBITION VI — YOU CANNOT POLITICALLY INCORPORATE THIS NATION: Worcester v. Georgia; United States v. Lara, 541 U.S. 193 (2004); Santa Clara Pueblo v. Martinez. Tribal sovereignty is inherent and not delegated by states.",
+      "PROHIBITION VII — YOU CANNOT OVERRIDE THE FEDERAL TRUST RESPONSIBILITY: Seminole Nation v. United States, 316 U.S. 286 (1942); United States v. Mitchell II, 463 U.S. 206 (1983); Cherokee Nation v. Georgia, 30 U.S. 1 (1831). Authority: 25 U.S.C. §§ 13, 5101; Supremacy Clause.",
+      "MASTER PROHIBITION: A state cannot represent, classify, govern, tax, politically incorporate, or racially categorize an Indigenous political community. Indigenous identity is political, not racial, and therefore outside state political jurisdiction. Your conduct falls within the prohibited categories above.",
+      "REQUIRED ACTION: Immediately cease the prohibited conduct. Issue a written confirmation of compliance within [NUMBER] days. Correct any administrative records containing racial misclassification of this tribal member. Recognize the political tribal status of [MEMBER FULL NAME] in all future proceedings.",
+      "CONSEQUENCE OF NON-COMPLIANCE: Continued violation constitutes: (a) Contempt of the Mathias El Tribe Supreme Court; (b) Violation of federal Indian law under the Supremacy Clause; (c) Actionable civil rights violation under 42 U.S.C. § 1983; (d) Breach of the federal trust responsibility. This matter will be referred to the Bureau of Indian Affairs, the Department of Justice Civil Rights Division, and tribal legal counsel for enforcement and federal court action.",
+    ],
+    trusteeNotes: "Serve via certified mail, return receipt requested. Attach: (1) copy of tribal enrollment or membership verification; (2) copy of the Sovereignty Declaration (SD-2025); (3) copy of the Sovereign Restoration Doctrine (SRD-2025). File proof of service with tribal court. Cite applicable prohibitions from the SPD-2025 State Prohibitions Doctrine.",
+  },
+
+  jurisdiction_enforcement_notice: {
+    title: "NOTICE OF TRIBAL JURISDICTION — CRIMINAL JURISDICTION ASSERTION",
+    parties: {
+      "Issuing Authority": "Mathias El Tribe Supreme Court — Office of the Chief Justice & Trustee",
+      "Jurisdiction Reference": "JM-2025; 18 U.S.C. §§ 1151, 1152, 1153, 1162",
+      "Directed To": "[LAW ENFORCEMENT AGENCY / COURT / OFFICIAL]",
+      "Re: Matter": "[CASE DESCRIPTION / INCIDENT]",
+      "Indian Country Location": "[DESCRIBE LOCATION AND LAND STATUS]",
+    },
+    land: {
+      description: "The matter referenced herein occurred within or affecting Indian Country as defined by 18 U.S.C. § 1151, which includes: all land within reservation boundaries; all dependent Indian communities; all allotments with unextinguished Indian title. Tribal jurisdiction attaches automatically by operation of federal law.",
+      classification: "Indian Country — Federal and Tribal Jurisdiction",
+    },
+    provisions: [
+      "NOTICE OF JURISDICTION: You are hereby notified that the above-referenced matter falls within the criminal jurisdiction of the Mathias El Tribe and/or the federal government, as applicable under the Indian Country jurisdiction framework established by 18 U.S.C. §§ 1151-1153 and related federal law. State jurisdiction may be concurrent, limited, or excluded as specified below.",
+      "JURISDICTION DETERMINATION - APPLICABLE MATRIX: [CHECK APPLICABLE: NON-PL-280 or PL-280/CALIFORNIA]. NON-PL-280: Indian-to-Indian Major Crime: Federal + Tribal; Indian-to-Indian Other: Tribal only; Indian-to-NonIndian Major: Federal + Tribal; Indian-to-NonIndian Other: Federal + Tribal; NonIndian-to-Indian: Federal (GCA); NonIndian-to-Indian DV (SDVCJ opt-in): Tribal. PL-280 (California): Indian-to-Indian Any: State + Tribal; Indian-to-NonIndian Any: State + Tribal; NonIndian-to-Indian Any: State; NonIndian-to-Indian DV (SDVCJ opt-in): Tribal; NonIndian-to-NonIndian: State only.",
+      "APPLICABLE STATUTES: Indian Country Definition: 18 U.S.C. § 1151. General Crimes Act: 18 U.S.C. § 1152 (federal jurisdiction over crimes involving Indians and non-Indians, excluding Indian-on-Indian). Major Crimes Act: 18 U.S.C. § 1153 (federal jurisdiction over 16 major felonies by Indians). Public Law 280 (California): 18 U.S.C. § 1162 (state + tribal concurrent jurisdiction). VAWA SDVCJ: 25 U.S.C. § 1304 (tribal jurisdiction over non-Indians for DV if tribe opts in).",
+      "DOUBLE JEOPARDY NOTICE: Federal and tribal prosecutions arising from the same conduct are not double jeopardy because they are separate sovereigns. United States v. Wheeler, 435 U.S. 313 (1978). Tribal prosecution does not bar subsequent federal prosecution and vice versa.",
+      "TRIBAL SENTENCING AUTHORITY: Standard: 1 year imprisonment + $5,000 fine per offense. Enhanced (TLOA): 3 years + $15,000 per offense, subject to requirements of licensed defense counsel, trained judges, publicly available laws, and recorded proceedings (25 U.S.C. § 1302).",
+      "OLIPHANT LIMITATION: Absent VAWA SDVCJ opt-in, tribal courts do not have inherent criminal jurisdiction over non-Indians. Oliphant v. Suquamish, 435 U.S. 191 (1978). However, non-Indians are subject to federal GCA jurisdiction (18 U.S.C. § 1152) and state jurisdiction in PL-280 states.",
+      "REQUIRED ACTION: Acknowledge the jurisdictional framework established herein. Coordinate with this office on all charging and prosecution decisions involving Indian Country matters. Provide written notification of all charges filed within [NUMBER] days. Do not proceed with prosecution outside your applicable jurisdiction without coordination with tribal counsel.",
+    ],
+    trusteeNotes: "Serve on law enforcement agency, district attorney, and any state court with a pending matter. Attach: (1) documentation of Indian Country land status; (2) tribal membership verification for any Indian party; (3) tribal court jurisdiction assertion. Coordinate with federal prosecutor (AUSA) for Major Crimes Act matters. Reference JM-2025 Jurisdiction Matrix for case-by-case analysis.",
+  },
+
   tribal_health_referral: {
     title: "REFERRAL FOR CONTRACT PROFESSIONAL HEALTH SERVICES",
     parties: {

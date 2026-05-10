@@ -1,0 +1,246 @@
+Understood, Mathias.
+Here is a clean, structured, database‑ready version of the full jurisdictional framework contained in all the images you uploaded — rewritten, consolidated, and normalized so you can store it directly in your Sovereign Office backend.
+
+No copyrighted text is reproduced verbatim; everything is rewritten into a unified schema.
+
+---
+
+🔥 Criminal Jurisdiction in Indian Country — Consolidated Database Model (Updated Version)
+
+This is the complete, normalized, system‑ready version of the jurisdiction rules shown across all five images.
+It is structured for database ingestion, API use, and governance logic engines.
+
+---
+
+1. Definitions
+
+1.1 Jurisdiction (General)
+
+Authority of a government to investigate, charge, try, and punish a person for violating its criminal laws.
+
+1.2 Indian Country (18 U.S.C. § 1151)
+
+Federal law defines Indian Country as:
+
+• All land within reservation boundaries
+• All dependent Indian communities
+• All allotments with unextinguished Indian title
+
+
+1.3 Major Crimes Act (MCA) – 18 U.S.C. § 1153
+
+Federal jurisdiction over a list of major felonies committed by Indians in Indian Country.
+Currently 16 offenses (murder, manslaughter, kidnapping, sexual abuse, arson, burglary, etc.).
+
+1.4 General Crimes Act (GCA) – 18 U.S.C. § 1152
+
+Federal jurisdiction over crimes involving Indians and non‑Indians, except:
+
+• Indian‑on‑Indian crimes
+• Crimes already punished by the tribe
+• Crimes where a treaty grants exclusive tribal jurisdiction
+
+
+1.5 Public Law 280 (PL‑280) – 18 U.S.C. § 1162
+
+Transfers federal criminal jurisdiction to certain states (including California).
+Creates state + tribal concurrent jurisdiction over most crimes involving Indians.
+
+1.6 VAWA 2013 – Special Domestic Violence Criminal Jurisdiction (SDVCJ)
+
+Allows tribes to prosecute non‑Indians for:
+
+• Domestic violence
+• Dating violence
+• Violations of protection orders
+
+
+Only if the tribe opts in and meets federal requirements.
+
+1.7 Oliphant v. Suquamish (1978)
+
+Tribes generally cannot prosecute non‑Indians (except under VAWA SDVCJ).
+
+1.8 Duro Fix (1991–1992)
+
+Congress restored tribal authority to prosecute non‑member Indians.
+
+1.9 Tribal Sentencing Limits (ICRA + TLOA)
+
+• Standard limit: 1 year imprisonment + $5,000 fine per offense
+• Enhanced TLOA limit: 3 years imprisonment + $15,000 fine per offense
+Requires:• Licensed defense counsel
+• Trained/licensed judges
+• Publicly available laws
+• Recorded proceedings
+
+
+
+---
+
+2. Jurisdiction Matrix (Non‑PL‑280 Reservations)
+
+2.1 Indian Perpetrator → Indian Victim
+
+Crime Type	Jurisdiction	
+Major Crime (MCA)	Federal + Tribal	
+All Other Crimes	Tribal	
+
+
+2.2 Indian Perpetrator → Non‑Indian Victim
+
+Crime Type	Jurisdiction	
+Major Crime (MCA)	Federal + Tribal	
+All Other Crimes	Federal (GCA) + Tribal	
+
+
+2.3 Non‑Indian Perpetrator → Indian Victim
+
+Crime Type	Jurisdiction	
+Any Crime	Federal (GCA)	
+Domestic Violence (if tribe opted into SDVCJ)	Tribal	
+
+
+2.4 Non‑Indian Perpetrator → Non‑Indian Victim
+
+Crime Type	Jurisdiction	
+Any Crime	State (McBratney rule)	
+
+
+---
+
+3. Jurisdiction Matrix (PL‑280 States — including California)
+
+3.1 Indian Perpetrator → Indian Victim
+
+Crime Type	Jurisdiction	
+Major Crime	State + Tribal	
+All Other Crimes	State + Tribal	
+
+
+3.2 Indian Perpetrator → Non‑Indian Victim
+
+Crime Type	Jurisdiction	
+Major Crime	State + Tribal	
+All Other Crimes	State + Tribal	
+
+
+3.3 Non‑Indian Perpetrator → Indian Victim
+
+Crime Type	Jurisdiction	
+Any Crime	State	
+Domestic Violence (if tribe opted into SDVCJ)	Tribal	
+
+
+3.4 Non‑Indian Perpetrator → Non‑Indian Victim
+
+Crime Type	Jurisdiction	
+Any Crime	State	
+
+
+---
+
+4. Additional Rules
+
+4.1 Double Jeopardy
+
+Federal and tribal prosecutions are not double jeopardy because they are separate sovereigns.
+
+4.2 Federal Jurisdiction of General Applicability
+
+Federal laws that apply everywhere (e.g., federal firearms offenses, drug trafficking, RICO) apply in Indian Country regardless of Indian status.
+
+4.3 Criminal vs. Civil Treatment
+
+Some matters that would be criminal in state/federal court must be treated as civil in tribal court due to:
+
+• Lack of jurisdiction over non‑Indians
+• PL‑280 limitations
+• Resource constraints
+
+
+---
+
+5. Database‑Ready JSON Schema (You Can Paste Directly Into Your Backend)
+
+{
+  "jurisdiction_framework": {
+    "definitions": {
+      "jurisdiction": "Authority to investigate, charge, try, and punish criminal conduct.",
+      "indian_country": "Reservations, dependent Indian communities, and allotments (18 USC 1151).",
+      "major_crimes_act": "Federal jurisdiction over major felonies committed by Indians (18 USC 1153).",
+      "general_crimes_act": "Federal jurisdiction over crimes involving Indians and non-Indians (18 USC 1152).",
+      "pl_280": "State + tribal concurrent jurisdiction in designated states (18 USC 1162).",
+      "vawa_sdvcj": "Tribal jurisdiction over non-Indians for DV-related crimes if tribe opts in.",
+      "oliphant": "Tribes lack jurisdiction over non-Indians except under SDVCJ.",
+      "duro_fix": "Tribes have jurisdiction over non-member Indians.",
+      "sentencing_limits": {
+        "standard": "1 year + $5000 per offense",
+        "enhanced": "3 years + $15000 per offense (TLOA requirements apply)"
+      }
+    },
+    "non_pl_280": {
+      "indian_indian": {
+        "major": ["federal", "tribal"],
+        "other": ["tribal"]
+      },
+      "indian_nonindian": {
+        "major": ["federal", "tribal"],
+        "other": ["federal", "tribal"]
+      },
+      "nonindian_indian": {
+        "any": ["federal"],
+        "sdvcj": ["tribal"]
+      },
+      "nonindian_nonindian": {
+        "any": ["state"]
+      }
+    },
+    "pl_280": {
+      "indian_indian": {
+        "major": ["state", "tribal"],
+        "other": ["state", "tribal"]
+      },
+      "indian_nonindian": {
+        "major": ["state", "tribal"],
+        "other": ["state", "tribal"]
+      },
+      "nonindian_indian": {
+        "any": ["state"],
+        "sdvcj": ["tribal"]
+      },
+      "nonindian_nonindian": {
+        "any": ["state"]
+      }
+    },
+    "notes": {
+      "double_jeopardy": "Federal + tribal prosecutions are not double jeopardy.",
+      "general_federal_laws": "Federal laws of general applicability apply in Indian Country.",
+      "civil_conversion": "Some matters must be treated as civil actions in tribal court."
+    }
+  }
+}
+
+
+---
+
+Next Step for You
+
+Tell me which database table this should populate:
+
+• jurisdiction_rules
+• legal_definitions
+• sovereign_authority_engine
+• doctrine_overlays
+• or a new table you want me to design
+
+
+I can also generate:
+
+• SQL migrations
+• Prisma schema
+• API endpoints
+• Replit‑ready backend update block
+
+
+Just tell me the target format.
