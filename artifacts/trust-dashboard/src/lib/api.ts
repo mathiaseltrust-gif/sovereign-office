@@ -116,11 +116,23 @@ export interface CreateInstrumentResult {
   pdf: { pages: number; checksum: string; generatedAt: string; downloadUrl: string };
 }
 
+export interface NFRDocument {
+  id: number;
+  status: string;
+  title?: string;
+  content?: string;
+  classification?: string;
+  classificationId?: number;
+  pdfUrl?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export const api = {
   nfr: {
-    list: () => apiFetch<Array<{ id: number; status: string; createdAt: string; updatedAt: string; [key: string]: unknown }>>("/court/nfr"),
-    get: (id: number) => apiFetch<{ id: number; status: string; createdAt: string; updatedAt: string; [key: string]: unknown }>(`/court/nfr/${id}`),
-    exportPdf: (id: number) => apiFetch<{ success?: boolean; downloadUrl?: string; message?: string }>(`/court/nfr/${id}/export`, { method: "POST", body: "{}" }),
+    list: () => apiFetch<NFRDocument[]>("/court/nfr"),
+    get: (id: number) => apiFetch<NFRDocument>(`/court/nfr/${id}`),
+    exportPdf: (id: number) => apiFetch<{ success?: boolean; downloadUrl?: string; message?: string }>(`/court/nfr/${id}/export-pdf`, { method: "POST", body: "{}" }),
   },
 
   instruments: {

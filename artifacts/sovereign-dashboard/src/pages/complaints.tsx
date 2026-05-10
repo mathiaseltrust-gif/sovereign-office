@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useListComplaints, useGetComplaint, getGetComplaintQueryKey, useCreateComplaint, getListComplaintsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -111,33 +112,44 @@ export function ComplaintsListPage() {
   );
 }
 
+interface ClassificationData {
+  actorType: string;
+  landStatus: string;
+  actionType: string;
+}
+
 export function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const { data: complaint, isLoading, refetch } = useGetComplaint(id, { query: { enabled: !!id, queryKey: getGetComplaintQueryKey(id) } });
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user } = useAuth();
   const [officerId, setOfficerId] = useState("");
   const [updating, setUpdating] = useState(false);
 
   if (isLoading) return <div data-testid="page-complaint-detail"><Skeleton className="h-48" /></div>;
   if (!complaint) return <div data-testid="page-complaint-detail" className="text-muted-foreground">Complaint not found.</div>;
 
-  const cls = complaint.classification as any;
+  const cls = complaint.classification as ClassificationData | null;
 
   async function updateComplaint(patch: { status?: string; officerId?: number }) {
     setUpdating(true);
+    const token = user ? btoa(JSON.stringify(user)) : "";
     try {
       const res = await fetch(`/api/complaints/${id}`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
         body: JSON.stringify(patch),
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await refetch();
       queryClient.invalidateQueries({ queryKey: getListComplaintsQueryKey() });
       toast({ title: "Complaint updated" });
-    } catch (err: any) {
-      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setUpdating(false);
     }
@@ -156,7 +168,7 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
         <Link href="/complaints" className="text-xs text-muted-foreground hover:text-primary">← All Complaints</Link>
         <div className="flex items-center gap-3 mt-2">
           <h1 className="text-3xl font-serif font-bold text-foreground">Complaint #{complaint.id}</h1>
-          <Badge variant={statusVariant(complaint.status) as any}>{complaint.status}</Badge>
+          <Badge variant={statusVariant(complaint.status) as "default" | "secondary" | "destructive" | "outline"}>{complaint.status}</Badge>
         </div>
         <p className="text-xs text-muted-foreground mt-1">{new Date(complaint.createdAt).toLocaleString()}</p>
       </div>

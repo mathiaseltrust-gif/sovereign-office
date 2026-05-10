@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useQuery, useMutation } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { Layout } from "@/components/layout";
 import { Scale, FileDown, Clock, CheckCircle2, AlertCircle, Loader2 } from "lucide-react";
 import { api } from "@/lib/api";
@@ -38,8 +38,8 @@ export default function NFR() {
       } else {
         toast({ title: "PDF queued", description: `Export for NFR #${id} has been queued.` });
       }
-    } catch (err: any) {
-      toast({ title: "Export failed", description: err.message, variant: "destructive" });
+    } catch (err) {
+      toast({ title: "Export failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setExportingId(null);
     }
@@ -84,7 +84,7 @@ export default function NFR() {
             <div className="px-5 py-8 text-center">
               <AlertCircle className="w-8 h-8 text-destructive mx-auto mb-2" />
               <p className="text-sm text-destructive font-medium">Failed to load NFR documents</p>
-              <p className="text-xs text-muted-foreground mt-1">{(error as any)?.message ?? "Check API connection."}</p>
+              <p className="text-xs text-muted-foreground mt-1">{error instanceof Error ? error.message : "Check API connection."}</p>
             </div>
           ) : !nfrs || nfrs.length === 0 ? (
             <div className="px-5 py-8 text-center text-muted-foreground text-sm">
@@ -102,11 +102,11 @@ export default function NFR() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-foreground truncate">
-                        NFR-{nfr.id}: {(nfr as any).title ?? (nfr as any).content?.substring(0, 60) ?? `Document #${nfr.id}`}
+                        NFR-{nfr.id}: {nfr.title ?? nfr.content?.substring(0, 60) ?? `Document #${nfr.id}`}
                       </p>
                       <p className="text-xs text-muted-foreground mt-0.5">
                         Filed {new Date(nfr.createdAt).toLocaleDateString()}
-                        {(nfr as any).classification && ` · ${(nfr as any).classification}`}
+                        {nfr.classification && ` · ${nfr.classification}`}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 flex-shrink-0">
