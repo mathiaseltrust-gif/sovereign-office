@@ -113,12 +113,42 @@ export function ComplaintsListPage() {
 
 export function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
-  const { data: complaint, isLoading } = useGetComplaint(id, { query: { enabled: !!id, queryKey: getGetComplaintQueryKey(id) } });
+  const { data: complaint, isLoading, refetch } = useGetComplaint(id, { query: { enabled: !!id, queryKey: getGetComplaintQueryKey(id) } });
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [officerId, setOfficerId] = useState("");
+  const [updating, setUpdating] = useState(false);
 
   if (isLoading) return <div data-testid="page-complaint-detail"><Skeleton className="h-48" /></div>;
   if (!complaint) return <div data-testid="page-complaint-detail" className="text-muted-foreground">Complaint not found.</div>;
 
   const cls = complaint.classification as any;
+
+  async function updateComplaint(patch: { status?: string; officerId?: number }) {
+    setUpdating(true);
+    try {
+      const res = await fetch(`/api/complaints/${id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(patch),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await refetch();
+      queryClient.invalidateQueries({ queryKey: getListComplaintsQueryKey() });
+      toast({ title: "Complaint updated" });
+    } catch (err: any) {
+      toast({ title: "Update failed", description: err.message, variant: "destructive" });
+    } finally {
+      setUpdating(false);
+    }
+  }
+
+  function handleAssignOfficer(e: React.FormEvent) {
+    e.preventDefault();
+    if (!officerId.trim()) return;
+    updateComplaint({ officerId: Number(officerId) });
+    setOfficerId("");
+  }
 
   return (
     <div data-testid="page-complaint-detail">
@@ -150,6 +180,47 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
           </CardContent>
         </Card>
       )}
+
+      <Card className="mb-4">
+        <CardHeader><CardTitle className="text-sm">Officer Actions</CardTitle></CardHeader>
+        <CardContent className="space-y-4">
+          <div className="flex items-center gap-2">
+            <Button
+              size="sm"
+              variant={complaint.status === "open" ? "default" : "outline"}
+              disabled={updating || complaint.status === "closed"}
+              onClick={() => updateComplaint({ status: "closed" })}
+            >
+              Close Complaint
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              disabled={updating || complaint.status === "open"}
+              onClick={() => updateComplaint({ status: "open" })}
+            >
+              Reopen
+            </Button>
+          </div>
+          <form onSubmit={handleAssignOfficer} className="flex items-end gap-2">
+            <div className="flex-1">
+              <Label className="text-xs mb-1 block">Assign Officer (ID)</Label>
+              <input
+                data-testid="input-officer-id"
+                type="number"
+                min="1"
+                value={officerId}
+                onChange={(e) => setOfficerId(e.target.value)}
+                placeholder="Officer user ID"
+                className="w-full border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+              />
+            </div>
+            <Button type="submit" size="sm" disabled={updating || !officerId.trim()}>
+              Assign
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
     </div>
   );
 }

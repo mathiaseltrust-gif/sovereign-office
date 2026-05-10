@@ -1,5 +1,6 @@
 import { Link, useLocation, useRouter } from "wouter";
 import { useAuth, roleLandingPath, type Role } from "./auth-provider";
+import { Button } from "@/components/ui/button";
 
 const ROLE_LABELS: Record<Role, string> = {
   trustee: "Chief Justice & Trustee",
@@ -139,7 +140,7 @@ function getAdminNav(role: Role): NavSection["items"] | null {
 }
 
 export function Layout({ children }: { children: React.ReactNode }) {
-  const { activeRole, switchRole } = useAuth();
+  const { activeRole, switchRole, mode, user, logout } = useAuth();
   const [location] = useLocation();
 
   const coreNav = getCoreNav(activeRole);
@@ -210,23 +211,39 @@ export function Layout({ children }: { children: React.ReactNode }) {
           )}
         </nav>
 
-        <div className="p-3 border-t space-y-1">
-          <p className="px-1 text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-            View as
-          </p>
-          <select
-            value={activeRole}
-            onChange={handleRoleChange}
-            className="w-full bg-input text-foreground border rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+        <div className="p-3 border-t space-y-2">
+          <div className="px-1">
+            <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "—"}</p>
+            <p className="text-[10px] text-muted-foreground truncate">{user?.email ?? ""}</p>
+          </div>
+          {mode === "dev" && (
+            <>
+              <p className="px-1 text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
+                View as
+              </p>
+              <select
+                value={activeRole}
+                onChange={handleRoleChange}
+                className="w-full bg-input text-foreground border rounded-md p-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+              >
+                <option value="trustee">Chief Justice &amp; Trustee</option>
+                <option value="officer">Officer</option>
+                <option value="member">Member</option>
+                <option value="sovereign_admin">Sovereign Admin</option>
+                <option value="elder">Tribal Elder</option>
+                <option value="medical_provider">Medical Provider</option>
+                <option value="visitor_media">Visitor / Media</option>
+              </select>
+            </>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full text-xs"
+            onClick={logout}
           >
-            <option value="trustee">Chief Justice &amp; Trustee</option>
-            <option value="officer">Officer</option>
-            <option value="member">Member</option>
-            <option value="sovereign_admin">Sovereign Admin</option>
-            <option value="elder">Tribal Elder</option>
-            <option value="medical_provider">Medical Provider</option>
-            <option value="visitor_media">Visitor / Media</option>
-          </select>
+            Sign Out
+          </Button>
         </div>
       </aside>
 

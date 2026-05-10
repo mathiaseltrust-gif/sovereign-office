@@ -117,6 +117,12 @@ export interface CreateInstrumentResult {
 }
 
 export const api = {
+  nfr: {
+    list: () => apiFetch<Array<{ id: number; status: string; createdAt: string; updatedAt: string; [key: string]: unknown }>>("/court/nfr"),
+    get: (id: number) => apiFetch<{ id: number; status: string; createdAt: string; updatedAt: string; [key: string]: unknown }>(`/court/nfr/${id}`),
+    exportPdf: (id: number) => apiFetch<{ success?: boolean; downloadUrl?: string; message?: string }>(`/court/nfr/${id}/export`, { method: "POST", body: "{}" }),
+  },
+
   instruments: {
     list: () => apiFetch<TrustInstrument[]>("/trust/instruments"),
     get: (id: number) => apiFetch<TrustInstrument>(`/trust/instruments/${id}`),

@@ -9,11 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 
-const ENTITY_TYPES = ["__all__", "classification", "nfr", "complaint", "task"];
+const ENTITY_TYPES = ["__all__", "instrument", "filing", "classification", "nfr", "complaint", "task"];
 const ACTOR_TYPES = ["__all__", "federal", "state", "tribal", "private"];
 const LAND_STATUSES = ["__all__", "trust", "allotment", "fee", "public"];
 const ACTION_TYPES = ["__all__", "trespass", "transfer", "lease", "sale", "encroachment"];
-const ENTITY_LABELS: Record<string, string> = { __all__: "All types" };
+const ENTITY_LABELS: Record<string, string> = { __all__: "All types", instrument: "Trust Instruments", filing: "Filings" };
 const ACTOR_LABELS: Record<string, string> = { __all__: "Any actor" };
 const LAND_LABELS: Record<string, string> = { __all__: "Any status" };
 const ACTION_LABELS: Record<string, string> = { __all__: "Any action" };

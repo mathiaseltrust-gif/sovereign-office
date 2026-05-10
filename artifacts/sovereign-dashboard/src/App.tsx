@@ -4,6 +4,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, roleLandingPath } from "@/components/auth-provider";
 import { Layout } from "@/components/layout";
+import Login from "@/pages/login";
 import NotFound from "@/pages/not-found";
 import TrusteeDashboard from "@/pages/dashboard-trustee";
 import OfficerDashboard from "@/pages/dashboard-officer";
@@ -56,7 +57,13 @@ function DashboardRedirect() {
   return <Redirect to={roleLandingPath(activeRole)} />;
 }
 
-function Router() {
+function AppRouter() {
+  const { user } = useAuth();
+
+  if (!user) {
+    return <Login />;
+  }
+
   return (
     <Layout>
       <Switch>
@@ -119,7 +126,7 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+            <AppRouter />
           </WouterRouter>
           <ChatWidget />
           <Toaster />
