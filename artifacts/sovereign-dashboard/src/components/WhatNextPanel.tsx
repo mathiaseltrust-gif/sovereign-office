@@ -18,7 +18,7 @@ interface OrgAccess {
 }
 
 interface DelegatedAuthorities {
-  medicalNotes: "none" | "self" | "self_and_dependents";
+  medicalNotes: "none" | "self" | "self_and_dependents" | "clinical_provider";
   welfareActions: boolean;
   familyDocuments: boolean;
   trustFilings: boolean;
@@ -27,6 +27,12 @@ interface DelegatedAuthorities {
   allAuthorities: boolean;
   memberType: string;
   orgAccess?: OrgAccess;
+  elderAuthority?: boolean;
+  clinicalAuthority?: boolean;
+  canGenerateTribalId?: boolean;
+  canApproveInstruments?: boolean;
+  canViewTrustAssets?: boolean;
+  canIssueTrustDirectives?: boolean;
 }
 
 interface MembershipData {
@@ -67,6 +73,9 @@ const AUTHORITY_LABELS: Record<string, string> = {
   trustee: "Trustee",
   chief_justice: "Chief Justice & Trustee",
   minor: "Minor (Read-Only)",
+  elder: "Tribal Elder",
+  medical_provider: "Medical Provider",
+  visitor_media: "Visitor / Media",
 };
 
 function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
@@ -102,6 +111,10 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
 
   if (!data) return null;
 
+  const isVisitor = data.memberType === "visitor_media";
+  const isElder = data.memberType === "elder" || data.delegatedAuthorities?.elderAuthority;
+  const isMedical = data.memberType === "medical_provider" || data.delegatedAuthorities?.clinicalAuthority;
+
   const styles = PROTECTION_STYLES[data.protectionLevel] ?? PROTECTION_STYLES.standard;
   const activeBenefits = Object.entries(data.benefitEligibility ?? {}).filter(([, v]) => v);
 
@@ -112,7 +125,10 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
           <div className="flex items-center justify-between flex-wrap gap-2">
             <CardTitle className="text-xs uppercase tracking-widest">Status</CardTitle>
             <div className="flex gap-2 flex-wrap">
-              <Badge className={`${styles.badge} text-xs`}>{data.protectionLevel.toUpperCase()}</Badge>
+              {isElder && <Badge className="bg-amber-100 text-amber-800 text-xs border border-amber-300">★ Elder</Badge>}
+              {isMedical && <Badge className="bg-blue-100 text-blue-800 text-xs">Medical Provider</Badge>}
+              {isVisitor && <Badge variant="outline" className="text-xs border-amber-400 text-amber-700">Visitor</Badge>}
+              {!isVisitor && <Badge className={`${styles.badge} text-xs`}>{data.protectionLevel.toUpperCase()}</Badge>}
               <Badge variant={data.membershipVerified ? "default" : "secondary"} className="text-xs">
                 {data.membershipVerified ? "Verified Member" : "Unverified"}
               </Badge>
@@ -136,6 +152,31 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
     );
   }
 
+  // Visitor/Media: minimal panel
+  if (isVisitor) {
+    return (
+      <Card className="border-amber-200 bg-amber-50/50">
+        <CardHeader className="pb-2">
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-xs uppercase tracking-widest">Visitor Access</CardTitle>
+            <Badge variant="outline" className="text-xs border-amber-400 text-amber-700">Restricted</Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {data.whatNext.immediate.map((step, i) => (
+            <p key={i} className="text-sm">→ {step}</p>
+          ))}
+          {data.whatNext.next.map((step, i) => (
+            <p key={i} className="text-xs text-muted-foreground">• {step}</p>
+          ))}
+          {data.whatNext.protected.map((item, i) => (
+            <p key={i} className="text-xs text-amber-700">⚑ {item}</p>
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
   return (
     <div className="space-y-4">
       <Card className={`${styles.card} border-2`}>
@@ -149,6 +190,8 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
               </p>
             </div>
             <div className="flex gap-2 flex-wrap">
+              {isElder && <Badge className="bg-amber-100 text-amber-800 text-xs border border-amber-300">★ Elder</Badge>}
+              {isMedical && <Badge className="bg-blue-100 text-blue-800 text-xs">Clinical Authority</Badge>}
               <Badge className={`${styles.badge} text-xs`}>
                 Protection: {data.protectionLevel.toUpperCase()}
               </Badge>
@@ -213,6 +256,49 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
         </CardContent>
       </Card>
 
+      {/* Elder Authority panel */}
+      {isElder && (
+        <Card className="border-amber-200 bg-amber-50/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs uppercase tracking-widest text-amber-700">Elder Authorities Active</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            {[
+              "Cultural Authority — represent tribal cultural interests",
+              "Lineage Correction Authority — submit lineage corrections",
+              "Family Governance Authority — preside over family matters",
+              "Advisory Authority — recognized advisor to the Sovereign Office",
+            ].map((auth, i) => (
+              <p key={i} className="text-xs text-amber-800 flex gap-1.5"><span>★</span>{auth}</p>
+            ))}
+            <Link href="/dashboard/elder">
+              <Button size="sm" variant="outline" className="w-full mt-2 border-amber-300 text-amber-800 hover:bg-amber-100">
+                Elder Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Medical provider panel */}
+      {isMedical && (
+        <Card className="border-blue-200 bg-blue-50/30">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs uppercase tracking-widest text-blue-700">Medical Provider Authority</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-xs text-blue-800">Clinical note authority active — ICD/CPT authorized</p>
+            <p className="text-xs text-blue-800">Dependent and patient notes authorized</p>
+            <p className="text-xs text-blue-800">Tribal medical jurisdiction — IHS authority applies</p>
+            <Link href="/dashboard/medical-provider">
+              <Button size="sm" variant="outline" className="w-full mt-2 border-blue-300 text-blue-800 hover:bg-blue-100">
+                Medical Provider Dashboard
+              </Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {activeBenefits.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -259,6 +345,25 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
             ))}
           </div>
 
+          {/* Extended authorities */}
+          {(data.delegatedAuthorities.clinicalAuthority || data.delegatedAuthorities.canGenerateTribalId ||
+            data.delegatedAuthorities.canApproveInstruments || data.delegatedAuthorities.canViewTrustAssets) && (
+            <div className="mt-3 pt-3 border-t grid grid-cols-2 gap-2">
+              {data.delegatedAuthorities.clinicalAuthority && (
+                <div><span className="text-xs text-muted-foreground">Clinical Authority</span><Badge variant="default" className="mt-0.5 text-xs w-fit block">Active</Badge></div>
+              )}
+              {data.delegatedAuthorities.canGenerateTribalId && (
+                <div><span className="text-xs text-muted-foreground">Tribal ID</span><Badge variant="default" className="mt-0.5 text-xs w-fit block">Authorized</Badge></div>
+              )}
+              {data.delegatedAuthorities.canApproveInstruments && (
+                <div><span className="text-xs text-muted-foreground">Approve Instruments</span><Badge variant="default" className="mt-0.5 text-xs w-fit block">Authorized</Badge></div>
+              )}
+              {data.delegatedAuthorities.canViewTrustAssets && (
+                <div><span className="text-xs text-muted-foreground">Trust Assets</span><Badge variant="default" className="mt-0.5 text-xs w-fit block">Authorized</Badge></div>
+              )}
+            </div>
+          )}
+
           {(data.tribalNations ?? []).length > 0 && (
             <div className="mt-3 pt-3 border-t">
               <p className="text-xs text-muted-foreground mb-1">Tribal Nations in Lineage</p>
@@ -283,7 +388,7 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
         </CardContent>
       </Card>
 
-      {!data.membershipVerified && (
+      {!data.membershipVerified && data.memberType !== "visitor_media" && (
         <Card className="border-amber-300 bg-amber-50/50">
           <CardContent className="pt-4 flex items-center gap-3">
             <div className="flex-1">
@@ -301,19 +406,40 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
         </Card>
       )}
 
+      {/* Tribal ID quick action */}
+      {data.delegatedAuthorities.canGenerateTribalId && (
+        <Card>
+          <CardContent className="pt-4 flex items-center justify-between gap-3 flex-wrap">
+            <div>
+              <p className="text-sm font-semibold">Generate Tribal ID</p>
+              <p className="text-xs text-muted-foreground">Official sovereign identity document with QR code and lineage summary</p>
+            </div>
+            <Link href="/tribal-id">
+              <Button size="sm" variant="outline" className="shrink-0">Tribal ID</Button>
+            </Link>
+          </CardContent>
+        </Card>
+      )}
+
       {data.delegatedAuthorities.medicalNotes !== "none" && (
         <Card>
           <CardContent className="pt-4 flex items-center justify-between gap-3 flex-wrap">
             <div>
-              <p className="text-sm font-semibold">Generate Medical Note</p>
+              <p className="text-sm font-semibold">
+                {data.delegatedAuthorities.clinicalAuthority ? "Clinical Notes" : "Generate Medical Note"}
+              </p>
               <p className="text-xs text-muted-foreground">
-                {data.delegatedAuthorities.medicalNotes === "self_and_dependents"
+                {data.delegatedAuthorities.clinicalAuthority
+                  ? "Clinical authority — ICD/CPT notes, dependents, patient records — Mathias El Tribe Medical Center"
+                  : data.delegatedAuthorities.medicalNotes === "self_and_dependents"
                   ? "Authorized for yourself and dependents — Mathias El Tribe Medical Center"
                   : "Authorized for yourself — Mathias El Tribe Medical Center"}
               </p>
             </div>
-            <Link href="/medical-notes">
-              <Button size="sm" variant="outline" className="shrink-0">Create Medical Note</Button>
+            <Link href={data.delegatedAuthorities.clinicalAuthority ? "/dashboard/medical-provider" : "/medical-notes"}>
+              <Button size="sm" variant="outline" className="shrink-0">
+                {data.delegatedAuthorities.clinicalAuthority ? "Medical Dashboard" : "Create Medical Note"}
+              </Button>
             </Link>
           </CardContent>
         </Card>
@@ -325,14 +451,15 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
         </CardHeader>
         <CardContent className="space-y-2">
           {[
-            { id: "medicalCenter", label: "Medical Center", href: "/medical-notes", color: "text-blue-700", badge: "bg-blue-100 text-blue-800" },
-            { id: "supremeCourt", label: "Supreme Court", href: "/supreme-court", color: "text-red-700", badge: "bg-red-100 text-red-800" },
-            { id: "tribalTrust", label: "Tribal Trust", href: "/tribal-trust", color: "text-amber-700", badge: "bg-amber-100 text-amber-800" },
-            { id: "charitableTrust", label: "Charitable Trust (501c3)", href: "/charitable-trust", color: "text-green-700", badge: "bg-green-100 text-green-800" },
-            { id: "niac", label: "NIAC (§527 Political)", href: "/niac", color: "text-purple-700", badge: "bg-purple-100 text-purple-800" },
-            { id: "iee", label: "I.E.E. (Economic Enterprises)", href: "/iee", color: "text-orange-700", badge: "bg-orange-100 text-orange-800" },
+            { id: "medicalCenter", label: "Medical Center", href: "/medical-notes", badge: "bg-blue-100 text-blue-800" },
+            { id: "supremeCourt", label: "Supreme Court", href: "/supreme-court", badge: "bg-red-100 text-red-800" },
+            { id: "tribalTrust", label: "Tribal Trust", href: "/tribal-trust", badge: "bg-amber-100 text-amber-800" },
+            { id: "charitableTrust", label: "Charitable Trust (501c3)", href: "/charitable-trust", badge: "bg-green-100 text-green-800" },
+            { id: "niac", label: "NIAC (§527 Political)", href: "/niac", badge: "bg-purple-100 text-purple-800" },
+            { id: "iee", label: "I.E.E. (Economic Enterprises)", href: "/iee", badge: "bg-orange-100 text-orange-800" },
           ].map(({ id, label, href, badge }) => {
             const level = (data.delegatedAuthorities.orgAccess as Record<string, string> | undefined)?.[id] ?? "member";
+            if (level === "none") return null;
             return (
               <Link key={id} href={href}>
                 <div className="flex items-center justify-between py-1.5 border-b last:border-0 cursor-pointer hover:text-primary transition-colors">

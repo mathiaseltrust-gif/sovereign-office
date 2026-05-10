@@ -9,6 +9,9 @@ import TrusteeDashboard from "@/pages/dashboard-trustee";
 import OfficerDashboard from "@/pages/dashboard-officer";
 import MemberDashboard from "@/pages/dashboard-member";
 import AdminDashboard from "@/pages/dashboard-admin";
+import ElderDashboard from "@/pages/dashboard-elder";
+import MedicalProviderDashboard from "@/pages/dashboard-medical-provider";
+import VisitorDashboard from "@/pages/dashboard-visitor";
 import InstrumentsPage from "@/pages/instruments";
 import InstrumentDetail from "@/pages/instrument-detail";
 import { FilingsListPage, FilingDetailPage } from "@/pages/filings";
@@ -34,6 +37,7 @@ import CharitableTrustPage from "@/pages/charitable-trust";
 import NiacPage from "@/pages/niac";
 import IeePage from "@/pages/iee";
 import AdminStubPage from "@/pages/admin-stub";
+import TribalIdPage from "@/pages/tribal-id";
 import { ChatWidget } from "@/components/ChatWidget";
 
 const queryClient = new QueryClient({
@@ -61,6 +65,9 @@ function Router() {
         <Route path="/dashboard/officer" component={OfficerDashboard} />
         <Route path="/dashboard/member" component={MemberDashboard} />
         <Route path="/dashboard/admin" component={AdminDashboard} />
+        <Route path="/dashboard/elder" component={ElderDashboard} />
+        <Route path="/dashboard/medical-provider" component={MedicalProviderDashboard} />
+        <Route path="/dashboard/visitor" component={VisitorDashboard} />
         <Route path="/dashboard" component={DashboardRedirect} />
         <Route path="/instruments" component={InstrumentsPage} />
         <Route path="/instruments/:id">
@@ -94,6 +101,7 @@ function Router() {
         <Route path="/charitable-trust" component={CharitableTrustPage} />
         <Route path="/niac" component={NiacPage} />
         <Route path="/iee" component={IeePage} />
+        <Route path="/tribal-id" component={TribalIdPage} />
         <Route path="/doctrine" component={() => <AdminStubPage title="Doctrine Manager" description="Manage controlling legal doctrines, Indian Canons of Construction, and case law applied by the intake filter and classification engines." />} />
         <Route path="/recorder-rules" component={() => <AdminStubPage title="Recorder Rules" description="Configure and maintain recorder-compliance validation rules for trust instruments, NFR documents, and court filings." />} />
         <Route path="/welfare-acts" component={() => <AdminStubPage title="Welfare Acts" description="Administer welfare act instruments, emergency declarations, and benefit authorizations issued under the Office." />} />

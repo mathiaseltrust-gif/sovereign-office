@@ -22,6 +22,9 @@ import membershipRouter from "./membership";
 import medicalNotesRouter from "./medical/notes";
 import orgRouter from "./org/overview";
 import chatRouter from "./chat/index";
+import identityGatewayRouter from "./identity/gateway";
+import identityTribalIdRouter from "./identity/tribal-id";
+import draftsRouter from "./drafts/index";
 
 const router: IRouter = Router();
 
@@ -49,5 +52,8 @@ router.use("/membership", membershipRouter);
 router.use("/medical/notes", medicalNotesRouter);
 router.use("/org", orgRouter);
 router.use("/chat", chatRouter);
+router.use("/identity", identityGatewayRouter);
+router.use("/identity", identityTribalIdRouter);
+router.use("/drafts", draftsRouter);
 
 export default router;

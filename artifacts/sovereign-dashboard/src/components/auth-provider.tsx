@@ -1,7 +1,7 @@
 import { createContext, useContext, useState, useEffect } from "react";
 import { setAuthTokenGetter } from "@workspace/api-client-react";
 
-export type Role = "trustee" | "officer" | "member" | "sovereign_admin";
+export type Role = "trustee" | "officer" | "member" | "sovereign_admin" | "elder" | "medical_provider" | "visitor_media";
 
 export interface User {
   id: number;
@@ -40,6 +40,24 @@ const DEV_USERS: Record<Role, User> = {
     email: "admin@sovereign.local",
     roles: ["sovereign_admin", "trustee"],
     name: "System Administrator",
+  },
+  elder: {
+    id: 5,
+    email: "elder@sovereign.local",
+    roles: ["elder"],
+    name: "Tribal Elder",
+  },
+  medical_provider: {
+    id: 6,
+    email: "provider@sovereign.local",
+    roles: ["medical_provider"],
+    name: "Medical Provider",
+  },
+  visitor_media: {
+    id: 7,
+    email: "visitor@sovereign.local",
+    roles: ["visitor_media"],
+    name: "Visitor / Media",
   },
 };
 
@@ -95,5 +113,8 @@ export function roleLandingPath(role: Role): string {
     case "officer": return "/dashboard/officer";
     case "member": return "/dashboard/member";
     case "sovereign_admin": return "/dashboard/admin";
+    case "elder": return "/dashboard/elder";
+    case "medical_provider": return "/dashboard/medical-provider";
+    case "visitor_media": return "/dashboard/visitor";
   }
 }

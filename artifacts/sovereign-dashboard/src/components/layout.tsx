@@ -6,6 +6,9 @@ const ROLE_LABELS: Record<Role, string> = {
   officer: "Officer",
   member: "Member",
   sovereign_admin: "Sovereign Admin",
+  elder: "Tribal Elder",
+  medical_provider: "Medical Provider",
+  visitor_media: "Visitor / Media",
 };
 
 interface NavSection {
@@ -19,7 +22,35 @@ function getCoreNav(role: Role): NavSection["items"] {
     { href: "/calendar", label: "Calendar" },
     { href: "/search", label: "Search" },
     { href: "/profile", label: "Profile & Identity" },
+    { href: "/tribal-id", label: "Tribal ID & Verification" },
   ];
+
+  if (role === "visitor_media") {
+    return [
+      { href: "/dashboard/visitor", label: "Visitor Portal" },
+      { href: "/search", label: "Search Public Records" },
+    ];
+  }
+
+  if (role === "medical_provider") {
+    return [
+      { href: "/dashboard/medical-provider", label: "Medical Dashboard" },
+      { href: "/medical-notes", label: "Medical Notes" },
+      { href: "/family-tree", label: "Patient Lineage" },
+      ...common,
+    ];
+  }
+
+  if (role === "elder") {
+    return [
+      { href: "/dashboard/elder", label: "Elder Dashboard" },
+      { href: "/family-tree", label: "Family Tree & Lineage" },
+      { href: "/medical-notes", label: "Medical Notes" },
+      { href: "/welfare", label: "Welfare Instruments" },
+      { href: "/complaints", label: "Complaints" },
+      ...common,
+    ];
+  }
 
   if (role === "member") {
     return [
@@ -63,7 +94,13 @@ function getCoreNav(role: Role): NavSection["items"] {
   ];
 }
 
-function getOrgsNav(): NavSection["items"] {
+function getOrgsNav(role: Role): NavSection["items"] {
+  if (role === "visitor_media") return [];
+  if (role === "medical_provider") {
+    return [
+      { href: "/medical-notes", label: "Medical Center" },
+    ];
+  }
   return [
     { href: "/medical-notes", label: "Medical Center" },
     { href: "/supreme-court", label: "Supreme Court" },
@@ -75,7 +112,7 @@ function getOrgsNav(): NavSection["items"] {
 }
 
 function getAdminNav(role: Role): NavSection["items"] | null {
-  if (role === "member") return null;
+  if (role === "member" || role === "elder" || role === "medical_provider" || role === "visitor_media") return null;
 
   const officerAdminItems = [
     { href: "/law", label: "Law Library" },
@@ -106,7 +143,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   const coreNav = getCoreNav(activeRole);
-  const orgsNav = getOrgsNav();
+  const orgsNav = getOrgsNav(activeRole);
   const adminNav = getAdminNav(activeRole);
 
   function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -146,16 +183,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          <div>
-            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-              Organizations
-            </p>
-            <div className="space-y-0.5">
-              {orgsNav.map((item) => (
-                <NavLink key={item.href} href={item.href} label={item.label} location={location} />
-              ))}
+          {orgsNav.length > 0 && (
+            <div>
+              <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                Organizations
+              </p>
+              <div className="space-y-0.5">
+                {orgsNav.map((item) => (
+                  <NavLink key={item.href} href={item.href} label={item.label} location={location} />
+                ))}
+              </div>
             </div>
-          </div>
+          )}
 
           {adminNav && adminNav.length > 0 && (
             <div>
@@ -184,6 +223,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <option value="officer">Officer</option>
             <option value="member">Member</option>
             <option value="sovereign_admin">Sovereign Admin</option>
+            <option value="elder">Tribal Elder</option>
+            <option value="medical_provider">Medical Provider</option>
+            <option value="visitor_media">Visitor / Media</option>
           </select>
         </div>
       </aside>
