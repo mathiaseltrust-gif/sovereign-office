@@ -22,7 +22,7 @@ export function getAzureOpenAIClient(): OpenAI | null {
   _client = new OpenAI({
     apiKey,
     baseURL: `${endpoint.replace(/\/$/, "")}/openai/deployments/${deployment}`,
-    defaultQuery: { "api-version": "2024-08-01-preview" },
+    defaultQuery: { "api-version": "2024-12-01-preview" },
     defaultHeaders: { "api-key": apiKey },
   });
   logger.info({ endpoint, deployment }, "Azure OpenAI client initialized");
