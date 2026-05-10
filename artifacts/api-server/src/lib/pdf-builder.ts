@@ -1090,20 +1090,6 @@ export async function buildInstrumentRecorderPdf(
   });
 }
 
-export async function buildInstrumentPdfBuffer(
-  instrumentId: number,
-  content: string,
-  jurisdiction: string,
-): Promise<Buffer> {
-  return buildPdfBuffer({
-    documentType: "instrument",
-    title: `Trust Instrument #${instrumentId}`,
-    content,
-    entityId: instrumentId,
-    jurisdiction,
-  });
-}
-
 // -- Compatibility wrappers for /api/documents/* download endpoints -----------
 // These adapt HEAD's rich pdf-lib builders to the Buffer-returning API
 // expected by the documents router.
