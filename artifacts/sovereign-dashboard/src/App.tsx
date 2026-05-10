@@ -39,6 +39,7 @@ import NiacPage from "@/pages/niac";
 import IeePage from "@/pages/iee";
 import AdminStubPage from "@/pages/admin-stub";
 import TribalIdPage from "@/pages/tribal-id";
+import M365IntegrationPage from "@/pages/m365-integration";
 import { ChatWidget } from "@/components/ChatWidget";
 
 const queryClient = new QueryClient({
@@ -223,6 +224,9 @@ function AppRouter() {
       </Route>
       <Route path="/tribal-id">
         {() => <ProtectedRoute component={TribalIdPage} />}
+      </Route>
+      <Route path="/m365">
+        {() => <ProtectedRoute component={M365IntegrationPage} />}
       </Route>
       <Route path="/doctrine">
         {() => (

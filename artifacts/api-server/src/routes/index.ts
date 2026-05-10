@@ -29,6 +29,9 @@ import documentsRouter from "./documents/index";
 import authMicrosoftRouter from "./auth/microsoft";
 import authPasswordRouter from "./auth/password";
 import authSessionRouter from "./auth/session";
+import m365FactsRouter from "./m365/facts";
+import m365WebhookRouter from "./m365/webhook";
+import m365StatusRouter from "./m365/status";
 
 const router: IRouter = Router();
 
@@ -63,5 +66,8 @@ router.use("/documents", documentsRouter);
 router.use("/auth/microsoft", authMicrosoftRouter);
 router.use("/auth", authPasswordRouter);
 router.use("/auth", authSessionRouter);
+router.use("/facts", m365FactsRouter);
+router.use("/m365", m365WebhookRouter);
+router.use("/m365", m365StatusRouter);
 
 export default router;

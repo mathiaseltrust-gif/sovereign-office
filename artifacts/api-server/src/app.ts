@@ -6,6 +6,7 @@ import router from "./routes";
 import { logger } from "./lib/logger";
 import { entraMiddleware } from "./auth/entra";
 import { requireEntraIfRequired } from "./auth/entra-guard";
+import { serviceKeyMiddleware } from "./auth/service-key";
 import { sovereignOffice } from "./sovereign/office";
 import { initBootstrapToken } from "./lib/bootstrap-token";
 
@@ -34,6 +35,7 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+app.use(serviceKeyMiddleware);
 app.use(entraMiddleware);
 app.use(requireEntraIfRequired);
 

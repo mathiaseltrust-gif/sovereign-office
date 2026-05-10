@@ -126,6 +126,9 @@ function getAdminNav(role: Role): NavSection["items"] | null {
     { href: "/law", label: "Law Library" },
     { href: "/intake-ai", label: "AI Intake Review" },
     { href: "/templates", label: "Templates" },
+    ...(role === "sovereign_admin" || role === "trustee"
+      ? [{ href: "/m365", label: "Microsoft 365" }]
+      : []),
     ...(role === "sovereign_admin"
       ? [
           { href: "/doctrine", label: "Doctrine" },
