@@ -18,9 +18,17 @@ interface AuthContextValue {
 const AuthContext = createContext<AuthContextValue | null>(null);
 
 const ROLE_HIERARCHY: Record<string, number> = {
-  sovereign_admin: 4,
-  trustee: 3,
-  officer: 2,
+  chief_justice: 5,
+  sovereign_admin: 5,
+  trustee: 4,
+  officer: 3,
+  medical_provider: 3,
+  adult_with_dependents: 2,
+  niac_role: 2,
+  charitable_trust_role: 2,
+  iee_role: 2,
+  adult: 1,
+  minor: 1,
   member: 1,
 };
 

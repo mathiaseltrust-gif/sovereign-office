@@ -37,10 +37,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
             </div>
             <div className="min-w-0">
               <p className="text-xs font-semibold text-sidebar-primary leading-tight truncate">
-                Sovereign Office
+                Mathias El Tribe
               </p>
               <p className="text-[10px] text-sidebar-foreground/60 leading-tight truncate">
-                Chief Justice & Trustee
+                Office of the Chief Justice & Trustee
               </p>
             </div>
           </div>

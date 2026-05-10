@@ -3,10 +3,12 @@ import { useAuth } from "@/lib/auth";
 import { Scale } from "lucide-react";
 
 const ROLES = [
-  { value: "sovereign_admin", label: "Sovereign Admin" },
+  { value: "chief_justice", label: "Chief Justice & Trustee" },
   { value: "trustee", label: "Trustee" },
   { value: "officer", label: "Officer" },
-  { value: "member", label: "Member" },
+  { value: "medical_provider", label: "Medical Provider" },
+  { value: "adult", label: "Member (Adult)" },
+  { value: "minor", label: "Member (Minor)" },
 ];
 
 export default function Login() {
@@ -33,8 +35,8 @@ export default function Login() {
           <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sidebar mb-4">
             <Scale className="w-7 h-7 text-sidebar-primary" />
           </div>
-          <h1 className="text-xl font-bold text-foreground">Sovereign Office</h1>
-          <p className="text-sm text-muted-foreground mt-1">Trust Instruments Dashboard</p>
+          <h1 className="text-xl font-bold text-foreground">Mathias El Tribe</h1>
+          <p className="text-sm text-muted-foreground mt-1">Office of the Chief Justice &amp; Trustee</p>
         </div>
 
         <div className="bg-card border border-card-border rounded-xl shadow-md p-6">
@@ -87,7 +89,7 @@ export default function Login() {
         </div>
 
         <p className="text-center text-xs text-muted-foreground mt-4">
-          Sovereign Office of the Chief Justice &amp; Trustee
+          Mathias El Tribe Supreme Court
         </p>
       </div>
     </div>

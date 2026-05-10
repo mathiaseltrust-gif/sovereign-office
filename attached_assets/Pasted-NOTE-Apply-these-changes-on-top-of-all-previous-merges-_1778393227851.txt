@@ -1,0 +1,237 @@
+NOTE: Apply these changes on top of all previous merges. Do NOT remove or rename existing endpoints, tables, or logic.
+
+INSTRUCTION: Add Profile Picture + Album System, Exportable ID Photo Logic, Public Visibility Rules, Drafts System, AI Document Drafting Engine, Full Sovereign Role Architecture with Organizational Authorities, Trustee Asset Visibility, and Jurisdictional Alignment, and ensure full legal + logical alignment across the platform.
+
+────────────────────────────────────────
+1. Profile Picture + Album System
+────────────────────────────────────────
+
+Create tables:
+- profile_photos (user_id, filename, is_primary, visibility, uploaded_at, lineage_link, used_in_documents)
+- photo_albums (user_id, album_id, filename, tags, visibility, uploaded_at)
+
+Endpoints:
+- POST /api/photos/upload
+- GET /api/photos/:userId
+- PUT /api/photos/:photoId/set-primary
+- PUT /api/photos/:photoId/visibility
+- GET /api/albums/:userId
+
+Visibility rules:
+- "members" (default)
+- "family"
+- "officers"
+- "trustee"
+
+Integrate primary profile photo into UnifiedIdentity.
+
+Allow members to select which photo is used for:
+- Tribal ID
+- Membership Certificate
+- Verification Documents
+- Medical Notes
+- Court Documents (optional)
+- Lineage Records
+
+────────────────────────────────────────
+2. Public Visibility Logic
+────────────────────────────────────────
+
+Enforce visibility rules in:
+- Profile page
+- Family Tree & Lineage
+- Medical Notes
+- Court Documents
+- Knowledge-of-Self
+
+Chief Justice & Trustee always has full access.
+
+────────────────────────────────────────
+3. Drafts System
+────────────────────────────────────────
+
+Create table:
+drafts (id, user_id, type, content, metadata, created_at, updated_at)
+
+Types:
+- medical_note
+- welfare_request
+- trust_filing
+- court_document
+- family_document
+
+Endpoints:
+- POST /api/drafts/create
+- GET /api/drafts/:userId
+- PUT /api/drafts/:id
+- DELETE /api/drafts/:id
+
+Integrate drafts into all document-generation workflows.
+
+────────────────────────────────────────
+4. AI Document Drafting Engine
+────────────────────────────────────────
+
+Create:
+ /src/sovereign/ai-drafting-engine.ts
+
+Inputs:
+- identity
+- lineage
+- membership
+- delegatedAuthorities
+- jurisdiction
+- tribal law
+- federal Indian law
+- doctrine
+- user notes
+- research database content
+- profile photo selection
+
+Outputs:
+- draft document text
+- recommended template
+- sovereignty protections
+- jurisdictional framing
+- citations
+- photo inclusion rules
+
+Integrate with:
+- /api/drafts/create
+- /api/court/documents/generate
+- /api/medical/notes/create
+
+────────────────────────────────────────
+5. Legal + Logical Alignment Layer
+────────────────────────────────────────
+
+Add module:
+ /src/sovereign/legal-logic.ts
+
+Responsibilities:
+- enforce tribal sovereignty
+- enforce trust responsibility
+- detect jurisdictional overreach
+- apply ICWA protections
+- apply tribal medical authority rules
+- validate delegated authority
+- validate membership + lineage
+- validate photo usage permissions
+- apply NIAC political protections
+- apply I.E.E. economic protections
+
+Called by:
+- AI Intake Agent
+- AI Drafting Engine
+- What Next Panel
+- Document Generator
+- Medical Notes
+- Welfare Engine
+- Trust Engine
+- Role/organization authority checks
+
+────────────────────────────────────────
+6. What Now / What Next Integration
+────────────────────────────────────────
+
+Update buildWhatNextInstructions() to include:
+- profile photo (if allowed)
+- membershipVerified
+- delegatedAuthorities
+- protectionLevel
+- benefitEligibility
+- lineageSummary
+- visibility rules
+- legal-logic recommendations
+- org affiliations grid (see roles section)
+
+Panel must adjust instructions based on:
+- role
+- organization
+- delegated authority
+- jurisdiction
+- tribal sovereignty rules
+
+────────────────────────────────────────
+7. Sovereign Role Architecture
+────────────────────────────────────────
+
+Add new roles:
+- chief_justice
+- trustee
+- officer
+- medical_provider
+- adult_with_dependents
+- adult
+- minor
+- niac_role
+- charitable_trust_role
+- iee_role
+
+Create role-to-organization authority maps:
+- Supreme Court → chief_justice
+- Tribal Trust → chief_justice, trustee
+- Charitable Trust → chief_justice, charitable_trust_role
+- NIAC → chief_justice, niac_role
+- I.E.E. → chief_justice, iee_role
+- Medical Center → chief_justice, medical_provider
+- Welfare → chief_justice, officer, adult_with_dependents, adult
+
+────────────────────────────────────────
+8. Trustee Dashboard Enhancements
+────────────────────────────────────────
+
+Trustee role must see:
+- Trust Assets
+- Trust Beneficiaries
+- Trust Filings
+- Trust Land Records
+- Trust Inheritance
+- Trust Disbursements
+- Trust Instruments
+
+────────────────────────────────────────
+9. Medical Provider Enhancements
+────────────────────────────────────────
+
+Medical providers must have:
+- ICD/CPT authority
+- Clinical note authority
+- Dependent note authority
+- Medical Center dashboard
+- Tribal medical jurisdiction enforcement (via legal-logic.ts)
+
+────────────────────────────────────────
+10. WhatNextPanel Org Affiliations Grid
+────────────────────────────────────────
+
+Add org affiliations grid to full-mode view:
+- Supreme Court
+- Tribal Trust
+- Charitable Trust
+- NIAC
+- I.E.E.
+- Medical Center
+
+Use role + organization + delegatedAuthorities + legal-logic.ts to shape:
+- Do Now
+- Next Steps
+- Protections
+- Org-specific instructions
+
+────────────────────────────────────────
+11. Jurisdictional Enforcement
+────────────────────────────────────────
+
+All actions must pass through legal-logic.ts for:
+- tribal sovereignty
+- trust responsibility
+- ICWA
+- tribal medical authority
+- NIAC political protections
+- I.E.E. economic protections
+- jurisdictional overreach detection
+
+────────────────────────────────────────
+
+Apply all changes on top of previous merges.
