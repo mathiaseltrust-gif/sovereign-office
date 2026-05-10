@@ -116,11 +116,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       <aside className="w-64 border-r bg-card flex flex-col shrink-0">
-        <div className="p-5 border-b">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-1">
+        <div className="p-5 border-b flex flex-col items-center text-center">
+          <img
+            src="/sovereign-dashboard/tribal-seal.png"
+            alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
+            className="w-20 h-20 object-contain mb-3 drop-shadow-md"
+          />
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-0.5">
             Office of the
           </p>
-          <h1 className="font-serif text-base font-bold text-primary leading-tight">
+          <h1 className="font-serif text-sm font-bold text-primary leading-tight">
             Chief Justice and Trustee
           </h1>
           <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground font-medium">

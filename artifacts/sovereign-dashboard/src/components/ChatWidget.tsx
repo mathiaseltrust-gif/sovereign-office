@@ -233,7 +233,15 @@ export function ChatWidget() {
           transition: "all 0.2s ease",
         }}
       >
-        {open ? "✕" : "⚖"}
+        {open ? (
+          <span style={{ fontSize: 22, lineHeight: 1 }}>✕</span>
+        ) : (
+          <img
+            src="/sovereign-dashboard/tribal-seal.png"
+            alt="Sovereign Office Assistant"
+            style={{ width: 38, height: 38, objectFit: "contain", borderRadius: "50%" }}
+          />
+        )}
         {unreadCount > 0 && !open && (
           <span
             style={{
@@ -293,7 +301,11 @@ export function ChatWidget() {
               flexShrink: 0,
             }}
           >
-            <span style={{ fontSize: 20 }}>⚖</span>
+            <img
+              src="/sovereign-dashboard/tribal-seal.png"
+              alt="Seal"
+              style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }}
+            />
             <div style={{ flex: 1 }}>
               <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.3 }}>
                 Sovereign Office Assistant
@@ -333,7 +345,11 @@ export function ChatWidget() {
           >
             {messages.length === 0 && !loading && (
               <div style={{ textAlign: "center", color: "#6b7280", padding: "20px 0" }}>
-                <div style={{ fontSize: 32, marginBottom: 8 }}>⚖</div>
+                <img
+                  src="/sovereign-dashboard/tribal-seal.png"
+                  alt="Sovereign Office"
+                  style={{ width: 64, height: 64, objectFit: "contain", marginBottom: 8 }}
+                />
                 <div style={{ fontWeight: 600, marginBottom: 4, color: "#374151" }}>
                   Sovereign Office Assistant
                 </div>
@@ -530,14 +546,17 @@ export function ChatWidget() {
                     height: 28,
                     borderRadius: "50%",
                     background: "#1a3a2a",
-                    color: "#fff",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
-                    fontSize: 13,
+                    overflow: "hidden",
                   }}
                 >
-                  ⚖
+                  <img
+                    src="/sovereign-dashboard/tribal-seal.png"
+                    alt="Seal"
+                    style={{ width: 24, height: 24, objectFit: "contain" }}
+                  />
                 </div>
                 <div
                   style={{

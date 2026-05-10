@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useAuth } from "@/lib/auth";
-import { Scale } from "lucide-react";
+
 
 const ROLES = [
   { value: "chief_justice", label: "Chief Justice & Trustee" },
@@ -37,8 +37,8 @@ export default function Login() {
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-sidebar mb-4">
-            <Scale className="w-7 h-7 text-sidebar-primary" />
+          <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
+            <img src="/dashboard/tribal-seal.png" alt="Mathias El Tribe Seal" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-xl font-bold text-foreground">Mathias El Tribe</h1>
           <p className="text-sm text-muted-foreground mt-1">Office of the Chief Justice &amp; Trustee</p>

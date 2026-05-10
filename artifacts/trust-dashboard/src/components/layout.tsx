@@ -2,7 +2,7 @@ import { Link, useLocation } from "wouter";
 import { useAuth, ELDER_ROLES } from "@/lib/auth";
 import { getRoleConfig } from "@/lib/role-config";
 import { cn } from "@/lib/utils";
-import { LogOut, Scale, ChevronRight, Plus } from "lucide-react";
+import { LogOut, ChevronRight, Plus } from "lucide-react";
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
@@ -24,10 +24,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background overflow-hidden">
       <aside className="w-64 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
         <div className="px-5 py-5 border-b border-sidebar-border">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center flex-shrink-0">
-              <Scale className="w-4 h-4 text-sidebar-primary-foreground" />
-            </div>
+          <div className="flex flex-col items-center text-center gap-2">
+            <img
+              src="/dashboard/tribal-seal.png"
+              alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
+              className="w-20 h-20 object-contain drop-shadow-md"
+            />
             <div className="min-w-0">
               <p className="text-xs font-semibold text-sidebar-primary leading-tight truncate">
                 Mathias El Tribe

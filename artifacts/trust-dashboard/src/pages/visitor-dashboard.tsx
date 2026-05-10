@@ -68,8 +68,8 @@ export default function VisitorDashboard() {
     <div className="min-h-screen bg-background">
       <header className="bg-sidebar border-b border-sidebar-border px-6 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-full bg-sidebar-primary flex items-center justify-center">
-            <Scale className="w-4 h-4 text-sidebar-primary-foreground" />
+          <div className="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-sidebar-primary">
+            <img src="/dashboard/tribal-seal.png" alt="Seal" className="w-8 h-8 object-contain" />
           </div>
           <div>
             <p className="text-sm font-semibold text-sidebar-primary leading-tight">Mathias El Tribe</p>
