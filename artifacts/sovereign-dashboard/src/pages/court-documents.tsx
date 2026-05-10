@@ -233,7 +233,7 @@ export default function CourtDocumentsPage() {
                         {doc.caseNumber && <span>Case: {doc.caseNumber} · </span>}
                         {doc.court && <span>{doc.court} · </span>}
                         {new Date(doc.createdAt).toLocaleDateString()}
-                        {(doc.intakeFlags as Record<string, unknown>)?.redFlag && (
+                        {Boolean((doc.intakeFlags as Record<string, unknown>)?.redFlag) && (
                           <span className="ml-2 text-red-600 font-semibold">⚑ Red Flag</span>
                         )}
                       </div>

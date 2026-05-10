@@ -36,8 +36,8 @@ export default function TrusteeDashboard() {
   return (
     <div data-testid="page-trustee-dashboard">
       <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Chief Justice Overview</h1>
-        <p className="text-muted-foreground mt-1">Sovereign Office of the Chief Justice & Trustee</p>
+        <h1 className="text-3xl font-serif font-bold text-foreground">Chief Justice & Trustee Overview</h1>
+        <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — full court and trustee services</p>
       </div>
 
       {loadingI || loadingF || loadingN || loadingT ? (
@@ -111,7 +111,7 @@ export default function TrusteeDashboard() {
 
         <Card>
           <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Recent NFR Pipeline</CardTitle>
+            <CardTitle className="text-sm font-semibold uppercase tracking-widest">NFR Pipeline</CardTitle>
           </CardHeader>
           <CardContent className="space-y-2">
             {(nfrs ?? []).slice(0, 5).length === 0 ? (

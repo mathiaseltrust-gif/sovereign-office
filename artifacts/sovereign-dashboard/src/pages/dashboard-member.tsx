@@ -1,5 +1,6 @@
 import { useListComplaints, useListCalendarEvents, useListNfrs } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 
@@ -14,7 +15,7 @@ export default function MemberDashboard() {
     <div data-testid="page-member-dashboard">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Member Portal</h1>
-        <p className="text-muted-foreground mt-1">Your complaint history, NFR status, and calendar</p>
+        <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — family governance, filings, and welfare requests</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
@@ -48,7 +49,9 @@ export default function MemberDashboard() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-sm font-semibold uppercase tracking-widest">Complaint History</CardTitle>
-            <Link href="/complaints" className="text-xs text-primary hover:underline">Submit new</Link>
+            <Link href="/complaints">
+              <Button size="sm" variant="outline" className="text-xs">Submit New</Button>
+            </Link>
           </CardHeader>
           <CardContent className="space-y-2">
             {(complaints ?? []).length === 0 ? (
@@ -78,6 +81,30 @@ export default function MemberDashboard() {
               </div>
             ))}
             <Link href="/calendar" className="text-xs text-primary hover:underline block pt-1">Full calendar</Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Welfare Services</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">Emergency welfare assistance, housing, and health resources are available through the Office.</p>
+            <Link href="/welfare">
+              <Button variant="outline" size="sm" className="w-full mt-2">View Welfare Instruments</Button>
+            </Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Your Filings</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <p className="text-sm text-muted-foreground">Submit and track court filings, trust instruments, and official records.</p>
+            <Link href="/filings">
+              <Button variant="outline" size="sm" className="w-full mt-2">View Filings</Button>
+            </Link>
           </CardContent>
         </Card>
       </div>

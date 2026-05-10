@@ -1,0 +1,83 @@
+NOTE: Apply these changes on top of the existing system as currently merged.
+Do NOT remove or rename:
+- existing endpoints (/api/law, /api/intake/ai, /api/court/documents/*, /api/nfr/*, /api/court/welfare/*, etc.)
+- existing pages (Law Library, AI Intake Review, Court Documents, Notice of Federal Review, Welfare Instruments, Profile & Identity)
+- existing doctrine, welfare, and intake filter logic.
+
+INSTRUCTION: Update dashboard identity, role-based views, and office structure.
+
+1. Dashboard Identity
+Replace all top-level branding with:
+"Office of the Chief Justice and Trustee"
+
+Update:
+- sidebar header
+- page titles
+- browser tab titles
+- mobile headers
+- login redirect
+
+2. Role-Based Dashboards
+Implement role-specific dashboards:
+- Chief Justice & Trustee → full court + trustee services
+- Officer → complaints, welfare, classification, tasks
+- Member → family governance, filings, welfare requests
+- sovereign_admin → system configuration
+
+3. Unified Office Structure
+All dashboards must appear under the umbrella:
+"Office of the Chief Justice and Trustee"
+
+Sidebar sections:
+Core:
+- Dashboard
+- Trust Instruments
+- Filings
+- Notice of Federal Review
+- Welfare Instruments
+- Court Documents
+- Classification
+- Complaints
+- Tasks
+- Calendar
+- Notifications
+- Search
+- Profile & Identity
+
+Admin-only:
+- Law Library
+- Doctrine
+- Recorder Rules
+- Welfare Acts
+- Templates
+- Role Delegation
+- Audit Logs
+
+4. Role Switcher
+Role switcher must:
+- change bearer token
+- change permissions
+- change visible menu items
+- change default landing page
+- never change office identity
+
+5. AI Intake Agent
+AI intake agent must:
+- run for all roles
+- show full analysis to Chief Justice & Trustee
+- show filtered analysis to officers
+- show simplified view to members
+
+6. Law Library Visibility
+Law Library visible to:
+- Chief Justice & Trustee
+- sovereign_admin
+- officers (read-only)
+
+7. Court Document Generator
+Reincorporate legacy court-doc generator under:
+"Office of the Chief Justice and Trustee" → "Court Documents"
+
+Ensure endpoints match:
+POST /api/court/documents/generate
+GET /api/court/documents/:id/pdf

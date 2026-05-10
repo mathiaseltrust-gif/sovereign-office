@@ -2,12 +2,13 @@ import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider } from "@/components/auth-provider";
+import { AuthProvider, useAuth, roleLandingPath } from "@/components/auth-provider";
 import { Layout } from "@/components/layout";
 import NotFound from "@/pages/not-found";
 import TrusteeDashboard from "@/pages/dashboard-trustee";
 import OfficerDashboard from "@/pages/dashboard-officer";
 import MemberDashboard from "@/pages/dashboard-member";
+import AdminDashboard from "@/pages/dashboard-admin";
 import InstrumentsPage from "@/pages/instruments";
 import InstrumentDetail from "@/pages/instrument-detail";
 import { FilingsListPage, FilingDetailPage } from "@/pages/filings";
@@ -25,6 +26,7 @@ import NotificationsPage from "@/pages/notifications";
 import LawLibraryPage from "@/pages/law";
 import IntakeAiPage from "@/pages/intake-ai";
 import CourtDocumentsPage from "@/pages/court-documents";
+import AdminStubPage from "@/pages/admin-stub";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -32,19 +34,26 @@ const queryClient = new QueryClient({
   },
 });
 
+function RootRedirect() {
+  const { activeRole } = useAuth();
+  return <Redirect to={roleLandingPath(activeRole)} />;
+}
+
+function DashboardRedirect() {
+  const { activeRole } = useAuth();
+  return <Redirect to={roleLandingPath(activeRole)} />;
+}
+
 function Router() {
   return (
     <Layout>
       <Switch>
-        <Route path="/">
-          <Redirect to="/dashboard/trustee" />
-        </Route>
+        <Route path="/" component={RootRedirect} />
         <Route path="/dashboard/trustee" component={TrusteeDashboard} />
         <Route path="/dashboard/officer" component={OfficerDashboard} />
         <Route path="/dashboard/member" component={MemberDashboard} />
-        <Route path="/dashboard">
-          <Redirect to="/dashboard/trustee" />
-        </Route>
+        <Route path="/dashboard/admin" component={AdminDashboard} />
+        <Route path="/dashboard" component={DashboardRedirect} />
         <Route path="/instruments" component={InstrumentsPage} />
         <Route path="/instruments/:id">
           {(params) => <InstrumentDetail params={params} />}
@@ -70,6 +79,11 @@ function Router() {
         <Route path="/profile" component={ProfilePage} />
         <Route path="/templates" component={TemplatesPage} />
         <Route path="/welfare" component={WelfarePage} />
+        <Route path="/doctrine" component={() => <AdminStubPage title="Doctrine Manager" description="Manage controlling legal doctrines, Indian Canons of Construction, and case law applied by the intake filter and classification engines." />} />
+        <Route path="/recorder-rules" component={() => <AdminStubPage title="Recorder Rules" description="Configure and maintain recorder-compliance validation rules for trust instruments, NFR documents, and court filings." />} />
+        <Route path="/welfare-acts" component={() => <AdminStubPage title="Welfare Acts" description="Administer welfare act instruments, emergency declarations, and benefit authorizations issued under the Office." />} />
+        <Route path="/role-delegation" component={() => <AdminStubPage title="Role Delegation" description="Grant and revoke role-based access permissions. Delegate officer authority and configure member access levels." />} />
+        <Route path="/audit-logs" component={() => <AdminStubPage title="Audit Logs" description="System-wide audit trail for all instruments, filings, court documents, NFRs, and administrative actions." />} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

@@ -18,6 +18,7 @@ export default function OfficerDashboard() {
       <div data-testid="page-officer-dashboard">
         <div className="mb-8">
           <h1 className="text-3xl font-serif font-bold">Officer Dashboard</h1>
+          <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — Officer Services</p>
         </div>
         <div className="grid grid-cols-3 gap-4">
           {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-28" />)}
@@ -30,7 +31,7 @@ export default function OfficerDashboard() {
     <div data-testid="page-officer-dashboard">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Officer Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Classification queue, tasks, and complaint assignments</p>
+        <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — complaints, welfare, classification, and tasks</p>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -115,6 +116,18 @@ export default function OfficerDashboard() {
               </div>
             ))}
             <Link href="/nfr" className="text-xs text-primary hover:underline block pt-1">View all NFRs</Link>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Quick Links</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-2">
+            <Link href="/classify" className="block text-sm text-primary hover:underline py-1 border-b">Run Classification →</Link>
+            <Link href="/welfare" className="block text-sm text-primary hover:underline py-1 border-b">Welfare Instruments →</Link>
+            <Link href="/intake-ai" className="block text-sm text-primary hover:underline py-1 border-b">AI Intake Review →</Link>
+            <Link href="/law" className="block text-sm text-primary hover:underline py-1">Law Library →</Link>
           </CardContent>
         </Card>
       </div>

@@ -17,7 +17,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [roleOverrides, setRoleOverrides] = useState<Record<number, string>>({});
 
-  if (activeRole !== "admin") {
+  if (activeRole !== "sovereign_admin") {
     return (
       <div data-testid="page-admin">
         <div className="mb-8">
