@@ -2,6 +2,7 @@ import OpenAI from "openai";
 import { logger } from "./logger";
 
 let _client: OpenAI | null = null;
+let _cachedDeployment: string | null = null;
 
 export function getAzureOpenAIClient(): OpenAI | null {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT;
@@ -13,21 +14,23 @@ export function getAzureOpenAIClient(): OpenAI | null {
     return null;
   }
 
-  if (!_client) {
-    _client = new OpenAI({
-      apiKey,
-      baseURL: `${endpoint.replace(/\/$/, "")}/openai/deployments/${deployment}`,
-      defaultQuery: { "api-version": "2024-02-01" },
-      defaultHeaders: { "api-key": apiKey },
-    });
-    logger.info({ endpoint, deployment }, "Azure OpenAI client initialized");
+  if (_client && _cachedDeployment === deployment) {
+    return _client;
   }
 
+  _cachedDeployment = deployment;
+  _client = new OpenAI({
+    apiKey,
+    baseURL: `${endpoint.replace(/\/$/, "")}/openai/deployments/${deployment}`,
+    defaultQuery: { "api-version": "2024-08-01-preview" },
+    defaultHeaders: { "api-key": apiKey },
+  });
+  logger.info({ endpoint, deployment }, "Azure OpenAI client initialized");
   return _client;
 }
 
 export function getDeployment(): string {
-  return process.env.AZURE_OPENAI_DEPLOYMENT ?? "gpt-4o";
+  return process.env.AZURE_OPENAI_DEPLOYMENT ?? "tribal-gpt4o";
 }
 
 export interface AzureOpenAIResult {
@@ -44,15 +47,16 @@ export async function callAzureOpenAI(
   const client = getAzureOpenAIClient();
   if (!client) throw new Error("Azure OpenAI not configured");
 
-  const { maxTokens = 2000, temperature = 0.2, timeoutMs = 15000 } = options;
+  const { maxTokens = 2000, temperature = 0.2, timeoutMs = 20000 } = options;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
+    const deployment = getDeployment();
     const response = await client.chat.completions.create(
       {
-        model: getDeployment(),
+        model: deployment,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt },
@@ -72,7 +76,7 @@ export async function callAzureOpenAI(
         }
       : undefined;
 
-    logger.info({ tokens: usage?.totalTokens }, "Azure OpenAI call succeeded");
+    logger.info({ tokens: usage?.totalTokens, deployment }, "Azure OpenAI call succeeded");
     return { content, usage, tier: "azure_openai" };
   } finally {
     clearTimeout(timer);

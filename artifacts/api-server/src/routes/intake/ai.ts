@@ -50,19 +50,33 @@ router.post("/", requireAuth, async (req, res, next) => {
 });
 
 router.get("/status", requireAuth, async (_req, res) => {
-  const { getAzureOpenAIClient } = await import("../../lib/azure-openai");
+  const { callAzureOpenAI } = await import("../../lib/azure-openai");
   const azureConfigured = !!process.env.AZURE_OPENAI_API_KEY && !!process.env.AZURE_OPENAI_ENDPOINT && !!process.env.AZURE_OPENAI_DEPLOYMENT;
-  const azureClientReady = !!getAzureOpenAIClient();
   const entraConfigured = !!process.env.AZURE_ENTRA_TENANT_ID && !!process.env.AZURE_ENTRA_CLIENT_ID;
+
+  let azureDeploymentReachable = false;
+  let azureError: string | null = null;
+  if (azureConfigured) {
+    try {
+      await callAzureOpenAI("You are a health check.", "Respond with OK.", { maxTokens: 3, timeoutMs: 8000 });
+      azureDeploymentReachable = true;
+    } catch (e) {
+      azureError = (e as Error).message.substring(0, 120);
+    }
+  }
 
   res.json({
     tiers: [
       {
         tier: 1,
         name: "Azure OpenAI",
-        status: azureClientReady ? "ready" : azureConfigured ? "initializing" : "not_configured",
+        status: azureDeploymentReachable ? "ready" : azureConfigured ? "deployment_not_found" : "not_configured",
         model: process.env.AZURE_OPENAI_DEPLOYMENT ?? null,
         endpoint: process.env.AZURE_OPENAI_ENDPOINT ?? null,
+        error: azureError,
+        action: !azureDeploymentReachable
+          ? "In Azure Portal → tribal-openai-service → Model deployments → Deploy model → Choose gpt-4o (2024-11-20) → Set deployment name to 'tribal-gpt4o'"
+          : null,
       },
       {
         tier: 2,
