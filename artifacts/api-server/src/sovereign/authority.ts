@@ -1,6 +1,7 @@
-export type Role = "admin" | "trustee" | "officer" | "member" | "guest";
+export type Role = "chief_justice" | "admin" | "trustee" | "officer" | "member" | "guest";
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
+  chief_justice: 110,
   admin: 100,
   trustee: 80,
   officer: 60,

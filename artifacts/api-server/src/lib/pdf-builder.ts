@@ -106,7 +106,8 @@ function drawTextWrapped(
   lineHeight: number,
   color = rgb(0, 0, 0),
 ): number {
-  const words = text.split(" ");
+  const safe = text.replace(/[\n\r\t]/g, " ").replace(/[ ]{2,}/g, " ").trim();
+  const words = safe.split(" ");
   let line = "";
   let currentY = y;
 
@@ -273,17 +274,30 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
       currentY = CONTENT_TOP_Y;
     }
 
-    const firstLine = provision.indexOf(":");
-    if (firstLine > 0 && firstLine < 60) {
-      const heading = provision.substring(0, firstLine + 1);
-      const rest = provision.substring(firstLine + 1).trim();
-      page.drawText(heading, { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
-      currentY -= LINE_HEIGHT_BODY;
-      if (rest) {
-        currentY = drawTextWrapped(page, rest, MARGIN_LEFT + 12, currentY, CONTENT_WIDTH - 12, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+    const subLines = provision.split(/\n/);
+    for (let si = 0; si < subLines.length; si++) {
+      const subLine = subLines[si].trim();
+      if (!subLine) {
+        currentY -= LINE_HEIGHT_BODY * 0.5;
+        continue;
       }
-    } else {
-      currentY = drawTextWrapped(page, provision, MARGIN_LEFT, currentY, CONTENT_WIDTH, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+      if (currentY < CONTENT_BOTTOM_Y + 60) {
+        page = addNewPage();
+        currentY = CONTENT_TOP_Y;
+      }
+      const colonIdx = subLine.indexOf(":");
+      if (si === 0 && colonIdx > 0 && colonIdx < 60) {
+        const heading = subLine.substring(0, colonIdx + 1);
+        const rest = subLine.substring(colonIdx + 1).trim();
+        page.drawText(heading, { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+        currentY -= LINE_HEIGHT_BODY;
+        if (rest) {
+          currentY = drawTextWrapped(page, rest, MARGIN_LEFT + 12, currentY, CONTENT_WIDTH - 12, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+        }
+      } else {
+        const indent = subLine.startsWith("-") || subLine.startsWith("*") ? MARGIN_LEFT + 12 : MARGIN_LEFT;
+        currentY = drawTextWrapped(page, subLine, indent, currentY, CONTENT_WIDTH - (indent - MARGIN_LEFT), timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+      }
     }
     currentY -= 6;
   }
