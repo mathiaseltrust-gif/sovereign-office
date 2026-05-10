@@ -26,6 +26,9 @@ import identityGatewayRouter from "./identity/gateway";
 import identityTribalIdRouter from "./identity/tribal-id";
 import draftsRouter from "./drafts/index";
 import documentsRouter from "./documents/index";
+import authMicrosoftRouter from "./auth/microsoft";
+import authPasswordRouter from "./auth/password";
+import authSessionRouter from "./auth/session";
 
 const router: IRouter = Router();
 
@@ -57,5 +60,8 @@ router.use("/identity", identityGatewayRouter);
 router.use("/identity", identityTribalIdRouter);
 router.use("/drafts", draftsRouter);
 router.use("/documents", documentsRouter);
+router.use("/auth/microsoft", authMicrosoftRouter);
+router.use("/auth", authPasswordRouter);
+router.use("/auth", authSessionRouter);
 
 export default router;

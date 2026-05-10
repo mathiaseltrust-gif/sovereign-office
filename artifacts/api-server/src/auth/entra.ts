@@ -4,6 +4,34 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { verifyEntraJwt, isRealJwt } from "./entra-jwt";
+import { createHmac } from "crypto";
+
+function verifySessionJwt(token: string): Record<string, unknown> | null {
+  const secret = process.env.SESSION_SECRET ?? "dev-secret-change-me";
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const [header, body, sig] = parts;
+    const expected = createHmac("sha256", secret).update(`${header}.${body}`).digest("base64url");
+    if (sig !== expected) return null;
+    const payload = JSON.parse(Buffer.from(body, "base64url").toString("utf8")) as Record<string, unknown>;
+    if (typeof payload.exp === "number" && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    return payload;
+  } catch {
+    return null;
+  }
+}
+
+function isSessionJwt(token: string): boolean {
+  if (!isRealJwt(token)) return false;
+  try {
+    const parts = token.split(".");
+    const body = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8")) as Record<string, unknown>;
+    return body.type === "session";
+  } catch {
+    return false;
+  }
+}
 
 export interface EntraUser {
   id: string;
@@ -50,7 +78,35 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
   let parsed: { id: string; email: string; roles: string[]; name?: string; entraId?: string } | null = null;
   let authMethod = "none";
 
-  if (isRealJwt(token)) {
+  if (isSessionJwt(token)) {
+    const sessionPayload = verifySessionJwt(token);
+    if (sessionPayload && sessionPayload.type === "session") {
+      const dbUser = await resolveDbUser(sessionPayload.email as string);
+      if (dbUser) {
+        req.user = {
+          id: String(dbUser.id),
+          email: dbUser.email,
+          roles: [dbUser.role],
+          name: dbUser.name ?? (sessionPayload.name as string),
+          entraId: dbUser.entraId ?? (sessionPayload.entraId as string | undefined),
+          dbId: dbUser.id,
+        };
+      } else {
+        req.user = {
+          id: sessionPayload.sub as string,
+          email: sessionPayload.email as string,
+          roles: [sessionPayload.role as string ?? "member"],
+          name: sessionPayload.name as string,
+          entraId: sessionPayload.entraId as string | undefined,
+        };
+      }
+      logger.debug({ email: sessionPayload.email }, "Session JWT authenticated");
+      return next();
+    } else {
+      logger.warn("Session JWT present but verification failed");
+      return next();
+    }
+  } else if (isRealJwt(token)) {
     const jwtPayload = await verifyEntraJwt(token);
     if (jwtPayload) {
       parsed = {

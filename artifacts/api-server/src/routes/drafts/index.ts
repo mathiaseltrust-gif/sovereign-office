@@ -10,7 +10,7 @@ const router = Router();
 router.post("/create", requireAuth, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId;
-    const tokenUser = req.user!;
+    const tokenUser = { ...req.user!, name: req.user!.name ?? req.user!.email };
 
     let identity;
     if (dbId) {

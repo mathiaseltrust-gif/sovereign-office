@@ -9,7 +9,7 @@ router.get("/gateway", requireAuth, async (req, res, next) => {
     const dbId = req.user!.dbId ?? 0;
     const tokenUser = {
       email: req.user!.email,
-      name: req.user!.name,
+      name: req.user!.name ?? req.user!.email,
       roles: req.user!.roles ?? [],
     };
     const payload = await resolveSovereignIdentityGateway(dbId, tokenUser);

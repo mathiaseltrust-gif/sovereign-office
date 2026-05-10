@@ -10,6 +10,8 @@ export const usersTable = pgTable("users", {
   role: varchar("role", { length: 50 }).notNull().default("member"),
   entraRequired: boolean("entra_required").notNull().default(false),
   trustPrivileges: boolean("trust_privileges").notNull().default(false),
+  passwordHash: varchar("password_hash", { length: 255 }),
+  passwordSalt: varchar("password_salt", { length: 64 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -2,7 +2,8 @@ import { useState } from "react";
 import { useAuth, type Role } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const DEV_ROLES: Array<{ role: Role; label: string; desc: string }> = [
@@ -15,29 +16,81 @@ const DEV_ROLES: Array<{ role: Role; label: string; desc: string }> = [
   { role: "visitor_media", label: "Visitor / Media", desc: "Public records access only" },
 ];
 
-export default function Login() {
-  const { loginWithToken, loginWithDevRole } = useAuth();
-  const { toast } = useToast();
-  const [token, setToken] = useState("");
-  const [tokenError, setTokenError] = useState("");
+const API_BASE = "/api";
 
-  function handleTokenLogin(e: React.FormEvent) {
+export default function Login() {
+  const { loginWithSessionToken, loginWithDevRole } = useAuth();
+  const { toast } = useToast();
+
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [passwordLoading, setPasswordLoading] = useState(false);
+  const [passwordError, setPasswordError] = useState("");
+  const [microsoftLoading, setMicrosoftLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  async function handleMicrosoftLogin() {
+    setMicrosoftLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/microsoft/login`);
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: "Microsoft login unavailable" })) as { error?: string };
+        toast({ title: "Microsoft login unavailable", description: err.error ?? "Contact your administrator.", variant: "destructive" });
+        return;
+      }
+      const { authUrl, stateCookie } = await res.json() as { authUrl: string; stateCookie: string };
+      document.cookie = `oauth_state=${encodeURIComponent(stateCookie)}; path=/; max-age=600; SameSite=Lax`;
+      window.location.href = authUrl;
+    } catch {
+      toast({ title: "Error", description: "Could not reach the authentication server.", variant: "destructive" });
+    } finally {
+      setMicrosoftLoading(false);
+    }
+  }
+
+  async function handlePasswordLogin(e: React.FormEvent) {
     e.preventDefault();
-    setTokenError("");
-    const ok = loginWithToken(token);
-    if (!ok) {
-      setTokenError("Invalid token. Paste a valid base64-encoded JSON token from the API.");
+    setPasswordError("");
+    if (!email.trim() || !password) return;
+    setPasswordLoading(true);
+    try {
+      const res = await fetch(`${API_BASE}/auth/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email: email.trim(), password }),
+      });
+      const data = await res.json() as { sessionToken?: string; user?: { id: number; email: string; name: string; role: string }; error?: string; code?: string };
+      if (!res.ok) {
+        if (data.code === "NO_PASSWORD") {
+          setPasswordError("This account uses Microsoft sign-in. Please use the button above.");
+        } else {
+          setPasswordError(data.error ?? "Login failed.");
+        }
+        return;
+      }
+      if (data.sessionToken && data.user) {
+        loginWithSessionToken(data.sessionToken, {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          roles: [data.user.role],
+        });
+      }
+    } catch {
+      setPasswordError("Could not reach the server. Please try again.");
+    } finally {
+      setPasswordLoading(false);
     }
   }
 
   function handleDevLogin(role: Role) {
     loginWithDevRole(role);
-    toast({ title: "Signed in", description: `Viewing as ${role.replace("_", " ")}` });
+    toast({ title: "Signed in", description: `Viewing as ${role.replace(/_/g, " ")}` });
   }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
-      <div className="w-full max-w-2xl">
+      <div className="w-full max-w-lg">
         <div className="text-center mb-8">
           <img
             src={`${import.meta.env.BASE_URL}tribal-seal.png`}
@@ -48,60 +101,100 @@ export default function Login() {
           <p className="text-sm text-muted-foreground mt-1">Mathias El Tribe — Sovereign Administration Dashboard</p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-6">
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-sm font-semibold uppercase tracking-widest">Token Login</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">Paste your base64-encoded JSON token. Use the format shown below, or generate one from your API server.</p>
-            </CardHeader>
-            <CardContent>
-              <form onSubmit={handleTokenLogin} className="space-y-3">
-                <Textarea
-                  data-testid="input-token"
-                  value={token}
-                  onChange={(e) => { setToken(e.target.value); setTokenError(""); }}
-                  rows={5}
-                  placeholder={`Paste base64 token here…\n\nFormat: btoa(JSON.stringify({id, email, roles, name}))`}
-                  className="font-mono text-xs resize-none"
-                />
-                {tokenError && (
-                  <p className="text-xs text-destructive">{tokenError}</p>
+        <Card className="mb-4">
+          <CardContent className="pt-6 space-y-4">
+            <Button
+              className="w-full h-11 text-sm font-medium gap-3"
+              onClick={handleMicrosoftLogin}
+              disabled={microsoftLoading}
+              data-testid="button-microsoft-login"
+            >
+              <svg width="18" height="18" viewBox="0 0 21 21" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="1" y="1" width="9" height="9" fill="#F25022"/>
+                <rect x="11" y="1" width="9" height="9" fill="#7FBA00"/>
+                <rect x="1" y="11" width="9" height="9" fill="#00A4EF"/>
+                <rect x="11" y="11" width="9" height="9" fill="#FFB900"/>
+              </svg>
+              {microsoftLoading ? "Redirecting to Microsoft…" : "Sign in with Microsoft"}
+            </Button>
+
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-border" /></div>
+              <div className="relative flex justify-center text-xs">
+                <span className="bg-background px-2 text-muted-foreground">or sign in with email</span>
+              </div>
+            </div>
+
+            {!showPassword ? (
+              <button
+                onClick={() => setShowPassword(true)}
+                className="w-full text-xs text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors"
+              >
+                Use email & password instead
+              </button>
+            ) : (
+              <form onSubmit={handlePasswordLogin} className="space-y-3">
+                <div>
+                  <Label htmlFor="email" className="text-xs">Email</Label>
+                  <Input
+                    id="email"
+                    data-testid="input-email"
+                    type="email"
+                    value={email}
+                    onChange={(e) => { setEmail(e.target.value); setPasswordError(""); }}
+                    placeholder="you@mathiasel.tribe"
+                    className="mt-1 h-9 text-sm"
+                    autoFocus
+                    required
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="password" className="text-xs">Password</Label>
+                  <Input
+                    id="password"
+                    data-testid="input-password"
+                    type="password"
+                    value={password}
+                    onChange={(e) => { setPassword(e.target.value); setPasswordError(""); }}
+                    placeholder="••••••••"
+                    className="mt-1 h-9 text-sm"
+                    required
+                  />
+                </div>
+                {passwordError && (
+                  <p className="text-xs text-destructive">{passwordError}</p>
                 )}
-                <Button type="submit" className="w-full" data-testid="button-token-login" disabled={!token.trim()}>
-                  Sign In with Token
+                <Button type="submit" className="w-full" data-testid="button-password-login" disabled={passwordLoading || !email.trim() || !password}>
+                  {passwordLoading ? "Signing in…" : "Sign In"}
                 </Button>
               </form>
-              <div className="mt-4 p-3 bg-muted/50 rounded-md">
-                <p className="text-xs text-muted-foreground font-semibold mb-1">Generate a dev token:</p>
-                <code className="text-xs text-muted-foreground break-all">
-                  {"btoa(JSON.stringify({id:'1',email:'cj@tribe.gov',roles:['chief_justice'],name:'CJ'}))"}
-                </code>
-              </div>
-            </CardContent>
-          </Card>
+            )}
+          </CardContent>
+        </Card>
 
-          {import.meta.env.DEV && <Card>
-            <CardHeader>
+        {import.meta.env.DEV && (
+          <Card>
+            <CardHeader className="pb-2">
               <CardTitle className="text-sm font-semibold uppercase tracking-widest">Dev Access</CardTitle>
-              <p className="text-xs text-muted-foreground mt-1">Quick access for development — not available in production.</p>
+              <p className="text-xs text-muted-foreground">Quick access for development — not available in production.</p>
             </CardHeader>
             <CardContent>
-              <div className="space-y-2">
+              <div className="grid grid-cols-2 gap-2">
                 {DEV_ROLES.map(({ role, label, desc }) => (
                   <button
                     key={role}
                     data-testid={`button-dev-login-${role}`}
                     onClick={() => handleDevLogin(role)}
-                    className="w-full text-left px-3 py-2.5 rounded-md border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
+                    className="text-left px-3 py-2 rounded-md border border-border hover:border-primary hover:bg-primary/5 transition-colors group"
                   >
-                    <p className="text-sm font-medium text-foreground group-hover:text-primary transition-colors">{label}</p>
-                    <p className="text-xs text-muted-foreground mt-0.5">{desc}</p>
+                    <p className="text-xs font-medium text-foreground group-hover:text-primary transition-colors leading-tight">{label}</p>
+                    <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{desc}</p>
                   </button>
                 ))}
               </div>
             </CardContent>
-          </Card>}
-        </div>
+          </Card>
+        )}
 
         <p className="text-center text-xs text-muted-foreground mt-6">
           Mathias El Tribe — A Sovereign Nation Exercising Inherent Authority Under Tribal, Federal, and International Law.

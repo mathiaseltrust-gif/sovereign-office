@@ -9,7 +9,7 @@ const router = Router();
 router.post("/tribal-id/generate", requireAuth, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId ?? 0;
-    const tokenUser = { email: req.user!.email, name: req.user!.name, roles: req.user!.roles ?? [] };
+    const tokenUser = { email: req.user!.email, name: req.user!.name ?? req.user!.email, roles: req.user!.roles ?? [] };
     const gateway = await resolveSovereignIdentityGateway(dbId, tokenUser);
 
     const expirationDate = new Date();
@@ -43,8 +43,8 @@ router.post("/tribal-id/generate", requireAuth, async (req, res, next) => {
 
 router.get("/tribal-id/:userId", requireAuth, async (req, res, next) => {
   try {
-    const targetId = parseInt(req.params.userId) || req.user!.dbId || 0;
-    const tokenUser = { email: req.user!.email, name: req.user!.name, roles: req.user!.roles ?? [] };
+    const targetId = parseInt(Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId) || req.user!.dbId || 0;
+    const tokenUser = { email: req.user!.email, name: req.user!.name ?? req.user!.email, roles: req.user!.roles ?? [] };
     const gateway = await resolveSovereignIdentityGateway(targetId, tokenUser);
 
     const expirationDate = new Date();
@@ -83,7 +83,7 @@ router.get("/tribal-id/:userId", requireAuth, async (req, res, next) => {
 router.post("/verification-letter/generate", requireAuth, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId ?? 0;
-    const tokenUser = { email: req.user!.email, name: req.user!.name, roles: req.user!.roles ?? [] };
+    const tokenUser = { email: req.user!.email, name: req.user!.name ?? req.user!.email, roles: req.user!.roles ?? [] };
     const gateway = await resolveSovereignIdentityGateway(dbId, tokenUser);
 
     const result = await buildVerificationLetterPdf({

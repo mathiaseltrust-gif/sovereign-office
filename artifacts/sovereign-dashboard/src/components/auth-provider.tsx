@@ -10,14 +10,16 @@ export interface User {
   name: string;
 }
 
-export type AuthMode = "dev" | "token";
+export type AuthMode = "dev" | "token" | "microsoft" | "password";
 
 interface AuthContextType {
   user: User | null;
   activeRole: Role;
   mode: AuthMode | null;
+  sessionToken: string | null;
   switchRole: (role: Role) => void;
   loginWithToken: (token: string) => boolean;
+  loginWithSessionToken: (sessionToken: string, user: User) => void;
   loginWithDevRole: (role: Role) => void;
   logout: () => void;
 }
@@ -32,9 +34,9 @@ const DEV_USERS: Record<Role, User> = {
   visitor_media: { id: 7, email: "visitor@sovereign.local", roles: ["visitor_media"], name: "Visitor / Media" },
 };
 
-const LS_KEY = "sovereign_auth_v2";
+const LS_KEY = "sovereign_auth_v3";
 
-function makeToken(user: User) {
+function makeDevToken(user: User) {
   return btoa(JSON.stringify(user));
 }
 
@@ -68,7 +70,12 @@ function roleFromStrings(roles: string[]): Role {
   return ROLE_MAP[best.r] ?? "member";
 }
 
-interface StoredSession { user: User; mode: AuthMode; activeRole: Role; }
+interface StoredSession {
+  user: User;
+  mode: AuthMode;
+  activeRole: Role;
+  sessionToken?: string;
+}
 
 function loadSession(): StoredSession | null {
   try { const r = localStorage.getItem(LS_KEY); return r ? JSON.parse(r) : null; } catch { return null; }
@@ -82,11 +89,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const saved = loadSession();
   const [user, setUser] = useState<User | null>(saved?.user ?? null);
   const [mode, setMode] = useState<AuthMode | null>(saved?.mode ?? null);
-  const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "trustee");
+  const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "member");
+  const [sessionToken, setSessionToken] = useState<string | null>(saved?.sessionToken ?? null);
 
   useEffect(() => {
     if (user) {
-      const token = makeToken(user);
+      const token = sessionToken ?? makeDevToken(user);
       const getter = () => token;
       _currentTokenGetter = getter;
       setAuthTokenGetter(getter);
@@ -94,7 +102,55 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       _currentTokenGetter = null;
       setAuthTokenGetter(null);
     }
-  }, [user]);
+  }, [user, sessionToken]);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const st = params.get("session_token");
+    const authError = params.get("auth_error");
+
+    if (st) {
+      try {
+        const parts = st.split(".");
+        if (parts.length === 3) {
+          const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+            sub?: string; email?: string; name?: string; role?: string;
+          };
+          if (payload.email) {
+            const u: User = {
+              id: payload.sub ?? payload.email,
+              email: payload.email,
+              name: payload.name ?? payload.email,
+              roles: [payload.role ?? "member"],
+            };
+            const role = roleFromStrings(u.roles);
+            setUser(u);
+            setMode("microsoft");
+            setActiveRole(role);
+            setSessionToken(st);
+            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st });
+          }
+        }
+      } catch { /* ignore malformed token */ }
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("session_token");
+      clean.searchParams.delete("auth_error");
+      window.history.replaceState({}, "", clean.toString());
+    } else if (authError) {
+      const clean = new URL(window.location.href);
+      clean.searchParams.delete("auth_error");
+      window.history.replaceState({}, "", clean.toString());
+    }
+  }, []);
+
+  const loginWithSessionToken = useCallback((st: string, u: User) => {
+    const role = roleFromStrings(u.roles);
+    setUser(u);
+    setMode("password");
+    setActiveRole(role);
+    setSessionToken(st);
+    saveSession({ user: u, mode: "password", activeRole: role, sessionToken: st });
+  }, []);
 
   const loginWithToken = useCallback((rawToken: string): boolean => {
     try {
@@ -103,7 +159,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!parsed.id || !parsed.email || !Array.isArray(parsed.roles)) return false;
       const u: User = { id: parsed.id, email: parsed.email, name: parsed.name ?? parsed.email, roles: parsed.roles };
       const role = roleFromStrings(u.roles);
-      setUser(u); setMode("token"); setActiveRole(role);
+      setUser(u); setMode("token"); setActiveRole(role); setSessionToken(null);
       saveSession({ user: u, mode: "token", activeRole: role });
       return true;
     } catch { return false; }
@@ -111,13 +167,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithDevRole = useCallback((role: Role) => {
     const u = DEV_USERS[role];
-    setUser(u); setMode("dev"); setActiveRole(role);
+    setUser(u); setMode("dev"); setActiveRole(role); setSessionToken(null);
     saveSession({ user: u, mode: "dev", activeRole: role });
   }, []);
 
   const logout = useCallback(() => {
     clearSession();
-    setUser(null); setMode(null); setActiveRole("trustee");
+    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null);
     setAuthTokenGetter(null);
   }, []);
 
@@ -129,7 +185,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [mode]);
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, mode, switchRole, loginWithToken, loginWithDevRole, logout }}>
+    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout }}>
       {children}
     </AuthContext.Provider>
   );
