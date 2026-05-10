@@ -46,15 +46,26 @@ export function getCurrentBearerToken(): string | null {
 
 function roleFromStrings(roles: string[]): Role {
   const priority: Record<string, number> = {
-    chief_justice: 100, sovereign_admin: 90, trustee: 80, officer: 70,
-    elder: 50, medical_provider: 50, member: 30, visitor_media: 0,
+    chief_justice: 110, admin: 100, sovereign_admin: 90,
+    trustee: 80, officer: 70,
+    elder: 50, medical_provider: 50,
+    member: 30, visitor_media: 10, guest: 5,
+  };
+  const ROLE_MAP: Record<string, Role> = {
+    chief_justice: "sovereign_admin",
+    admin: "sovereign_admin",
+    sovereign_admin: "sovereign_admin",
+    trustee: "trustee",
+    officer: "officer",
+    elder: "elder",
+    medical_provider: "medical_provider",
+    member: "member",
+    visitor_media: "visitor_media",
+    guest: "visitor_media",
   };
   const best = roles.map((r) => ({ r, p: priority[r] ?? -1 })).sort((a, b) => b.p - a.p)[0];
-  if (!best || best.p < 0) return "member";
-  if (best.r === "chief_justice" || best.r === "sovereign_admin") return "sovereign_admin";
-  const valid: Role[] = ["trustee", "officer", "member", "sovereign_admin", "elder", "medical_provider", "visitor_media"];
-  if (valid.includes(best.r as Role)) return best.r as Role;
-  return "member";
+  if (!best) return "member";
+  return ROLE_MAP[best.r] ?? "member";
 }
 
 interface StoredSession { user: User; mode: AuthMode; activeRole: Role; }
