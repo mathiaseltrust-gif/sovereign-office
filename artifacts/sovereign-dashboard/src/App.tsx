@@ -57,6 +57,12 @@ function DashboardRedirect() {
   return <Redirect to={roleLandingPath(activeRole)} />;
 }
 
+function AuthGatedChatWidget() {
+  const { user } = useAuth();
+  if (!user) return null;
+  return <ChatWidget />;
+}
+
 function AppRouter() {
   const { user } = useAuth();
 
@@ -128,7 +134,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <AppRouter />
           </WouterRouter>
-          <ChatWidget />
+          <AuthGatedChatWidget />
           <Toaster />
         </AuthProvider>
       </TooltipProvider>
