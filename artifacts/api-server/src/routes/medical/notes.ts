@@ -56,7 +56,7 @@ router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next
 
     const existingAuthorities = profile?.delegatedAuthorities as Record<string, unknown> | null;
     const authorities = existingAuthorities && Object.keys(existingAuthorities).length > 0
-      ? (existingAuthorities as ReturnType<typeof computeDelegatedAuthorities>)
+      ? (existingAuthorities as unknown as ReturnType<typeof computeDelegatedAuthorities>)
       : computeDelegatedAuthorities(role, {
           hasLineage: lineageVerified,
           hasChildren,

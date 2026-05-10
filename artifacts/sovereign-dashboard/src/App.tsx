@@ -28,6 +28,11 @@ import IntakeAiPage from "@/pages/intake-ai";
 import CourtDocumentsPage from "@/pages/court-documents";
 import FamilyTreePage from "@/pages/family-tree";
 import MedicalNotesPage from "@/pages/medical-notes";
+import SupremeCourtPage from "@/pages/supreme-court";
+import TribalTrustPage from "@/pages/tribal-trust";
+import CharitableTrustPage from "@/pages/charitable-trust";
+import NiacPage from "@/pages/niac";
+import IeePage from "@/pages/iee";
 import AdminStubPage from "@/pages/admin-stub";
 
 const queryClient = new QueryClient({
@@ -83,6 +88,11 @@ function Router() {
         <Route path="/welfare" component={WelfarePage} />
         <Route path="/family-tree" component={FamilyTreePage} />
         <Route path="/medical-notes" component={MedicalNotesPage} />
+        <Route path="/supreme-court" component={SupremeCourtPage} />
+        <Route path="/tribal-trust" component={TribalTrustPage} />
+        <Route path="/charitable-trust" component={CharitableTrustPage} />
+        <Route path="/niac" component={NiacPage} />
+        <Route path="/iee" component={IeePage} />
         <Route path="/doctrine" component={() => <AdminStubPage title="Doctrine Manager" description="Manage controlling legal doctrines, Indian Canons of Construction, and case law applied by the intake filter and classification engines." />} />
         <Route path="/recorder-rules" component={() => <AdminStubPage title="Recorder Rules" description="Configure and maintain recorder-compliance validation rules for trust instruments, NFR documents, and court filings." />} />
         <Route path="/welfare-acts" component={() => <AdminStubPage title="Welfare Acts" description="Administer welfare act instruments, emergency declarations, and benefit authorizations issued under the Office." />} />

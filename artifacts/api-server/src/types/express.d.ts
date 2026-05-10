@@ -4,6 +4,7 @@ declare global {
       user?: {
         id: string;
         email: string;
+        name?: string;
         roles: string[];
         entraId?: string;
         dbId?: number;

@@ -86,7 +86,7 @@ router.post("/generate", requireAuth, requireRole("officer"), async (req, res, n
       res.status(400).json({ error: "templateId is required" });
       return;
     }
-    const userId = req.user?.id ?? null;
+    const userId = req.user?.dbId ?? undefined;
     const result = await generateCourtDocument({
       templateId,
       vars,

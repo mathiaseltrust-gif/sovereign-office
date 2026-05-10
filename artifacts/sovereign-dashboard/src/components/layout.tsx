@@ -63,6 +63,17 @@ function getCoreNav(role: Role): NavSection["items"] {
   ];
 }
 
+function getOrgsNav(): NavSection["items"] {
+  return [
+    { href: "/medical-notes", label: "Medical Center" },
+    { href: "/supreme-court", label: "Supreme Court" },
+    { href: "/tribal-trust", label: "Tribal Trust" },
+    { href: "/charitable-trust", label: "Charitable Trust (501c3)" },
+    { href: "/niac", label: "NIAC (§527 Political)" },
+    { href: "/iee", label: "Indian Economic Enterprises" },
+  ];
+}
+
 function getAdminNav(role: Role): NavSection["items"] | null {
   if (role === "member") return null;
 
@@ -95,6 +106,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
 
   const coreNav = getCoreNav(activeRole);
+  const orgsNav = getOrgsNav();
   const adminNav = getAdminNav(activeRole);
 
   function handleRoleChange(e: React.ChangeEvent<HTMLSelectElement>) {
@@ -125,6 +137,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <div className="space-y-0.5">
               {coreNav.map((item) => (
                 <NavLink key={item.href} href={item.href} label={item.label} location={location} highlight={item.highlight} />
+              ))}
+            </div>
+          </div>
+
+          <div>
+            <p className="px-3 mb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+              Organizations
+            </p>
+            <div className="space-y-0.5">
+              {orgsNav.map((item) => (
+                <NavLink key={item.href} href={item.href} label={item.label} location={location} />
               ))}
             </div>
           </div>

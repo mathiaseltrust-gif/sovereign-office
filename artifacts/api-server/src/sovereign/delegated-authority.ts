@@ -1,5 +1,15 @@
 export type MedicalAuthority = "none" | "self" | "self_and_dependents";
 export type LineageAccess = "none" | "read_only" | "limited" | "full";
+export type OrgAccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
+
+export interface OrgAccess {
+  medicalCenter: OrgAccessLevel;
+  supremeCourt: OrgAccessLevel;
+  tribalTrust: OrgAccessLevel;
+  charitableTrust: OrgAccessLevel;
+  niac: OrgAccessLevel;
+  iee: OrgAccessLevel;
+}
 
 export interface DelegatedAuthorities {
   medicalNotes: MedicalAuthority;
@@ -10,6 +20,7 @@ export interface DelegatedAuthorities {
   lineageAccess: LineageAccess;
   allAuthorities: boolean;
   memberType: "minor" | "adult" | "adult_with_dependents" | "officer" | "trustee" | "chief_justice";
+  orgAccess: OrgAccess;
 }
 
 export interface DelegationContext {
@@ -26,6 +37,33 @@ export function computeDelegatedAuthorities(
 ): DelegatedAuthorities {
   const r = role.toLowerCase().replace(/[- ]/g, "_");
 
+  const fullOrgAccess: OrgAccess = {
+    medicalCenter: "full",
+    supremeCourt: "full",
+    tribalTrust: "full",
+    charitableTrust: "full",
+    niac: "full",
+    iee: "full",
+  };
+
+  const officerOrgAccess: OrgAccess = {
+    medicalCenter: "officer",
+    supremeCourt: "officer",
+    tribalTrust: "officer",
+    charitableTrust: "officer",
+    niac: "member",
+    iee: "member",
+  };
+
+  const memberOrgAccess: OrgAccess = {
+    medicalCenter: "member",
+    supremeCourt: "member",
+    tribalTrust: "member",
+    charitableTrust: "member",
+    niac: "member",
+    iee: "member",
+  };
+
   if (r === "sovereign_admin" || r === "admin") {
     return {
       medicalNotes: "self_and_dependents",
@@ -36,6 +74,7 @@ export function computeDelegatedAuthorities(
       lineageAccess: "full",
       allAuthorities: true,
       memberType: "chief_justice",
+      orgAccess: fullOrgAccess,
     };
   }
 
@@ -49,6 +88,7 @@ export function computeDelegatedAuthorities(
       lineageAccess: "full",
       allAuthorities: true,
       memberType: "trustee",
+      orgAccess: fullOrgAccess,
     };
   }
 
@@ -62,6 +102,7 @@ export function computeDelegatedAuthorities(
       lineageAccess: "limited",
       allAuthorities: false,
       memberType: "officer",
+      orgAccess: officerOrgAccess,
     };
   }
 
@@ -75,6 +116,7 @@ export function computeDelegatedAuthorities(
       lineageAccess: "full",
       allAuthorities: false,
       memberType: "adult_with_dependents",
+      orgAccess: memberOrgAccess,
     };
   }
 
@@ -87,6 +129,7 @@ export function computeDelegatedAuthorities(
     lineageAccess: "full",
     allAuthorities: false,
     memberType: "adult",
+    orgAccess: memberOrgAccess,
   };
 }
 

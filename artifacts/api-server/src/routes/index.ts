@@ -20,6 +20,7 @@ import intakeAiRouter from "./intake/ai";
 import familyTreeRouter from "./family-tree";
 import membershipRouter from "./membership";
 import medicalNotesRouter from "./medical/notes";
+import orgRouter from "./org/overview";
 
 const router: IRouter = Router();
 
@@ -45,5 +46,6 @@ router.use("/intake/ai", intakeAiRouter);
 router.use("/family-tree", familyTreeRouter);
 router.use("/membership", membershipRouter);
 router.use("/medical/notes", medicalNotesRouter);
+router.use("/org", orgRouter);
 
 export default router;

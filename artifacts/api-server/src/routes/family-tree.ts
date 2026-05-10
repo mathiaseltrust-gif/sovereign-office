@@ -220,7 +220,7 @@ router.post(
 
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
       return;
@@ -238,7 +238,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 
 router.put("/:id", requireAuth, async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
       return;
@@ -310,7 +310,7 @@ router.post("/manual", requireAuth, async (req, res, next) => {
 
 router.post("/:id/link-identity", requireAuth, async (req, res, next) => {
   try {
-    const lineageId = parseInt(req.params.id, 10);
+    const lineageId = parseInt(String(req.params.id), 10);
     if (isNaN(lineageId)) {
       res.status(400).json({ error: "Invalid lineage ID" });
       return;

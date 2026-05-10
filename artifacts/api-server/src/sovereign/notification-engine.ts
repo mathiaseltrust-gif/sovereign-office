@@ -40,8 +40,8 @@ export async function createNotification(input: NotificationInput): Promise<void
       title: input.title,
       message: input.message,
       severity: input.severity ?? "info",
-      relatedId: input.relatedId ?? null,
-      relatedType: input.relatedType ?? null,
+      relatedId: input.relatedId ?? undefined,
+      relatedType: input.relatedType ?? undefined,
       redFlag: input.redFlag ?? false,
       troFlag: input.troFlag ?? false,
       read: false,
@@ -112,8 +112,8 @@ export async function notifyRedFlag(opts: {
     title: "RED FLAG — Indian Status / Jurisdiction Violation Detected",
     message: opts.violations.join("; "),
     severity: "critical",
-    relatedId: opts.relatedId ?? null,
-    relatedType: opts.relatedType ?? null,
+    relatedId: opts.relatedId ?? undefined,
+    relatedType: opts.relatedType ?? undefined,
     redFlag: true,
   });
 }

@@ -6,6 +6,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { Link } from "wouter";
 
+type OrgAccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
+
+interface OrgAccess {
+  medicalCenter: OrgAccessLevel;
+  supremeCourt: OrgAccessLevel;
+  tribalTrust: OrgAccessLevel;
+  charitableTrust: OrgAccessLevel;
+  niac: OrgAccessLevel;
+  iee: OrgAccessLevel;
+}
+
 interface DelegatedAuthorities {
   medicalNotes: "none" | "self" | "self_and_dependents";
   welfareActions: boolean;
@@ -15,6 +26,7 @@ interface DelegatedAuthorities {
   lineageAccess: "none" | "read_only" | "limited" | "full";
   allAuthorities: boolean;
   memberType: string;
+  orgAccess?: OrgAccess;
 }
 
 interface MembershipData {
@@ -306,6 +318,32 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader className="pb-2">
+          <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground">Your Organization Access</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-2">
+          {[
+            { id: "medicalCenter", label: "Medical Center", href: "/medical-notes", color: "text-blue-700", badge: "bg-blue-100 text-blue-800" },
+            { id: "supremeCourt", label: "Supreme Court", href: "/supreme-court", color: "text-red-700", badge: "bg-red-100 text-red-800" },
+            { id: "tribalTrust", label: "Tribal Trust", href: "/tribal-trust", color: "text-amber-700", badge: "bg-amber-100 text-amber-800" },
+            { id: "charitableTrust", label: "Charitable Trust (501c3)", href: "/charitable-trust", color: "text-green-700", badge: "bg-green-100 text-green-800" },
+            { id: "niac", label: "NIAC (§527 Political)", href: "/niac", color: "text-purple-700", badge: "bg-purple-100 text-purple-800" },
+            { id: "iee", label: "I.E.E. (Economic Enterprises)", href: "/iee", color: "text-orange-700", badge: "bg-orange-100 text-orange-800" },
+          ].map(({ id, label, href, badge }) => {
+            const level = (data.delegatedAuthorities.orgAccess as Record<string, string> | undefined)?.[id] ?? "member";
+            return (
+              <Link key={id} href={href}>
+                <div className="flex items-center justify-between py-1.5 border-b last:border-0 cursor-pointer hover:text-primary transition-colors">
+                  <span className="text-sm">{label}</span>
+                  <Badge className={`${badge} text-xs capitalize shrink-0 ml-2`}>{level}</Badge>
+                </div>
+              </Link>
+            );
+          })}
+        </CardContent>
+      </Card>
     </div>
   );
 }

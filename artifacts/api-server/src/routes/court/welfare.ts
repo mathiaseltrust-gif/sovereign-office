@@ -28,7 +28,7 @@ router.get("/acts", requireAuth, async (_req, res, next) => {
 
 router.get("/acts/:code", requireAuth, async (req, res, next) => {
   try {
-    const act = await getWelfareAct(req.params.code);
+    const act = await getWelfareAct(String(req.params.code));
     if (!act) {
       res.status(404).json({ error: "Welfare act not found" });
       return;
