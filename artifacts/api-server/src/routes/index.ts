@@ -21,6 +21,7 @@ import familyTreeRouter from "./family-tree";
 import membershipRouter from "./membership";
 import medicalNotesRouter from "./medical/notes";
 import orgRouter from "./org/overview";
+import chatRouter from "./chat/index";
 
 const router: IRouter = Router();
 
@@ -47,5 +48,6 @@ router.use("/family-tree", familyTreeRouter);
 router.use("/membership", membershipRouter);
 router.use("/medical/notes", medicalNotesRouter);
 router.use("/org", orgRouter);
+router.use("/chat", chatRouter);
 
 export default router;

@@ -34,6 +34,7 @@ import CharitableTrustPage from "@/pages/charitable-trust";
 import NiacPage from "@/pages/niac";
 import IeePage from "@/pages/iee";
 import AdminStubPage from "@/pages/admin-stub";
+import { ChatWidget } from "@/components/ChatWidget";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -112,6 +113,7 @@ function App() {
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
             <Router />
           </WouterRouter>
+          <ChatWidget />
           <Toaster />
         </AuthProvider>
       </TooltipProvider>
