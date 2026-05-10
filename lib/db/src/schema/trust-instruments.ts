@@ -35,6 +35,8 @@ export const trustInstrumentsTable = pgTable("trust_instruments", {
   state: varchar("state", { length: 50 }),
   county: varchar("county", { length: 100 }),
   landClassification: varchar("land_classification", { length: 100 }),
+  tractNumber: varchar("tract_number", { length: 100 }),
+  templateKey: varchar("template_key", { length: 100 }),
   versionHistory: jsonb("version_history").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

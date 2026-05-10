@@ -100,6 +100,8 @@ router.post("/", requireAuth, async (req, res, next) => {
         trustStatus: "Federal Trust Land",
         landClassification,
         notes,
+        instrumentType,
+        filingReference: instrumentId ? `INST-${instrumentId}-${Date.now()}` : undefined,
       })
       .returning();
 

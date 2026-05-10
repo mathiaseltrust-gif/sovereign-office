@@ -87,7 +87,7 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.post("/render-template", async (req, res, next) => {
+router.post("/render-template", requireAuth, async (req, res, next) => {
   try {
     const { templateKey, variables, recorderMetadata } = req.body as {
       templateKey: string;
@@ -323,6 +323,8 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
         state: body.recorderMetadata?.state ?? body.state,
         county: body.recorderMetadata?.county,
         landClassification,
+        tractNumber: (body.templateVariables?.find((v: {key:string;value:string}) => v.key === "TRACT NUMBER")?.value) as string | undefined,
+        templateKey: body.templateKey,
         status: allErrors.length === 0 ? "valid" : "draft",
       })
       .returning();
