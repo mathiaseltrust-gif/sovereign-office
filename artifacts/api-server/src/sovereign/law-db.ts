@@ -82,6 +82,42 @@ const FEDERAL_LAWS = [
     body: "No purchase or grant of lands from any Indian nation or tribe shall be valid unless made by treaty or convention entered into pursuant to the Constitution. All alienations of Indian land without federal approval are void. This statute protects against unauthorized transfers of Indian land.",
     tags: ["trust-land", "alienation", "nonintercourse", "land-transfer"],
   },
+  {
+    title: "Title VI of the Civil Rights Act — Non-Discrimination in Federally Funded Programs",
+    citation: "42 U.S.C. § 2000d",
+    body: "No person in the United States shall, on the ground of race, color, or national origin, be excluded from participation in, be denied the benefits of, or be subjected to discrimination under any program or activity receiving federal financial assistance. This provision is directly applicable to state disability programs (EDD), the Social Security Administration (SSA), and insurers receiving federal funds. Any refusal by these agencies to honor a tribal medical or judicial determination constitutes unlawful discrimination under this statute. Federal courts have jurisdiction to enforce compliance.",
+    tags: ["civil-rights", "non-discrimination", "title-vi", "edd", "ssa", "health", "medical", "federal-funding"],
+  },
+  {
+    title: "Indian Health Care Improvement Act — Recovery from Third Parties",
+    citation: "25 U.S.C. § 1621e",
+    body: "The Indian Health Service and tribal health programs may recover from third-party payors — including states, insurers, health plans, and federal programs — for health services provided to Indians. States and insurers are expressly prohibited from denying or limiting claims submitted by tribal health entities. Payment obligations must comply with federal Social Security Act standards, binding both SSA and state disability programs such as California EDD. Direct payment shall be made to the tribal health program or the patient-beneficiary as elected.",
+    tags: ["health", "ihcia", "third-party-recovery", "ihs", "insurance", "ssa", "edd", "tribal-health", "reimbursement"],
+  },
+  {
+    title: "Indian Health Care Improvement Act — Parity in Coverage",
+    citation: "25 U.S.C. § 1647b",
+    body: "Tribes and tribal organizations are authorized to access federal employee health benefit programs and related coverage on terms of parity with federal agencies. Congressional recognition that tribal health determinations must be treated with full parity to determinations made by licensed federal health providers, Medicare, and Medicaid. No reduction, limitation, or discrimination may be applied to tribal health determinations on the basis of tribal origin. This parity requirement binds all federal programs and recipients of federal funds.",
+    tags: ["health", "ihcia", "parity", "coverage", "federal-employees", "medicare", "medicaid", "tribal-health"],
+  },
+  {
+    title: "Indian Health Service — Services Available (42 C.F.R. § 136.11)",
+    citation: "42 C.F.R. § 136.11",
+    body: "Services for the Indian community served by local facilities may include hospital and medical care, dental care, public health nursing and preventive care (including immunizations), and health examination of special groups. Available services are provided at IHS hospitals and clinics and at contract facilities including tribal facilities under contract with the Service. The services provided to any particular Indian community depend upon available resources and personnel. This regulation constitutes federal recognition that tribal contract facilities are legitimate providers of federally recognized health services. [Current through August 26, 2025 Federal Register — 42 C.F.R. Ch. I, Subch. M, Pt. 136, Subpart B]",
+    tags: ["health", "ihs", "services", "cfr", "tribal-facility", "contract", "federal-regulation", "42cfr136"],
+  },
+  {
+    title: "Non-Discrimination in State/Tribal Programs under Social Security Act",
+    citation: "45 C.F.R. § 1355.30 (effective Oct. 1, 2025)",
+    body: "Extends non-discrimination and administrative protections to state and tribal programs funded under the Social Security Act. This regulation is binding on California EDD and SSA, requiring them to respect and honor tribal medical and judicial determinations. Any state or federal agency receiving Social Security Act funding must administer programs affecting tribal members without discrimination based on tribal affiliation or tribal-origin determinations. Refusal to recognize tribal medical decrees constitutes a violation of this regulation.",
+    tags: ["non-discrimination", "social-security", "cfr", "edd", "ssa", "tribal-programs", "state-programs", "health"],
+  },
+  {
+    title: "Self-Determination Contract — Tribal Health Programs",
+    citation: "25 U.S.C. § 5304(e)",
+    body: "Defines 'self-determination contract' under ISDEAA as a contract between a tribal organization and the appropriate secretary for the planning, conduct, and administration of programs that would otherwise be administered by the federal government. Tribal health programs operating under self-determination contracts retain full sovereign character. All determinations made by tribally operated health programs carry the same federal recognition and authority as determinations made by directly operated federal programs.",
+    tags: ["self-determination", "isdeaa", "tribal-health", "contract", "sovereignty", "health"],
+  },
 ];
 
 const TRIBAL_LAWS = [
@@ -120,6 +156,18 @@ const TRIBAL_LAWS = [
     citation: "Tribal Code § 700 et seq.",
     body: "The Tribal Emergency Powers Act authorizes the Chief Justice & Trustee to declare a tribal emergency and issue emergency orders protecting tribal members from imminent harm. Emergency orders are effective immediately upon issuance and bind all persons within the tribal court's jurisdiction. Emergency TROs may be issued ex parte when delay would cause irreparable harm.",
     tags: ["emergency", "tro", "ex-parte", "imminent-harm", "protective-order"],
+  },
+  {
+    title: "Sovereignty, Jurisdiction & Due Process Act (SJDPA) — Title 4",
+    citation: "Mathias El Tribal Code, Title 4 (SJDPA)",
+    body: "Title 4 of the Mathias El Tribal Code establishes the foundational framework for sovereignty, jurisdiction, and due process within the Mathias El Tribe. All decrees of the Supreme Court, including medical determinations elevated to judicial decree, are governed by Title 4. Sovereignty and due process are inseparable under Title 4. Jurisdiction extends over tribal members and all matters affecting their health, safety, and welfare. Orders issued under Title 4 meet the standards of jurisdiction and due process required for recognition and enforcement by state and federal courts under principles of comity, treaty supremacy, and the federal trust responsibility. Every decree includes procedural safeguards equivalent to those required by federal law.",
+    tags: ["sjdpa", "sovereignty", "due-process", "jurisdiction", "tribal-code", "title-4", "comity", "health"],
+  },
+  {
+    title: "Tribal Medical Authority — Healing Enforcement Jurisdiction",
+    citation: "Mathias El Tribe Supreme Court, MET-SC-2025-007A",
+    body: "All determinations of the Mathias El Tribe Medical Center are elevated as Judicial Decrees of the Supreme Court of the Mathias El Tribe, self-executing and enforceable without external validation. Medical findings include: persistent musculoskeletal conditions, neurological risk assessments, and protective healing orders requiring cessation of labor. Healing directives include: imaging, physical therapy, neuromuscular rehabilitation, nutritional reinforcement, and sovereign rest. Financial recovery: direct payment shall be made to the Tribal Medical Center or patient-beneficiary pursuant to 25 U.S.C. § 1621e. Parity in coverage required under 25 U.S.C. § 1647b. All ambiguities resolved under Indian Canons of Construction in favor of the Tribe.",
+    tags: ["tribal-medical", "healing", "protective-order", "disability", "judicial-decree", "self-executing", "health", "met-sc-2025-007a"],
   },
 ];
 
@@ -201,6 +249,36 @@ const DOCTRINES = [
     citation: "Montoya v. United States, 180 U.S. 261 (1901)",
     summary: "A tribe must be regarded as a body of Indians of the same or similar race, united in a community under one leadership or government, and inhabiting a particular, though sometimes ill-defined, territory. Tribal authority extends over all members and their affairs within tribal territory.",
     tags: ["tribal-authority", "membership", "community", "territory"],
+  },
+  {
+    caseName: "Passamaquoddy Tribe v. Morton",
+    citation: "528 F.2d 370 (1st Cir. 1975)",
+    summary: "The federal trust responsibility extends to all Indian tribes — not only those formally recognized by the federal government. The Non-Intercourse Act (25 U.S.C. § 177) creates a trust relationship between the United States and Indian tribes regardless of official federal recognition status. The federal government has a fiduciary duty to protect tribal land and rights. This decision directly supports the enforceability of tribal medical and legal decrees under the trust responsibility.",
+    tags: ["trust-responsibility", "federal-recognition", "nonintercourse", "fiduciary", "health", "medical"],
+  },
+  {
+    caseName: "Loper Bright Enterprises v. Raimondo — Chevron Limitation",
+    citation: "603 U.S. ___ (2024)",
+    summary: "The Supreme Court overruled Chevron U.S.A. v. Natural Resources Defense Council (1984), holding that courts — not federal agencies — must exercise independent judgment in determining the meaning of statutes. Federal agencies such as SSA, EDD, and CMS are no longer entitled to judicial deference in interpreting ambiguous statutes that affect tribal rights. Statutory text must be read according to its plain meaning and consistent with congressional intent. Under this ruling, agencies cannot reinterpret statutes affecting tribal health determinations in ways that diminish tribal authority.",
+    tags: ["chevron", "loper-bright", "agency-deference", "statutory-interpretation", "health", "ssa", "edd", "tribal-rights"],
+  },
+  {
+    caseName: "Wilson v. Marchington — Tribal Court Comity",
+    citation: "127 F.3d 805 (9th Cir. 1997)",
+    summary: "Federal courts apply comity principles when considering whether to give effect to tribal court judgments. Tribal court orders meet the standards required for recognition and enforcement by federal and state courts when: (1) the tribal court had jurisdiction over the parties and subject matter; (2) the tribal court provided due process; and (3) the tribal court applied substantive law consistent with federal standards. Decrees issued under the Mathias El Tribal Code Title 4 (SJDPA) satisfy all three prongs.",
+    tags: ["comity", "tribal-court", "recognition", "enforcement", "due-process", "ninth-circuit"],
+  },
+  {
+    caseName: "Rincon Mushroom Corp. v. Mazzetti — Tribal Judgment Recognition",
+    citation: "2022 U.S. Dist. LEXIS 67044",
+    summary: "State and federal courts must give recognition to tribal court judgments that were issued under proper jurisdiction, adequate notice, and due process protections equivalent to federal standards. Tribal judicial orders — including medical protection decrees and disability determinations — carry the force of law and are entitled to comity recognition without requiring formal registration or external validation.",
+    tags: ["comity", "tribal-court", "recognition", "medical", "disability", "due-process"],
+  },
+  {
+    caseName: "Treaty Supremacy Clause",
+    citation: "U.S. Const. art. VI, cl. 2",
+    summary: "All treaties made, or which shall be made, under the Authority of the United States, shall be the supreme Law of the Land; and the Judges in every State shall be bound thereby, any Thing in the Constitution or Laws of any State to the Contrary notwithstanding. Treaties with Indian tribes are the supreme law of the land. State laws, regulations, and agency determinations that conflict with treaty rights are void. Federal agencies administering programs affecting treaty tribes must honor treaty obligations above contrary state or regulatory provisions.",
+    tags: ["treaty", "supremacy", "constitutional", "state-preemption", "tribal-rights", "federal-preemption"],
   },
 ];
 

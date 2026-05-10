@@ -46,4 +46,3 @@ externalPort = 3000
 [userenv]
 
 [userenv.shared]
-AZURE_OPENAI_DEPLOYMENT = "tribal-gpt4o"
