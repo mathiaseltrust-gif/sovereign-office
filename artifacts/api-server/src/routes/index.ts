@@ -25,6 +25,7 @@ import chatRouter from "./chat/index";
 import identityGatewayRouter from "./identity/gateway";
 import identityTribalIdRouter from "./identity/tribal-id";
 import draftsRouter from "./drafts/index";
+import documentsRouter from "./documents/index";
 
 const router: IRouter = Router();
 
@@ -55,5 +56,6 @@ router.use("/chat", chatRouter);
 router.use("/identity", identityGatewayRouter);
 router.use("/identity", identityTribalIdRouter);
 router.use("/drafts", draftsRouter);
+router.use("/documents", documentsRouter);
 
 export default router;

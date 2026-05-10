@@ -1089,3 +1089,36 @@ export async function buildInstrumentRecorderPdf(
     },
   });
 }
+
+export async function buildInstrumentPdfBuffer(
+  instrumentId: number,
+  content: string,
+  jurisdiction: string,
+): Promise<Buffer> {
+  return buildPdfBuffer({
+    documentType: "instrument",
+    title: `Trust Instrument #${instrumentId}`,
+    content,
+    entityId: instrumentId,
+    jurisdiction,
+  });
+}
+
+// -- Compatibility wrappers for /api/documents/* download endpoints -----------
+// These adapt HEAD's rich pdf-lib builders to the Buffer-returning API
+// expected by the documents router.
+
+export async function buildNfrPdfBuffer(nfrId: number, content: string): Promise<Buffer> {
+  const result = await buildNfrRecorderPdf(nfrId, content);
+  return result.buffer;
+}
+
+export async function buildInstrumentPdfBuffer(
+  instrumentId: number,
+  content: string,
+  jurisdiction: string,
+  inputOverride?: Partial<PdfBuildInput>,
+): Promise<Buffer> {
+  const result = await buildInstrumentRecorderPdf(instrumentId, content, jurisdiction, inputOverride);
+  return result.buffer;
+}
