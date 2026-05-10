@@ -1,5 +1,6 @@
-import { useState } from "react";
-import { useAuth, type Role } from "@/components/auth-provider";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useAuth, type Role, roleLandingPath } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -19,8 +20,20 @@ const DEV_ROLES: Array<{ role: Role; label: string; desc: string }> = [
 const API_BASE = "/api";
 
 export default function Login() {
-  const { loginWithSessionToken, loginWithDevRole } = useAuth();
+  const { loginWithSessionToken, loginWithDevRole, user, activeRole } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
+
+  const params = new URLSearchParams(window.location.search);
+  const nextPath = params.get("next");
+  const isExpired = params.get("expired") === "1";
+
+  useEffect(() => {
+    if (user) {
+      const dest = nextPath ? decodeURIComponent(nextPath) : roleLandingPath(activeRole);
+      navigate(dest, { replace: true });
+    }
+  }, [user, activeRole, nextPath, navigate]);
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -100,6 +113,12 @@ export default function Login() {
           <h1 className="font-serif text-2xl font-bold text-foreground">Office of the Chief Justice and Trustee</h1>
           <p className="text-sm text-muted-foreground mt-1">Mathias El Tribe — Sovereign Administration Dashboard</p>
         </div>
+
+        {isExpired && (
+          <div className="mb-4 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
+            Your session has expired. Please sign in again.
+          </div>
+        )}
 
         <Card className="mb-4">
           <CardContent className="pt-6 space-y-4">

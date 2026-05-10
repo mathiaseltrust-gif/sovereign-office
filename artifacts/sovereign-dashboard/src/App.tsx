@@ -1,4 +1,4 @@
-import { Switch, Route, Router as WouterRouter, Redirect } from "wouter";
+import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -43,7 +43,13 @@ import { ChatWidget } from "@/components/ChatWidget";
 
 const queryClient = new QueryClient({
   defaultOptions: {
-    queries: { retry: 1, staleTime: 30_000 },
+    queries: {
+      retry: (failureCount, error) => {
+        if ((error as { status?: number })?.status === 401) return false;
+        return failureCount < 1;
+      },
+      staleTime: 30_000,
+    },
   },
 });
 
@@ -63,66 +69,242 @@ function AuthGatedChatWidget() {
   return <ChatWidget />;
 }
 
-function AppRouter() {
+function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user } = useAuth();
+  const [location] = useLocation();
 
   if (!user) {
-    return <Login />;
+    const returnTo = encodeURIComponent(location);
+    return <Redirect to={`/login?next=${returnTo}`} />;
   }
 
+  return <Component />;
+}
+
+function ProtectedParamRoute({ children }: { children: React.ReactNode }) {
+  const { user } = useAuth();
+  const [location] = useLocation();
+
+  if (!user) {
+    const returnTo = encodeURIComponent(location);
+    return <Redirect to={`/login?next=${returnTo}`} />;
+  }
+
+  return <>{children}</>;
+}
+
+function AppRouter() {
   return (
-    <Layout>
-      <Switch>
-        <Route path="/" component={RootRedirect} />
-        <Route path="/dashboard/trustee" component={TrusteeDashboard} />
-        <Route path="/dashboard/officer" component={OfficerDashboard} />
-        <Route path="/dashboard/member" component={MemberDashboard} />
-        <Route path="/dashboard/admin" component={AdminDashboard} />
-        <Route path="/dashboard/elder" component={ElderDashboard} />
-        <Route path="/dashboard/medical-provider" component={MedicalProviderDashboard} />
-        <Route path="/dashboard/visitor" component={VisitorDashboard} />
-        <Route path="/dashboard" component={DashboardRedirect} />
-        <Route path="/instruments" component={InstrumentsPage} />
-        <Route path="/instruments/:id">
-          {(params) => <InstrumentDetail params={params} />}
-        </Route>
-        <Route path="/filings" component={FilingsListPage} />
-        <Route path="/filings/:id">
-          {(params) => <FilingDetailPage params={params} />}
-        </Route>
-        <Route path="/nfr" component={NfrPage} />
-        <Route path="/classify" component={ClassifyPage} />
-        <Route path="/complaints" component={ComplaintsListPage} />
-        <Route path="/complaints/:id">
-          {(params) => <ComplaintDetailPage params={params} />}
-        </Route>
-        <Route path="/tasks" component={TasksPage} />
-        <Route path="/calendar" component={CalendarPage} />
-        <Route path="/notifications" component={NotificationsPage} />
-        <Route path="/law" component={LawLibraryPage} />
-        <Route path="/intake-ai" component={IntakeAiPage} />
-        <Route path="/documents" component={CourtDocumentsPage} />
-        <Route path="/search" component={SearchPage} />
-        <Route path="/admin" component={AdminPage} />
-        <Route path="/profile" component={ProfilePage} />
-        <Route path="/templates" component={TemplatesPage} />
-        <Route path="/welfare" component={WelfarePage} />
-        <Route path="/family-tree" component={FamilyTreePage} />
-        <Route path="/medical-notes" component={MedicalNotesPage} />
-        <Route path="/supreme-court" component={SupremeCourtPage} />
-        <Route path="/tribal-trust" component={TribalTrustPage} />
-        <Route path="/charitable-trust" component={CharitableTrustPage} />
-        <Route path="/niac" component={NiacPage} />
-        <Route path="/iee" component={IeePage} />
-        <Route path="/tribal-id" component={TribalIdPage} />
-        <Route path="/doctrine" component={() => <AdminStubPage title="Doctrine Manager" description="Manage controlling legal doctrines, Indian Canons of Construction, and case law applied by the intake filter and classification engines." />} />
-        <Route path="/recorder-rules" component={() => <AdminStubPage title="Recorder Rules" description="Configure and maintain recorder-compliance validation rules for trust instruments, NFR documents, and court filings." />} />
-        <Route path="/welfare-acts" component={() => <AdminStubPage title="Welfare Acts" description="Administer welfare act instruments, emergency declarations, and benefit authorizations issued under the Office." />} />
-        <Route path="/role-delegation" component={() => <AdminStubPage title="Role Delegation" description="Grant and revoke role-based access permissions. Delegate officer authority and configure member access levels." />} />
-        <Route path="/audit-logs" component={() => <AdminStubPage title="Audit Logs" description="System-wide audit trail for all instruments, filings, court documents, NFRs, and administrative actions." />} />
-        <Route component={NotFound} />
-      </Switch>
-    </Layout>
+    <Switch>
+      <Route path="/login" component={Login} />
+
+      <Route path="/">
+        {() => {
+          const { user, activeRole } = useAuth();
+          if (!user) return <Redirect to="/login" />;
+          return <Redirect to={roleLandingPath(activeRole)} />;
+        }}
+      </Route>
+
+      <Route path="/dashboard/trustee">
+        {() => <ProtectedRoute component={TrusteeDashboard} />}
+      </Route>
+      <Route path="/dashboard/officer">
+        {() => <ProtectedRoute component={OfficerDashboard} />}
+      </Route>
+      <Route path="/dashboard/member">
+        {() => <ProtectedRoute component={MemberDashboard} />}
+      </Route>
+      <Route path="/dashboard/admin">
+        {() => <ProtectedRoute component={AdminDashboard} />}
+      </Route>
+      <Route path="/dashboard/elder">
+        {() => <ProtectedRoute component={ElderDashboard} />}
+      </Route>
+      <Route path="/dashboard/medical-provider">
+        {() => <ProtectedRoute component={MedicalProviderDashboard} />}
+      </Route>
+      <Route path="/dashboard/visitor">
+        {() => <ProtectedRoute component={VisitorDashboard} />}
+      </Route>
+      <Route path="/dashboard">
+        {() => <ProtectedRoute component={DashboardRedirect} />}
+      </Route>
+
+      <Route path="/instruments">
+        {() => <ProtectedRoute component={InstrumentsPage} />}
+      </Route>
+      <Route path="/instruments/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <InstrumentDetail params={params} />
+          </ProtectedParamRoute>
+        )}
+      </Route>
+      <Route path="/filings">
+        {() => <ProtectedRoute component={FilingsListPage} />}
+      </Route>
+      <Route path="/filings/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <FilingDetailPage params={params} />
+          </ProtectedParamRoute>
+        )}
+      </Route>
+      <Route path="/nfr">
+        {() => <ProtectedRoute component={NfrPage} />}
+      </Route>
+      <Route path="/classify">
+        {() => <ProtectedRoute component={ClassifyPage} />}
+      </Route>
+      <Route path="/complaints">
+        {() => <ProtectedRoute component={ComplaintsListPage} />}
+      </Route>
+      <Route path="/complaints/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <ComplaintDetailPage params={params} />
+          </ProtectedParamRoute>
+        )}
+      </Route>
+      <Route path="/tasks">
+        {() => <ProtectedRoute component={TasksPage} />}
+      </Route>
+      <Route path="/calendar">
+        {() => <ProtectedRoute component={CalendarPage} />}
+      </Route>
+      <Route path="/notifications">
+        {() => <ProtectedRoute component={NotificationsPage} />}
+      </Route>
+      <Route path="/law">
+        {() => <ProtectedRoute component={LawLibraryPage} />}
+      </Route>
+      <Route path="/intake-ai">
+        {() => <ProtectedRoute component={IntakeAiPage} />}
+      </Route>
+      <Route path="/documents">
+        {() => <ProtectedRoute component={CourtDocumentsPage} />}
+      </Route>
+      <Route path="/search">
+        {() => <ProtectedRoute component={SearchPage} />}
+      </Route>
+      <Route path="/admin">
+        {() => <ProtectedRoute component={AdminPage} />}
+      </Route>
+      <Route path="/profile">
+        {() => <ProtectedRoute component={ProfilePage} />}
+      </Route>
+      <Route path="/templates">
+        {() => <ProtectedRoute component={TemplatesPage} />}
+      </Route>
+      <Route path="/welfare">
+        {() => <ProtectedRoute component={WelfarePage} />}
+      </Route>
+      <Route path="/family-tree">
+        {() => <ProtectedRoute component={FamilyTreePage} />}
+      </Route>
+      <Route path="/medical-notes">
+        {() => <ProtectedRoute component={MedicalNotesPage} />}
+      </Route>
+      <Route path="/supreme-court">
+        {() => <ProtectedRoute component={SupremeCourtPage} />}
+      </Route>
+      <Route path="/tribal-trust">
+        {() => <ProtectedRoute component={TribalTrustPage} />}
+      </Route>
+      <Route path="/charitable-trust">
+        {() => <ProtectedRoute component={CharitableTrustPage} />}
+      </Route>
+      <Route path="/niac">
+        {() => <ProtectedRoute component={NiacPage} />}
+      </Route>
+      <Route path="/iee">
+        {() => <ProtectedRoute component={IeePage} />}
+      </Route>
+      <Route path="/tribal-id">
+        {() => <ProtectedRoute component={TribalIdPage} />}
+      </Route>
+      <Route path="/doctrine">
+        {() => (
+          <ProtectedRoute
+            component={() => (
+              <AdminStubPage
+                title="Doctrine Manager"
+                description="Manage controlling legal doctrines, Indian Canons of Construction, and case law applied by the intake filter and classification engines."
+              />
+            )}
+          />
+        )}
+      </Route>
+      <Route path="/recorder-rules">
+        {() => (
+          <ProtectedRoute
+            component={() => (
+              <AdminStubPage
+                title="Recorder Rules"
+                description="Configure and maintain recorder-compliance validation rules for trust instruments, NFR documents, and court filings."
+              />
+            )}
+          />
+        )}
+      </Route>
+      <Route path="/welfare-acts">
+        {() => (
+          <ProtectedRoute
+            component={() => (
+              <AdminStubPage
+                title="Welfare Acts"
+                description="Administer welfare act instruments, emergency declarations, and benefit authorizations issued under the Office."
+              />
+            )}
+          />
+        )}
+      </Route>
+      <Route path="/role-delegation">
+        {() => (
+          <ProtectedRoute
+            component={() => (
+              <AdminStubPage
+                title="Role Delegation"
+                description="Grant and revoke role-based access permissions. Delegate officer authority and configure member access levels."
+              />
+            )}
+          />
+        )}
+      </Route>
+      <Route path="/audit-logs">
+        {() => (
+          <ProtectedRoute
+            component={() => (
+              <AdminStubPage
+                title="Audit Logs"
+                description="System-wide audit trail for all instruments, filings, court documents, NFRs, and administrative actions."
+              />
+            )}
+          />
+        )}
+      </Route>
+
+      <Route component={NotFound} />
+    </Switch>
+  );
+}
+
+function AuthenticatedLayout() {
+  const { user } = useAuth();
+
+  return (
+    <>
+      {user ? (
+        <Layout>
+          <AppRouter />
+        </Layout>
+      ) : (
+        <AppRouter />
+      )}
+      <AuthGatedChatWidget />
+      <Toaster />
+    </>
   );
 }
 
@@ -132,10 +314,8 @@ function App() {
       <TooltipProvider>
         <AuthProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <AppRouter />
+            <AuthenticatedLayout />
           </WouterRouter>
-          <AuthGatedChatWidget />
-          <Toaster />
         </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
