@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, jsonb, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -18,6 +18,10 @@ export const profilesTable = pgTable("profiles", {
   jurisdictionTags: jsonb("jurisdiction_tags").default([]),
   welfareTags: jsonb("welfare_tags").default([]),
   notificationPreferences: jsonb("notification_preferences").default({}),
+  membershipVerified: boolean("membership_verified").notNull().default(false),
+  entraVerified: boolean("entra_verified").notNull().default(false),
+  lineageVerified: boolean("lineage_verified").notNull().default(false),
+  delegatedAuthorities: jsonb("delegated_authorities").default({}),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

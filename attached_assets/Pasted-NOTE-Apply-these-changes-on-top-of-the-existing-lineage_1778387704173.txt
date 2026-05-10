@@ -1,0 +1,112 @@
+NOTE: Apply these changes on top of the existing lineage, identity, and intake merges. Do NOT remove or rename existing endpoints or logic.
+
+INSTRUCTION: Add Membership Verification, Entra Identity Confirmation, Lineage-Based Access Control, Delegated Authority, and integrate with the “What Now / What Next” procedural panel.
+
+────────────────────────────────────────
+1. Membership Verification (Entra + Lineage)
+────────────────────────────────────────
+
+Extend user profile with:
+- membershipVerified BOOLEAN
+- entraVerified BOOLEAN
+- lineageVerified BOOLEAN
+- delegatedAuthorities JSONB
+
+Create endpoint:
+GET /api/membership/verify
+
+Verification logic:
+- Confirm Entra authentication
+- Match user to family_lineage or ancestral_records
+- Confirm identityTags include familyGroup (e.g., "McCaster Family")
+- Set membershipVerified = true if lineage + Entra match
+- Assign protectionLevel and benefitEligibility based on lineage + role
+
+Return:
+- membershipVerified
+- identityTags
+- familyGroup
+- protectionLevel
+- benefitEligibility
+- delegatedAuthorities
+
+────────────────────────────────────────
+2. Lineage-Based Access Control
+────────────────────────────────────────
+
+Adults:
+- Access to family governance tools
+- Access to welfare requests
+- Access to trust filings
+- Can generate family documents
+- Can write medical notes under:
+  "Mathias El Tribe Medical Center"
+
+Adults with children:
+- All above + authority to write medical notes for dependents
+
+Minors:
+- Read-only lineage access
+
+Officers:
+- Limited lineage view
+
+Chief Justice & Trustee:
+- Full lineage access
+
+────────────────────────────────────────
+3. Delegated Authority System
+────────────────────────────────────────
+
+Add delegatedAuthorities JSONB to profiles.
+
+Rules:
+- Adults → { medicalNotes: "self" }
+- Adults with children → { medicalNotes: "self_and_dependents" }
+- Officers → { welfareActions: true }
+- Chief Justice & Trustee → { allAuthorities: true }
+
+Integrate with:
+- /api/medical/notes/create (new)
+- /api/court/documents/generate
+- /api/welfare/generate
+- /api/family-tree/*
+- /api/identity/verify
+
+────────────────────────────────────────
+4. Integrate Membership + Lineage into “What Now / What Next”
+────────────────────────────────────────
+
+Update WhatNextPanel.tsx to include:
+- membershipVerified
+- delegatedAuthorities
+- protectionLevel
+- benefitEligibility
+- lineageSummary
+
+AI must adjust instructions based on:
+- whether the user is a protected member
+- whether they have delegated authority
+- whether they are acting for dependents
+- whether the matter involves ICWA or welfare eligibility
+
+────────────────────────────────────────
+5. Medical Note Generation
+────────────────────────────────────────
+
+Create:
+POST /api/medical/notes/create
+
+Requirements:
+- Only adults or adults_with_children with delegatedAuthorities.medicalNotes may generate
+- Notes must include:
+  "Mathias El Tribe Medical Center"
+  identityTags
+  lineageSummary
+  protectionLevel
+
+Trigger WhatNextPanel after creation.
+
+────────────────────────────────────────
+
+Apply all changes on top of previous merges.

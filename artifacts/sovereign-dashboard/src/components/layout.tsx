@@ -28,6 +28,7 @@ function getCoreNav(role: Role): NavSection["items"] {
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/complaints", label: "Complaints" },
       { href: "/family-tree", label: "Family Tree & Lineage" },
+      { href: "/medical-notes", label: "Medical Notes" },
       ...common,
     ];
   }
@@ -41,6 +42,7 @@ function getCoreNav(role: Role): NavSection["items"] {
       { href: "/tasks", label: "Tasks" },
       { href: "/nfr", label: "Notice of Federal Review" },
       { href: "/family-tree", label: "Family Tree & Lineage" },
+      { href: "/medical-notes", label: "Medical Notes" },
       ...common,
     ];
   }
@@ -56,6 +58,7 @@ function getCoreNav(role: Role): NavSection["items"] {
     { href: "/complaints", label: "Complaints" },
     { href: "/tasks", label: "Tasks" },
     { href: "/family-tree", label: "Family Tree & Lineage" },
+    { href: "/medical-notes", label: "Medical Notes" },
     ...common,
   ];
 }

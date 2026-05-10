@@ -18,6 +18,8 @@ import lawRouter from "./law";
 import courtDocumentsRouter from "./court/documents";
 import intakeAiRouter from "./intake/ai";
 import familyTreeRouter from "./family-tree";
+import membershipRouter from "./membership";
+import medicalNotesRouter from "./medical/notes";
 
 const router: IRouter = Router();
 
@@ -41,5 +43,7 @@ router.use("/notifications", notificationsRouter);
 router.use("/law", lawRouter);
 router.use("/intake/ai", intakeAiRouter);
 router.use("/family-tree", familyTreeRouter);
+router.use("/membership", membershipRouter);
+router.use("/medical/notes", medicalNotesRouter);
 
 export default router;

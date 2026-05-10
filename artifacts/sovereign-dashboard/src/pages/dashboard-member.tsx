@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
+import { WhatNextPanel } from "@/components/WhatNextPanel";
 
 export default function MemberDashboard() {
   const { data: complaints } = useListComplaints();
@@ -45,68 +46,76 @@ export default function MemberDashboard() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Complaint History</CardTitle>
-            <Link href="/complaints">
-              <Button size="sm" variant="outline" className="text-xs">Submit New</Button>
-            </Link>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {(complaints ?? []).length === 0 ? (
-              <p className="text-sm text-muted-foreground">No complaints filed.</p>
-            ) : (complaints ?? []).slice(0, 6).map((c) => (
-              <Link key={c.id} href={`/complaints/${c.id}`}>
-                <div data-testid={`complaint-row-${c.id}`} className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:text-primary">
-                  <span className="text-sm truncate max-w-xs">{c.text?.substring(0, 60)}</span>
-                  <Badge variant={c.status === "open" ? "destructive" : "secondary"} className="ml-2 shrink-0">{c.status}</Badge>
-                </div>
-              </Link>
-            ))}
-          </CardContent>
-        </Card>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between">
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest">Complaint History</CardTitle>
+                <Link href="/complaints">
+                  <Button size="sm" variant="outline" className="text-xs">Submit New</Button>
+                </Link>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {(complaints ?? []).length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No complaints filed.</p>
+                ) : (complaints ?? []).slice(0, 6).map((c) => (
+                  <Link key={c.id} href={`/complaints/${c.id}`}>
+                    <div data-testid={`complaint-row-${c.id}`} className="flex items-center justify-between py-2 border-b last:border-0 cursor-pointer hover:text-primary">
+                      <span className="text-sm truncate max-w-xs">{c.text?.substring(0, 60)}</span>
+                      <Badge variant={c.status === "open" ? "destructive" : "secondary"} className="ml-2 shrink-0">{c.status}</Badge>
+                    </div>
+                  </Link>
+                ))}
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Upcoming Calendar</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            {upcomingEvents.length === 0 ? (
-              <p className="text-sm text-muted-foreground">No upcoming events.</p>
-            ) : upcomingEvents.map((e) => (
-              <div key={e.id} data-testid={`event-row-${e.id}`} className="flex items-center justify-between py-2 border-b last:border-0">
-                <span className="text-sm">{e.title}</span>
-                <span className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString()}</span>
-              </div>
-            ))}
-            <Link href="/calendar" className="text-xs text-primary hover:underline block pt-1">Full calendar</Link>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest">Upcoming Calendar</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {upcomingEvents.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">No upcoming events.</p>
+                ) : upcomingEvents.map((e) => (
+                  <div key={e.id} data-testid={`event-row-${e.id}`} className="flex items-center justify-between py-2 border-b last:border-0">
+                    <span className="text-sm">{e.title}</span>
+                    <span className="text-xs text-muted-foreground">{new Date(e.date).toLocaleDateString()}</span>
+                  </div>
+                ))}
+                <Link href="/calendar" className="text-xs text-primary hover:underline block pt-1">Full calendar</Link>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Welfare Services</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">Emergency welfare assistance, housing, and health resources are available through the Office.</p>
-            <Link href="/welfare">
-              <Button variant="outline" size="sm" className="w-full mt-2">View Welfare Instruments</Button>
-            </Link>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest">Welfare Services</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-muted-foreground">Emergency welfare assistance, housing, and health resources are available through the Office.</p>
+                <Link href="/welfare">
+                  <Button variant="outline" size="sm" className="w-full mt-2">View Welfare Instruments</Button>
+                </Link>
+              </CardContent>
+            </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Your Filings</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-2">
-            <p className="text-sm text-muted-foreground">Submit and track court filings, trust instruments, and official records.</p>
-            <Link href="/filings">
-              <Button variant="outline" size="sm" className="w-full mt-2">View Filings</Button>
-            </Link>
-          </CardContent>
-        </Card>
+            <Card>
+              <CardHeader>
+                <CardTitle className="text-sm font-semibold uppercase tracking-widest">Your Filings</CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <p className="text-sm text-muted-foreground">Submit and track court filings, trust instruments, and official records.</p>
+                <Link href="/filings">
+                  <Button variant="outline" size="sm" className="w-full mt-2">View Filings</Button>
+                </Link>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        <div className="lg:col-span-1">
+          <WhatNextPanel />
+        </div>
       </div>
     </div>
   );
