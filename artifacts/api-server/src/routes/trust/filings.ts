@@ -10,7 +10,7 @@ import { requireAuth, requireRole } from "../../auth/entra-guard";
 
 const router = Router();
 
-router.get("/stats", async (_req, res, next) => {
+router.get("/stats", requireAuth, async (_req, res, next) => {
   try {
     const [totals] = await db
       .select({
