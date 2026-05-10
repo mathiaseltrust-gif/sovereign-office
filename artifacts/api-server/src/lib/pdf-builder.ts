@@ -1,5 +1,46 @@
-import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage } from "pdf-lib";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import { logger } from "./logger";
+
+// ── Tribal seal loader ──────────────────────────────────────────────────────
+// The B&W State of Mathias El seal is embedded in all printed documents.
+// Lazy-loaded once and cached; falls back gracefully if the file is missing.
+let _sealBytes: Uint8Array | null | undefined = undefined; // undefined = not yet tried
+
+function getSealBytes(): Uint8Array | null {
+  if (_sealBytes !== undefined) return _sealBytes;
+  const candidates = [
+    join(__dirname, "..", "src", "assets", "seal-bw.png"),
+    join(process.cwd(), "src", "assets", "seal-bw.png"),
+  ];
+  for (const p of candidates) {
+    try {
+      _sealBytes = new Uint8Array(readFileSync(p));
+      return _sealBytes;
+    } catch { /* try next */ }
+  }
+  logger.warn("seal-bw.png not found — PDFs will render without the tribal seal");
+  _sealBytes = null;
+  return null;
+}
+
+async function embedSeal(pdfDoc: PDFDocument): Promise<PDFImage | null> {
+  const bytes = getSealBytes();
+  if (!bytes) return null;
+  try { return await pdfDoc.embedPng(bytes); } catch { return null; }
+}
+
+/** Draw the seal centered horizontally, with the bottom edge at `yBottom`. */
+function drawSeal(page: PDFPage, seal: PDFImage, size: number, yBottom: number): void {
+  const dims = seal.scaleToFit(size, size);
+  page.drawImage(seal, {
+    x: (PAGE_W - dims.width) / 2,
+    y: yBottom,
+    width: dims.width,
+    height: dims.height,
+  });
+}
 
 const PT_PER_INCH = 72;
 const PAGE_W = 8.5 * PT_PER_INCH;
@@ -116,6 +157,7 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
   const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const sealImage = await embedSeal(pdfDoc);
 
   const meta = input.recorderMetadata;
   const allProvisions = [...TRUST_LAND_PROVISIONS, ...input.provisions];
@@ -176,14 +218,17 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
   const docTypeLine = meta.documentType ?? "TRUST INSTRUMENT";
   const titleY = CONTENT_TOP_Y + (MARGIN_TOP - CONTENT_TOP_Y + MARGIN_TOP) / 2;
 
-  drawCentered(page, "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", CONTENT_TOP_Y + 40, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
-  drawCentered(page, docTypeLine.toUpperCase(), CONTENT_TOP_Y + 22, timesBold, FONT_TITLE_SIZE + 1);
-  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 4, timesBold, FONT_TITLE_SIZE - 1);
+  // Tribal seal — centered in the recorder header area above the document title
+  if (sealImage) drawSeal(page, sealImage, 56, CONTENT_TOP_Y + 58);
+
+  drawCentered(page, "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", CONTENT_TOP_Y + 50, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
+  drawCentered(page, docTypeLine.toUpperCase(), CONTENT_TOP_Y + 32, timesBold, FONT_TITLE_SIZE + 1);
+  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 14, timesBold, FONT_TITLE_SIZE - 1);
 
   const noticeText = "NOTICE AFFECTING REAL PROPERTY — RECORD IN CHAIN OF TITLE";
-  drawCentered(page, noticeText, CONTENT_TOP_Y - 14, timesItalic, FONT_SMALL_SIZE + 1, rgb(0.3, 0.1, 0.1));
+  drawCentered(page, noticeText, CONTENT_TOP_Y - 4, timesItalic, FONT_SMALL_SIZE + 1, rgb(0.3, 0.1, 0.1));
 
-  currentY = CONTENT_TOP_Y - 36;
+  currentY = CONTENT_TOP_Y - 26;
 
   page.drawLine({
     start: { x: MARGIN_LEFT, y: currentY + 2 },
@@ -344,6 +389,7 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
   const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const sealImage = await embedSeal(pdfDoc);
 
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let pageNum = 1;
@@ -377,13 +423,16 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
     color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
   });
 
-  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 26, timesBold, FONT_TITLE_SIZE);
-  drawCentered(page, `Welfare Act: ${input.welfareAct}`, CONTENT_TOP_Y + 8, timesItalic, FONT_BODY_SIZE, rgb(0.3, 0.1, 0.1));
+  // Tribal seal — centered above the document title
+  if (sealImage) {
+    drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
+  }
+  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 38, timesBold, FONT_TITLE_SIZE);
+  drawCentered(page, `Welfare Act: ${input.welfareAct}`, CONTENT_TOP_Y + 20, timesItalic, FONT_BODY_SIZE, rgb(0.3, 0.1, 0.1));
+  // Authority line (replaces old text placeholder)
+  drawCentered(page, `MATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT`, CONTENT_TOP_Y + 4, timesRoman, FONT_SMALL_SIZE - 1, rgb(0.35, 0.35, 0.35));
 
-  const sealArea = `[ TRIBAL COURT SEAL — ${input.welfareAct} AUTHORITY ]`;
-  drawCentered(page, sealArea, CONTENT_TOP_Y - 8, timesRoman, FONT_SMALL_SIZE, rgb(0.4, 0.4, 0.4));
-
-  currentY = CONTENT_TOP_Y - 28;
+  currentY = CONTENT_TOP_Y - 16;
 
   page.drawLine({
     start: { x: MARGIN_LEFT, y: currentY + 2 },
@@ -470,18 +519,36 @@ export async function buildWelfarePdf(input: WelfarePdfInput): Promise<PdfResult
   };
 }
 
+/** Strip control characters (newlines, tabs, etc.) that WinAnsi cannot encode. */
+function sanitizeForPdf(text: string): string {
+  return text
+    .replace(/\r\n/g, " ")
+    .replace(/[\n\r\t]/g, " ")
+    .replace(/[ ]{2,}/g, " ")
+    .trim();
+}
+
+/** Split multi-line text into clean, PDF-safe paragraphs. */
+function splitIntoParagraphs(text: string): string[] {
+  return text
+    .split(/\n{2,}/)
+    .map(p => p.replace(/[\n\r\t]/g, " ").replace(/[ ]{2,}/g, " ").trim())
+    .filter(Boolean);
+}
+
 export async function buildNfrRecorderPdf(nfrId: number, content: string, classificationData?: Record<string, string>): Promise<PdfResult> {
+  const paragraphs = splitIntoParagraphs(content);
   return buildRecorderPdf({
     title: `Notice of Fault and Remedies — NFR #${nfrId}`,
     parties: {
       "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee",
-      "Subject": classificationData?.actorType ?? "Respondent",
+      "Subject": sanitizeForPdf(classificationData?.actorType ?? "Respondent"),
     },
     land: {
-      description: classificationData?.rawText ?? "See attached legal description",
-      classification: classificationData?.landStatus ?? "Indian Trust Land",
+      description: sanitizeForPdf(classificationData?.rawText ?? "See attached legal description"),
+      classification: sanitizeForPdf(classificationData?.landStatus ?? "Indian Trust Land"),
     },
-    provisions: [content],
+    provisions: paragraphs.length > 0 ? paragraphs : [sanitizeForPdf(content)],
     recorderMetadata: {
       documentType: "NOTICE OF FAULT AND REMEDIES",
       filingCategory: "Court Document",
@@ -511,6 +578,7 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
   const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
   const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
   const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const sealImage = await embedSeal(pdfDoc);
 
   let page = pdfDoc.addPage([PAGE_W, PAGE_H]);
   let pageNum = 1;
@@ -548,11 +616,14 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
   });
 
-  drawCentered(page, input.documentType.toUpperCase().replace(/_/g, " "), CONTENT_TOP_Y + 30, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
-  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 12, timesBold, FONT_TITLE_SIZE);
-  drawCentered(page, `[ ${input.templateName} ]`, CONTENT_TOP_Y - 6, timesItalic, FONT_SMALL_SIZE, rgb(0.4, 0.4, 0.4));
+  // Tribal seal — centered in the court document header
+  if (sealImage) drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
 
-  currentY = CONTENT_TOP_Y - 26;
+  drawCentered(page, input.documentType.toUpperCase().replace(/_/g, " "), CONTENT_TOP_Y + 40, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
+  drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 22, timesBold, FONT_TITLE_SIZE);
+  drawCentered(page, `[ ${input.templateName} ]`, CONTENT_TOP_Y + 4, timesItalic, FONT_SMALL_SIZE, rgb(0.4, 0.4, 0.4));
+
+  currentY = CONTENT_TOP_Y - 16;
 
   page.drawLine({ start: { x: MARGIN_LEFT, y: currentY + 2 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY + 2 }, thickness: 0.5, color: rgb(0, 0, 0) });
   currentY -= 16;
