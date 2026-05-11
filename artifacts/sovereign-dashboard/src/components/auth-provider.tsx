@@ -196,7 +196,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     setUnauthorizedHandler(() => {
       clearSession();
       const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
-      window.location.assign(`${base}/login?expired=1`);
+      const currentPath = window.location.pathname + window.location.search;
+      const appPath = base ? currentPath.replace(new RegExp(`^${base}`), "") : currentPath;
+      const next = appPath && appPath !== "/" ? `&next=${encodeURIComponent(appPath)}` : "";
+      window.location.assign(`${base}/login?expired=1${next}`);
     });
     return () => setUnauthorizedHandler(null);
   }, []);
