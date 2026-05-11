@@ -12,6 +12,14 @@ const CLIENT_ID = () => process.env.AZURE_ENTRA_CLIENT_ID ?? "";
 const CLIENT_SECRET = () => process.env.AZURE_ENTRA_CLIENT_SECRET ?? "";
 const SESSION_SECRET = () => process.env.SESSION_SECRET ?? "dev-secret-change-me";
 
+// URL of the Sovereign Office Dashboard where users land after login.
+// In Replit dev this is the path-based route (/sovereign-dashboard).
+// In Docker/Azure set SOVEREIGN_DASHBOARD_URL to the full origin, e.g.:
+//   https://sovereign.yourdomain.com
+const SOVEREIGN_DASHBOARD_URL = () =>
+  (process.env.SOVEREIGN_DASHBOARD_URL ?? "").replace(/\/+$/, "") ||
+  "/sovereign-dashboard";
+
 function redirectUri(req: import("express").Request): string {
   const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
   const proto = req.headers["x-forwarded-proto"] ?? (req.secure ? "https" : "http");
@@ -73,8 +81,7 @@ router.get("/callback", async (req, res) => {
 
     if (error) {
       logger.warn({ error, error_description }, "Microsoft OAuth error");
-      const dashboardBase = `/sovereign-dashboard`;
-      res.redirect(`${dashboardBase}/?auth_error=${encodeURIComponent(error_description ?? error)}`);
+      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=${encodeURIComponent(error_description ?? error)}`);
       return;
     }
 
@@ -155,12 +162,11 @@ router.get("/callback", async (req, res) => {
       type: "session",
     });
 
-    const dashboardBase = `/sovereign-dashboard`;
     const encoded = encodeURIComponent(sessionJwt);
-    res.redirect(`${dashboardBase}/?session_token=${encoded}`);
+    res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?session_token=${encoded}`);
   } catch (err) {
     logger.error({ err }, "Microsoft OAuth callback error");
-    res.redirect(`/sovereign-dashboard/?auth_error=server_error`);
+    res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=server_error`);
   }
 });
 

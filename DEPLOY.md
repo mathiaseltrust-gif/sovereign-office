@@ -63,6 +63,7 @@ Fill in every `REQUIRED` variable. The table below summarises what each one does
 | `SESSION_SECRET` | Yes | 64-byte hex string — signs session JWTs |
 | `SERVICE_KEY` | Yes | 32-byte hex string — internal API auth |
 | `APP_URL` | Yes | Public URL of the API server (no trailing slash) |
+| `SOVEREIGN_DASHBOARD_URL` | Yes | Full URL of the Sovereign Dashboard (e.g. `https://sovereign.yourdomain.com`) — used by the API to redirect users after Microsoft login |
 | `AZURE_ENTRA_TENANT_ID` | Yes | Azure AD tenant ID |
 | `AZURE_ENTRA_CLIENT_ID` | Yes | Azure AD application (client) ID |
 | `AZURE_ENTRA_CLIENT_SECRET` | Yes | Azure AD client secret |

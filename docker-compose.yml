@@ -50,6 +50,8 @@ services:
       SESSION_SECRET: ${SESSION_SECRET}
       SERVICE_KEY: ${SERVICE_KEY}
       APP_URL: ${APP_URL:-http://localhost:8080}
+      # Post-login redirect target for Microsoft SSO (must point at sovereign dashboard origin)
+      SOVEREIGN_DASHBOARD_URL: ${SOVEREIGN_DASHBOARD_URL:-http://localhost:3001}
       # Azure Entra / Active Directory (SSO)
       AZURE_ENTRA_TENANT_ID: ${AZURE_ENTRA_TENANT_ID}
       AZURE_ENTRA_CLIENT_ID: ${AZURE_ENTRA_CLIENT_ID}
