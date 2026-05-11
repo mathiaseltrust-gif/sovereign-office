@@ -2,7 +2,6 @@ import React, { useState } from "react";
 import { Search, Book, Scale, Landmark, ChevronDown, ChevronUp } from "lucide-react";
 import { 
   useListLawResources,
-  ListLawResourcesType
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -25,7 +24,7 @@ export default function Legal() {
 
   const queryParams = {
     ...(debouncedSearch ? { q: debouncedSearch } : {}),
-    ...(activeTab !== "all" ? { type: activeTab as ListLawResourcesType } : {}),
+    ...(activeTab !== "all" ? { type: activeTab as "tribal" | "federal" | "doctrine" } : {}),
   };
 
   const { data: resources, isLoading } = useListLawResources(queryParams);

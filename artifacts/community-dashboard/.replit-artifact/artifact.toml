@@ -12,10 +12,10 @@ version = "1.0.0"
 [[services]]
 name = "web"
 paths = [ "/community-dashboard/" ]
-localPort = 24592
+localPort = 8080
 
 [services.development]
-run = "pnpm --filter @workspace/community-dashboard run dev"
+run = "node /home/runner/workspace/artifacts/community-dashboard/start.mjs"
 
 [services.production]
 build = [ "pnpm", "--filter", "@workspace/community-dashboard", "run", "build" ]
@@ -27,5 +27,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "24592"
+PORT = "9000"
 BASE_PATH = "/community-dashboard/"

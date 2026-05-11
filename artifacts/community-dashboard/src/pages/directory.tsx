@@ -11,7 +11,6 @@ import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { useDebounce } from "@/hooks/use-debounce"; // We'll implement a simple one or just use standard react patterns
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 // Basic debounce hook inline for simplicity

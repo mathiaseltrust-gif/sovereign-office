@@ -2,6 +2,8 @@ import express, { type Express, type Request, type Response, type NextFunction }
 import cors from "cors";
 import pinoHttp from "pino-http";
 import multer from "multer";
+import path from "path";
+import { fileURLToPath } from "url";
 import router from "./routes";
 import { logger } from "./lib/logger";
 import { entraMiddleware } from "./auth/entra";
@@ -9,6 +11,10 @@ import { requireEntraIfRequired } from "./auth/entra-guard";
 import { serviceKeyMiddleware } from "./auth/service-key";
 import { sovereignOffice } from "./sovereign/office";
 import { initBootstrapToken } from "./lib/bootstrap-token";
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+const communityDashboardDist = path.resolve(__dirname, "../../../artifacts/community-dashboard/dist/public");
 
 const app: Express = express();
 
@@ -43,6 +49,11 @@ logger.info({ authority: sovereignOffice.getAuthority() }, "Sovereign authority 
 void initBootstrapToken();
 
 app.use("/api", router);
+
+app.use("/community-dashboard", express.static(communityDashboardDist, { index: false }));
+app.get("/community-dashboard/{*path}", (_req: Request, res: Response) => {
+  res.sendFile(path.join(communityDashboardDist, "index.html"));
+});
 
 app.use((err: unknown, _req: Request, res: Response, _next: NextFunction) => {
   if (err instanceof multer.MulterError) {
