@@ -18,3 +18,5 @@ export * from "./law-db";
 export * from "./court-documents";
 export * from "./family-lineage";
 export * from "./delegations";
+export * from "./community-forum";
+export * from "./community-ai";

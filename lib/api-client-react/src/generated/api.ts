@@ -21,15 +21,31 @@ import type {
   AdminActionResult,
   AdminSetPasswordInput,
   AdminSetPasswordResult,
+  AiGuidanceInput,
+  AiGuidanceRecord,
+  AiGuidanceResponse,
   CalendarEvent,
   ClassifyInput,
   ClassifyResponse,
+  CommunityDirectoryStats,
+  CommunityMember,
+  CommunityMemberDetail,
   Complaint,
   ComplaintInput,
   ComplaintResponse,
   FilingInput,
+  ForumPinInput,
+  ForumPost,
+  ForumPostDetail,
+  ForumPostInput,
+  ForumReply,
+  ForumReplyInput,
   HealthStatus,
+  LawResource,
+  ListCommunityMembersParams,
+  ListForumPostsParams,
   ListInstrumentTemplates200,
+  ListLawResourcesParams,
   NfrDocument,
   PdfExportResult,
   SearchEntitiesParams,
@@ -2601,3 +2617,1055 @@ export const useAdminAction = <
 > => {
   return useMutation(getAdminActionMutationOptions(options));
 };
+
+/**
+ * @summary List all family/community members with lineage info
+ */
+export const getListCommunityMembersUrl = (
+  params?: ListCommunityMembersParams,
+) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/community/directory?${stringifiedParams}`
+    : `/api/community/directory`;
+};
+
+export const listCommunityMembers = async (
+  params?: ListCommunityMembersParams,
+  options?: RequestInit,
+): Promise<CommunityMember[]> => {
+  return customFetch<CommunityMember[]>(getListCommunityMembersUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListCommunityMembersQueryKey = (
+  params?: ListCommunityMembersParams,
+) => {
+  return [`/api/community/directory`, ...(params ? [params] : [])] as const;
+};
+
+export const getListCommunityMembersQueryOptions = <
+  TData = Awaited<ReturnType<typeof listCommunityMembers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListCommunityMembersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCommunityMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListCommunityMembersQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listCommunityMembers>>
+  > = ({ signal }) =>
+    listCommunityMembers(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listCommunityMembers>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListCommunityMembersQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listCommunityMembers>>
+>;
+export type ListCommunityMembersQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all family/community members with lineage info
+ */
+
+export function useListCommunityMembers<
+  TData = Awaited<ReturnType<typeof listCommunityMembers>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListCommunityMembersParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listCommunityMembers>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListCommunityMembersQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a single community member with lineage connections
+ */
+export const getGetCommunityMemberUrl = (id: number) => {
+  return `/api/community/directory/${id}`;
+};
+
+export const getCommunityMember = async (
+  id: number,
+  options?: RequestInit,
+): Promise<CommunityMemberDetail> => {
+  return customFetch<CommunityMemberDetail>(getGetCommunityMemberUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetCommunityMemberQueryKey = (id: number) => {
+  return [`/api/community/directory/${id}`] as const;
+};
+
+export const getGetCommunityMemberQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCommunityMember>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCommunityMember>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetCommunityMemberQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCommunityMember>>
+  > = ({ signal }) => getCommunityMember(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCommunityMember>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCommunityMemberQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCommunityMember>>
+>;
+export type GetCommunityMemberQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single community member with lineage connections
+ */
+
+export function useGetCommunityMember<
+  TData = Awaited<ReturnType<typeof getCommunityMember>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getCommunityMember>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCommunityMemberQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get aggregate stats for the family directory
+ */
+export const getGetCommunityDirectoryStatsUrl = () => {
+  return `/api/community/directory/stats`;
+};
+
+export const getCommunityDirectoryStats = async (
+  options?: RequestInit,
+): Promise<CommunityDirectoryStats> => {
+  return customFetch<CommunityDirectoryStats>(
+    getGetCommunityDirectoryStatsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetCommunityDirectoryStatsQueryKey = () => {
+  return [`/api/community/directory/stats`] as const;
+};
+
+export const getGetCommunityDirectoryStatsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getCommunityDirectoryStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCommunityDirectoryStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetCommunityDirectoryStatsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getCommunityDirectoryStats>>
+  > = ({ signal }) => getCommunityDirectoryStats({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getCommunityDirectoryStats>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetCommunityDirectoryStatsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getCommunityDirectoryStats>>
+>;
+export type GetCommunityDirectoryStatsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get aggregate stats for the family directory
+ */
+
+export function useGetCommunityDirectoryStats<
+  TData = Awaited<ReturnType<typeof getCommunityDirectoryStats>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getCommunityDirectoryStats>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetCommunityDirectoryStatsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List tribal and federal Indian law resources
+ */
+export const getListLawResourcesUrl = (params?: ListLawResourcesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/community/law?${stringifiedParams}`
+    : `/api/community/law`;
+};
+
+export const listLawResources = async (
+  params?: ListLawResourcesParams,
+  options?: RequestInit,
+): Promise<LawResource[]> => {
+  return customFetch<LawResource[]>(getListLawResourcesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListLawResourcesQueryKey = (
+  params?: ListLawResourcesParams,
+) => {
+  return [`/api/community/law`, ...(params ? [params] : [])] as const;
+};
+
+export const getListLawResourcesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listLawResources>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListLawResourcesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listLawResources>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getListLawResourcesQueryKey(params);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listLawResources>>
+  > = ({ signal }) => listLawResources(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listLawResources>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListLawResourcesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listLawResources>>
+>;
+export type ListLawResourcesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List tribal and federal Indian law resources
+ */
+
+export function useListLawResources<
+  TData = Awaited<ReturnType<typeof listLawResources>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListLawResourcesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listLawResources>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListLawResourcesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get a single law resource by ID
+ */
+export const getFetchLawResourceUrl = (id: number) => {
+  return `/api/community/law/${id}`;
+};
+
+export const fetchLawResource = async (
+  id: number,
+  options?: RequestInit,
+): Promise<LawResource> => {
+  return customFetch<LawResource>(getFetchLawResourceUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getFetchLawResourceQueryKey = (id: number) => {
+  return [`/api/community/law/${id}`] as const;
+};
+
+export const getFetchLawResourceQueryOptions = <
+  TData = Awaited<ReturnType<typeof fetchLawResource>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof fetchLawResource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getFetchLawResourceQueryKey(id);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof fetchLawResource>>
+  > = ({ signal }) => fetchLawResource(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof fetchLawResource>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type FetchLawResourceQueryResult = NonNullable<
+  Awaited<ReturnType<typeof fetchLawResource>>
+>;
+export type FetchLawResourceQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a single law resource by ID
+ */
+
+export function useFetchLawResource<
+  TData = Awaited<ReturnType<typeof fetchLawResource>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof fetchLawResource>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getFetchLawResourceQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary List all forum posts (threads)
+ */
+export const getListForumPostsUrl = (params?: ListForumPostsParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/community/forum/posts?${stringifiedParams}`
+    : `/api/community/forum/posts`;
+};
+
+export const listForumPosts = async (
+  params?: ListForumPostsParams,
+  options?: RequestInit,
+): Promise<ForumPost[]> => {
+  return customFetch<ForumPost[]>(getListForumPostsUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListForumPostsQueryKey = (params?: ListForumPostsParams) => {
+  return [`/api/community/forum/posts`, ...(params ? [params] : [])] as const;
+};
+
+export const getListForumPostsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listForumPosts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListForumPostsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listForumPosts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListForumPostsQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listForumPosts>>> = ({
+    signal,
+  }) => listForumPosts(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listForumPosts>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListForumPostsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listForumPosts>>
+>;
+export type ListForumPostsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all forum posts (threads)
+ */
+
+export function useListForumPosts<
+  TData = Awaited<ReturnType<typeof listForumPosts>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListForumPostsParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listForumPosts>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListForumPostsQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new forum thread
+ */
+export const getCreateForumPostUrl = () => {
+  return `/api/community/forum/posts`;
+};
+
+export const createForumPost = async (
+  forumPostInput: ForumPostInput,
+  options?: RequestInit,
+): Promise<ForumPost> => {
+  return customFetch<ForumPost>(getCreateForumPostUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(forumPostInput),
+  });
+};
+
+export const getCreateForumPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createForumPost>>,
+    TError,
+    { data: BodyType<ForumPostInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createForumPost>>,
+  TError,
+  { data: BodyType<ForumPostInput> },
+  TContext
+> => {
+  const mutationKey = ["createForumPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createForumPost>>,
+    { data: BodyType<ForumPostInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createForumPost(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateForumPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createForumPost>>
+>;
+export type CreateForumPostMutationBody = BodyType<ForumPostInput>;
+export type CreateForumPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new forum thread
+ */
+export const useCreateForumPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createForumPost>>,
+    TError,
+    { data: BodyType<ForumPostInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createForumPost>>,
+  TError,
+  { data: BodyType<ForumPostInput> },
+  TContext
+> => {
+  return useMutation(getCreateForumPostMutationOptions(options));
+};
+
+/**
+ * @summary Get a forum post with its replies
+ */
+export const getGetForumPostUrl = (id: number) => {
+  return `/api/community/forum/posts/${id}`;
+};
+
+export const getForumPost = async (
+  id: number,
+  options?: RequestInit,
+): Promise<ForumPostDetail> => {
+  return customFetch<ForumPostDetail>(getGetForumPostUrl(id), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetForumPostQueryKey = (id: number) => {
+  return [`/api/community/forum/posts/${id}`] as const;
+};
+
+export const getGetForumPostQueryOptions = <
+  TData = Awaited<ReturnType<typeof getForumPost>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getForumPost>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetForumPostQueryKey(id);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getForumPost>>> = ({
+    signal,
+  }) => getForumPost(id, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!id,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getForumPost>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetForumPostQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getForumPost>>
+>;
+export type GetForumPostQueryError = ErrorType<void>;
+
+/**
+ * @summary Get a forum post with its replies
+ */
+
+export function useGetForumPost<
+  TData = Awaited<ReturnType<typeof getForumPost>>,
+  TError = ErrorType<void>,
+>(
+  id: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getForumPost>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetForumPostQueryOptions(id, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Reply to a forum post
+ */
+export const getCreateForumReplyUrl = (id: number) => {
+  return `/api/community/forum/posts/${id}/replies`;
+};
+
+export const createForumReply = async (
+  id: number,
+  forumReplyInput: ForumReplyInput,
+  options?: RequestInit,
+): Promise<ForumReply> => {
+  return customFetch<ForumReply>(getCreateForumReplyUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(forumReplyInput),
+  });
+};
+
+export const getCreateForumReplyMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createForumReply>>,
+    TError,
+    { id: number; data: BodyType<ForumReplyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createForumReply>>,
+  TError,
+  { id: number; data: BodyType<ForumReplyInput> },
+  TContext
+> => {
+  const mutationKey = ["createForumReply"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createForumReply>>,
+    { id: number; data: BodyType<ForumReplyInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return createForumReply(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateForumReplyMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createForumReply>>
+>;
+export type CreateForumReplyMutationBody = BodyType<ForumReplyInput>;
+export type CreateForumReplyMutationError = ErrorType<void>;
+
+/**
+ * @summary Reply to a forum post
+ */
+export const useCreateForumReply = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createForumReply>>,
+    TError,
+    { id: number; data: BodyType<ForumReplyInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createForumReply>>,
+  TError,
+  { id: number; data: BodyType<ForumReplyInput> },
+  TContext
+> => {
+  return useMutation(getCreateForumReplyMutationOptions(options));
+};
+
+/**
+ * @summary Pin or unpin a forum post (officer+ only)
+ */
+export const getPinForumPostUrl = (id: number) => {
+  return `/api/community/forum/posts/${id}/pin`;
+};
+
+export const pinForumPost = async (
+  id: number,
+  forumPinInput: ForumPinInput,
+  options?: RequestInit,
+): Promise<ForumPost> => {
+  return customFetch<ForumPost>(getPinForumPostUrl(id), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(forumPinInput),
+  });
+};
+
+export const getPinForumPostMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pinForumPost>>,
+    TError,
+    { id: number; data: BodyType<ForumPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof pinForumPost>>,
+  TError,
+  { id: number; data: BodyType<ForumPinInput> },
+  TContext
+> => {
+  const mutationKey = ["pinForumPost"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof pinForumPost>>,
+    { id: number; data: BodyType<ForumPinInput> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return pinForumPost(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type PinForumPostMutationResult = NonNullable<
+  Awaited<ReturnType<typeof pinForumPost>>
+>;
+export type PinForumPostMutationBody = BodyType<ForumPinInput>;
+export type PinForumPostMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Pin or unpin a forum post (officer+ only)
+ */
+export const usePinForumPost = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof pinForumPost>>,
+    TError,
+    { id: number; data: BodyType<ForumPinInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof pinForumPost>>,
+  TError,
+  { id: number; data: BodyType<ForumPinInput> },
+  TContext
+> => {
+  return useMutation(getPinForumPostMutationOptions(options));
+};
+
+/**
+ * @summary Ask the AI assistant for guidance on tribal law, ICWA, rights, etc.
+ */
+export const getGetAiGuidanceUrl = () => {
+  return `/api/community/ai/guidance`;
+};
+
+export const getAiGuidance = async (
+  aiGuidanceInput: AiGuidanceInput,
+  options?: RequestInit,
+): Promise<AiGuidanceResponse> => {
+  return customFetch<AiGuidanceResponse>(getGetAiGuidanceUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(aiGuidanceInput),
+  });
+};
+
+export const getGetAiGuidanceMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getAiGuidance>>,
+    TError,
+    { data: BodyType<AiGuidanceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof getAiGuidance>>,
+  TError,
+  { data: BodyType<AiGuidanceInput> },
+  TContext
+> => {
+  const mutationKey = ["getAiGuidance"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof getAiGuidance>>,
+    { data: BodyType<AiGuidanceInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return getAiGuidance(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type GetAiGuidanceMutationResult = NonNullable<
+  Awaited<ReturnType<typeof getAiGuidance>>
+>;
+export type GetAiGuidanceMutationBody = BodyType<AiGuidanceInput>;
+export type GetAiGuidanceMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Ask the AI assistant for guidance on tribal law, ICWA, rights, etc.
+ */
+export const useGetAiGuidance = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof getAiGuidance>>,
+    TError,
+    { data: BodyType<AiGuidanceInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof getAiGuidance>>,
+  TError,
+  { data: BodyType<AiGuidanceInput> },
+  TContext
+> => {
+  return useMutation(getGetAiGuidanceMutationOptions(options));
+};
+
+/**
+ * @summary List recent AI guidance queries for current user
+ */
+export const getListAiGuidanceHistoryUrl = () => {
+  return `/api/community/ai/history`;
+};
+
+export const listAiGuidanceHistory = async (
+  options?: RequestInit,
+): Promise<AiGuidanceRecord[]> => {
+  return customFetch<AiGuidanceRecord[]>(getListAiGuidanceHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAiGuidanceHistoryQueryKey = () => {
+  return [`/api/community/ai/history`] as const;
+};
+
+export const getListAiGuidanceHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAiGuidanceHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAiGuidanceHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAiGuidanceHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof listAiGuidanceHistory>>
+  > = ({ signal }) => listAiGuidanceHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAiGuidanceHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAiGuidanceHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAiGuidanceHistory>>
+>;
+export type ListAiGuidanceHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List recent AI guidance queries for current user
+ */
+
+export function useListAiGuidanceHistory<
+  TData = Awaited<ReturnType<typeof listAiGuidanceHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAiGuidanceHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAiGuidanceHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}

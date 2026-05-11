@@ -5,6 +5,213 @@
  * Sovereign Office of the Chief Justice & Trustee API
  * OpenAPI spec version: 0.1.0
  */
+export interface CommunityMember {
+  id: number;
+  fullName: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  birthYear?: number | null;
+  /** @nullable */
+  deathYear?: number | null;
+  /** @nullable */
+  gender?: string | null;
+  /** @nullable */
+  tribalNation?: string | null;
+  /** @nullable */
+  tribalEnrollmentNumber?: string | null;
+  /** @nullable */
+  membershipStatus?: string | null;
+  /** @nullable */
+  protectionLevel?: string | null;
+  /** @nullable */
+  isDeceased?: boolean | null;
+  /** @nullable */
+  isAncestor?: boolean | null;
+  /** @nullable */
+  icwaEligible?: boolean | null;
+  /** @nullable */
+  trustBeneficiary?: boolean | null;
+  /** @nullable */
+  pendingReview?: boolean | null;
+  parentIds?: number[];
+  childrenIds?: number[];
+  spouseIds?: number[];
+  /** @nullable */
+  photoFilename?: string | null;
+  /** @nullable */
+  generationalPosition?: number | null;
+  createdAt: string;
+}
+
+export interface CommunityMemberDetail {
+  id: number;
+  fullName: string;
+  /** @nullable */
+  firstName?: string | null;
+  /** @nullable */
+  lastName?: string | null;
+  /** @nullable */
+  birthYear?: number | null;
+  /** @nullable */
+  deathYear?: number | null;
+  /** @nullable */
+  gender?: string | null;
+  /** @nullable */
+  tribalNation?: string | null;
+  /** @nullable */
+  tribalEnrollmentNumber?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @nullable */
+  membershipStatus?: string | null;
+  /** @nullable */
+  protectionLevel?: string | null;
+  /** @nullable */
+  isDeceased?: boolean | null;
+  /** @nullable */
+  isAncestor?: boolean | null;
+  /** @nullable */
+  icwaEligible?: boolean | null;
+  /** @nullable */
+  welfareEligible?: boolean | null;
+  /** @nullable */
+  trustBeneficiary?: boolean | null;
+  /** @nullable */
+  pendingReview?: boolean | null;
+  parentIds?: number[];
+  childrenIds?: number[];
+  spouseIds?: number[];
+  lineageTags?: string[];
+  /** @nullable */
+  photoFilename?: string | null;
+  /** @nullable */
+  generationalPosition?: number | null;
+  /** @nullable */
+  sourceType?: string | null;
+  parents?: CommunityMember[];
+  children?: CommunityMember[];
+  spouses?: CommunityMember[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface CommunityDirectoryStats {
+  totalMembers: number;
+  activeMembers: number;
+  deceasedMembers: number;
+  pendingReview: number;
+  icwaEligible: number;
+  trustBeneficiaries: number;
+  tribalNations: string[];
+}
+
+export type LawResourceType =
+  (typeof LawResourceType)[keyof typeof LawResourceType];
+
+export const LawResourceType = {
+  tribal: "tribal",
+  federal: "federal",
+  doctrine: "doctrine",
+} as const;
+
+export interface LawResource {
+  id: number;
+  type: LawResourceType;
+  title: string;
+  citation: string;
+  body?: string;
+  tags?: string[];
+  /** @nullable */
+  caseName?: string | null;
+  /** @nullable */
+  summary?: string | null;
+  /** @nullable */
+  updatedAt?: string | null;
+}
+
+export interface ForumPost {
+  id: number;
+  title: string;
+  body: string;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  authorId?: number | null;
+  /** @nullable */
+  authorName?: string | null;
+  pinned: boolean;
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ForumPostInput {
+  title: string;
+  body: string;
+  category?: string;
+}
+
+export interface ForumReply {
+  id: number;
+  postId: number;
+  body: string;
+  /** @nullable */
+  authorId?: number | null;
+  /** @nullable */
+  authorName?: string | null;
+  createdAt: string;
+}
+
+export interface ForumReplyInput {
+  body: string;
+}
+
+export interface ForumPostDetail {
+  id: number;
+  title: string;
+  body: string;
+  /** @nullable */
+  category?: string | null;
+  /** @nullable */
+  authorId?: number | null;
+  /** @nullable */
+  authorName?: string | null;
+  pinned: boolean;
+  replies: ForumReply[];
+  replyCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ForumPinInput {
+  pinned: boolean;
+}
+
+export interface AiGuidanceInput {
+  question: string;
+  /** @nullable */
+  context?: string | null;
+}
+
+export interface AiGuidanceResponse {
+  answer: string;
+  citations: string[];
+  disclaimer: string;
+  /** @nullable */
+  recordId?: number | null;
+}
+
+export interface AiGuidanceRecord {
+  id: number;
+  question: string;
+  answer: string;
+  citations: string[];
+  createdAt: string;
+}
+
 export interface HealthStatus {
   status: string;
 }
@@ -495,4 +702,41 @@ export type SearchEntitiesParams = {
   landStatus?: string;
   actionType?: string;
   officer?: string;
+};
+
+export type ListCommunityMembersParams = {
+  /**
+   * Search by name, tribal nation, or enrollment number
+   */
+  q?: string;
+  /**
+   * Filter to only pending review members
+   */
+  pendingReview?: boolean;
+  isDeceased?: boolean;
+};
+
+export type ListLawResourcesParams = {
+  /**
+   * Search by title, citation, or keyword
+   */
+  q?: string;
+  /**
+   * Filter by resource type
+   */
+  type?: ListLawResourcesType;
+};
+
+export type ListLawResourcesType =
+  (typeof ListLawResourcesType)[keyof typeof ListLawResourcesType];
+
+export const ListLawResourcesType = {
+  tribal: "tribal",
+  federal: "federal",
+  doctrine: "doctrine",
+} as const;
+
+export type ListForumPostsParams = {
+  category?: string;
+  pinned?: boolean;
 };

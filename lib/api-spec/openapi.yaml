@@ -31,6 +31,14 @@ tags:
     description: Administrative operations
   - name: welfare
     description: Tribal welfare instruments (ICWA, IHCIA, ISDEAA, protective orders, TRO)
+  - name: community-directory
+    description: Family member directory and search
+  - name: community-law
+    description: Tribal and federal Indian law resource database
+  - name: community-forum
+    description: Community discussion forum posts and replies
+  - name: community-ai
+    description: AI-assisted legal guidance for community members
 paths:
   /court/welfare:
     get:
@@ -610,8 +618,457 @@ paths:
               schema:
                 $ref: "#/components/schemas/AdminActionResult"
 
+  /community/directory:
+    get:
+      operationId: listCommunityMembers
+      tags: [community-directory]
+      summary: List all family/community members with lineage info
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by name, tribal nation, or enrollment number
+        - name: pendingReview
+          in: query
+          schema:
+            type: boolean
+          description: Filter to only pending review members
+        - name: isDeceased
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Member list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CommunityMember"
+
+  /community/directory/{id}:
+    get:
+      operationId: getCommunityMember
+      tags: [community-directory]
+      summary: Get a single community member with lineage connections
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Community member detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityMemberDetail"
+        "404":
+          description: Not found
+
+  /community/directory/stats:
+    get:
+      operationId: getCommunityDirectoryStats
+      tags: [community-directory]
+      summary: Get aggregate stats for the family directory
+      responses:
+        "200":
+          description: Directory statistics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CommunityDirectoryStats"
+
+  /community/law:
+    get:
+      operationId: listLawResources
+      tags: [community-law]
+      summary: List tribal and federal Indian law resources
+      parameters:
+        - name: q
+          in: query
+          schema:
+            type: string
+          description: Search by title, citation, or keyword
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [tribal, federal, doctrine]
+          description: Filter by resource type
+      responses:
+        "200":
+          description: Law resource list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LawResource"
+
+  /community/law/{id}:
+    get:
+      operationId: fetchLawResource
+      tags: [community-law]
+      summary: Get a single law resource by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Law resource detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LawResource"
+        "404":
+          description: Not found
+
+  /community/forum/posts:
+    get:
+      operationId: listForumPosts
+      tags: [community-forum]
+      summary: List all forum posts (threads)
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: pinned
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Forum post list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ForumPost"
+    post:
+      operationId: createForumPost
+      tags: [community-forum]
+      summary: Create a new forum thread
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForumPostInput"
+      responses:
+        "201":
+          description: Created post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumPost"
+
+  /community/forum/posts/{id}:
+    get:
+      operationId: getForumPost
+      tags: [community-forum]
+      summary: Get a forum post with its replies
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Forum post with replies
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumPostDetail"
+        "404":
+          description: Not found
+
+  /community/forum/posts/{id}/replies:
+    post:
+      operationId: createForumReply
+      tags: [community-forum]
+      summary: Reply to a forum post
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForumReplyInput"
+      responses:
+        "201":
+          description: Created reply
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumReply"
+        "404":
+          description: Post not found
+
+  /community/forum/posts/{id}/pin:
+    post:
+      operationId: pinForumPost
+      tags: [community-forum]
+      summary: Pin or unpin a forum post (officer+ only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ForumPinInput"
+      responses:
+        "200":
+          description: Updated post
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ForumPost"
+
+  /community/ai/guidance:
+    post:
+      operationId: getAiGuidance
+      tags: [community-ai]
+      summary: Ask the AI assistant for guidance on tribal law, ICWA, rights, etc.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AiGuidanceInput"
+      responses:
+        "200":
+          description: AI guidance response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AiGuidanceResponse"
+
+  /community/ai/history:
+    get:
+      operationId: listAiGuidanceHistory
+      tags: [community-ai]
+      summary: List recent AI guidance queries for current user
+      responses:
+        "200":
+          description: Guidance history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AiGuidanceRecord"
+
 components:
   schemas:
+    CommunityMember:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        firstName: { type: ["string", "null"] }
+        lastName: { type: ["string", "null"] }
+        birthYear: { type: ["integer", "null"] }
+        deathYear: { type: ["integer", "null"] }
+        gender: { type: ["string", "null"] }
+        tribalNation: { type: ["string", "null"] }
+        tribalEnrollmentNumber: { type: ["string", "null"] }
+        membershipStatus: { type: ["string", "null"] }
+        protectionLevel: { type: ["string", "null"] }
+        isDeceased: { type: ["boolean", "null"] }
+        isAncestor: { type: ["boolean", "null"] }
+        icwaEligible: { type: ["boolean", "null"] }
+        trustBeneficiary: { type: ["boolean", "null"] }
+        pendingReview: { type: ["boolean", "null"] }
+        parentIds: { type: array, items: { type: integer } }
+        childrenIds: { type: array, items: { type: integer } }
+        spouseIds: { type: array, items: { type: integer } }
+        photoFilename: { type: ["string", "null"] }
+        generationalPosition: { type: ["integer", "null"] }
+        createdAt: { type: string }
+      required: [id, fullName, createdAt]
+
+    CommunityMemberDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        fullName: { type: string }
+        firstName: { type: ["string", "null"] }
+        lastName: { type: ["string", "null"] }
+        birthYear: { type: ["integer", "null"] }
+        deathYear: { type: ["integer", "null"] }
+        gender: { type: ["string", "null"] }
+        tribalNation: { type: ["string", "null"] }
+        tribalEnrollmentNumber: { type: ["string", "null"] }
+        notes: { type: ["string", "null"] }
+        membershipStatus: { type: ["string", "null"] }
+        protectionLevel: { type: ["string", "null"] }
+        isDeceased: { type: ["boolean", "null"] }
+        isAncestor: { type: ["boolean", "null"] }
+        icwaEligible: { type: ["boolean", "null"] }
+        welfareEligible: { type: ["boolean", "null"] }
+        trustBeneficiary: { type: ["boolean", "null"] }
+        pendingReview: { type: ["boolean", "null"] }
+        parentIds: { type: array, items: { type: integer } }
+        childrenIds: { type: array, items: { type: integer } }
+        spouseIds: { type: array, items: { type: integer } }
+        lineageTags: { type: array, items: { type: string } }
+        photoFilename: { type: ["string", "null"] }
+        generationalPosition: { type: ["integer", "null"] }
+        sourceType: { type: ["string", "null"] }
+        parents:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityMember"
+        children:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityMember"
+        spouses:
+          type: array
+          items:
+            $ref: "#/components/schemas/CommunityMember"
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, fullName, createdAt, updatedAt]
+
+    CommunityDirectoryStats:
+      type: object
+      properties:
+        totalMembers: { type: integer }
+        activeMembers: { type: integer }
+        deceasedMembers: { type: integer }
+        pendingReview: { type: integer }
+        icwaEligible: { type: integer }
+        trustBeneficiaries: { type: integer }
+        tribalNations: { type: array, items: { type: string } }
+      required: [totalMembers, activeMembers, deceasedMembers, pendingReview, icwaEligible, trustBeneficiaries, tribalNations]
+
+    LawResource:
+      type: object
+      properties:
+        id: { type: integer }
+        type: { type: string, enum: [tribal, federal, doctrine] }
+        title: { type: string }
+        citation: { type: string }
+        body: { type: string }
+        tags: { type: array, items: { type: string } }
+        caseName: { type: ["string", "null"] }
+        summary: { type: ["string", "null"] }
+        updatedAt: { type: ["string", "null"] }
+      required: [id, type, title, citation]
+
+    ForumPost:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        body: { type: string }
+        category: { type: ["string", "null"] }
+        authorId: { type: ["integer", "null"] }
+        authorName: { type: ["string", "null"] }
+        pinned: { type: boolean }
+        replyCount: { type: integer }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, title, body, pinned, replyCount, createdAt, updatedAt]
+
+    ForumPostInput:
+      type: object
+      properties:
+        title: { type: string }
+        body: { type: string }
+        category: { type: string }
+      required: [title, body]
+
+    ForumReply:
+      type: object
+      properties:
+        id: { type: integer }
+        postId: { type: integer }
+        body: { type: string }
+        authorId: { type: ["integer", "null"] }
+        authorName: { type: ["string", "null"] }
+        createdAt: { type: string }
+      required: [id, postId, body, createdAt]
+
+    ForumReplyInput:
+      type: object
+      properties:
+        body: { type: string }
+      required: [body]
+
+    ForumPostDetail:
+      type: object
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        body: { type: string }
+        category: { type: ["string", "null"] }
+        authorId: { type: ["integer", "null"] }
+        authorName: { type: ["string", "null"] }
+        pinned: { type: boolean }
+        replies:
+          type: array
+          items:
+            $ref: "#/components/schemas/ForumReply"
+        replyCount: { type: integer }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, title, body, pinned, replies, replyCount, createdAt, updatedAt]
+
+    ForumPinInput:
+      type: object
+      properties:
+        pinned: { type: boolean }
+      required: [pinned]
+
+    AiGuidanceInput:
+      type: object
+      properties:
+        question: { type: string }
+        context: { type: ["string", "null"] }
+      required: [question]
+
+    AiGuidanceResponse:
+      type: object
+      properties:
+        answer: { type: string }
+        citations: { type: array, items: { type: string } }
+        disclaimer: { type: string }
+        recordId: { type: ["integer", "null"] }
+      required: [answer, citations, disclaimer]
+
+    AiGuidanceRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        question: { type: string }
+        answer: { type: string }
+        citations: { type: array, items: { type: string } }
+        createdAt: { type: string }
+      required: [id, question, answer, citations, createdAt]
+
+
     HealthStatus:
       type: object
       properties:

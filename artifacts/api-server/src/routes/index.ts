@@ -35,6 +35,10 @@ import m365StatusRouter from "./m365/status";
 import lineageImportRouter from "./lineage/import";
 import lineageNodesRouter from "./lineage/nodes";
 import delegationsRouter from "./delegations/index";
+import communityDirectoryRouter from "./community/directory";
+import communityLawRouter from "./community/law";
+import communityForumRouter from "./community/forum";
+import communityAiRouter from "./community/ai-guidance";
 
 const router: IRouter = Router();
 
@@ -75,5 +79,9 @@ router.use("/m365", m365StatusRouter);
 router.use("/lineage/import", lineageImportRouter);
 router.use("/lineage/nodes", lineageNodesRouter);
 router.use("/delegations", delegationsRouter);
+router.use("/community/directory", communityDirectoryRouter);
+router.use("/community/law", communityLawRouter);
+router.use("/community/forum", communityForumRouter);
+router.use("/community/ai", communityAiRouter);
 
 export default router;

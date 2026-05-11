@@ -573,3 +573,351 @@ export const AdminActionResponse = zod.object({
   users: zod.array(zod.object({}).passthrough()).nullish(),
   message: zod.string().nullish(),
 });
+
+/**
+ * @summary List all family/community members with lineage info
+ */
+export const ListCommunityMembersQueryParams = zod.object({
+  q: zod.coerce
+    .string()
+    .optional()
+    .describe("Search by name, tribal nation, or enrollment number"),
+  pendingReview: zod.coerce
+    .boolean()
+    .optional()
+    .describe("Filter to only pending review members"),
+  isDeceased: zod.coerce.boolean().optional(),
+});
+
+export const ListCommunityMembersResponseItem = zod.object({
+  id: zod.number(),
+  fullName: zod.string(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  birthYear: zod.number().nullish(),
+  deathYear: zod.number().nullish(),
+  gender: zod.string().nullish(),
+  tribalNation: zod.string().nullish(),
+  tribalEnrollmentNumber: zod.string().nullish(),
+  membershipStatus: zod.string().nullish(),
+  protectionLevel: zod.string().nullish(),
+  isDeceased: zod.boolean().nullish(),
+  isAncestor: zod.boolean().nullish(),
+  icwaEligible: zod.boolean().nullish(),
+  trustBeneficiary: zod.boolean().nullish(),
+  pendingReview: zod.boolean().nullish(),
+  parentIds: zod.array(zod.number()).optional(),
+  childrenIds: zod.array(zod.number()).optional(),
+  spouseIds: zod.array(zod.number()).optional(),
+  photoFilename: zod.string().nullish(),
+  generationalPosition: zod.number().nullish(),
+  createdAt: zod.string(),
+});
+export const ListCommunityMembersResponse = zod.array(
+  ListCommunityMembersResponseItem,
+);
+
+/**
+ * @summary Get a single community member with lineage connections
+ */
+export const GetCommunityMemberParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetCommunityMemberResponse = zod.object({
+  id: zod.number(),
+  fullName: zod.string(),
+  firstName: zod.string().nullish(),
+  lastName: zod.string().nullish(),
+  birthYear: zod.number().nullish(),
+  deathYear: zod.number().nullish(),
+  gender: zod.string().nullish(),
+  tribalNation: zod.string().nullish(),
+  tribalEnrollmentNumber: zod.string().nullish(),
+  notes: zod.string().nullish(),
+  membershipStatus: zod.string().nullish(),
+  protectionLevel: zod.string().nullish(),
+  isDeceased: zod.boolean().nullish(),
+  isAncestor: zod.boolean().nullish(),
+  icwaEligible: zod.boolean().nullish(),
+  welfareEligible: zod.boolean().nullish(),
+  trustBeneficiary: zod.boolean().nullish(),
+  pendingReview: zod.boolean().nullish(),
+  parentIds: zod.array(zod.number()).optional(),
+  childrenIds: zod.array(zod.number()).optional(),
+  spouseIds: zod.array(zod.number()).optional(),
+  lineageTags: zod.array(zod.string()).optional(),
+  photoFilename: zod.string().nullish(),
+  generationalPosition: zod.number().nullish(),
+  sourceType: zod.string().nullish(),
+  parents: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        fullName: zod.string(),
+        firstName: zod.string().nullish(),
+        lastName: zod.string().nullish(),
+        birthYear: zod.number().nullish(),
+        deathYear: zod.number().nullish(),
+        gender: zod.string().nullish(),
+        tribalNation: zod.string().nullish(),
+        tribalEnrollmentNumber: zod.string().nullish(),
+        membershipStatus: zod.string().nullish(),
+        protectionLevel: zod.string().nullish(),
+        isDeceased: zod.boolean().nullish(),
+        isAncestor: zod.boolean().nullish(),
+        icwaEligible: zod.boolean().nullish(),
+        trustBeneficiary: zod.boolean().nullish(),
+        pendingReview: zod.boolean().nullish(),
+        parentIds: zod.array(zod.number()).optional(),
+        childrenIds: zod.array(zod.number()).optional(),
+        spouseIds: zod.array(zod.number()).optional(),
+        photoFilename: zod.string().nullish(),
+        generationalPosition: zod.number().nullish(),
+        createdAt: zod.string(),
+      }),
+    )
+    .optional(),
+  children: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        fullName: zod.string(),
+        firstName: zod.string().nullish(),
+        lastName: zod.string().nullish(),
+        birthYear: zod.number().nullish(),
+        deathYear: zod.number().nullish(),
+        gender: zod.string().nullish(),
+        tribalNation: zod.string().nullish(),
+        tribalEnrollmentNumber: zod.string().nullish(),
+        membershipStatus: zod.string().nullish(),
+        protectionLevel: zod.string().nullish(),
+        isDeceased: zod.boolean().nullish(),
+        isAncestor: zod.boolean().nullish(),
+        icwaEligible: zod.boolean().nullish(),
+        trustBeneficiary: zod.boolean().nullish(),
+        pendingReview: zod.boolean().nullish(),
+        parentIds: zod.array(zod.number()).optional(),
+        childrenIds: zod.array(zod.number()).optional(),
+        spouseIds: zod.array(zod.number()).optional(),
+        photoFilename: zod.string().nullish(),
+        generationalPosition: zod.number().nullish(),
+        createdAt: zod.string(),
+      }),
+    )
+    .optional(),
+  spouses: zod
+    .array(
+      zod.object({
+        id: zod.number(),
+        fullName: zod.string(),
+        firstName: zod.string().nullish(),
+        lastName: zod.string().nullish(),
+        birthYear: zod.number().nullish(),
+        deathYear: zod.number().nullish(),
+        gender: zod.string().nullish(),
+        tribalNation: zod.string().nullish(),
+        tribalEnrollmentNumber: zod.string().nullish(),
+        membershipStatus: zod.string().nullish(),
+        protectionLevel: zod.string().nullish(),
+        isDeceased: zod.boolean().nullish(),
+        isAncestor: zod.boolean().nullish(),
+        icwaEligible: zod.boolean().nullish(),
+        trustBeneficiary: zod.boolean().nullish(),
+        pendingReview: zod.boolean().nullish(),
+        parentIds: zod.array(zod.number()).optional(),
+        childrenIds: zod.array(zod.number()).optional(),
+        spouseIds: zod.array(zod.number()).optional(),
+        photoFilename: zod.string().nullish(),
+        generationalPosition: zod.number().nullish(),
+        createdAt: zod.string(),
+      }),
+    )
+    .optional(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Get aggregate stats for the family directory
+ */
+export const GetCommunityDirectoryStatsResponse = zod.object({
+  totalMembers: zod.number(),
+  activeMembers: zod.number(),
+  deceasedMembers: zod.number(),
+  pendingReview: zod.number(),
+  icwaEligible: zod.number(),
+  trustBeneficiaries: zod.number(),
+  tribalNations: zod.array(zod.string()),
+});
+
+/**
+ * @summary List tribal and federal Indian law resources
+ */
+export const ListLawResourcesQueryParams = zod.object({
+  q: zod.coerce
+    .string()
+    .optional()
+    .describe("Search by title, citation, or keyword"),
+  type: zod
+    .enum(["tribal", "federal", "doctrine"])
+    .optional()
+    .describe("Filter by resource type"),
+});
+
+export const ListLawResourcesResponseItem = zod.object({
+  id: zod.number(),
+  type: zod.enum(["tribal", "federal", "doctrine"]),
+  title: zod.string(),
+  citation: zod.string(),
+  body: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+  caseName: zod.string().nullish(),
+  summary: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+export const ListLawResourcesResponse = zod.array(ListLawResourcesResponseItem);
+
+/**
+ * @summary Get a single law resource by ID
+ */
+export const FetchLawResourceParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const FetchLawResourceResponse = zod.object({
+  id: zod.number(),
+  type: zod.enum(["tribal", "federal", "doctrine"]),
+  title: zod.string(),
+  citation: zod.string(),
+  body: zod.string().optional(),
+  tags: zod.array(zod.string()).optional(),
+  caseName: zod.string().nullish(),
+  summary: zod.string().nullish(),
+  updatedAt: zod.string().nullish(),
+});
+
+/**
+ * @summary List all forum posts (threads)
+ */
+export const ListForumPostsQueryParams = zod.object({
+  category: zod.coerce.string().optional(),
+  pinned: zod.coerce.boolean().optional(),
+});
+
+export const ListForumPostsResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  body: zod.string(),
+  category: zod.string().nullish(),
+  authorId: zod.number().nullish(),
+  authorName: zod.string().nullish(),
+  pinned: zod.boolean(),
+  replyCount: zod.number(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+export const ListForumPostsResponse = zod.array(ListForumPostsResponseItem);
+
+/**
+ * @summary Create a new forum thread
+ */
+export const CreateForumPostBody = zod.object({
+  title: zod.string(),
+  body: zod.string(),
+  category: zod.string().optional(),
+});
+
+/**
+ * @summary Get a forum post with its replies
+ */
+export const GetForumPostParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetForumPostResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  body: zod.string(),
+  category: zod.string().nullish(),
+  authorId: zod.number().nullish(),
+  authorName: zod.string().nullish(),
+  pinned: zod.boolean(),
+  replies: zod.array(
+    zod.object({
+      id: zod.number(),
+      postId: zod.number(),
+      body: zod.string(),
+      authorId: zod.number().nullish(),
+      authorName: zod.string().nullish(),
+      createdAt: zod.string(),
+    }),
+  ),
+  replyCount: zod.number(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Reply to a forum post
+ */
+export const CreateForumReplyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const CreateForumReplyBody = zod.object({
+  body: zod.string(),
+});
+
+/**
+ * @summary Pin or unpin a forum post (officer+ only)
+ */
+export const PinForumPostParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const PinForumPostBody = zod.object({
+  pinned: zod.boolean(),
+});
+
+export const PinForumPostResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  body: zod.string(),
+  category: zod.string().nullish(),
+  authorId: zod.number().nullish(),
+  authorName: zod.string().nullish(),
+  pinned: zod.boolean(),
+  replyCount: zod.number(),
+  createdAt: zod.string(),
+  updatedAt: zod.string(),
+});
+
+/**
+ * @summary Ask the AI assistant for guidance on tribal law, ICWA, rights, etc.
+ */
+export const GetAiGuidanceBody = zod.object({
+  question: zod.string(),
+  context: zod.string().nullish(),
+});
+
+export const GetAiGuidanceResponse = zod.object({
+  answer: zod.string(),
+  citations: zod.array(zod.string()),
+  disclaimer: zod.string(),
+  recordId: zod.number().nullish(),
+});
+
+/**
+ * @summary List recent AI guidance queries for current user
+ */
+export const ListAiGuidanceHistoryResponseItem = zod.object({
+  id: zod.number(),
+  question: zod.string(),
+  answer: zod.string(),
+  citations: zod.array(zod.string()),
+  createdAt: zod.string(),
+});
+export const ListAiGuidanceHistoryResponse = zod.array(
+  ListAiGuidanceHistoryResponseItem,
+);
