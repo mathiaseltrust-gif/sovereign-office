@@ -344,14 +344,16 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   }, [transform.scale]);
 
   const handleSearchKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === "Escape") {
+      setSearchQuery("");
+      setSearchFocusIdx(0);
+      return;
+    }
     if (matchingNodes.length === 0) return;
     if (e.key === "Enter") {
       const idx = searchFocusIdx % matchingNodes.length;
       panToNode(matchingNodes[idx]);
       setSearchFocusIdx((i) => i + 1);
-    } else if (e.key === "Escape") {
-      setSearchQuery("");
-      setSearchFocusIdx(0);
     }
   }, [matchingNodes, searchFocusIdx, panToNode]);
 
@@ -494,12 +496,44 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             </button>
           )}
         </div>
-        {hasSearch && (
-          <span className="text-xs text-muted-foreground">
-            {matchingNodes.length === 0
-              ? "No matches"
-              : `${matchingNodes.length} match${matchingNodes.length !== 1 ? "es" : ""} · Enter to jump`}
-          </span>
+        {/* ── Results dropdown ─────────────────────────────────────────── */}
+        {hasSearch && matchingNodes.length > 0 && (
+          <div className="relative">
+            <div className="absolute top-0 left-0 z-50 mt-0 w-64 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
+              <div className="px-2 py-1 text-xs text-muted-foreground border-b bg-muted/40 flex items-center justify-between">
+                <span>{matchingNodes.length} result{matchingNodes.length !== 1 ? "s" : ""}</span>
+                <span className="opacity-60">Enter to cycle</span>
+              </div>
+              <ul className="max-h-48 overflow-y-auto divide-y divide-border/50">
+                {matchingNodes.slice(0, 12).map((node, i) => (
+                  <li key={node.id}>
+                    <button
+                      className={[
+                        "w-full text-left px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
+                        i === (searchFocusIdx - 1 + matchingNodes.length) % matchingNodes.length
+                          ? "bg-accent/50 font-medium"
+                          : "",
+                      ].join(" ")}
+                      onClick={() => { panToNode(node); setSearchFocusIdx(i + 1); }}
+                    >
+                      <span className="font-medium truncate block">{node.fullName}</span>
+                      {node.tribalNation && (
+                        <span className="text-muted-foreground truncate block">{node.tribalNation}</span>
+                      )}
+                    </button>
+                  </li>
+                ))}
+                {matchingNodes.length > 12 && (
+                  <li className="px-3 py-1.5 text-xs text-muted-foreground italic">
+                    +{matchingNodes.length - 12} more — refine your search
+                  </li>
+                )}
+              </ul>
+            </div>
+          </div>
+        )}
+        {hasSearch && matchingNodes.length === 0 && (
+          <span className="text-xs text-muted-foreground">No matches</span>
         )}
         {/* ──────────────────────────────────────────────────────────────── */}
 
