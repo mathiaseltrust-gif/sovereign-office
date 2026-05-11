@@ -100,7 +100,7 @@ Authentication**, add the following redirect URIs for your production domain:
 
 | Type | URI |
 |---|---|
-| Web (SSO login callback) | `https://api.yourdomain.com/api/auth/entra/callback` |
+| Web (SSO login callback) | `https://api.yourdomain.com/api/auth/microsoft/callback` |
 | SPA (front-channel logout) | `https://sovereign.yourdomain.com` |
 | SPA (front-channel logout) | `https://trust.yourdomain.com` |
 
@@ -300,9 +300,11 @@ docker compose up --build -d --no-deps api
 docker compose up --build -d --no-deps sovereign
 docker compose up --build -d --no-deps trust
 
-# If the database schema changed, push new schema
-docker compose exec api \
-  sh -c 'DATABASE_URL=$DATABASE_URL pnpm --filter @workspace/db run push'
+# If the database schema changed, push new schema from the host machine.
+# The runtime API image does not include pnpm or workspace source,
+# so run this from the cloned repo directory on the host:
+DATABASE_URL="postgresql://<user>:<pass>@<host>:5432/sovereign_office?sslmode=require" \
+  pnpm --filter @workspace/db run push
 ```
 
 ---
