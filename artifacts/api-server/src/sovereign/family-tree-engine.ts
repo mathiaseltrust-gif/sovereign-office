@@ -60,6 +60,144 @@ export interface EligibilityResult {
   reasons: string[];
 }
 
+export function parseGedcom(gedText: string): ParsedPerson[] {
+  const lines = gedText.split(/\r?\n/);
+  const individuals = new Map<string, ParsedPerson & { _id: string; _famc?: string[] }>();
+  const families = new Map<string, { husb?: string; wife?: string; children: string[] }>();
+
+  let currentType: "INDI" | "FAM" | null = null;
+  let currentId = "";
+  let currentTag = "";
+
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\s+/);
+    const level = parseInt(parts[0] ?? "", 10);
+    if (isNaN(level)) continue;
+
+    const idOrTag = parts[1] ?? "";
+    const rest = parts.slice(2).join(" ");
+
+    if (level === 0) {
+      currentTag = "";
+      if (idOrTag.startsWith("@") && rest === "INDI") {
+        currentType = "INDI";
+        currentId = idOrTag;
+        individuals.set(currentId, { _id: currentId, fullName: "", _famc: [] });
+      } else if (idOrTag.startsWith("@") && rest === "FAM") {
+        currentType = "FAM";
+        currentId = idOrTag;
+        families.set(currentId, { children: [] });
+      } else {
+        currentType = null;
+        currentId = "";
+      }
+      continue;
+    }
+
+    const tag = idOrTag;
+    const value = rest;
+
+    if (currentType === "INDI" && currentId) {
+      const indi = individuals.get(currentId)!;
+
+      if (level === 1) {
+        currentTag = tag;
+        if (tag === "NAME") {
+          const cleaned = value.replace(/\//g, "").replace(/\s+/g, " ").trim();
+          if (cleaned) {
+            indi.fullName = cleaned;
+            const nameParts = cleaned.split(/\s+/);
+            indi.firstName = nameParts[0] ?? "";
+            const surnameMatch = value.match(/\/([^/]+)\//);
+            indi.lastName = surnameMatch ? surnameMatch[1].trim() : (nameParts.length > 1 ? nameParts.slice(1).join(" ") : "");
+          }
+        } else if (tag === "SEX") {
+          indi.gender = value === "M" ? "male" : value === "F" ? "female" : undefined;
+        } else if (tag === "NOTE") {
+          indi.notes = value;
+        } else if (tag === "DEAT" && value === "Y") {
+          indi.isDeceased = true;
+        } else if (tag === "FAMC") {
+          indi._famc = indi._famc ?? [];
+          const famId = value.replace(/@/g, "");
+          indi._famc.push(`@${famId}@`);
+        }
+      } else if (level === 2) {
+        if (currentTag === "BIRT" && tag === "DATE") {
+          const yearMatch = value.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+          if (yearMatch) indi.birthYear = parseInt(yearMatch[1], 10);
+        } else if (currentTag === "BIRT" && tag === "PLAC") {
+          indi.notes = indi.notes ? `${indi.notes}; born ${value}` : `born ${value}`;
+        } else if ((currentTag === "DEAT" || currentTag === "BURI") && tag === "DATE") {
+          const yearMatch = value.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+          if (yearMatch) {
+            indi.deathYear = parseInt(yearMatch[1], 10);
+            indi.isDeceased = true;
+          }
+        } else if (currentTag === "NOTE" && tag === "CONC") {
+          indi.notes = (indi.notes ?? "") + " " + value;
+        }
+      }
+    } else if (currentType === "FAM" && currentId) {
+      const fam = families.get(currentId)!;
+      if (level === 1) {
+        if (tag === "HUSB") fam.husb = value;
+        else if (tag === "WIFE") fam.wife = value;
+        else if (tag === "CHIL") fam.children.push(value);
+      }
+    }
+  }
+
+  const nameToId = new Map<string, string>();
+  for (const [id, indi] of individuals) {
+    if (indi.fullName) nameToId.set(indi.fullName.toLowerCase(), id);
+  }
+
+  for (const [famId, fam] of families) {
+    const parentIndiIds = [fam.husb, fam.wife].filter(Boolean) as string[];
+    const parentNames = parentIndiIds.map((id) => individuals.get(id)?.fullName).filter(Boolean) as string[];
+
+    for (const childId of fam.children) {
+      const child = individuals.get(childId);
+      if (child) {
+        child.parentNames = [...(child.parentNames ?? []), ...parentNames.filter((n) => !(child.parentNames ?? []).includes(n))];
+      }
+    }
+    for (const parentId of parentIndiIds) {
+      const parent = individuals.get(parentId);
+      const otherParentIds = parentIndiIds.filter((id) => id !== parentId);
+      if (parent && otherParentIds.length > 0) {
+        const otherNames = otherParentIds.map((id) => individuals.get(id)?.fullName).filter(Boolean) as string[];
+        parent.spouseNames = [...new Set([...(parent.spouseNames ?? []), ...otherNames])];
+      }
+    }
+  }
+
+  const result: ParsedPerson[] = [];
+  for (const [, indi] of individuals) {
+    if (!indi.fullName) continue;
+    const person: ParsedPerson = {
+      fullName: indi.fullName,
+      firstName: indi.firstName,
+      lastName: indi.lastName,
+      birthYear: indi.birthYear,
+      deathYear: indi.deathYear,
+      gender: indi.gender,
+      tribalNation: indi.tribalNation,
+      tribalEnrollmentNumber: indi.tribalEnrollmentNumber,
+      parentNames: indi.parentNames,
+      spouseNames: indi.spouseNames,
+      notes: indi.notes,
+      isDeceased: indi.isDeceased,
+      generationalPosition: indi.generationalPosition,
+    };
+    result.push(person);
+  }
+  return result;
+}
+
 export function parseLineageCsv(csvText: string): ParsedPerson[] {
   const lines = csvText
     .split("\n")

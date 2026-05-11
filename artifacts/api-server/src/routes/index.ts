@@ -32,6 +32,8 @@ import authSessionRouter from "./auth/session";
 import m365FactsRouter from "./m365/facts";
 import m365WebhookRouter from "./m365/webhook";
 import m365StatusRouter from "./m365/status";
+import lineageImportRouter from "./lineage/import";
+import lineageNodesRouter from "./lineage/nodes";
 
 const router: IRouter = Router();
 
@@ -69,5 +71,7 @@ router.use("/auth", authSessionRouter);
 router.use("/facts", m365FactsRouter);
 router.use("/m365", m365WebhookRouter);
 router.use("/m365", m365StatusRouter);
+router.use("/lineage/import", lineageImportRouter);
+router.use("/lineage/nodes", lineageNodesRouter);
 
 export default router;

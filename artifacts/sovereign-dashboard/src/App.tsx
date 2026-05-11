@@ -40,6 +40,7 @@ import IeePage from "@/pages/iee";
 import AdminStubPage from "@/pages/admin-stub";
 import TribalIdPage from "@/pages/tribal-id";
 import M365IntegrationPage from "@/pages/m365-integration";
+import AdminLineageImportPage from "@/pages/admin-lineage-import";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -228,6 +229,9 @@ function AppRouter() {
       </Route>
       <Route path="/m365">
         {() => <ProtectedRoute component={M365IntegrationPage} />}
+      </Route>
+      <Route path="/admin/lineage-import">
+        {() => <ProtectedRoute component={AdminLineageImportPage} />}
       </Route>
       <Route path="/doctrine">
         {() => (

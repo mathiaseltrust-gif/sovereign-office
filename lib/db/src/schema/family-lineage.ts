@@ -27,6 +27,10 @@ export const familyLineageTable = pgTable("family_lineage", {
   trustBeneficiary: boolean("trust_beneficiary"),
   linkedProfileUserId: integer("linked_profile_user_id"),
   photoFilename: varchar("photo_filename", { length: 500 }),
+  protectionLevel: varchar("protection_level", { length: 50 }).default("pending"),
+  membershipStatus: varchar("membership_status", { length: 50 }).default("pending"),
+  nameVariants: jsonb("name_variants").default([]),
+  entraObjectId: varchar("entra_object_id", { length: 255 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

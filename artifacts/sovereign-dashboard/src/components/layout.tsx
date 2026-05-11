@@ -127,7 +127,10 @@ function getAdminNav(role: Role): NavSection["items"] | null {
     { href: "/intake-ai", label: "AI Intake Review" },
     { href: "/templates", label: "Templates" },
     ...(role === "sovereign_admin" || role === "trustee"
-      ? [{ href: "/m365", label: "Microsoft 365" }]
+      ? [
+          { href: "/m365", label: "Microsoft 365" },
+          { href: "/admin/lineage-import", label: "Lineage Registry" },
+        ]
       : []),
     ...(role === "sovereign_admin"
       ? [
