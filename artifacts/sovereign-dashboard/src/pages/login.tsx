@@ -30,7 +30,7 @@ export default function Login() {
 
   useEffect(() => {
     if (user) {
-      const dest = nextPath ? decodeURIComponent(nextPath) : roleLandingPath(activeRole);
+      const dest = nextPath ?? roleLandingPath(activeRole);
       navigate(dest, { replace: true });
     }
   }, [user, activeRole, nextPath, navigate]);
@@ -55,6 +55,11 @@ export default function Login() {
       }
       const { authUrl, stateCookie } = await res.json() as { authUrl: string; stateCookie: string };
       document.cookie = `oauth_state=${encodeURIComponent(stateCookie)}; path=/; max-age=600; SameSite=Lax`;
+      if (nextPath) {
+        sessionStorage.setItem("oauth_next", nextPath);
+      } else {
+        sessionStorage.removeItem("oauth_next");
+      }
       window.location.href = authUrl;
     } catch {
       toast({ title: "Error", description: "Could not reach the authentication server.", variant: "destructive" });

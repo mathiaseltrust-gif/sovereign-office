@@ -119,6 +119,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const authError = params.get("auth_error");
 
     if (st) {
+      let redirectNext: string | null = null;
       try {
         const parts = st.split(".");
         if (parts.length === 3) {
@@ -138,13 +139,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setActiveRole(role);
             setSessionToken(st);
             saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st });
+            redirectNext = sessionStorage.getItem("oauth_next");
+            sessionStorage.removeItem("oauth_next");
           }
         }
       } catch { /* ignore malformed token */ }
       const clean = new URL(window.location.href);
       clean.searchParams.delete("session_token");
       clean.searchParams.delete("auth_error");
-      window.history.replaceState({}, "", clean.toString());
+      if (redirectNext && redirectNext.startsWith("/")) {
+        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+        window.location.replace(base + redirectNext);
+      } else {
+        window.history.replaceState({}, "", clean.toString());
+      }
     } else if (authError) {
       const clean = new URL(window.location.href);
       clean.searchParams.delete("auth_error");
