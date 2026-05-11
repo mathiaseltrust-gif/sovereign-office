@@ -1,13 +1,18 @@
-export type Role = "chief_justice" | "admin" | "trustee" | "officer" | "member" | "guest";
+export type Role = "chief_justice" | "admin" | "trustee" | "officer" | "elder" | "member" | "guest";
 
 export const ROLE_HIERARCHY: Record<Role, number> = {
   chief_justice: 110,
   admin: 100,
   trustee: 80,
   officer: 60,
+  elder: 55,
   member: 40,
   guest: 10,
 };
+
+export function canReviewPendingLineage(userRoles: string[]): boolean {
+  return hasRole(userRoles, "officer") || userRoles.includes("elder");
+}
 
 export function hasRole(userRoles: string[], requiredRole: Role): boolean {
   const requiredLevel = ROLE_HIERARCHY[requiredRole] ?? 0;

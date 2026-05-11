@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
 import { eq, desc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { hasRole } from "../../sovereign/authority";
+import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
 
 const router = Router();
 
@@ -159,7 +159,7 @@ router.post("/member", requireAuth, async (req, res, next) => {
 // ── Approve a pending member-submitted node ───────────────────────────────
 router.post("/:id/approve", requireAuth, async (req, res, next) => {
   try {
-    if (!req.user || !hasRole(req.user.roles, "officer")) {
+    if (!req.user || !canReviewPendingLineage(req.user.roles)) {
       res.status(403).json({ error: "Only officers, trustees, elders, and admins can approve submissions." });
       return;
     }
@@ -187,7 +187,7 @@ router.post("/:id/approve", requireAuth, async (req, res, next) => {
 // ── Reject a pending member-submitted node ────────────────────────────────
 router.post("/:id/reject", requireAuth, async (req, res, next) => {
   try {
-    if (!req.user || !hasRole(req.user.roles, "officer")) {
+    if (!req.user || !canReviewPendingLineage(req.user.roles)) {
       res.status(403).json({ error: "Only officers, trustees, elders, and admins can reject submissions." });
       return;
     }
@@ -272,6 +272,46 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
     }
 
     res.status(201).json(node);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Member edits their own pending submission ─────────────────────────────
+router.patch("/member/:id", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
+    if (!existing.pendingReview) {
+      res.status(403).json({ error: "Only pending submissions can be edited by the submitter." });
+      return;
+    }
+    if (existing.addedByMemberId !== req.user.dbId) {
+      res.status(403).json({ error: "You can only edit your own pending submissions." });
+      return;
+    }
+
+    const body = req.body as Record<string, unknown>;
+    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    if (typeof body.fullName === "string" && body.fullName.trim()) updates.fullName = body.fullName.trim();
+    if (typeof body.firstName === "string") updates.firstName = body.firstName || null;
+    if (typeof body.lastName === "string") updates.lastName = body.lastName || null;
+    if (typeof body.birthYear === "number") updates.birthYear = body.birthYear;
+    if (body.birthYear === null) updates.birthYear = null;
+    if (typeof body.gender === "string") updates.gender = body.gender || null;
+    if (typeof body.tribalNation === "string") updates.tribalNation = body.tribalNation || null;
+    if (typeof body.supportingDocumentName === "string") updates.supportingDocumentName = body.supportingDocumentName || null;
+
+    const [updated] = await db.update(familyLineageTable)
+      .set(updates)
+      .where(eq(familyLineageTable.id, id))
+      .returning();
+
+    res.json({ updated: true, node: updated });
   } catch (err) {
     next(err);
   }

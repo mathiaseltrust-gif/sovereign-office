@@ -354,6 +354,7 @@ export function useAuth() {
 export function useIsAdmin() { const { activeRole } = useAuth(); return activeRole === "sovereign_admin"; }
 export function useIsTrustee() { const { activeRole } = useAuth(); return activeRole === "trustee" || activeRole === "sovereign_admin"; }
 export function useIsOfficer() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin"].includes(activeRole); }
+export function useCanReviewLineage() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin", "elder"].includes(activeRole); }
 
 export function roleLandingPath(role: Role): string {
   switch (role) {

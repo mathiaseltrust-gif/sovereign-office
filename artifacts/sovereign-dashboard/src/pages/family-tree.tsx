@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useIsTrustee, useIsOfficer } from "@/components/auth-provider";
+import { useAuth, useIsTrustee, useCanReviewLineage } from "@/components/auth-provider";
 
 type Tab = "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
 
@@ -293,7 +293,8 @@ export default function FamilyTreePage() {
 function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; canEdit: boolean; onDataChange: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const canApprove = useIsOfficer();
+  const canApprove = useCanReviewLineage();
+  const { user } = useAuth();
 
   const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
     queryKey: ["lineage-nodes"],
@@ -664,6 +665,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             token={token}
             canEdit={canEdit}
             canApprove={canApprove}
+            currentUserId={user?.id ?? null}
             onClose={() => setSelectedNodeId(null)}
             onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
             onMerge={(n) => setMergingNode(n)}
@@ -721,17 +723,21 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   );
 }
 
-function NodeDetailPanel({ node, token, canEdit, canApprove, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
   node: PositionedNode;
   token: string;
   canEdit: boolean;
   canApprove: boolean;
+  currentUserId?: number | string | null;
   onClose: () => void;
   onEdit: (node: LineageNode) => void;
   onMerge: (node: LineageNode) => void;
   onRefresh: () => void;
 }) {
   const { toast } = useToast();
+  const [showEditOwn, setShowEditOwn] = useState(false);
+  const [editOwnForm, setEditOwnForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", gender: "", tribalNation: "", supportingDocumentName: "" });
+
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
     queryFn: async () => {
@@ -742,6 +748,54 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, onClose, onEdit, on
   });
 
   const n = detail ?? node;
+  const canEditOwn = !!(
+    n.pendingReview &&
+    n.addedByMemberId != null &&
+    currentUserId != null &&
+    n.addedByMemberId === Number(currentUserId)
+  );
+
+  const editOwnMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, unknown> = {
+        fullName: editOwnForm.fullName || n.fullName,
+        firstName: editOwnForm.firstName,
+        lastName: editOwnForm.lastName,
+        birthYear: editOwnForm.birthYear ? parseInt(editOwnForm.birthYear, 10) : null,
+        gender: editOwnForm.gender,
+        tribalNation: editOwnForm.tribalNation,
+        supportingDocumentName: editOwnForm.supportingDocumentName,
+      };
+      const r = await fetch(`/api/lineage/nodes/member/${n.id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Update failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Submission updated", description: "Your pending submission has been updated." });
+      setShowEditOwn(false);
+      onRefresh();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function openEditOwn() {
+    setEditOwnForm({
+      fullName: n.fullName ?? "",
+      firstName: n.firstName ?? "",
+      lastName: n.lastName ?? "",
+      birthYear: n.birthYear?.toString() ?? "",
+      gender: n.gender ?? "",
+      tribalNation: n.tribalNation ?? "",
+      supportingDocumentName: n.supportingDocumentName ?? "",
+    });
+    setShowEditOwn(true);
+  }
 
   return (
     <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300 }}>
@@ -871,6 +925,63 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, onClose, onEdit, on
           {n.pendingReview && !canApprove && (
             <div className="border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 rounded-md px-3 py-2">
               <p className="text-xs text-yellow-900 dark:text-yellow-300 font-medium">Awaiting officer review</p>
+            </div>
+          )}
+
+          {canEditOwn && !showEditOwn && (
+            <div className="pt-1">
+              <Button size="sm" variant="outline" className="w-full" onClick={openEditOwn}>
+                Edit My Submission
+              </Button>
+            </div>
+          )}
+
+          {canEditOwn && showEditOwn && (
+            <div className="border rounded-md p-3 space-y-3 bg-muted/30">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Edit Your Pending Submission</p>
+              <div>
+                <Label className="text-xs">Full Name <span className="text-destructive">*</span></Label>
+                <Input className="mt-1 h-8 text-sm" value={editOwnForm.fullName} onChange={(e) => setEditOwnForm((p) => ({ ...p, fullName: e.target.value }))} />
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">First Name</Label>
+                  <Input className="mt-1 h-8 text-sm" value={editOwnForm.firstName} onChange={(e) => setEditOwnForm((p) => ({ ...p, firstName: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Last Name</Label>
+                  <Input className="mt-1 h-8 text-sm" value={editOwnForm.lastName} onChange={(e) => setEditOwnForm((p) => ({ ...p, lastName: e.target.value }))} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <Label className="text-xs">Birth Year</Label>
+                  <Input type="number" className="mt-1 h-8 text-sm" value={editOwnForm.birthYear} onChange={(e) => setEditOwnForm((p) => ({ ...p, birthYear: e.target.value }))} />
+                </div>
+                <div>
+                  <Label className="text-xs">Gender</Label>
+                  <select className="mt-1 w-full border rounded-md px-2 h-8 text-sm bg-input text-foreground" value={editOwnForm.gender} onChange={(e) => setEditOwnForm((p) => ({ ...p, gender: e.target.value }))}>
+                    <option value="">Unknown</option>
+                    <option value="male">Male</option>
+                    <option value="female">Female</option>
+                    <option value="other">Other</option>
+                  </select>
+                </div>
+              </div>
+              <div>
+                <Label className="text-xs">Tribal Nation</Label>
+                <Input className="mt-1 h-8 text-sm" value={editOwnForm.tribalNation} onChange={(e) => setEditOwnForm((p) => ({ ...p, tribalNation: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Supporting Document Name</Label>
+                <Input className="mt-1 h-8 text-sm" value={editOwnForm.supportingDocumentName} onChange={(e) => setEditOwnForm((p) => ({ ...p, supportingDocumentName: e.target.value }))} placeholder="e.g. Birth certificate" />
+              </div>
+              <div className="flex gap-2">
+                <Button size="sm" className="flex-1" onClick={() => editOwnMutation.mutate()} disabled={editOwnMutation.isPending || !editOwnForm.fullName.trim()}>
+                  {editOwnMutation.isPending ? "Saving…" : "Save Changes"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowEditOwn(false)}>Cancel</Button>
+              </div>
             </div>
           )}
 
@@ -1540,6 +1651,7 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
 function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token: string; lineageData?: LineageData; isLoading: boolean; onSuccess: () => void }) {
   const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", generationalPosition: "0" });
   const [editId, setEditId] = useState<number | null>(null);
+  const [showMemberAddModal, setShowMemberAddModal] = useState(false);
 
   const saveMutation = useMutation({
     mutationFn: async () => {
@@ -1601,6 +1713,12 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
 
   return (
     <div className="space-y-6">
+      <div className="flex justify-end">
+        <Button variant="outline" size="sm" onClick={() => setShowMemberAddModal(true)}>
+          + Add My Family
+        </Button>
+      </div>
+
       <Card>
         <CardHeader>
           <CardTitle className="text-base">{editId !== null ? `Editing Ancestor #${editId}` : "Add New Ancestor"}</CardTitle>
@@ -1689,6 +1807,15 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
             ))}
           </div>
         </div>
+      )}
+
+      {showMemberAddModal && (
+        <MemberAddFamilyModal
+          token={token}
+          allNodes={(lineageData?.lineage ?? []) as unknown as LineageNode[]}
+          onClose={() => setShowMemberAddModal(false)}
+          onSuccess={() => { setShowMemberAddModal(false); onSuccess(); }}
+        />
       )}
     </div>
   );
