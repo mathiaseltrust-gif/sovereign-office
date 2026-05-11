@@ -41,6 +41,9 @@ import AdminStubPage from "@/pages/admin-stub";
 import TribalIdPage from "@/pages/tribal-id";
 import M365IntegrationPage from "@/pages/m365-integration";
 import AdminLineageImportPage from "@/pages/admin-lineage-import";
+import BusinessCanvas from "@/pages/business-canvas";
+import BusinessCanvasWizard from "@/pages/business-canvas-wizard";
+import BusinessConceptDetail from "@/pages/business-canvas-detail";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -232,6 +235,19 @@ function AppRouter() {
       </Route>
       <Route path="/admin/lineage-import">
         {() => <ProtectedRoute component={AdminLineageImportPage} />}
+      </Route>
+      <Route path="/business-canvas/new">
+        {() => <ProtectedRoute component={BusinessCanvasWizard} />}
+      </Route>
+      <Route path="/business-canvas/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <BusinessConceptDetail params={params} />
+          </ProtectedParamRoute>
+        )}
+      </Route>
+      <Route path="/business-canvas">
+        {() => <ProtectedRoute component={BusinessCanvas} />}
       </Route>
       <Route path="/doctrine">
         {() => (

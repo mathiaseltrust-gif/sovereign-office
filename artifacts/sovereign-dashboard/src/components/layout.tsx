@@ -56,6 +56,7 @@ function getCoreNav(role: Role): NavSection["items"] {
   if (role === "member") {
     return [
       { href: "/dashboard/member", label: "Dashboard" },
+      { href: "/business-canvas", label: "Business Canvas" },
       { href: "/filings", label: "Filings" },
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/complaints", label: "Complaints" },
@@ -68,6 +69,7 @@ function getCoreNav(role: Role): NavSection["items"] {
   if (role === "officer") {
     return [
       { href: "/dashboard/officer", label: "Dashboard" },
+      { href: "/business-canvas", label: "Business Canvas" },
       { href: "/complaints", label: "Complaints" },
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/classify", label: "Classification" },
@@ -81,6 +83,7 @@ function getCoreNav(role: Role): NavSection["items"] {
 
   return [
     { href: "/dashboard/trustee", label: "Dashboard" },
+    { href: "/business-canvas", label: "Business Canvas" },
     { href: "/instruments", label: "Trust Instruments" },
     { href: "/filings", label: "Filings" },
     { href: "/nfr", label: "Notice of Federal Review" },

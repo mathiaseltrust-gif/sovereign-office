@@ -40,6 +40,8 @@ import communityLawRouter from "./community/law";
 import communityForumRouter from "./community/forum";
 import communityAiRouter from "./community/ai-guidance";
 import communityActivityRouter from "./community/activity";
+import businessAnalyzeRouter from "./business/analyze";
+import businessConceptsRouter from "./business/concepts";
 
 const router: IRouter = Router();
 
@@ -85,5 +87,7 @@ router.use("/community/law", communityLawRouter);
 router.use("/community/forum", communityForumRouter);
 router.use("/community/ai", communityAiRouter);
 router.use("/community/activity", communityActivityRouter);
+router.use("/business/analyze", businessAnalyzeRouter);
+router.use("/business/concepts", businessConceptsRouter);
 
 export default router;
