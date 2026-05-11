@@ -29,6 +29,7 @@ function getCoreNav(role: Role): NavSection["items"] {
   if (role === "visitor_media") {
     return [
       { href: "/dashboard/visitor", label: "Visitor Portal" },
+      { href: "/business-canvas", label: "Business Canvas" },
       { href: "/search", label: "Search Public Records" },
     ];
   }

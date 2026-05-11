@@ -165,6 +165,12 @@ router.post("/:id/board", requireAuth, async (req, res, next) => {
     const conceptId = parseInt(String(req.params.id), 10);
     if (isNaN(conceptId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+    const canManageBoard = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
+    if (!canManageBoard) {
+      res.status(403).json({ error: "Only officers, trustees, and sovereign admins may assign board members." });
+      return;
+    }
+
     if (!await checkConceptAccess(conceptId, req)) {
       res.status(403).json({ error: "Access denied." });
       return;
@@ -197,6 +203,12 @@ router.delete("/:id/board/:memberId", requireAuth, async (req, res, next) => {
     const conceptId = parseInt(String(req.params.id), 10);
     const memberId = parseInt(String(req.params.memberId), 10);
     if (isNaN(conceptId) || isNaN(memberId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+    const canManageBoard = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
+    if (!canManageBoard) {
+      res.status(403).json({ error: "Only officers, trustees, and sovereign admins may manage board members." });
+      return;
+    }
 
     if (!await checkConceptAccess(conceptId, req)) {
       res.status(403).json({ error: "Access denied." });
@@ -269,9 +281,12 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
       `Status: ${concept.status}`,
     ].join("\n");
 
+    const userId = req.user?.dbId;
+    logger.info({ userId, textLen: intakeText.length, conceptId: id }, "Business formation AI intake engine request received");
+
     const report = await runAiEngine({
       text: intakeText,
-      userId: req.user?.dbId,
+      userId,
       context: { caseType: "business_formation", role: req.user?.roles?.[0] ?? "member" },
     });
 
@@ -281,7 +296,15 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
       .where(eq(businessConceptsTable.id, id));
 
     logger.info({ conceptId: id, userId: req.user?.dbId }, "Business concept submitted for validation");
-    res.json({ ok: true, validation: report });
+    res.json({
+      ok: true,
+      validation: report,
+      _meta: {
+        tier: (report as { tier?: string }).tier,
+        tierReason: (report as { tierReason?: string }).tierReason,
+        azureAvailable: (report as { azureAvailable?: boolean }).azureAvailable,
+      },
+    });
   } catch (err) {
     next(err);
   }

@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/components/auth-provider";
+
+const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
 
 interface BoardMember {
   id: number;
@@ -189,6 +192,8 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
   const [form, setForm] = useState({ memberName: "", memberRole: "", startDate: "" });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+  const { activeRole } = useAuth();
+  const canManageBoard = ELEVATED_ROLES.includes(activeRole);
 
   async function addMember() {
     if (!form.memberName || !form.memberRole) {
@@ -228,34 +233,40 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
     <div className="space-y-4">
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold">Board Members & Delegated Authority</h3>
-        <Dialog open={open} onOpenChange={setOpen}>
-          <DialogTrigger asChild>
-            <Button size="sm">+ Add Member</Button>
-          </DialogTrigger>
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Add Board Member</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-3">
-              <div>
-                <Label>Member Name *</Label>
-                <Input placeholder="Full name" value={form.memberName} onChange={(e) => setForm((f) => ({ ...f, memberName: e.target.value }))} className="mt-1" />
+        {canManageBoard && (
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button size="sm">+ Add Member</Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Add Board Member</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-3">
+                <div>
+                  <Label>Member Name *</Label>
+                  <Input placeholder="Full name" value={form.memberName} onChange={(e) => setForm((f) => ({ ...f, memberName: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Role / Title *</Label>
+                  <Input placeholder="e.g. Chief Executive Officer, Board Secretary" value={form.memberRole} onChange={(e) => setForm((f) => ({ ...f, memberRole: e.target.value }))} className="mt-1" />
+                </div>
+                <div>
+                  <Label>Start Date</Label>
+                  <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="mt-1" />
+                </div>
+                <Button onClick={addMember} disabled={saving} className="w-full">
+                  {saving ? "Saving..." : "Add Board Member"}
+                </Button>
               </div>
-              <div>
-                <Label>Role / Title *</Label>
-                <Input placeholder="e.g. Chief Executive Officer, Board Secretary" value={form.memberRole} onChange={(e) => setForm((f) => ({ ...f, memberRole: e.target.value }))} className="mt-1" />
-              </div>
-              <div>
-                <Label>Start Date</Label>
-                <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="mt-1" />
-              </div>
-              <Button onClick={addMember} disabled={saving} className="w-full">
-                {saving ? "Saving..." : "Add Board Member"}
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+            </DialogContent>
+          </Dialog>
+        )}
       </div>
+
+      {!canManageBoard && (
+        <p className="text-xs text-muted-foreground italic">Board member management is restricted to officers, trustees, and sovereign admins.</p>
+      )}
 
       {concept.boardMembers.length === 0 ? (
         <p className="text-sm text-muted-foreground">No board members assigned yet.</p>
@@ -267,14 +278,16 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
                 <p className="text-sm font-medium">{m.memberName}</p>
                 <p className="text-xs text-muted-foreground">{m.memberRole}{m.startDate ? ` · Since ${new Date(m.startDate).toLocaleDateString()}` : ""}</p>
               </div>
-              <Button
-                variant="ghost"
-                size="sm"
-                className="text-destructive hover:text-destructive"
-                onClick={() => removeMember(m.id)}
-              >
-                Remove
-              </Button>
+              {canManageBoard && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-destructive hover:text-destructive"
+                  onClick={() => removeMember(m.id)}
+                >
+                  Remove
+                </Button>
+              )}
             </div>
           ))}
         </div>
