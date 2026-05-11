@@ -17,11 +17,13 @@ interface AuthContextType {
   activeRole: Role;
   mode: AuthMode | null;
   sessionToken: string | null;
+  tokenExpiry: number | null;
   switchRole: (role: Role) => void;
   loginWithToken: (token: string) => boolean;
   loginWithSessionToken: (sessionToken: string, user: User) => void;
   loginWithDevRole: (role: Role) => void;
   logout: () => void;
+  renewSession: () => Promise<boolean>;
 }
 
 const DEV_USERS: Record<Role, User> = {
@@ -310,6 +312,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveSession({ user: u, mode: "dev", activeRole: role });
   }, []);
 
+  const renewSession = useCallback(async (): Promise<boolean> => {
+    const result = await silentRefresh();
+    return result !== null;
+  }, [silentRefresh]);
+
   const logout = useCallback(() => {
     sessionTokenRef.current = null;
     modeRef.current = null;
@@ -327,7 +334,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [mode]);
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout }}>
+    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, tokenExpiry, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout, renewSession }}>
       {children}
     </AuthContext.Provider>
   );

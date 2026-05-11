@@ -41,6 +41,7 @@ import AdminStubPage from "@/pages/admin-stub";
 import TribalIdPage from "@/pages/tribal-id";
 import M365IntegrationPage from "@/pages/m365-integration";
 import { ChatWidget } from "@/components/ChatWidget";
+import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -307,6 +308,7 @@ function AuthenticatedLayout() {
         <AppRouter />
       )}
       <AuthGatedChatWidget />
+      <SessionExpiryWarning />
       <Toaster />
     </>
   );
