@@ -35,6 +35,8 @@ export default function Login() {
     }
   }, [user, activeRole, nextPath, navigate]);
 
+  const sessionExpired = new URLSearchParams(window.location.search).get("expired") === "1";
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [passwordLoading, setPasswordLoading] = useState(false);
@@ -104,6 +106,11 @@ export default function Login() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-lg">
+        {sessionExpired && (
+          <div className="mb-5 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-300">
+            Your session expired — please sign in again.
+          </div>
+        )}
         <div className="text-center mb-8">
           <img
             src={`${import.meta.env.BASE_URL}tribal-seal.png`}

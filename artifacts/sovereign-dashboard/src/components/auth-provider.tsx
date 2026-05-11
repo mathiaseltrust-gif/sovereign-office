@@ -1,5 +1,5 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { setAuthTokenGetter } from "@workspace/api-client-react";
+import { setAuthTokenGetter, setUnauthorizedHandler } from "@workspace/api-client-react";
 
 export type Role = "trustee" | "officer" | "member" | "sovereign_admin" | "elder" | "medical_provider" | "visitor_media";
 
@@ -103,6 +103,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthTokenGetter(null);
     }
   }, [user, sessionToken]);
+
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      clearSession();
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+      window.location.assign(`${base}/login?expired=1`);
+    });
+    return () => setUnauthorizedHandler(null);
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
