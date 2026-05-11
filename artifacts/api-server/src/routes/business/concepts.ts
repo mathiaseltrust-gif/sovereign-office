@@ -9,6 +9,7 @@ import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { processIntake } from "../../sovereign/intake-pipeline";
+import { claimUpload } from "../../lib/pendingUploads";
 
 const router = Router();
 
@@ -249,11 +250,11 @@ router.post("/:id/documents", requireAuth, async (req, res, next) => {
     if (!filename) { res.status(400).json({ error: "filename is required" }); return; }
 
     if (fileKey !== undefined && fileKey !== null) {
-      const validPattern = /^\/objects\/[0-9a-f-]{36}(\/[^/]+)?$/i;
-      const privateDir = process.env.PRIVATE_OBJECT_DIR ?? "";
-      const prefixMatch = privateDir ? fileKey.startsWith(privateDir) || validPattern.test(fileKey) : validPattern.test(fileKey);
-      if (!prefixMatch) {
-        res.status(400).json({ error: "Invalid fileKey — must be a server-issued object path." });
+      const userId = String(req.user?.dbId ?? "");
+      const claimed = claimUpload(fileKey, userId);
+      if (!claimed) {
+        logger.warn({ userId, fileKey, conceptId }, "Document registration rejected: fileKey not in pending upload registry");
+        res.status(400).json({ error: "Invalid fileKey — must be a server-issued upload path for your account." });
         return;
       }
     }
@@ -299,6 +300,9 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
     ].join("\n");
 
     const userId = req.user?.dbId;
+    // Uses the shared processIntake() pipeline — the same implementation backing
+    // POST /api/intake/ai — to guarantee identical AI-engine behaviour, logging,
+    // and _meta structure across both entry points without HTTP round-trip overhead.
     const { report, meta } = await processIntake({
       text: intakeText,
       userId,

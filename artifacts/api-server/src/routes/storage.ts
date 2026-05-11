@@ -7,6 +7,7 @@ import { requireAuth } from "../auth/entra-guard";
 import { db } from "@workspace/db";
 import { businessDocumentsTable, businessConceptsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { registerUpload } from "../lib/pendingUploads";
 
 const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
 
@@ -46,7 +47,9 @@ router.post("/storage/uploads/request-url", requireAuth, async (req: Request, re
     const uploadURL = await objectStorageService.getObjectEntityUploadURL();
     const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
 
-    logger.info({ userId: req.user?.dbId, filename: name, size }, "Storage upload URL issued");
+    const userId = String(req.user?.dbId ?? "");
+    registerUpload(objectPath, userId);
+    logger.info({ userId, filename: name, size, objectPath }, "Storage upload URL issued and registered");
 
     res.json(
       RequestUploadUrlResponse.parse({
