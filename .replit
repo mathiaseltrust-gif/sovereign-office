@@ -1,4 +1,4 @@
-modules = ["nodejs-24", "python-3.11"]
+modules = ["nodejs-24", "python-3.11", "postgresql-16"]
 
 [deployment]
 router = "application"
@@ -47,3 +47,6 @@ externalPort = 3000
 
 [userenv.shared]
 M365_SERVICE_KEY = "e0c7f0e2fa39d120a9c15d363b932c022b3603d2faf85bec067ddde3af070762"
+
+[nix]
+channel = "stable-25_05"

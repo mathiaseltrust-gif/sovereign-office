@@ -34,6 +34,7 @@ import m365WebhookRouter from "./m365/webhook";
 import m365StatusRouter from "./m365/status";
 import lineageImportRouter from "./lineage/import";
 import lineageNodesRouter from "./lineage/nodes";
+import delegationsRouter from "./delegations/index";
 
 const router: IRouter = Router();
 
@@ -73,5 +74,6 @@ router.use("/m365", m365WebhookRouter);
 router.use("/m365", m365StatusRouter);
 router.use("/lineage/import", lineageImportRouter);
 router.use("/lineage/nodes", lineageNodesRouter);
+router.use("/delegations", delegationsRouter);
 
 export default router;

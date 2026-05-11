@@ -7,6 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
+import { DelegationPanel } from "@/components/DelegationPanel";
 
 interface ProfileData {
   user: Record<string, any>;
@@ -351,6 +352,13 @@ export default function ProfilePage() {
           Identity propagates to PDFs, court captions, welfare instruments, and ICWA notices automatically.
         </p>
       </div>
+
+      {/* Delegation of Authority — shown for officer, trustee, admin, chief_justice, elder roles */}
+      {user?.roles && user.roles.some((r: string) =>
+        ["officer", "trustee", "admin", "sovereign_admin", "chief_justice", "elder"].includes(r)
+      ) && (
+        <DelegationPanel />
+      )}
 
       {/* AI Recommendations */}
       {data?.recommendations && data.recommendations.length > 0 && (
