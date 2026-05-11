@@ -183,8 +183,8 @@ sovereign-postgres  running (healthy)   0.0.0.0:5432->5432/tcp
 ## 7. Verify every service is reachable
 
 ```bash
-# API health check
-curl -sf http://localhost:8080/api/health && echo "API OK"
+# API health check (endpoint is /api/healthz)
+curl -sf http://localhost:8080/api/healthz && echo "API OK"
 
 # Sovereign Dashboard (should return HTML)
 curl -sf -o /dev/null -w "%{http_code}" http://localhost:3001/
