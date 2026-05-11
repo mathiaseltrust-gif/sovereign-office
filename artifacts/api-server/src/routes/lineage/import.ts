@@ -74,7 +74,13 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
         if (existing.length > 0) {
           const existingId = existing[0].id;
           const existingVariants = Array.isArray(existing[0].nameVariants) ? (existing[0].nameVariants as string[]) : [];
-          const newVariants = [...new Set([...existingVariants])];
+          // Collect genuine incoming alternates: the matched fullName itself plus any extra
+          // variants the parser captured (GEDCOM alternate NAME lines, CSV alternate_name column).
+          const incomingVariants: string[] = [
+            person.fullName,
+            ...(person.nameVariants ?? []),
+          ].map((v) => v.trim()).filter(Boolean);
+          const newVariants = [...new Set([...existingVariants, ...incomingVariants])];
           await db.update(familyLineageTable).set({ nameVariants: newVariants, updatedAt: new Date() }).where(eq(familyLineageTable.id, existingId));
           nameToId.set(person.fullName.toLowerCase(), existingId);
           lineageIds.push(existingId);

@@ -22,6 +22,7 @@ export interface ParsedPerson {
   notes?: string;
   isDeceased?: boolean;
   generationalPosition?: number;
+  nameVariants?: string[];
 }
 
 export interface LineageGraph {
