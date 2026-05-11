@@ -44,6 +44,8 @@ import AdminLineageImportPage from "@/pages/admin-lineage-import";
 import BusinessCanvas from "@/pages/business-canvas";
 import BusinessCanvasWizard from "@/pages/business-canvas-wizard";
 import BusinessConceptDetail from "@/pages/business-canvas-detail";
+import OnboardingLineagePage from "@/pages/onboarding-lineage";
+import OnboardingPendingPage from "@/pages/onboarding-pending";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -75,8 +77,10 @@ function AuthGatedChatWidget() {
   return <ChatWidget />;
 }
 
+const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/notifications", "/dashboard/visitor", "/profile", "/login"]);
+
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { user } = useAuth();
+  const { user, lineagePending } = useAuth();
   const [location] = useLocation();
 
   if (!user) {
@@ -84,16 +88,24 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
     return <Redirect to={`/login?next=${returnTo}`} />;
   }
 
+  if (lineagePending && !PENDING_ALLOWED_PATHS.has(location)) {
+    return <Redirect to="/onboarding/pending" />;
+  }
+
   return <Component />;
 }
 
 function ProtectedParamRoute({ children }: { children: React.ReactNode }) {
-  const { user } = useAuth();
+  const { user, lineagePending } = useAuth();
   const [location] = useLocation();
 
   if (!user) {
     const returnTo = encodeURIComponent(location);
     return <Redirect to={`/login?next=${returnTo}`} />;
+  }
+
+  if (lineagePending && !PENDING_ALLOWED_PATHS.has(location)) {
+    return <Redirect to="/onboarding/pending" />;
   }
 
   return <>{children}</>;
@@ -248,6 +260,12 @@ function AppRouter() {
       </Route>
       <Route path="/business-canvas">
         {() => <ProtectedRoute component={BusinessCanvas} />}
+      </Route>
+      <Route path="/onboarding/lineage">
+        {() => <ProtectedRoute component={OnboardingLineagePage} />}
+      </Route>
+      <Route path="/onboarding/pending">
+        {() => <ProtectedRoute component={OnboardingPendingPage} />}
       </Route>
       <Route path="/doctrine">
         {() => (

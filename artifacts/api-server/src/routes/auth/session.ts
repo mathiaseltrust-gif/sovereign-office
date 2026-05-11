@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { createHmac } from "crypto";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
+import { usersTable, familyLineageTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
@@ -62,12 +62,23 @@ router.post("/refresh", async (req, res) => {
       return;
     }
 
+    const lineageNode = dbUser.entraId
+      ? await db.select({ id: familyLineageTable.id, membershipStatus: familyLineageTable.membershipStatus })
+          .from(familyLineageTable)
+          .where(eq(familyLineageTable.entraObjectId, dbUser.entraId))
+          .limit(1)
+          .then(r => r[0] ?? null)
+      : null;
+
+    const lineagePending = lineageNode !== null && lineageNode.membershipStatus === "pending";
+
     const freshToken = signSessionJwt({
       sub: String(dbUser.id),
       email: dbUser.email,
       name: dbUser.name,
       role: dbUser.role,
       type: "session",
+      lineagePending,
     });
 
     logger.info({ userId: dbUser.id }, "Session token refreshed");

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable } from "@workspace/db";
+import { familyLineageTable, notificationsTable, profilesTable } from "@workspace/db";
 import { eq, desc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 
@@ -51,6 +52,20 @@ router.get("/", requireAuth, async (req, res, next) => {
       .offset(offset);
 
     res.json({ nodes, page, limit, count: nodes.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/pending-reviews", requireAuth, requireRole("trustee"), async (req, res, next) => {
+  try {
+    const pending = await db
+      .select()
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.membershipStatus, "pending"))
+      .orderBy(desc(familyLineageTable.createdAt))
+      .limit(50);
+    res.json(pending);
   } catch (err) {
     next(err);
   }
@@ -352,6 +367,93 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
 
     const [updated] = await db.update(familyLineageTable).set(updates).where(eq(familyLineageTable.id, id)).returning();
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:id/verify", requireAuth, requireRole("trustee"), async (req, res, next) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [node] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!node) { res.status(404).json({ error: "Node not found" }); return; }
+    if (node.membershipStatus !== "pending") {
+      res.status(400).json({ error: "Node is not in pending status" });
+      return;
+    }
+
+    await db.update(familyLineageTable).set({
+      membershipStatus: "verified",
+      protectionLevel: "descendant",
+      updatedAt: new Date(),
+    }).where(eq(familyLineageTable.id, id));
+
+    if (node.linkedProfileUserId) {
+      await db
+        .insert(profilesTable)
+        .values({ userId: node.linkedProfileUserId, lineageVerified: true, membershipVerified: true })
+        .onConflictDoUpdate({
+          target: profilesTable.userId,
+          set: { lineageVerified: true, membershipVerified: true, updatedAt: new Date() },
+        });
+
+      await db.insert(notificationsTable).values({
+        userId: node.linkedProfileUserId,
+        channel: "dashboard",
+        category: "lineage_approved",
+        title: "Lineage Claim Approved",
+        message: "Your lineage claim has been reviewed and approved. You now have verified descendant membership.",
+        severity: "info",
+        relatedId: id,
+        relatedType: "family_lineage",
+        read: false,
+      });
+    }
+
+    logger.info({ nodeId: id, adminId: req.user?.dbId }, "Lineage node verified by admin");
+    res.json({ verified: true, nodeId: id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:id/reject", requireAuth, requireRole("trustee"), async (req, res, next) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [node] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!node) { res.status(404).json({ error: "Node not found" }); return; }
+
+    const reason = typeof (req.body as Record<string, unknown>).reason === "string"
+      ? (req.body as Record<string, unknown>).reason as string
+      : "Your lineage claim could not be verified at this time.";
+
+    await db.update(familyLineageTable).set({
+      membershipStatus: "rejected",
+      protectionLevel: "pending",
+      notes: `${node.notes ?? ""}\n[Rejected by admin: ${reason}]`.trim(),
+      updatedAt: new Date(),
+    }).where(eq(familyLineageTable.id, id));
+
+    if (node.linkedProfileUserId) {
+      await db.insert(notificationsTable).values({
+        userId: node.linkedProfileUserId,
+        channel: "dashboard",
+        category: "lineage_rejected",
+        title: "Lineage Claim Not Verified",
+        message: `Your lineage claim was reviewed and could not be verified. Reason: ${reason}`,
+        severity: "warning",
+        relatedId: id,
+        relatedType: "family_lineage",
+        read: false,
+      });
+    }
+
+    logger.info({ nodeId: id, adminId: req.user?.dbId }, "Lineage node rejected by admin");
+    res.json({ rejected: true, nodeId: id });
   } catch (err) {
     next(err);
   }

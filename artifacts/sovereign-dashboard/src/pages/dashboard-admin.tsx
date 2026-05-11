@@ -1,8 +1,112 @@
 import { useListInstruments, useListFilings, useListNfrs, useListTasks, useListComplaints } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
+import { useState } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useAuth } from "@/components/auth-provider";
+
+interface PendingLineageNode {
+  id: number;
+  fullName: string;
+  lastName: string | null;
+  sourceType: string;
+  createdAt: string;
+}
+
+function PendingLineageReviews() {
+  const { sessionToken } = useAuth();
+  const queryClient = useQueryClient();
+  const [actionState, setActionState] = useState<Record<number, "loading" | "done" | "error">>({});
+
+  const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+  const apiBase = base.replace(/\/sovereign-dashboard$/, "");
+
+  const { data: pendingNodes, isLoading } = useQuery<PendingLineageNode[]>({
+    queryKey: ["lineage-pending-reviews"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/api/lineage/nodes/pending-reviews`, {
+        headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
+      });
+      if (!res.ok) return [];
+      return res.json() as Promise<PendingLineageNode[]>;
+    },
+    staleTime: 30_000,
+  });
+
+  async function handleAction(nodeId: number, action: "verify" | "reject") {
+    setActionState((s) => ({ ...s, [nodeId]: "loading" }));
+    try {
+      const res = await fetch(`${apiBase}/api/lineage/nodes/${nodeId}/${action}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+        },
+        body: JSON.stringify(action === "reject" ? { reason: "Could not verify lineage claim at this time." } : {}),
+      });
+      if (!res.ok) throw new Error("Request failed");
+      setActionState((s) => ({ ...s, [nodeId]: "done" }));
+      void queryClient.invalidateQueries({ queryKey: ["lineage-pending-reviews"] });
+    } catch {
+      setActionState((s) => ({ ...s, [nodeId]: "error" }));
+    }
+  }
+
+  if (isLoading) return <Skeleton className="h-24 w-full" />;
+  const items = (pendingNodes ?? []).filter((n) => actionState[n.id] !== "done");
+
+  return (
+    <Card className={items.length > 0 ? "border-amber-400" : ""}>
+      <CardHeader className="flex flex-row items-center justify-between">
+        <CardTitle className="text-sm font-semibold uppercase tracking-widest">
+          Pending Lineage Reviews
+          {items.length > 0 && (
+            <Badge variant="outline" className="ml-2 text-amber-600 border-amber-400">{items.length}</Badge>
+          )}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        {items.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No pending lineage claims.</p>
+        ) : (
+          items.map((node) => (
+            <div key={node.id} className="flex items-center justify-between py-2 border-b last:border-0 gap-3">
+              <div className="min-w-0">
+                <p className="text-sm font-medium truncate">{node.fullName}</p>
+                <p className="text-xs text-muted-foreground">
+                  Claim #{node.id} · {new Date(node.createdAt).toLocaleDateString()}
+                </p>
+              </div>
+              <div className="flex gap-2 shrink-0">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-green-700 border-green-400 hover:bg-green-50"
+                  disabled={actionState[node.id] === "loading"}
+                  onClick={() => handleAction(node.id, "verify")}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="text-destructive border-destructive/40 hover:bg-destructive/5"
+                  disabled={actionState[node.id] === "loading"}
+                  onClick={() => handleAction(node.id, "reject")}
+                >
+                  Deny
+                </Button>
+              </div>
+            </div>
+          ))
+        )}
+      </CardContent>
+    </Card>
+  );
+}
 
 const ADMIN_SECTIONS = [
   { href: "/law", label: "Law Library", description: "Federal Indian Law, Tribal Law, Case Doctrines" },
@@ -82,6 +186,10 @@ export default function AdminDashboard() {
             </Link>
           ))}
         </div>
+      </div>
+
+      <div className="mb-6">
+        <PendingLineageReviews />
       </div>
 
       <Card>

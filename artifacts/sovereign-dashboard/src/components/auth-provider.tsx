@@ -19,6 +19,8 @@ interface AuthContextType {
   mode: AuthMode | null;
   sessionToken: string | null;
   tokenExpiry: number | null;
+  lineagePending: boolean;
+  setLineagePendingFlag: (pending: boolean) => void;
   switchRole: (role: Role) => void;
   loginWithToken: (token: string) => boolean;
   loginWithSessionToken: (sessionToken: string, user: User) => void;
@@ -90,6 +92,7 @@ interface StoredSession {
   activeRole: Role;
   sessionToken?: string;
   tokenExpiry?: number;
+  lineagePending?: boolean;
 }
 
 function loadSession(): StoredSession | null {
@@ -110,6 +113,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "member");
   const [sessionToken, setSessionToken] = useState<string | null>(saved?.sessionToken ?? null);
   const [tokenExpiry, setTokenExpiry] = useState<number | null>(saved?.tokenExpiry ?? null);
+  const [lineagePending, setLineagePending] = useState<boolean>(saved?.lineagePending ?? false);
 
   const sessionTokenRef = useRef<string | null>(saved?.sessionToken ?? null);
   const modeRef = useRef<AuthMode | null>(saved?.mode ?? null);
@@ -126,13 +130,24 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const applyNewToken = useCallback((newToken: string, newUser: User) => {
     const expiry = parseJwtExpiry(newToken) ?? Math.floor(Date.now() / 1000) + 60 * 60 * 8;
     const role = roleFromStrings(newUser.roles);
+
+    let pendingFromToken = false;
+    try {
+      const parts = newToken.split(".");
+      if (parts.length === 3) {
+        const p = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as { lineagePending?: boolean };
+        pendingFromToken = p.lineagePending === true;
+      }
+    } catch { /* ignore */ }
+
     sessionTokenRef.current = newToken;
     setSessionToken(newToken);
     setTokenExpiry(expiry);
     setUser(newUser);
     setActiveRole(role);
+    setLineagePending(pendingFromToken);
     const currentMode = modeRef.current ?? "password";
-    saveSession({ user: newUser, mode: currentMode, activeRole: role, sessionToken: newToken, tokenExpiry: expiry });
+    saveSession({ user: newUser, mode: currentMode, activeRole: role, sessionToken: newToken, tokenExpiry: expiry, lineagePending: pendingFromToken });
     const getter = () => newToken;
     _currentTokenGetter = getter;
     setAuthTokenGetter(getter);
@@ -247,11 +262,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (st) {
       let redirectNext: string | null = null;
+      let isFirstLogin = false;
       try {
         const parts = st.split(".");
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
-            sub?: string; email?: string; name?: string; role?: string; exp?: number;
+            sub?: string; email?: string; name?: string; role?: string; exp?: number; firstLogin?: boolean; lineagePending?: boolean;
           };
           if (payload.email) {
             const parsedDbId = Number(payload.sub);
@@ -264,21 +280,34 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             };
             const role = roleFromStrings(u.roles);
             const expiry = typeof payload.exp === "number" ? payload.exp : null;
+            isFirstLogin = payload.firstLogin === true;
+            const pendingFlag = payload.lineagePending === true;
             setUser(u);
             setMode("microsoft");
             setActiveRole(role);
             setSessionToken(st);
             setTokenExpiry(expiry);
-            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st, tokenExpiry: expiry ?? undefined });
-            redirectNext = sessionStorage.getItem("oauth_next");
-            sessionStorage.removeItem("oauth_next");
+            setLineagePending(pendingFlag);
+            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st, tokenExpiry: expiry ?? undefined, lineagePending: pendingFlag });
+            if (!isFirstLogin && !pendingFlag) {
+              redirectNext = sessionStorage.getItem("oauth_next");
+              sessionStorage.removeItem("oauth_next");
+            }
+            if (pendingFlag && !isFirstLogin) {
+              const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+              window.location.replace(`${base}/onboarding/pending`);
+              return;
+            }
           }
         }
       } catch { /* ignore malformed token */ }
       const clean = new URL(window.location.href);
       clean.searchParams.delete("session_token");
       clean.searchParams.delete("auth_error");
-      if (redirectNext && redirectNext.startsWith("/")) {
+      if (isFirstLogin) {
+        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+        window.location.replace(`${base}/onboarding/lineage`);
+      } else if (redirectNext && redirectNext.startsWith("/")) {
         const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
         window.location.replace(base + redirectNext);
       } else {
@@ -331,7 +360,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     modeRef.current = null;
     refreshPromiseRef.current = null;
     clearSession();
-    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null); setTokenExpiry(null);
+    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null); setTokenExpiry(null); setLineagePending(false);
     setAuthTokenGetter(null);
   }, []);
 
@@ -342,8 +371,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     saveSession({ user: u, mode: "dev", activeRole: role });
   }, [mode]);
 
+  const setLineagePendingFlag = useCallback((pending: boolean) => {
+    setLineagePending(pending);
+    const existing = loadSession();
+    if (existing) saveSession({ ...existing, lineagePending: pending });
+  }, []);
+
   return (
-    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, tokenExpiry, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout, renewSession }}>
+    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, tokenExpiry, lineagePending, setLineagePendingFlag, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout, renewSession }}>
       {children}
     </AuthContext.Provider>
   );
