@@ -91,6 +91,7 @@ export default function Login() {
       if (data.sessionToken && data.user) {
         loginWithSessionToken(data.sessionToken, {
           id: data.user.id,
+          dbId: data.user.id,
           email: data.user.email,
           name: data.user.name,
           roles: [data.user.role],

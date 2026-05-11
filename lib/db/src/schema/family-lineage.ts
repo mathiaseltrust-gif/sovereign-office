@@ -1,6 +1,7 @@
 import { pgTable, serial, integer, text, jsonb, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { usersTable } from "./users";
 
 export const familyLineageTable = pgTable("family_lineage", {
   id: serial("id").primaryKey(),
@@ -32,7 +33,7 @@ export const familyLineageTable = pgTable("family_lineage", {
   nameVariants: jsonb("name_variants").default([]),
   entraObjectId: varchar("entra_object_id", { length: 255 }),
   pendingReview: boolean("pending_review").default(false),
-  addedByMemberId: integer("added_by_member_id"),
+  addedByMemberId: integer("added_by_member_id").references(() => usersTable.id, { onDelete: "set null" }),
   supportingDocumentName: varchar("supporting_document_name", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

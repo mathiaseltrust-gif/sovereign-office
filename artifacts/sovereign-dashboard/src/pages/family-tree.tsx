@@ -665,7 +665,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             token={token}
             canEdit={canEdit}
             canApprove={canApprove}
-            currentUserId={user?.id ?? null}
+            currentUserId={user?.dbId ?? null}
             onClose={() => setSelectedNodeId(null)}
             onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
             onMerge={(n) => setMergingNode(n)}
@@ -728,7 +728,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
   token: string;
   canEdit: boolean;
   canApprove: boolean;
-  currentUserId?: number | string | null;
+  currentUserId?: number | null;
   onClose: () => void;
   onEdit: (node: LineageNode) => void;
   onMerge: (node: LineageNode) => void;
@@ -752,7 +752,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
     n.pendingReview &&
     n.addedByMemberId != null &&
     currentUserId != null &&
-    n.addedByMemberId === Number(currentUserId)
+    n.addedByMemberId === currentUserId
   );
 
   const editOwnMutation = useMutation({

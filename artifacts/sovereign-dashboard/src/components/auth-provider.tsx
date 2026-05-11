@@ -5,6 +5,7 @@ export type Role = "trustee" | "officer" | "member" | "sovereign_admin" | "elder
 
 export interface User {
   id: number | string;
+  dbId?: number;
   email: string;
   roles: string[];
   name: string;
@@ -159,6 +160,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const data = await res.json() as { sessionToken: string; user: { id: number; email: string; name: string; role: string } };
         const newUser: User = {
           id: data.user.id,
+          dbId: typeof data.user.id === "number" && data.user.id > 0 ? data.user.id : undefined,
           email: data.user.email,
           name: data.user.name,
           roles: [data.user.role],
@@ -252,8 +254,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             sub?: string; email?: string; name?: string; role?: string; exp?: number;
           };
           if (payload.email) {
+            const parsedDbId = Number(payload.sub);
             const u: User = {
               id: payload.sub ?? payload.email,
+              dbId: Number.isFinite(parsedDbId) && parsedDbId > 0 ? parsedDbId : undefined,
               email: payload.email,
               name: payload.name ?? payload.email,
               roles: [payload.role ?? "member"],
