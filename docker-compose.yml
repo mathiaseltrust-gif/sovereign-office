@@ -1,0 +1,103 @@
+# ============================================================================
+# Sovereign Office of the Chief Justice & Trustee — Docker Compose
+#
+# Quick start (after copying .env.example → .env and filling values):
+#   docker compose up --build
+#
+# Services:
+#   api        — Node.js API server              → http://localhost:8080
+#   sovereign  — Sovereign Office Dashboard      → http://localhost:3001
+#   trust      — Trust Instruments Dashboard     → http://localhost:3002
+#   postgres   — PostgreSQL 16 (local dev only)  → localhost:5432
+#
+# Production note: replace the postgres service with Azure Database for
+# PostgreSQL by setting DATABASE_URL to your Azure connection string and
+# removing (or commenting out) the postgres service and db volume below.
+# ============================================================================
+
+services:
+
+  # ── PostgreSQL (local / dev only) ──────────────────────────────────────────
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sovereign
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-changeme}
+      POSTGRES_DB: sovereign_office
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sovereign -d sovereign_office"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── API Server ──────────────────────────────────────────────────────────────
+  api:
+    build:
+      context: .
+      dockerfile: artifacts/api-server/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL:-postgresql://sovereign:changeme@postgres:5432/sovereign_office}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SERVICE_KEY: ${SERVICE_KEY}
+      APP_URL: ${APP_URL:-http://localhost:8080}
+      # Azure Entra / Active Directory (SSO)
+      AZURE_ENTRA_TENANT_ID: ${AZURE_ENTRA_TENANT_ID}
+      AZURE_ENTRA_CLIENT_ID: ${AZURE_ENTRA_CLIENT_ID}
+      AZURE_ENTRA_CLIENT_SECRET: ${AZURE_ENTRA_CLIENT_SECRET}
+      # Azure OpenAI
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
+      # Optional
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      M365_SERVICE_KEY: ${M365_SERVICE_KEY:-}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8080/api/health', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # ── Sovereign Office Dashboard ──────────────────────────────────────────────
+  sovereign:
+    build:
+      context: .
+      dockerfile: artifacts/sovereign-dashboard/Dockerfile
+      args:
+        BASE_PATH: /
+        VITE_API_URL: ${APP_URL:-http://localhost:8080}
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      - api
+
+  # ── Trust Instruments Dashboard ─────────────────────────────────────────────
+  trust:
+    build:
+      context: .
+      dockerfile: artifacts/trust-dashboard/Dockerfile
+      args:
+        BASE_PATH: /
+        VITE_API_URL: ${APP_URL:-http://localhost:8080}
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    depends_on:
+      - api
+
+volumes:
+  db_data:

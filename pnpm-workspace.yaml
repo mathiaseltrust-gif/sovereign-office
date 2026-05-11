@@ -75,7 +75,14 @@ onlyBuiltDependencies:
   - unrs-resolver
 
 overrides:
-  # replit uses linux-x64 only, we can exclude all other platforms
+  # Platform binary exclusions — keep ONLY linux-x64 (GNU/glibc) binaries.
+  #
+  # This is correct for both Replit (NixOS, linux-x64) AND standard Azure Linux
+  # VMs / Docker images based on Debian/Ubuntu (also linux-x64, glibc).
+  #
+  # NOTE FOR DOCKER: use node:22-slim (Debian) or ubuntu-based images, NOT Alpine.
+  # Alpine uses musl libc and would need the *-linux-x64-musl variants, which are
+  # excluded below. The Dockerfiles in this repo use node:22-slim intentionally.
   "esbuild>@esbuild/darwin-arm64": "-"
   "esbuild>@esbuild/darwin-x64": "-"
   "esbuild>@esbuild/freebsd-arm64": "-"
