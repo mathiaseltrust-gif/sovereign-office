@@ -7,7 +7,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
 
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
+function makeDevToken(user: unknown) { return btoa(JSON.stringify(user)); }
 
 interface ImportResult {
   format: string;
@@ -61,12 +61,14 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminLineageImportPage() {
-  const { user } = useAuth();
+  const { user, sessionToken } = useAuth();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<string>("");
-  const token = makeToken(user);
+  // Prefer the signed session JWT (Microsoft/password sign-in); fall back to
+  // the unsigned dev token only in dev mode when sessionToken is unavailable.
+  const token = sessionToken ?? makeDevToken(user);
 
   const { data: nodesData, isLoading: nodesLoading, refetch } = useQuery<{ nodes: LineageNode[]; count: number }>({
     queryKey: ["lineage-nodes"],

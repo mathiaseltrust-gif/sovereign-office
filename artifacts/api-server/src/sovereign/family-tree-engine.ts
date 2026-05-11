@@ -208,21 +208,30 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
   const headerLine = lines[0].toLowerCase();
   const headers = headerLine.split(",").map((h) => h.trim().replace(/^"|"$/g, ""));
 
-  const col = (h: string) => headers.indexOf(h);
+  // Try multiple header aliases (all already lowercased in `headers`)
+  const col = (...names: string[]) => {
+    for (const n of names) {
+      const idx = headers.indexOf(n);
+      if (idx >= 0) return idx;
+    }
+    return -1;
+  };
 
-  const nameIdx = col("name") >= 0 ? col("name") : col("full_name");
-  const firstIdx = col("first_name");
-  const lastIdx = col("last_name");
-  const birthIdx = col("birth_year");
-  const deathIdx = col("death_year");
-  const genderIdx = col("gender");
-  const tribalIdx = col("tribal_nation") >= 0 ? col("tribal_nation") : col("tribe");
-  const enrollIdx = col("enrollment_number") >= 0 ? col("enrollment_number") : col("tribal_enrollment_number");
-  const parentIdx = col("parent_names") >= 0 ? col("parent_names") : col("parents");
-  const spouseIdx = col("spouse_names") >= 0 ? col("spouse_names") : col("spouses");
-  const notesIdx = col("notes");
-  const genIdx = col("generation") >= 0 ? col("generation") : col("generational_position");
-  const deceasedIdx = col("deceased") >= 0 ? col("deceased") : col("is_deceased");
+  const nameIdx   = col("name", "full_name", "fullname", "full name");
+  const firstIdx  = col("first_name", "firstname", "first");
+  const lastIdx   = col("last_name", "lastname", "last", "surname");
+  // birth: accept birth_year, birthyear, birth_date, birthdate — extract year from date strings below
+  const birthIdx  = col("birth_year", "birthyear", "birth_date", "birthdate", "birth", "dob", "date_of_birth", "dateofbirth");
+  const deathIdx  = col("death_year", "deathyear", "death_date", "deathdate", "death", "dod", "date_of_death", "dateofdeath");
+  const birthPlaceIdx = col("birth_place", "birthplace", "place_of_birth", "placeofbirth", "birth_location");
+  const genderIdx = col("gender", "sex");
+  const tribalIdx = col("tribal_nation", "tribe", "nation", "tribal nation");
+  const enrollIdx = col("enrollment_number", "tribal_enrollment_number", "enrollmentnumber", "enrollment");
+  const parentIdx = col("parent_names", "parents", "parent_name", "parentname", "parentnames", "parent");
+  const spouseIdx = col("spouse_names", "spouses", "spouse_name", "spousename", "spousenames", "spouse");
+  const notesIdx  = col("notes", "note", "comments", "comment");
+  const genIdx    = col("generation", "generational_position", "generationalposition", "gen");
+  const deceasedIdx = col("deceased", "is_deceased", "isdeceased", "dead");
 
   const people: ParsedPerson[] = [];
 
@@ -246,8 +255,15 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
     const lastName =
       lastIdx >= 0 ? get(lastIdx) : nameParts.length > 1 ? nameParts.slice(1).join(" ") : "";
 
-    const birthYear = birthIdx >= 0 && get(birthIdx) ? parseInt(get(birthIdx), 10) : undefined;
-    const deathYear = deathIdx >= 0 && get(deathIdx) ? parseInt(get(deathIdx), 10) : undefined;
+    // Extract a 4-digit year from either a plain year ("1935") or a date string ("1935-04-15", "April 15 1935")
+    const extractYear = (raw: string): number | undefined => {
+      if (!raw) return undefined;
+      const yearMatch = raw.match(/\b(1[5-9]\d\d|20\d\d)\b/);
+      return yearMatch ? parseInt(yearMatch[1], 10) : undefined;
+    };
+    const birthYear = birthIdx >= 0 ? extractYear(get(birthIdx)) : undefined;
+    const deathYear = deathIdx >= 0 ? extractYear(get(deathIdx)) : undefined;
+    const birthPlace = birthPlaceIdx >= 0 ? get(birthPlaceIdx) : undefined;
     const genPos = genIdx >= 0 && get(genIdx) ? parseInt(get(genIdx), 10) : undefined;
     const deceased =
       deceasedIdx >= 0
@@ -271,7 +287,7 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
       tribalEnrollmentNumber: enrollIdx >= 0 && get(enrollIdx) ? get(enrollIdx) : undefined,
       parentNames,
       spouseNames,
-      notes: notesIdx >= 0 && get(notesIdx) ? get(notesIdx) : undefined,
+      notes: [notesIdx >= 0 ? get(notesIdx) : "", birthPlace ? `b. ${birthPlace}` : ""].filter(Boolean).join("; ") || undefined,
       isDeceased: deceased,
       generationalPosition: genPos !== undefined && !isNaN(genPos) ? genPos : undefined,
     });

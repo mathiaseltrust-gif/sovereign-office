@@ -22,6 +22,8 @@ const upload = multer({
   },
 });
 
+// requireRole("trustee") accepts trustee (80), admin (100), and chief_justice (110).
+// sovereign_admin is a UI label that maps to the "admin" DB role (level 100) — it passes.
 router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) {
