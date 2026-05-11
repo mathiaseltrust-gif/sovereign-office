@@ -200,6 +200,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
       const currentPath = window.location.pathname + window.location.search;
       const appPath = base ? currentPath.replace(new RegExp(`^${base}`), "") : currentPath;
+      if (appPath && appPath !== "/") {
+        sessionStorage.setItem("oauth_next", appPath);
+      } else {
+        sessionStorage.removeItem("oauth_next");
+      }
       const next = appPath && appPath !== "/" ? `&next=${encodeURIComponent(appPath)}` : "";
       window.location.assign(`${base}/login?expired=1${next}`);
     });
