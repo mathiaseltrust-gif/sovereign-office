@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useIsTrustee } from "@/components/auth-provider";
+import { useAuth, useIsTrustee, useIsOfficer } from "@/components/auth-provider";
 
 type Tab = "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
 
@@ -38,6 +38,9 @@ interface LineageNode {
   parentIds?: number[] | null;
   childrenIds?: number[] | null;
   spouseIds?: number[] | null;
+  pendingReview?: boolean | null;
+  addedByMemberId?: number | null;
+  supportingDocumentName?: string | null;
   createdAt?: string;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
@@ -290,6 +293,7 @@ export default function FamilyTreePage() {
 function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; canEdit: boolean; onDataChange: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const canApprove = useIsOfficer();
 
   const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
     queryKey: ["lineage-nodes"],
@@ -310,6 +314,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -450,6 +455,9 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             + Add Person
           </Button>
         )}
+        <Button size="sm" variant="secondary" onClick={() => setShowMemberAddModal(true)}>
+          + Add My Family
+        </Button>
         {canEdit && (
           <>
             <input
@@ -567,7 +575,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
               {canEdit && (
                 <Button onClick={() => setShowAddModal(true)}>Add the first person</Button>
               )}
-              {!canEdit && <p className="text-sm">Ask an admin to import or add records.</p>}
+              <Button variant="secondary" onClick={() => setShowMemberAddModal(true)}>Add My Family Member</Button>
             </div>
           )}
 
@@ -635,7 +643,10 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
                       {node.deathYear && <span>d.{node.deathYear}</span>}
                     </div>
                     <div className="flex items-center gap-1 flex-wrap">
-                      {protectionBadge(node.protectionLevel)}
+                      {node.pendingReview && (
+                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-200 text-yellow-900 border border-yellow-400">Pending Review</span>
+                      )}
+                      {!node.pendingReview && protectionBadge(node.protectionLevel)}
                       {node.linkedProfileUserId && (
                         <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" title="Linked user profile" />
                       )}
@@ -652,6 +663,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             node={selectedNode}
             token={token}
             canEdit={canEdit}
+            canApprove={canApprove}
             onClose={() => setSelectedNodeId(null)}
             onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
             onMerge={(n) => setMergingNode(n)}
@@ -691,19 +703,35 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
           }}
         />
       )}
+
+      {showMemberAddModal && (
+        <MemberAddFamilyModal
+          token={token}
+          allNodes={nodes}
+          onClose={() => setShowMemberAddModal(false)}
+          onSuccess={() => {
+            setShowMemberAddModal(false);
+            queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+            onDataChange();
+            toast({ title: "Family member submitted", description: "Your submission is pending review by an administrator." });
+          }}
+        />
+      )}
     </div>
   );
 }
 
-function NodeDetailPanel({ node, token, canEdit, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, token, canEdit, canApprove, onClose, onEdit, onMerge, onRefresh }: {
   node: PositionedNode;
   token: string;
   canEdit: boolean;
+  canApprove: boolean;
   onClose: () => void;
   onEdit: (node: LineageNode) => void;
   onMerge: (node: LineageNode) => void;
   onRefresh: () => void;
 }) {
+  const { toast } = useToast();
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
     queryFn: async () => {
@@ -798,6 +826,54 @@ function NodeDetailPanel({ node, token, canEdit, onClose, onEdit, onMerge, onRef
             </div>
           )}
 
+          {n.pendingReview && canApprove && (
+            <div className="border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 rounded-md p-3 space-y-2">
+              <p className="text-xs font-semibold text-yellow-900 dark:text-yellow-300 uppercase tracking-widest">Pending Review</p>
+              {n.supportingDocumentName && (
+                <p className="text-xs text-muted-foreground">Document: <span className="font-medium">{n.supportingDocumentName}</span></p>
+              )}
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                  onClick={async () => {
+                    const r = await fetch(`/api/lineage/nodes/${n.id}/approve`, {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                      body: JSON.stringify({ membershipStatus: "descendant" }),
+                    });
+                    if (r.ok) { toast({ title: "Approved", description: `${n.fullName} has been approved.` }); onRefresh(); }
+                    else { const d = await r.json(); toast({ title: "Error", description: d.error, variant: "destructive" }); }
+                  }}
+                >
+                  Approve
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={async () => {
+                    const r = await fetch(`/api/lineage/nodes/${n.id}/reject`, {
+                      method: "POST",
+                      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                      body: JSON.stringify({ reason: "Does not meet membership criteria" }),
+                    });
+                    if (r.ok) { toast({ title: "Rejected", description: `${n.fullName}'s submission has been rejected.` }); onRefresh(); onClose(); }
+                    else { const d = await r.json(); toast({ title: "Error", description: d.error, variant: "destructive" }); }
+                  }}
+                >
+                  Reject
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {n.pendingReview && !canApprove && (
+            <div className="border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 rounded-md px-3 py-2">
+              <p className="text-xs text-yellow-900 dark:text-yellow-300 font-medium">Awaiting officer review</p>
+            </div>
+          )}
+
           {canEdit && (
             <div className="flex gap-2 pt-2">
               <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(n)}>Edit</Button>
@@ -806,6 +882,188 @@ function NodeDetailPanel({ node, token, canEdit, onClose, onEdit, onMerge, onRef
           )}
         </div>
       )}
+    </div>
+  );
+}
+
+function MemberAddFamilyModal({ token, allNodes, onClose, onSuccess }: {
+  token: string;
+  allNodes: LineageNode[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [form, setForm] = useState({
+    fullName: "",
+    firstName: "",
+    lastName: "",
+    birthYear: "",
+    gender: "",
+    tribalNation: "",
+    relationshipType: "child",
+    supportingDocumentName: "",
+    parentSearch: "",
+    selectedParentIds: [] as number[],
+  });
+
+  const f = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const parentSearchResults = useMemo(() => {
+    const q = form.parentSearch.toLowerCase().trim();
+    if (!q) return [] as LineageNode[];
+    return allNodes.filter((n) => n.fullName.toLowerCase().includes(q)).slice(0, 8);
+  }, [form.parentSearch, allNodes]);
+
+  const selectedParents = useMemo(() =>
+    allNodes.filter((n) => form.selectedParentIds.includes(n.id)), [allNodes, form.selectedParentIds]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const body: Record<string, unknown> = {
+        fullName: form.fullName,
+        firstName: form.firstName || undefined,
+        lastName: form.lastName || undefined,
+        birthYear: form.birthYear ? parseInt(form.birthYear, 10) : undefined,
+        gender: form.gender || undefined,
+        tribalNation: form.tribalNation || undefined,
+        relationshipType: form.relationshipType,
+        parentIds: form.selectedParentIds,
+        supportingDocumentName: form.supportingDocumentName || undefined,
+      };
+      const r = await fetch("/api/lineage/nodes/member", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Submission failed");
+      return r.json();
+    },
+    onSuccess,
+    onError: (err: Error) => { void err; },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: "90vh" }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <div>
+            <h2 className="font-semibold text-base">Add My Family Member</h2>
+            <p className="text-xs text-muted-foreground mt-0.5">Your submission will be reviewed by an officer or administrator.</p>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <Label>Full Name <span className="text-destructive">*</span></Label>
+            <Input className="mt-1" value={form.fullName} onChange={f("fullName")} placeholder="Full legal name" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>First Name</Label>
+              <Input className="mt-1" value={form.firstName} onChange={f("firstName")} placeholder="Given name" />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input className="mt-1" value={form.lastName} onChange={f("lastName")} placeholder="Family name" />
+            </div>
+            <div>
+              <Label>Birth Year</Label>
+              <Input className="mt-1" type="number" value={form.birthYear} onChange={f("birthYear")} placeholder="e.g. 2005" />
+            </div>
+            <div>
+              <Label>Gender</Label>
+              <select value={form.gender} onChange={f("gender")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+                <option value="">Unknown</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+          </div>
+
+          <div>
+            <Label>Tribal Nation</Label>
+            <Input className="mt-1" value={form.tribalNation} onChange={f("tribalNation")} placeholder="e.g. Mathias El Tribe" />
+          </div>
+
+          <div>
+            <Label>Relationship to You <span className="text-destructive">*</span></Label>
+            <select value={form.relationshipType} onChange={f("relationshipType")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+              <option value="child">Child (biological)</option>
+              <option value="parent">Parent (biological)</option>
+              <option value="sibling">Sibling (biological)</option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">For adoptions, guardianships, or other relationships requiring documentation — contact an administrator for the full intake process.</p>
+          </div>
+
+          <div>
+            <Label>Link to Existing Member (optional)</Label>
+            <Input
+              className="mt-1"
+              value={form.parentSearch}
+              onChange={f("parentSearch")}
+              placeholder="Search by name to link as parent…"
+            />
+            {parentSearchResults.length > 0 && (
+              <div className="border rounded-md mt-1 bg-card divide-y max-h-36 overflow-y-auto">
+                {parentSearchResults.map((n) => (
+                  <button
+                    key={n.id}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                    onClick={() => {
+                      if (!form.selectedParentIds.includes(n.id)) {
+                        setForm((prev) => ({ ...prev, selectedParentIds: [...prev.selectedParentIds, n.id], parentSearch: "" }));
+                      } else {
+                        setForm((prev) => ({ ...prev, parentSearch: "" }));
+                      }
+                    }}
+                  >
+                    {n.fullName}{n.birthYear ? ` (b.${n.birthYear})` : ""}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedParents.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedParents.map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => setForm((prev) => ({ ...prev, selectedParentIds: prev.selectedParentIds.filter((id) => id !== p.id) }))}
+                  >
+                    {p.fullName} ✕
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <div>
+            <Label>Supporting Document (optional)</Label>
+            <Input
+              className="mt-1"
+              value={form.supportingDocumentName}
+              onChange={f("supportingDocumentName")}
+              placeholder="e.g. Birth Certificate, Adoption Order…"
+            />
+            <p className="text-xs text-muted-foreground mt-1">Enter the document name or type. Physical documents can be presented to an officer for verification.</p>
+          </div>
+
+          {saveMutation.isError && (
+            <p className="text-sm text-destructive">{(saveMutation.error as Error).message}</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t shrink-0">
+          <Button onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.fullName} className="flex-1">
+            {saveMutation.isPending ? "Submitting…" : "Submit for Review"}
+          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+        </div>
+      </div>
     </div>
   );
 }

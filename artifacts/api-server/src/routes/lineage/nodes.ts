@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
 import { eq, desc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { hasRole } from "../../sovereign/authority";
 
 const router = Router();
 
@@ -39,6 +40,9 @@ router.get("/", requireAuth, async (req, res, next) => {
         linkedProfileUserId: familyLineageTable.linkedProfileUserId,
         lineageTags: familyLineageTable.lineageTags,
         notes: familyLineageTable.notes,
+        pendingReview: familyLineageTable.pendingReview,
+        addedByMemberId: familyLineageTable.addedByMemberId,
+        supportingDocumentName: familyLineageTable.supportingDocumentName,
         createdAt: familyLineageTable.createdAt,
       })
       .from(familyLineageTable)
@@ -84,6 +88,130 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     const [parents, children] = await Promise.all([resolveNames(parentIds), resolveNames(childrenIds)]);
 
     res.json({ ...node, _parents: parents, _children: children });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Member self-add route (any authenticated user) ───────────────────────
+router.post("/member", requireAuth, async (req, res, next) => {
+  try {
+    const {
+      fullName, firstName, lastName, birthYear, gender,
+      tribalNation, relationshipType, parentIds, supportingDocumentName,
+    } = req.body as Record<string, unknown>;
+
+    if (!fullName || typeof fullName !== "string") {
+      res.status(400).json({ error: "fullName is required" });
+      return;
+    }
+
+    const validRelationships = ["child", "parent", "sibling"];
+    if (!relationshipType || !validRelationships.includes(String(relationshipType))) {
+      res.status(400).json({ error: "relationshipType must be one of: child, parent, sibling" });
+      return;
+    }
+
+    const pIds: number[] = Array.isArray(parentIds) ? (parentIds as number[]) : [];
+    const callerId = req.user?.dbId ?? null;
+
+    const [node] = await db
+      .insert(familyLineageTable)
+      .values({
+        fullName,
+        firstName: typeof firstName === "string" ? firstName : undefined,
+        lastName: typeof lastName === "string" ? lastName : undefined,
+        birthYear: typeof birthYear === "number" ? birthYear : undefined,
+        gender: typeof gender === "string" ? gender : undefined,
+        tribalNation: typeof tribalNation === "string" ? tribalNation : undefined,
+        notes: `Relationship: ${relationshipType}`,
+        parentIds: pIds,
+        childrenIds: [],
+        spouseIds: [],
+        protectionLevel: "pending",
+        membershipStatus: "pending",
+        nameVariants: [],
+        isDeceased: false,
+        isAncestor: false,
+        sourceType: "member_self",
+        pendingReview: true,
+        addedByMemberId: callerId,
+        supportingDocumentName: typeof supportingDocumentName === "string" ? supportingDocumentName : undefined,
+      })
+      .returning();
+
+    for (const parentId of pIds) {
+      const [parent] = await db.select({ childrenIds: familyLineageTable.childrenIds }).from(familyLineageTable).where(eq(familyLineageTable.id, parentId)).limit(1);
+      if (parent) {
+        const existing = Array.isArray(parent.childrenIds) ? (parent.childrenIds as number[]) : [];
+        if (!existing.includes(node.id)) {
+          await db.update(familyLineageTable).set({ childrenIds: [...existing, node.id] }).where(eq(familyLineageTable.id, parentId));
+        }
+      }
+    }
+
+    res.status(201).json(node);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Approve a pending member-submitted node ───────────────────────────────
+router.post("/:id/approve", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user || !hasRole(req.user.roles, "officer")) {
+      res.status(403).json({ error: "Only officers, trustees, elders, and admins can approve submissions." });
+      return;
+    }
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
+    if (!existing.pendingReview) { res.status(400).json({ error: "Node is not pending review" }); return; }
+
+    const body = req.body as Record<string, unknown>;
+    const membershipStatus = typeof body.membershipStatus === "string" ? body.membershipStatus : "descendant";
+
+    const [updated] = await db.update(familyLineageTable)
+      .set({ pendingReview: false, membershipStatus, protectionLevel: "descendant", updatedAt: new Date() })
+      .where(eq(familyLineageTable.id, id))
+      .returning();
+
+    res.json({ approved: true, node: updated });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Reject a pending member-submitted node ────────────────────────────────
+router.post("/:id/reject", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user || !hasRole(req.user.roles, "officer")) {
+      res.status(403).json({ error: "Only officers, trustees, elders, and admins can reject submissions." });
+      return;
+    }
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
+    if (!existing.pendingReview) { res.status(400).json({ error: "Node is not pending review" }); return; }
+
+    const body = req.body as Record<string, unknown>;
+    const rejectionNote = typeof body.reason === "string" ? body.reason : "Rejected by administrator";
+
+    const [updated] = await db.update(familyLineageTable)
+      .set({
+        sourceType: "archived",
+        pendingReview: false,
+        notes: `${existing.notes ?? ""}\n[Rejected: ${rejectionNote}]`.trim(),
+        updatedAt: new Date(),
+      })
+      .where(eq(familyLineageTable.id, id))
+      .returning();
+
+    res.json({ rejected: true, node: updated });
   } catch (err) {
     next(err);
   }

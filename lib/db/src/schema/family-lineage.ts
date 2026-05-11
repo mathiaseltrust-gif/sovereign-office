@@ -31,6 +31,9 @@ export const familyLineageTable = pgTable("family_lineage", {
   membershipStatus: varchar("membership_status", { length: 50 }).default("pending"),
   nameVariants: jsonb("name_variants").default([]),
   entraObjectId: varchar("entra_object_id", { length: 255 }),
+  pendingReview: boolean("pending_review").default(false),
+  addedByMemberId: integer("added_by_member_id"),
+  supportingDocumentName: varchar("supporting_document_name", { length: 500 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
