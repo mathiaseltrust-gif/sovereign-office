@@ -1,0 +1,111 @@
+# =============================================================================
+# Sovereign Office of the Chief Justice & Trustee
+# PRODUCTION Docker Compose
+#
+# Usage:
+#   docker compose -f docker-compose.prod.yml up -d
+#
+# Prerequisites:
+#   - .env file filled out (copy from .env.template)
+#   - Images pushed to ACR via 2-build-push.sh
+#   - OR: remove the image: lines and add build: lines to build locally
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL — built-in database container
+  # Remove/comment this service if USE_AZURE_DB=true (using Azure Managed DB)
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: sovereign
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: sovereign_office
+    volumes:
+      - db_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U sovereign -d sovereign_office"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles:
+      - local-db
+
+  # ---------------------------------------------------------------------------
+  # API Server — all backend logic, authentication, database, AI
+  # Accessible at: http://YOUR-SERVER:8080
+  # ---------------------------------------------------------------------------
+  api:
+    image: ${ACR_REGISTRY}/sovereign-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      NODE_ENV: production
+      DATABASE_URL: ${DATABASE_URL}
+      SESSION_SECRET: ${SESSION_SECRET}
+      SERVICE_KEY: ${SERVICE_KEY}
+      M365_SERVICE_KEY: ${M365_SERVICE_KEY:-}
+      APP_URL: ${APP_URL}
+      SOVEREIGN_DASHBOARD_URL: ${SOVEREIGN_DASHBOARD_URL}
+      AZURE_ENTRA_TENANT_ID: ${AZURE_ENTRA_TENANT_ID}
+      AZURE_ENTRA_CLIENT_ID: ${AZURE_ENTRA_CLIENT_ID}
+      AZURE_ENTRA_CLIENT_SECRET: ${AZURE_ENTRA_CLIENT_SECRET}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8080/api/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # ---------------------------------------------------------------------------
+  # Sovereign Office Dashboard — staff portal with Microsoft SSO
+  # Accessible at: http://YOUR-SERVER:3001
+  # ---------------------------------------------------------------------------
+  sovereign:
+    image: ${ACR_REGISTRY}/sovereign-dashboard:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Trust Instruments Dashboard
+  # Accessible at: http://YOUR-SERVER:3002
+  # ---------------------------------------------------------------------------
+  trust:
+    image: ${ACR_REGISTRY}/trust-dashboard:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # Family & Community Dashboard — public-facing portal
+  # Accessible at: http://YOUR-SERVER:3003
+  # ---------------------------------------------------------------------------
+  community:
+    image: ${ACR_REGISTRY}/community-dashboard:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  db_data:

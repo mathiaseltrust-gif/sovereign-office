@@ -12,3 +12,9 @@ id = "kK9zlv3dkXlqBVEr1q1ps"
 uri = "file://sovereign-office-export.zip"
 type = "unspecified"
 title = "Sovereign Office — Full Project Export (77 MB)"
+
+[[outputs]]
+id = "9HEZceNb87vC90RzSfEaW"
+uri = "file://sovereign-office-deploy.zip"
+type = "unspecified"
+title = "Sovereign Office — Azure Deployment Package"
