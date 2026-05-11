@@ -18,6 +18,7 @@ const DEFAULT_JSON_ACCEPT = "application/json, application/problem+json";
 let _baseUrl: string | null = null;
 let _authTokenGetter: AuthTokenGetter | null = null;
 let _unauthorizedHandler: (() => void) | null = null;
+let _refreshHandler: (() => Promise<string | null>) | null = null;
 
 /**
  * Register a callback that is invoked whenever a 401 Unauthorized response
@@ -26,6 +27,17 @@ let _unauthorizedHandler: (() => void) | null = null;
  */
 export function setUnauthorizedHandler(handler: (() => void) | null): void {
   _unauthorizedHandler = handler;
+}
+
+/**
+ * Register an async callback that attempts to silently refresh the session
+ * token.  When set, a 401 response will trigger one refresh attempt and then
+ * retry the original request with the new token before calling the
+ * unauthorized handler.  Return `null` from the handler to signal that the
+ * refresh failed.  Pass `null` to unregister.
+ */
+export function setRefreshHandler(handler: (() => Promise<string | null>) | null): void {
+  _refreshHandler = handler;
 }
 
 /**
@@ -374,8 +386,32 @@ export async function customFetch<T = unknown>(
 
   if (!response.ok) {
     const errorData = await parseErrorBody(response, method);
-    if (response.status === 401 && _unauthorizedHandler) {
-      _unauthorizedHandler();
+    if (response.status === 401) {
+      const url = resolveUrl(input);
+      const isRefreshEndpoint = url.includes("/auth/refresh");
+      if (_refreshHandler && !isRefreshEndpoint) {
+        try {
+          const newToken = await _refreshHandler();
+          if (newToken) {
+            const retryHeaders = new Headers(headers);
+            retryHeaders.set("authorization", `Bearer ${newToken}`);
+            const retryResponse = await fetch(input, { ...init, method, headers: retryHeaders });
+            if (retryResponse.ok) {
+              return (await parseSuccessBody(retryResponse, responseType, requestInfo)) as T;
+            }
+            const retryErrorData = await parseErrorBody(retryResponse, method);
+            if (retryResponse.status === 401 && _unauthorizedHandler) {
+              _unauthorizedHandler();
+            }
+            throw new ApiError(retryResponse, retryErrorData, requestInfo);
+          }
+        } catch (err) {
+          if (err instanceof ApiError) throw err;
+        }
+      }
+      if (_unauthorizedHandler) {
+        _unauthorizedHandler();
+      }
     }
     throw new ApiError(response, errorData, requestInfo);
   }

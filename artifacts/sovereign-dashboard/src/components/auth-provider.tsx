@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
-import { setAuthTokenGetter, setUnauthorizedHandler } from "@workspace/api-client-react";
+import { createContext, useContext, useState, useEffect, useCallback, useRef } from "react";
+import { setAuthTokenGetter, setUnauthorizedHandler, setRefreshHandler } from "@workspace/api-client-react";
 
 export type Role = "trustee" | "officer" | "member" | "sovereign_admin" | "elder" | "medical_provider" | "visitor_media";
 
@@ -70,11 +70,23 @@ function roleFromStrings(roles: string[]): Role {
   return ROLE_MAP[best.r] ?? "member";
 }
 
+function parseJwtExpiry(token: string): number | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as { exp?: number };
+    return typeof payload.exp === "number" ? payload.exp : null;
+  } catch {
+    return null;
+  }
+}
+
 interface StoredSession {
   user: User;
   mode: AuthMode;
   activeRole: Role;
   sessionToken?: string;
+  tokenExpiry?: number;
 }
 
 function loadSession(): StoredSession | null {
@@ -82,6 +94,9 @@ function loadSession(): StoredSession | null {
 }
 function saveSession(s: StoredSession) { localStorage.setItem(LS_KEY, JSON.stringify(s)); }
 function clearSession() { localStorage.removeItem(LS_KEY); }
+
+const REFRESH_THRESHOLD_SECS = 10 * 60;
+const POLL_INTERVAL_MS = 5 * 60 * 1000;
 
 const AuthContext = createContext<AuthContextType | null>(null);
 
@@ -91,6 +106,79 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [mode, setMode] = useState<AuthMode | null>(saved?.mode ?? null);
   const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "member");
   const [sessionToken, setSessionToken] = useState<string | null>(saved?.sessionToken ?? null);
+  const [tokenExpiry, setTokenExpiry] = useState<number | null>(saved?.tokenExpiry ?? null);
+
+  const sessionTokenRef = useRef<string | null>(saved?.sessionToken ?? null);
+  const modeRef = useRef<AuthMode | null>(saved?.mode ?? null);
+  const refreshPromiseRef = useRef<Promise<string | null> | null>(null);
+
+  useEffect(() => {
+    sessionTokenRef.current = sessionToken;
+  }, [sessionToken]);
+
+  useEffect(() => {
+    modeRef.current = mode;
+  }, [mode]);
+
+  const applyNewToken = useCallback((newToken: string, newUser: User) => {
+    const expiry = parseJwtExpiry(newToken) ?? Math.floor(Date.now() / 1000) + 60 * 60 * 8;
+    const role = roleFromStrings(newUser.roles);
+    sessionTokenRef.current = newToken;
+    setSessionToken(newToken);
+    setTokenExpiry(expiry);
+    setUser(newUser);
+    setActiveRole(role);
+    const currentMode = modeRef.current ?? "password";
+    saveSession({ user: newUser, mode: currentMode, activeRole: role, sessionToken: newToken, tokenExpiry: expiry });
+    const getter = () => newToken;
+    _currentTokenGetter = getter;
+    setAuthTokenGetter(getter);
+  }, []);
+
+  const silentRefresh = useCallback((): Promise<string | null> => {
+    const token = sessionTokenRef.current;
+    if (!token || modeRef.current === "dev" || modeRef.current === "token") {
+      return Promise.resolve(null);
+    }
+
+    if (refreshPromiseRef.current) {
+      return refreshPromiseRef.current;
+    }
+
+    const promise = (async (): Promise<string | null> => {
+      try {
+        const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+        const apiBase = base.replace(/\/sovereign-dashboard$/, "");
+        const res = await fetch(`${apiBase}/api/auth/refresh`, {
+          method: "POST",
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return null;
+        const data = await res.json() as { sessionToken: string; user: { id: number; email: string; name: string; role: string } };
+        const newUser: User = {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.name,
+          roles: [data.user.role],
+        };
+        applyNewToken(data.sessionToken, newUser);
+        return data.sessionToken;
+      } catch {
+        return null;
+      } finally {
+        refreshPromiseRef.current = null;
+      }
+    })();
+
+    refreshPromiseRef.current = promise;
+    return promise;
+  }, [applyNewToken]);
+
+  const shouldRefresh = useCallback((expiry: number | null): boolean => {
+    if (!expiry) return false;
+    const now = Math.floor(Date.now() / 1000);
+    return expiry - now < REFRESH_THRESHOLD_SECS;
+  }, []);
 
   useEffect(() => {
     if (user) {
@@ -114,6 +202,33 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    setRefreshHandler(async () => {
+      return silentRefresh();
+    });
+    return () => setRefreshHandler(null);
+  }, [silentRefresh]);
+
+  useEffect(() => {
+    const handleFocus = () => {
+      if (shouldRefresh(tokenExpiry) && sessionTokenRef.current && modeRef.current !== "dev" && modeRef.current !== "token") {
+        void silentRefresh();
+      }
+    };
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [silentRefresh, shouldRefresh, tokenExpiry]);
+
+  useEffect(() => {
+    if (!sessionToken || mode === "dev" || mode === "token") return;
+    const interval = setInterval(() => {
+      if (shouldRefresh(tokenExpiry)) {
+        void silentRefresh();
+      }
+    }, POLL_INTERVAL_MS);
+    return () => clearInterval(interval);
+  }, [sessionToken, mode, tokenExpiry, silentRefresh, shouldRefresh]);
+
+  useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const st = params.get("session_token");
     const authError = params.get("auth_error");
@@ -124,7 +239,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         const parts = st.split(".");
         if (parts.length === 3) {
           const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
-            sub?: string; email?: string; name?: string; role?: string;
+            sub?: string; email?: string; name?: string; role?: string; exp?: number;
           };
           if (payload.email) {
             const u: User = {
@@ -134,11 +249,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
               roles: [payload.role ?? "member"],
             };
             const role = roleFromStrings(u.roles);
+            const expiry = typeof payload.exp === "number" ? payload.exp : null;
             setUser(u);
             setMode("microsoft");
             setActiveRole(role);
             setSessionToken(st);
-            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st });
+            setTokenExpiry(expiry);
+            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st, tokenExpiry: expiry ?? undefined });
             redirectNext = sessionStorage.getItem("oauth_next");
             sessionStorage.removeItem("oauth_next");
           }
@@ -162,11 +279,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithSessionToken = useCallback((st: string, u: User) => {
     const role = roleFromStrings(u.roles);
+    const expiry = parseJwtExpiry(st) ?? undefined;
     setUser(u);
     setMode("password");
     setActiveRole(role);
     setSessionToken(st);
-    saveSession({ user: u, mode: "password", activeRole: role, sessionToken: st });
+    setTokenExpiry(expiry ?? null);
+    saveSession({ user: u, mode: "password", activeRole: role, sessionToken: st, tokenExpiry: expiry });
   }, []);
 
   const loginWithToken = useCallback((rawToken: string): boolean => {
@@ -176,7 +295,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       if (!parsed.id || !parsed.email || !Array.isArray(parsed.roles)) return false;
       const u: User = { id: parsed.id, email: parsed.email, name: parsed.name ?? parsed.email, roles: parsed.roles };
       const role = roleFromStrings(u.roles);
-      setUser(u); setMode("token"); setActiveRole(role); setSessionToken(null);
+      setUser(u); setMode("token"); setActiveRole(role); setSessionToken(null); setTokenExpiry(null);
       saveSession({ user: u, mode: "token", activeRole: role });
       return true;
     } catch { return false; }
@@ -184,13 +303,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const loginWithDevRole = useCallback((role: Role) => {
     const u = DEV_USERS[role];
-    setUser(u); setMode("dev"); setActiveRole(role); setSessionToken(null);
+    setUser(u); setMode("dev"); setActiveRole(role); setSessionToken(null); setTokenExpiry(null);
     saveSession({ user: u, mode: "dev", activeRole: role });
   }, []);
 
   const logout = useCallback(() => {
+    sessionTokenRef.current = null;
+    modeRef.current = null;
+    refreshPromiseRef.current = null;
     clearSession();
-    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null);
+    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null); setTokenExpiry(null);
     setAuthTokenGetter(null);
   }, []);
 

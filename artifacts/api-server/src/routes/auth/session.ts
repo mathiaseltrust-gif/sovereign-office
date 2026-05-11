@@ -9,6 +9,17 @@ const router = Router();
 
 const SESSION_SECRET = () => process.env.SESSION_SECRET ?? "dev-secret-change-me";
 
+export function signSessionJwt(payload: object): string {
+  const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
+  const body = Buffer.from(JSON.stringify({
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
+  })).toString("base64url");
+  const sig = createHmac("sha256", SESSION_SECRET()).update(`${header}.${body}`).digest("base64url");
+  return `${header}.${body}.${sig}`;
+}
+
 export function verifySessionJwt(token: string): Record<string, unknown> | null {
   try {
     const parts = token.split(".");
@@ -23,6 +34,53 @@ export function verifySessionJwt(token: string): Record<string, unknown> | null 
     return null;
   }
 }
+
+router.post("/refresh", async (req, res) => {
+  const authHeader = req.headers.authorization ?? "";
+  const token = authHeader.replace(/^Bearer\s+/i, "").trim();
+  if (!token) {
+    res.status(401).json({ error: "No token provided." });
+    return;
+  }
+
+  const payload = verifySessionJwt(token);
+  if (!payload || payload.type !== "session") {
+    res.status(401).json({ error: "Invalid or expired session token." });
+    return;
+  }
+
+  try {
+    const userId = Number(payload.sub);
+    if (!userId) {
+      res.status(401).json({ error: "Invalid session." });
+      return;
+    }
+
+    const [dbUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+    if (!dbUser) {
+      res.status(401).json({ error: "User not found." });
+      return;
+    }
+
+    const freshToken = signSessionJwt({
+      sub: String(dbUser.id),
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role,
+      type: "session",
+    });
+
+    logger.info({ userId: dbUser.id }, "Session token refreshed");
+    res.json({
+      sessionToken: freshToken,
+      user: { id: dbUser.id, email: dbUser.email, name: dbUser.name, role: dbUser.role },
+      expiresAt: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
+    });
+  } catch (err) {
+    logger.error({ err }, "Session /refresh error");
+    res.status(500).json({ error: "Failed to refresh session." });
+  }
+});
 
 router.get("/me", async (req, res) => {
   const authHeader = req.headers.authorization ?? "";
