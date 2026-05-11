@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,9 +8,54 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, useIsTrustee } from "@/components/auth-provider";
 
 type Tab = "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
+
+interface LineageNode {
+  id: number;
+  fullName: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  birthYear?: number | null;
+  deathYear?: number | null;
+  gender?: string | null;
+  tribalNation?: string | null;
+  tribalEnrollmentNumber?: string | null;
+  notes?: string | null;
+  isDeceased?: boolean | null;
+  isAncestor?: boolean | null;
+  generationalPosition?: number | null;
+  lineageTags?: string[] | null;
+  icwaEligible?: boolean | null;
+  welfareEligible?: boolean | null;
+  trustBeneficiary?: boolean | null;
+  sourceType?: string | null;
+  linkedProfileUserId?: number | null;
+  protectionLevel?: string | null;
+  membershipStatus?: string | null;
+  nameVariants?: string[] | null;
+  parentIds?: number[] | null;
+  childrenIds?: number[] | null;
+  spouseIds?: number[] | null;
+  createdAt?: string;
+  _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
+  _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
+}
+
+interface PositionedNode extends LineageNode {
+  x: number;
+  y: number;
+}
+
+interface Edge {
+  key: string;
+  x1: number;
+  y1: number;
+  x2: number;
+  y2: number;
+  isAncestorLine: boolean;
+}
 
 interface LineageRecord {
   id: number;
@@ -74,7 +119,7 @@ function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
 const TAB_LABELS: Record<Tab, string> = {
   "upload-photo": "Upload Photo",
   "upload-csv": "Upload CSV",
-  "view-lineage": "View Lineage",
+  "view-lineage": "Visual Tree",
   "edit-ancestors": "Edit Ancestors",
   "knowledge-of-self": "Knowledge-of-Self Links",
 };
@@ -85,8 +130,95 @@ const PROTECTION_COLORS: Record<string, string> = {
   critical: "bg-red-100 text-red-800",
 };
 
+const NODE_W = 200;
+const NODE_H = 92;
+const H_GAP = 48;
+const V_GAP = 80;
+const CANVAS_PADDING = 60;
+
+function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; totalW: number; totalH: number } {
+  if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
+
+  const byGen = new Map<number, LineageNode[]>();
+  for (const n of nodes) {
+    const gen = n.generationalPosition ?? 0;
+    if (!byGen.has(gen)) byGen.set(gen, []);
+    byGen.get(gen)!.push(n);
+  }
+
+  const sortedGens = [...byGen.keys()].sort((a, b) => a - b);
+  const positioned: PositionedNode[] = [];
+
+  const maxPerGen = Math.max(...[...byGen.values()].map((g) => g.length));
+  const totalW = CANVAS_PADDING * 2 + maxPerGen * NODE_W + (maxPerGen - 1) * H_GAP;
+
+  sortedGens.forEach((gen, genIndex) => {
+    const nodesInGen = byGen.get(gen)!;
+    const rowW = nodesInGen.length * NODE_W + (nodesInGen.length - 1) * H_GAP;
+    const startX = (totalW - rowW) / 2;
+    const y = CANVAS_PADDING + genIndex * (NODE_H + V_GAP);
+    nodesInGen.forEach((node, i) => {
+      const x = startX + i * (NODE_W + H_GAP);
+      positioned.push({ ...node, x, y });
+    });
+  });
+
+  const totalH = CANVAS_PADDING * 2 + sortedGens.length * NODE_H + (sortedGens.length - 1) * V_GAP;
+  return { positioned, totalW, totalH };
+}
+
+function buildEdges(positioned: PositionedNode[]): Edge[] {
+  const nodeMap = new Map(positioned.map((n) => [n.id, n]));
+  const edges: Edge[] = [];
+  for (const node of positioned) {
+    const parentIds = Array.isArray(node.parentIds) ? (node.parentIds as number[]) : [];
+    for (const pid of parentIds) {
+      const parent = nodeMap.get(pid);
+      if (!parent) continue;
+      const isAncestorLine = parent.protectionLevel === "ancestor" || node.protectionLevel === "ancestor";
+      edges.push({
+        key: `${pid}-${node.id}`,
+        x1: parent.x + NODE_W / 2,
+        y1: parent.y + NODE_H,
+        x2: node.x + NODE_W / 2,
+        y2: node.y,
+        isAncestorLine,
+      });
+    }
+  }
+  return edges;
+}
+
+function nodeCardClasses(node: LineageNode): { border: string; bg: string } {
+  if (node.sourceType === "archived") return { border: "border-muted", bg: "bg-muted/30" };
+  switch (node.protectionLevel) {
+    case "ancestor": return { border: "border-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950/30" };
+    case "descendant": return { border: "border-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30" };
+    default: return { border: "border-border", bg: "bg-card" };
+  }
+}
+
+function protectionBadge(level?: string | null) {
+  switch (level) {
+    case "ancestor": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-200 text-yellow-900">Ancestor</span>;
+    case "descendant": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-200 text-blue-900">Descendant</span>;
+    case "pending": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">Pending</span>;
+    default: return level ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 capitalize">{level}</span> : null;
+  }
+}
+
+function membershipDot(status?: string | null) {
+  switch (status) {
+    case "verified": return <span className="w-2 h-2 rounded-full bg-green-500 inline-block" title="Membership verified" />;
+    case "pending": return <span className="w-2 h-2 rounded-full bg-yellow-400 inline-block" title="Membership pending" />;
+    case "rejected": return <span className="w-2 h-2 rounded-full bg-red-500 inline-block" title="Membership rejected" />;
+    default: return <span className="w-2 h-2 rounded-full bg-gray-300 inline-block" title="Unknown membership" />;
+  }
+}
+
 export default function FamilyTreePage() {
   const { user } = useAuth();
+  const canEdit = useIsTrustee();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>("view-lineage");
@@ -115,7 +247,7 @@ export default function FamilyTreePage() {
       <div className="mb-6">
         <h1 className="text-3xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
         <p className="text-muted-foreground mt-1">
-          Import, document, and manage family lineage — integrated with Knowledge-of-Self and identity verification
+          Interactive visual family tree — ancestors, descendants, and protected lineage lines
         </p>
       </div>
 
@@ -140,10 +272,10 @@ export default function FamilyTreePage() {
         <PhotoUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Photo uploaded", description: "Use Edit Ancestors to extract names and dates." }); }} />
       )}
       {activeTab === "upload-csv" && (
-        <CsvUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Lineage imported", description: "Family tree data has been stored and linked to your identity." }); }} />
+        <CsvUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Lineage imported", description: "Family tree data has been stored." }); }} />
       )}
       {activeTab === "view-lineage" && (
-        <ViewLineageTab lineageData={lineageData} isLoading={lineageLoading} />
+        <InteractiveTreeTab token={token} canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
       {activeTab === "edit-ancestors" && (
         <EditAncestorsTab token={token} lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
@@ -151,6 +283,710 @@ export default function FamilyTreePage() {
       {activeTab === "knowledge-of-self" && (
         <KnowledgeOfSelfTab token={token} kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
       )}
+    </div>
+  );
+}
+
+function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; canEdit: boolean; onDataChange: () => void }) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
+    queryKey: ["lineage-nodes"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/nodes?limit=200", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed to load tree data");
+      return r.json();
+    },
+  });
+
+  const nodes = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
+  const { positioned, totalW, totalH } = useMemo(() => computeLayout(nodes), [nodes]);
+  const edges = useMemo(() => buildEdges(positioned), [positioned]);
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
+  const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
+  const importRef = useRef<HTMLInputElement>(null);
+
+  const selectedNode = positioned.find((n) => n.id === selectedNodeId) ?? null;
+
+  const fitToScreen = useCallback(() => {
+    if (!containerRef.current || totalW === 0 || totalH === 0) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const scaleX = (clientWidth - 40) / totalW;
+    const scaleY = (clientHeight - 40) / totalH;
+    const scale = Math.min(scaleX, scaleY, 1.5);
+    const x = (clientWidth - totalW * scale) / 2;
+    const y = (clientHeight - totalH * scale) / 2;
+    setTransform({ x, y, scale });
+  }, [totalW, totalH]);
+
+  useEffect(() => {
+    if (positioned.length > 0) fitToScreen();
+  }, [positioned.length > 0]);
+
+  const handleWheel = useCallback((e: React.WheelEvent) => {
+    e.preventDefault();
+    const delta = -e.deltaY * 0.001;
+    setTransform((prev) => {
+      const newScale = Math.min(3, Math.max(0.15, prev.scale + delta * prev.scale));
+      const rect = containerRef.current!.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const scaleRatio = newScale / prev.scale;
+      return {
+        scale: newScale,
+        x: mouseX - scaleRatio * (mouseX - prev.x),
+        y: mouseY - scaleRatio * (mouseY - prev.y),
+      };
+    });
+  }, []);
+
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
+    if ((e.target as HTMLElement).closest("[data-node]")) return;
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
+  }, [transform]);
+
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
+    if (!isDragging || !dragStart.current) return;
+    setTransform((prev) => ({
+      ...prev,
+      x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
+      y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
+    }));
+  }, [isDragging]);
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false);
+    dragStart.current = null;
+  }, []);
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await fetch("/api/lineage/import", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Import failed");
+      return r.json();
+    },
+    onSuccess: (res) => {
+      toast({
+        title: "Import complete",
+        description: `Created: ${res.created}, Merged: ${res.merged}, Skipped: ${res.skipped}`,
+      });
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      onDataChange();
+    },
+    onError: (err: Error) => toast({ title: "Import failed", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
+      <div className="flex items-center gap-2 mb-3 flex-wrap">
+        {canEdit && (
+          <Button size="sm" onClick={() => { setEditingNode(null); setShowAddModal(true); }}>
+            + Add Person
+          </Button>
+        )}
+        {canEdit && (
+          <>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".csv,.ged,.gedcom,text/csv,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importMutation.mutate(file);
+                e.target.value = "";
+              }}
+            />
+            <Button size="sm" variant="outline" onClick={() => importRef.current?.click()} disabled={importMutation.isPending}>
+              {importMutation.isPending ? "Importing…" : "Import File"}
+            </Button>
+          </>
+        )}
+        <Button size="sm" variant="outline" onClick={fitToScreen}>Fit to Screen</Button>
+        <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>＋</Button>
+        <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>－</Button>
+        <span className="text-xs text-muted-foreground ml-auto">{nodes.length} records · scroll to zoom · drag to pan</span>
+      </div>
+
+      <div className="flex flex-1 gap-0 min-h-0">
+        <div
+          ref={containerRef}
+          className={`flex-1 border rounded-lg bg-muted/20 overflow-hidden relative select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
+          onWheel={handleWheel}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
+          onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null); }}
+        >
+          {isLoading && (
+            <div className="absolute inset-0 flex items-center justify-center">
+              <div className="space-y-3 w-64">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}
+              </div>
+            </div>
+          )}
+
+          {!isLoading && nodes.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-muted-foreground">
+              <p className="text-lg">No lineage records yet.</p>
+              {canEdit && (
+                <Button onClick={() => setShowAddModal(true)}>Add the first person</Button>
+              )}
+              {!canEdit && <p className="text-sm">Ask an admin to import or add records.</p>}
+            </div>
+          )}
+
+          {!isLoading && positioned.length > 0 && (
+            <div
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transformOrigin: "0 0",
+                position: "absolute",
+                width: totalW,
+                height: totalH,
+              }}
+            >
+              <svg
+                style={{ position: "absolute", top: 0, left: 0, width: totalW, height: totalH, pointerEvents: "none", overflow: "visible" }}
+              >
+                {edges.map((edge) => {
+                  const cx1 = edge.x1;
+                  const cy1 = edge.y1 + V_GAP * 0.4;
+                  const cx2 = edge.x2;
+                  const cy2 = edge.y2 - V_GAP * 0.4;
+                  return (
+                    <path
+                      key={edge.key}
+                      d={`M${edge.x1},${edge.y1} C${cx1},${cy1} ${cx2},${cy2} ${edge.x2},${edge.y2}`}
+                      fill="none"
+                      stroke={edge.isAncestorLine ? "#ca8a04" : "#94a3b8"}
+                      strokeWidth={edge.isAncestorLine ? 2.5 : 1.5}
+                      strokeDasharray={edge.isAncestorLine ? undefined : "4 3"}
+                      opacity={0.75}
+                    />
+                  );
+                })}
+              </svg>
+
+              {positioned.map((node) => {
+                const { border, bg } = nodeCardClasses(node);
+                const isSelected = node.id === selectedNodeId;
+                return (
+                  <div
+                    key={node.id}
+                    data-node="1"
+                    onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
+                    style={{ position: "absolute", left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
+                    className={[
+                      "rounded-lg border-2 px-3 py-2 cursor-pointer transition-shadow",
+                      bg, border,
+                      isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md",
+                      node.sourceType === "archived" ? "opacity-50" : "",
+                    ].join(" ")}
+                  >
+                    <div className="flex items-start justify-between gap-1 mb-1">
+                      <span className="text-xs font-semibold leading-tight line-clamp-2 flex-1">
+                        {node.fullName}
+                      </span>
+                      {membershipDot(node.membershipStatus)}
+                    </div>
+                    <div className="text-xs text-muted-foreground mb-1">
+                      {node.birthYear && <span>b.{node.birthYear}</span>}
+                      {node.birthYear && node.deathYear && <span> – </span>}
+                      {node.deathYear && <span>d.{node.deathYear}</span>}
+                    </div>
+                    <div className="flex items-center gap-1 flex-wrap">
+                      {protectionBadge(node.protectionLevel)}
+                      {node.linkedProfileUserId && (
+                        <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" title="Linked user profile" />
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </div>
+
+        {selectedNode && (
+          <NodeDetailPanel
+            node={selectedNode}
+            token={token}
+            canEdit={canEdit}
+            onClose={() => setSelectedNodeId(null)}
+            onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
+            onMerge={(n) => setMergingNode(n)}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] })}
+          />
+        )}
+      </div>
+
+      {showAddModal && (
+        <AddPersonModal
+          token={token}
+          allNodes={nodes}
+          editingNode={editingNode}
+          onClose={() => { setShowAddModal(false); setEditingNode(null); }}
+          onSuccess={() => {
+            setShowAddModal(false);
+            setEditingNode(null);
+            queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+            onDataChange();
+            toast({ title: editingNode ? "Person updated" : "Person added" });
+          }}
+        />
+      )}
+
+      {mergingNode && (
+        <MergeModal
+          token={token}
+          sourceNode={mergingNode}
+          allNodes={nodes}
+          onClose={() => setMergingNode(null)}
+          onSuccess={() => {
+            setMergingNode(null);
+            setSelectedNodeId(null);
+            queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+            onDataChange();
+            toast({ title: "Nodes merged successfully" });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+function NodeDetailPanel({ node, token, canEdit, onClose, onEdit, onMerge, onRefresh }: {
+  node: PositionedNode;
+  token: string;
+  canEdit: boolean;
+  onClose: () => void;
+  onEdit: (node: LineageNode) => void;
+  onMerge: (node: LineageNode) => void;
+  onRefresh: () => void;
+}) {
+  const { data: detail, isLoading } = useQuery<LineageNode>({
+    queryKey: ["lineage-node-detail", node.id],
+    queryFn: async () => {
+      const r = await fetch(`/api/lineage/nodes/${node.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed to load node detail");
+      return r.json();
+    },
+  });
+
+  const n = detail ?? node;
+
+  return (
+    <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300 }}>
+      <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card z-10">
+        <span className="font-semibold text-sm truncate">{n.fullName}</span>
+        <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none ml-2">✕</button>
+      </div>
+
+      {isLoading ? (
+        <div className="p-4 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
+      ) : (
+        <div className="p-4 space-y-4 text-sm flex-1">
+          <div className="flex items-center gap-2 flex-wrap">
+            {protectionBadge(n.protectionLevel)}
+            {membershipDot(n.membershipStatus)}
+            <span className="text-xs text-muted-foreground capitalize">{n.membershipStatus ?? "unknown"}</span>
+          </div>
+
+          <div className="space-y-1">
+            {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
+            {n.lastName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Last name</span><span>{n.lastName}</span></div>}
+            {n.birthYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Birth year</span><span>{n.birthYear}</span></div>}
+            {n.deathYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Death year</span><span>{n.deathYear}</span></div>}
+            {n.gender && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Gender</span><span className="capitalize">{n.gender}</span></div>}
+            {n.tribalNation && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>}
+            {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Enrollment #</span><span>{n.tribalEnrollmentNumber}</span></div>}
+            {n.generationalPosition !== undefined && n.generationalPosition !== null && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Generation</span><span>{n.generationalPosition}</span></div>}
+            {n.sourceType && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Source</span><span className="capitalize">{n.sourceType}</span></div>}
+            {n.linkedProfileUserId && (
+              <div className="flex gap-2 items-center">
+                <span className="text-muted-foreground w-28 shrink-0">Linked user</span>
+                <a href="/sovereign-dashboard/profile" className="text-primary underline text-sm hover:opacity-80">View profile</a>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-1">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Eligibility</p>
+            <div className="flex gap-2 flex-wrap">
+              <Badge variant={n.icwaEligible ? "default" : "secondary"} className="text-xs">ICWA: {n.icwaEligible ? "Yes" : "N/A"}</Badge>
+              <Badge variant={n.welfareEligible ? "default" : "secondary"} className="text-xs">Welfare: {n.welfareEligible ? "Yes" : "N/A"}</Badge>
+              <Badge variant={n.trustBeneficiary ? "default" : "secondary"} className="text-xs">Trust: {n.trustBeneficiary ? "Yes" : "N/A"}</Badge>
+            </div>
+          </div>
+
+          {Array.isArray(n.nameVariants) && (n.nameVariants as string[]).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Name variants</p>
+              <div className="flex flex-wrap gap-1">
+                {(n.nameVariants as string[]).map((v, i) => <Badge key={i} variant="outline" className="text-xs">{v}</Badge>)}
+              </div>
+            </div>
+          )}
+
+          {Array.isArray(n.lineageTags) && (n.lineageTags as string[]).length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Tags</p>
+              <div className="flex flex-wrap gap-1">
+                {(n.lineageTags as string[]).map((t, i) => <Badge key={i} variant="outline" className="text-xs">{t}</Badge>)}
+              </div>
+            </div>
+          )}
+
+          {n._parents && n._parents.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Parents</p>
+              {n._parents.map((p) => <p key={p.id} className="text-xs">{p.fullName}{p.birthYear ? ` (b.${p.birthYear})` : ""}</p>)}
+            </div>
+          )}
+
+          {n._children && n._children.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Children</p>
+              {n._children.map((c) => <p key={c.id} className="text-xs">{c.fullName}{c.birthYear ? ` (b.${c.birthYear})` : ""}</p>)}
+            </div>
+          )}
+
+          {n.notes && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
+              <p className="text-xs text-muted-foreground italic">{n.notes}</p>
+            </div>
+          )}
+
+          {canEdit && (
+            <div className="flex gap-2 pt-2">
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(n)}>Edit</Button>
+              <Button size="sm" variant="outline" className="flex-1" onClick={() => onMerge(n)}>Merge</Button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function AddPersonModal({ token, allNodes, editingNode, onClose, onSuccess }: {
+  token: string;
+  allNodes: LineageNode[];
+  editingNode: LineageNode | null;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const isEdit = editingNode !== null;
+  const [form, setForm] = useState({
+    fullName: editingNode?.fullName ?? "",
+    firstName: editingNode?.firstName ?? "",
+    lastName: editingNode?.lastName ?? "",
+    birthYear: editingNode?.birthYear?.toString() ?? "",
+    deathYear: editingNode?.deathYear?.toString() ?? "",
+    gender: editingNode?.gender ?? "",
+    tribalNation: editingNode?.tribalNation ?? "",
+    tribalEnrollmentNumber: editingNode?.tribalEnrollmentNumber ?? "",
+    notes: editingNode?.notes ?? "",
+    generationalPosition: editingNode?.generationalPosition?.toString() ?? "0",
+    protectionLevel: editingNode?.protectionLevel ?? "pending",
+    parentSearch: "",
+    selectedParentIds: Array.isArray(editingNode?.parentIds) ? (editingNode!.parentIds as number[]) : [] as number[],
+  });
+
+  const f = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+    setForm((prev) => ({ ...prev, [field]: e.target.value }));
+
+  const parentSearchResults = useMemo(() => {
+    const q = form.parentSearch.toLowerCase().trim();
+    if (!q) return [];
+    return allNodes
+      .filter((n) => n.id !== editingNode?.id && n.fullName.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [form.parentSearch, allNodes, editingNode]);
+
+  const selectedParents = useMemo(() =>
+    allNodes.filter((n) => form.selectedParentIds.includes(n.id)), [allNodes, form.selectedParentIds]);
+
+  const saveMutation = useMutation({
+    mutationFn: async () => {
+      const body = {
+        fullName: form.fullName,
+        firstName: form.firstName || undefined,
+        lastName: form.lastName || undefined,
+        birthYear: form.birthYear ? parseInt(form.birthYear, 10) : undefined,
+        deathYear: form.deathYear ? parseInt(form.deathYear, 10) : undefined,
+        gender: form.gender || undefined,
+        tribalNation: form.tribalNation || undefined,
+        tribalEnrollmentNumber: form.tribalEnrollmentNumber || undefined,
+        notes: form.notes || undefined,
+        generationalPosition: parseInt(form.generationalPosition, 10) || 0,
+        protectionLevel: form.protectionLevel,
+        parentIds: form.selectedParentIds,
+      };
+
+      const url = isEdit ? `/api/lineage/nodes/${editingNode!.id}` : "/api/lineage/nodes";
+      const method = isEdit ? "PATCH" : "POST";
+
+      const r = await fetch(url, {
+        method,
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Save failed");
+      return r.json();
+    },
+    onSuccess,
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border rounded-xl shadow-xl w-full max-w-lg mx-4 flex flex-col" style={{ maxHeight: "90vh" }}>
+        <div className="flex items-center justify-between px-6 py-4 border-b shrink-0">
+          <h2 className="font-semibold text-base">{isEdit ? "Edit Person" : "Add Person"}</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4 overflow-y-auto flex-1">
+          <div>
+            <Label>Full Name <span className="text-destructive">*</span></Label>
+            <Input data-testid="add-person-fullname" className="mt-1" value={form.fullName} onChange={f("fullName")} placeholder="Full name as it appears in records" />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>First Name</Label>
+              <Input className="mt-1" value={form.firstName} onChange={f("firstName")} placeholder="Given name" />
+            </div>
+            <div>
+              <Label>Last Name</Label>
+              <Input className="mt-1" value={form.lastName} onChange={f("lastName")} placeholder="Family name" />
+            </div>
+            <div>
+              <Label>Birth Year</Label>
+              <Input data-testid="add-person-birthyear" className="mt-1" type="number" value={form.birthYear} onChange={f("birthYear")} placeholder="e.g. 1882" />
+            </div>
+            <div>
+              <Label>Death Year</Label>
+              <Input className="mt-1" type="number" value={form.deathYear} onChange={f("deathYear")} placeholder="blank if living" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Generation (0 = oldest)</Label>
+              <Input data-testid="add-person-generation" className="mt-1" type="number" value={form.generationalPosition} onChange={f("generationalPosition")} />
+            </div>
+            <div>
+              <Label>Protection Level</Label>
+              <select data-testid="add-person-protection" value={form.protectionLevel} onChange={f("protectionLevel")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+                <option value="pending">Pending</option>
+                <option value="ancestor">Ancestor</option>
+                <option value="descendant">Descendant</option>
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Gender</Label>
+              <select value={form.gender} onChange={f("gender")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+                <option value="">Unknown</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
+              </select>
+            </div>
+            <div>
+              <Label>Tribal Nation</Label>
+              <Input className="mt-1" value={form.tribalNation} onChange={f("tribalNation")} placeholder="e.g. Choctaw Nation" />
+            </div>
+          </div>
+
+          <div>
+            <Label>Notes</Label>
+            <Textarea className="mt-1" value={form.notes} onChange={f("notes")} rows={2} placeholder="Role, relationships, historical context…" />
+          </div>
+
+          <div>
+            <Label>Parent (search by name)</Label>
+            <Input
+              data-testid="add-person-parent-search"
+              className="mt-1"
+              value={form.parentSearch}
+              onChange={f("parentSearch")}
+              placeholder="Start typing to search…"
+            />
+            {parentSearchResults.length > 0 && (
+              <div className="border rounded-md mt-1 bg-card divide-y max-h-36 overflow-y-auto">
+                {parentSearchResults.map((n) => (
+                  <button
+                    key={n.id}
+                    className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                    onClick={() => {
+                      if (!form.selectedParentIds.includes(n.id)) {
+                        setForm((prev) => ({ ...prev, selectedParentIds: [...prev.selectedParentIds, n.id], parentSearch: "" }));
+                      } else {
+                        setForm((prev) => ({ ...prev, parentSearch: "" }));
+                      }
+                    }}
+                  >
+                    {n.fullName}{n.birthYear ? ` (b.${n.birthYear})` : ""}
+                  </button>
+                ))}
+              </div>
+            )}
+            {selectedParents.length > 0 && (
+              <div className="flex flex-wrap gap-1 mt-2">
+                {selectedParents.map((p) => (
+                  <Badge
+                    key={p.id}
+                    variant="secondary"
+                    className="cursor-pointer text-xs"
+                    onClick={() => setForm((prev) => ({ ...prev, selectedParentIds: prev.selectedParentIds.filter((id) => id !== p.id) }))}
+                  >
+                    {p.fullName} ✕
+                  </Badge>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {saveMutation.isError && (
+            <p className="text-sm text-destructive">{(saveMutation.error as Error).message}</p>
+          )}
+        </div>
+
+        <div className="flex gap-3 px-6 py-4 border-t shrink-0">
+          <Button data-testid="add-person-submit" onClick={() => saveMutation.mutate()} disabled={saveMutation.isPending || !form.fullName} className="flex-1">
+            {saveMutation.isPending ? "Saving…" : isEdit ? "Save Changes" : "Add Person"}
+          </Button>
+          <Button variant="outline" onClick={onClose}>Cancel</Button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MergeModal({ token, sourceNode, allNodes, onClose, onSuccess }: {
+  token: string;
+  sourceNode: LineageNode;
+  allNodes: LineageNode[];
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const { toast } = useToast();
+  const [search, setSearch] = useState("");
+  const [targetNode, setTargetNode] = useState<LineageNode | null>(null);
+  const [confirmed, setConfirmed] = useState(false);
+
+  const results = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    if (!q) return [];
+    return allNodes
+      .filter((n) => n.id !== sourceNode.id && n.fullName.toLowerCase().includes(q))
+      .slice(0, 8);
+  }, [search, allNodes, sourceNode.id]);
+
+  const mergeMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/lineage/nodes/${sourceNode.id}/merge`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ targetId: targetNode!.id }),
+      });
+      if (!r.ok) throw new Error((await r.json()).error ?? "Merge failed");
+      return r.json();
+    },
+    onSuccess,
+    onError: (err: Error) => toast({ title: "Merge failed", description: err.message, variant: "destructive" }),
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="bg-card border rounded-xl shadow-xl w-full max-w-md mx-4">
+        <div className="flex items-center justify-between px-6 py-4 border-b">
+          <h2 className="font-semibold text-base">Merge Duplicate</h2>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg">✕</button>
+        </div>
+
+        <div className="p-6 space-y-4">
+          <div className="bg-muted rounded-md p-3">
+            <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Source (will be archived)</p>
+            <p className="font-semibold text-sm">{sourceNode.fullName}</p>
+            {sourceNode.birthYear && <p className="text-xs text-muted-foreground">b.{sourceNode.birthYear}</p>}
+          </div>
+
+          {!targetNode ? (
+            <div>
+              <Label>Search for the node to merge into</Label>
+              <Input className="mt-1" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Type a name…" />
+              {results.length > 0 && (
+                <div className="border rounded-md mt-1 bg-card divide-y max-h-40 overflow-y-auto">
+                  {results.map((n) => (
+                    <button
+                      key={n.id}
+                      className="w-full text-left px-3 py-2 text-sm hover:bg-muted"
+                      onClick={() => { setTargetNode(n); setSearch(""); }}
+                    >
+                      {n.fullName}{n.birthYear ? ` (b.${n.birthYear})` : ""}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <div className="bg-blue-50 dark:bg-blue-950/30 border border-blue-300 rounded-md p-3">
+                <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Target (will receive merged data)</p>
+                <p className="font-semibold text-sm">{targetNode.fullName}</p>
+                {targetNode.birthYear && <p className="text-xs text-muted-foreground">b.{targetNode.birthYear}</p>}
+                <button className="text-xs text-muted-foreground underline mt-1" onClick={() => setTargetNode(null)}>Change target</button>
+              </div>
+
+              {!confirmed ? (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground">
+                    This will copy all relationships and name variants from <strong>{sourceNode.fullName}</strong> into <strong>{targetNode.fullName}</strong>, then archive the source record. This cannot be undone automatically.
+                  </p>
+                  <div className="flex gap-3">
+                    <Button variant="outline" onClick={() => setConfirmed(true)} className="flex-1">I understand — confirm merge</Button>
+                    <Button variant="ghost" onClick={onClose}>Cancel</Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-3">
+                  <Button onClick={() => mergeMutation.mutate()} disabled={mergeMutation.isPending} className="flex-1">
+                    {mergeMutation.isPending ? "Merging…" : "Merge Now"}
+                  </Button>
+                  <Button variant="outline" onClick={onClose}>Cancel</Button>
+                </div>
+              )}
+            </div>
+          )}
+
+          {mergeMutation.isError && (
+            <p className="text-sm text-destructive">{(mergeMutation.error as Error).message}</p>
+          )}
+        </div>
+      </div>
     </div>
   );
 }
@@ -314,125 +1150,8 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
               </div>
             );
           })()}
-
-          {!!result.identityTags && (
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Identity Tags Generated</CardTitle></CardHeader>
-              <CardContent>
-                <div className="flex flex-wrap gap-2">
-                  {(result.identityTags as string[]).map((tag) => (
-                    <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       )}
-    </div>
-  );
-}
-
-function ViewLineageTab({ lineageData, isLoading }: { lineageData?: LineageData; isLoading: boolean }) {
-  if (isLoading) return <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>;
-
-  const lineage = lineageData?.lineage ?? [];
-  const narratives = lineageData?.narratives ?? [];
-
-  if (lineage.length === 0) {
-    return (
-      <Card>
-        <CardContent className="py-12 text-center">
-          <p className="text-muted-foreground">No lineage records yet. Use Upload CSV or Upload Photo to import your family tree.</p>
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const byGeneration = lineage.reduce<Record<number, LineageRecord[]>>((acc, person) => {
-    const gen = person.generationalPosition ?? 0;
-    if (!acc[gen]) acc[gen] = [];
-    acc[gen].push(person);
-    return acc;
-  }, {});
-
-  const tribalNations = [...new Set(lineage.flatMap((l) => l.tribalNation ? [l.tribalNation] : []))];
-  const allTags = [...new Set(lineage.flatMap((l) => Array.isArray(l.lineageTags) ? l.lineageTags as string[] : []))];
-
-  return (
-    <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          ["Total Records", lineage.length],
-          ["Tribal Nations", tribalNations.length || "—"],
-          ["Narratives", narratives.length],
-          ["Generations", Object.keys(byGeneration).length],
-        ].map(([label, val]) => (
-          <Card key={label as string}>
-            <CardHeader className="pb-2"><CardTitle className="text-xs uppercase tracking-widest text-muted-foreground">{label}</CardTitle></CardHeader>
-            <CardContent><div className="text-2xl font-serif font-bold">{val}</div></CardContent>
-          </Card>
-        ))}
-      </div>
-
-      {allTags.length > 0 && (
-        <Card>
-          <CardHeader className="pb-2"><CardTitle className="text-sm">Lineage Tags</CardTitle></CardHeader>
-          <CardContent><div className="flex flex-wrap gap-2">{allTags.map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}</div></CardContent>
-        </Card>
-      )}
-
-      {narratives.length > 0 && narratives.map((n) => (
-        <Card key={n.id} className="border-l-4 border-primary">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm">{n.title ?? "Lineage Narrative"}</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3">
-            {n.ancestorChain && n.ancestorChain.length > 0 && (
-              <div>
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-widest mb-1">Ancestor Chain</p>
-                <div className="flex flex-wrap gap-1">
-                  {n.ancestorChain.map((a, i) => <Badge key={i} variant="secondary" className="text-xs">{a}</Badge>)}
-                </div>
-              </div>
-            )}
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-sm">
-              {n.protectionLevel && <div className="flex gap-2"><span className="text-muted-foreground">Protection:</span><Badge className={`${PROTECTION_COLORS[n.protectionLevel]} text-xs`}>{n.protectionLevel}</Badge></div>}
-              {n.icwaEligible !== undefined && <div className="flex gap-2"><span className="text-muted-foreground">ICWA:</span><Badge variant={n.icwaEligible ? "default" : "secondary"} className="text-xs">{n.icwaEligible ? "Eligible" : "N/A"}</Badge></div>}
-              {n.trustInheritance !== undefined && <div className="flex gap-2"><span className="text-muted-foreground">Trust:</span><Badge variant={n.trustInheritance ? "default" : "secondary"} className="text-xs">{n.trustInheritance ? "Beneficiary" : "N/A"}</Badge></div>}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-
-      <div className="space-y-3">
-        <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">All Lineage Records ({lineage.length})</p>
-        {lineage.map((person) => (
-          <Card key={person.id}>
-            <CardContent className="py-3">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <span className="font-semibold text-sm">{person.fullName}</span>
-                    {person.isDeceased && <Badge variant="secondary" className="text-xs">Deceased</Badge>}
-                    {person.icwaEligible && <Badge className="bg-blue-700 text-white text-xs">ICWA</Badge>}
-                    {person.trustBeneficiary && <Badge className="bg-amber-700 text-white text-xs">Trust</Badge>}
-                    {person.sourceType && <Badge variant="outline" className="text-xs capitalize">{person.sourceType}</Badge>}
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 space-x-3">
-                    {person.birthYear && <span>b. {person.birthYear}</span>}
-                    {person.deathYear && <span>d. {person.deathYear}</span>}
-                    {person.tribalNation && <span>· {person.tribalNation}</span>}
-                    {person.gender && <span>· {person.gender}</span>}
-                    {person.generationalPosition !== undefined && <span>· Gen {person.generationalPosition}</span>}
-                  </div>
-                  {person.notes && <p className="text-xs text-muted-foreground mt-1 italic">{person.notes}</p>}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
     </div>
   );
 }
@@ -497,7 +1216,7 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
     });
   }
 
-  const f = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
+  const fld = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
 
   return (
     <div className="space-y-6">
@@ -509,19 +1228,19 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div className="md:col-span-3">
               <Label>Full Name <span className="text-destructive">*</span></Label>
-              <Input className="mt-1" value={form.fullName} onChange={f("fullName")} placeholder="Full name as it appears in records" />
+              <Input className="mt-1" value={form.fullName} onChange={fld("fullName")} placeholder="Full name as it appears in records" />
             </div>
             <div>
               <Label>First Name</Label>
-              <Input className="mt-1" value={form.firstName} onChange={f("firstName")} placeholder="Given name" />
+              <Input className="mt-1" value={form.firstName} onChange={fld("firstName")} placeholder="Given name" />
             </div>
             <div>
               <Label>Last Name</Label>
-              <Input className="mt-1" value={form.lastName} onChange={f("lastName")} placeholder="Family name" />
+              <Input className="mt-1" value={form.lastName} onChange={fld("lastName")} placeholder="Family name" />
             </div>
             <div>
               <Label>Gender</Label>
-              <select value={form.gender} onChange={f("gender")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+              <select value={form.gender} onChange={fld("gender")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
                 <option value="">Unknown</option>
                 <option value="male">Male</option>
                 <option value="female">Female</option>
@@ -530,27 +1249,27 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
             </div>
             <div>
               <Label>Birth Year</Label>
-              <Input className="mt-1" value={form.birthYear} onChange={f("birthYear")} placeholder="e.g. 1882" type="number" />
+              <Input className="mt-1" value={form.birthYear} onChange={fld("birthYear")} placeholder="e.g. 1882" type="number" />
             </div>
             <div>
               <Label>Death Year</Label>
-              <Input className="mt-1" value={form.deathYear} onChange={f("deathYear")} placeholder="e.g. 1945 (blank if living)" type="number" />
+              <Input className="mt-1" value={form.deathYear} onChange={fld("deathYear")} placeholder="e.g. 1945 (blank if living)" type="number" />
             </div>
             <div>
               <Label>Generational Position</Label>
-              <Input className="mt-1" value={form.generationalPosition} onChange={f("generationalPosition")} placeholder="0 = oldest ancestor" type="number" />
+              <Input className="mt-1" value={form.generationalPosition} onChange={fld("generationalPosition")} placeholder="0 = oldest ancestor" type="number" />
             </div>
             <div>
               <Label>Tribal Nation</Label>
-              <Input className="mt-1" value={form.tribalNation} onChange={f("tribalNation")} placeholder="e.g. Choctaw Nation" />
+              <Input className="mt-1" value={form.tribalNation} onChange={fld("tribalNation")} placeholder="e.g. Choctaw Nation" />
             </div>
             <div>
               <Label>Enrollment Number</Label>
-              <Input className="mt-1" value={form.tribalEnrollmentNumber} onChange={f("tribalEnrollmentNumber")} placeholder="Tribal enrollment number" />
+              <Input className="mt-1" value={form.tribalEnrollmentNumber} onChange={fld("tribalEnrollmentNumber")} placeholder="Tribal enrollment number" />
             </div>
             <div className="md:col-span-3">
               <Label>Notes</Label>
-              <Textarea className="mt-1" value={form.notes} onChange={f("notes")} placeholder="Role, relationships, place of origin, any relevant history…" rows={3} />
+              <Textarea className="mt-1" value={form.notes} onChange={fld("notes")} placeholder="Role, relationships, place of origin, any relevant history…" rows={3} />
             </div>
           </div>
           <div className="flex gap-3">
@@ -643,16 +1362,6 @@ function KnowledgeOfSelfTab({ token, kosData, lineageData, isLoading, onLink }: 
                 {n.identityTags && n.identityTags.length > 0 && (
                   <div className="flex flex-wrap gap-1">{n.identityTags.map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}</div>
                 )}
-                {n.benefitEligibility && Object.keys(n.benefitEligibility).length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Benefit Eligibility</p>
-                    <div className="flex flex-wrap gap-2">
-                      {Object.entries(n.benefitEligibility).filter(([, v]) => v).map(([k]) => (
-                        <Badge key={k} className="bg-green-700 text-white text-xs capitalize">{k.replace(/([A-Z])/g, " $1").trim()}</Badge>
-                      ))}
-                    </div>
-                  </div>
-                )}
               </CardContent>
             </Card>
           ))}
@@ -701,6 +1410,14 @@ function KnowledgeOfSelfTab({ token, kosData, lineageData, isLoading, onLink }: 
         </Card>
       )}
 
+      {narratives.length === 0 && linkedAncestors.length === 0 && records.length === 0 && (
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground">No Knowledge-of-Self links yet. Import lineage data via CSV or photo, then link ancestors to your identity profile here.</p>
+          </CardContent>
+        </Card>
+      )}
+
       {records.length > 0 && (
         <div>
           <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ancestral Records ({records.length})</p>
@@ -723,14 +1440,6 @@ function KnowledgeOfSelfTab({ token, kosData, lineageData, isLoading, onLink }: 
             ))}
           </div>
         </div>
-      )}
-
-      {narratives.length === 0 && linkedAncestors.length === 0 && records.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No Knowledge-of-Self links yet. Import lineage data via CSV or photo, then link ancestors to your identity profile here.</p>
-          </CardContent>
-        </Card>
       )}
     </div>
   );
