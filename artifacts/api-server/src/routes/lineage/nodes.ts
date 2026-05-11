@@ -112,7 +112,24 @@ router.post("/member", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const pIds: number[] = Array.isArray(parentIds) ? (parentIds as number[]) : [];
+    const rawIds: unknown[] = Array.isArray(parentIds) ? parentIds : [];
+    const pIds: number[] = rawIds
+      .map((v) => (typeof v === "number" ? v : parseInt(String(v), 10)))
+      .filter((v) => Number.isFinite(v) && v > 0)
+      .slice(0, 5);
+
+    if (pIds.length > 0) {
+      const existingNodes = await db
+        .select({ id: familyLineageTable.id })
+        .from(familyLineageTable);
+      const validIds = new Set(existingNodes.map((r) => r.id));
+      const invalid = pIds.filter((id) => !validIds.has(id));
+      if (invalid.length > 0) {
+        res.status(400).json({ error: `Invalid parent node IDs: ${invalid.join(", ")}` });
+        return;
+      }
+    }
+
     const callerId = req.user?.dbId ?? null;
 
     const [node] = await db
@@ -143,9 +160,9 @@ router.post("/member", requireAuth, async (req, res, next) => {
     for (const parentId of pIds) {
       const [parent] = await db.select({ childrenIds: familyLineageTable.childrenIds }).from(familyLineageTable).where(eq(familyLineageTable.id, parentId)).limit(1);
       if (parent) {
-        const existing = Array.isArray(parent.childrenIds) ? (parent.childrenIds as number[]) : [];
-        if (!existing.includes(node.id)) {
-          await db.update(familyLineageTable).set({ childrenIds: [...existing, node.id] }).where(eq(familyLineageTable.id, parentId));
+        const existingChildren = Array.isArray(parent.childrenIds) ? (parent.childrenIds as number[]) : [];
+        if (!existingChildren.includes(node.id)) {
+          await db.update(familyLineageTable).set({ childrenIds: [...existingChildren, node.id] }).where(eq(familyLineageTable.id, parentId));
         }
       }
     }
@@ -170,11 +187,8 @@ router.post("/:id/approve", requireAuth, async (req, res, next) => {
     if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
     if (!existing.pendingReview) { res.status(400).json({ error: "Node is not pending review" }); return; }
 
-    const body = req.body as Record<string, unknown>;
-    const membershipStatus = typeof body.membershipStatus === "string" ? body.membershipStatus : "descendant";
-
     const [updated] = await db.update(familyLineageTable)
-      .set({ pendingReview: false, membershipStatus, protectionLevel: "descendant", updatedAt: new Date() })
+      .set({ pendingReview: false, membershipStatus: "descendant", protectionLevel: "descendant", updatedAt: new Date() })
       .where(eq(familyLineageTable.id, id))
       .returning();
 

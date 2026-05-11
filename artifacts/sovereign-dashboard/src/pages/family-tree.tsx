@@ -735,6 +735,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
   onRefresh: () => void;
 }) {
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [showEditOwn, setShowEditOwn] = useState(false);
   const [editOwnForm, setEditOwnForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", gender: "", tribalNation: "", supportingDocumentName: "" });
 
@@ -777,6 +778,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
     onSuccess: () => {
       toast({ title: "Submission updated", description: "Your pending submission has been updated." });
       setShowEditOwn(false);
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] });
       onRefresh();
     },
     onError: (err: Error) => {
@@ -896,7 +898,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
                       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                       body: JSON.stringify({ membershipStatus: "descendant" }),
                     });
-                    if (r.ok) { toast({ title: "Approved", description: `${n.fullName} has been approved.` }); onRefresh(); }
+                    if (r.ok) { toast({ title: "Approved", description: `${n.fullName} has been approved.` }); queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] }); onRefresh(); }
                     else { const d = await r.json(); toast({ title: "Error", description: d.error, variant: "destructive" }); }
                   }}
                 >
@@ -912,7 +914,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
                       headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
                       body: JSON.stringify({ reason: "Does not meet membership criteria" }),
                     });
-                    if (r.ok) { toast({ title: "Rejected", description: `${n.fullName}'s submission has been rejected.` }); onRefresh(); onClose(); }
+                    if (r.ok) { toast({ title: "Rejected", description: `${n.fullName}'s submission has been rejected.` }); queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] }); onRefresh(); onClose(); }
                     else { const d = await r.json(); toast({ title: "Error", description: d.error, variant: "destructive" }); }
                   }}
                 >
