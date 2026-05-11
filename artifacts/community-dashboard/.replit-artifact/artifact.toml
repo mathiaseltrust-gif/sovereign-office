@@ -12,7 +12,7 @@ version = "1.0.0"
 [[services]]
 name = "web"
 paths = [ "/community-dashboard/" ]
-localPort = 8080
+localPort = 8084
 
 [services.development]
 run = "node /home/runner/workspace/artifacts/community-dashboard/start.mjs"
@@ -27,5 +27,5 @@ from = "/*"
 to = "/index.html"
 
 [services.env]
-PORT = "9000"
+PORT = "8084"
 BASE_PATH = "/community-dashboard/"
