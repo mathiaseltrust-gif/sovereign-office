@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import {
-  Users, MessageSquare, BookOpen, Plus, Trash2, Pin, PinOff,
-  CheckCircle, AlertCircle, Shield, RefreshCw
+  Users, MessageSquare, BookOpen, Plus, Trash2, Pin,
+  CheckCircle, AlertCircle, Shield, RefreshCw, Upload, Sparkles, FileText, X
 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -94,6 +94,15 @@ export default function Admin() {
   const [newLaw, setNewLaw] = useState({
     type: "tribal", title: "", citation: "", body: "", tags: "",
   });
+
+  const [aiUpload, setAiUpload] = useState<{
+    file: File | null;
+    loading: boolean;
+    error: string | null;
+    confidence: "high" | "medium" | "low" | null;
+    extractedFrom: "ai" | "pattern" | null;
+  }>({ file: null, loading: false, error: null, confidence: null, extractedFrom: null });
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   async function loadMembers() {
     setLoading(true);
@@ -196,6 +205,51 @@ export default function Admin() {
       const msg = e instanceof Error ? e.message : "Unknown error";
       toast({ title: "Error", description: msg, variant: "destructive" });
     }
+  }
+
+  async function extractDocument(file: File) {
+    setAiUpload((prev) => ({ ...prev, loading: true, error: null, confidence: null, extractedFrom: null }));
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+      const res = await fetch("/api/community/law/extract", { method: "POST", body: formData });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({ error: res.statusText }));
+        throw new Error(err.error ?? "Extraction failed");
+      }
+      const data = await res.json() as {
+        type: "tribal" | "federal" | "doctrine";
+        title: string;
+        citation: string;
+        body: string;
+        tags: string[];
+        caseName?: string;
+        confidence: "high" | "medium" | "low";
+        extractedFrom: "ai" | "pattern";
+      };
+      setNewLaw({
+        type: data.type === "doctrine" ? "tribal" : data.type,
+        title: data.caseName ?? data.title,
+        citation: data.citation,
+        body: data.body,
+        tags: (data.tags ?? []).join(", "),
+      });
+      setAiUpload((prev) => ({ ...prev, loading: false, confidence: data.confidence, extractedFrom: data.extractedFrom }));
+      toast({
+        title: data.extractedFrom === "ai" ? "AI extraction complete" : "Fields extracted",
+        description: data.extractedFrom === "ai"
+          ? "Fields pre-filled from document. Review and adjust before saving."
+          : "Pattern-based extraction used (AI unavailable). Please review all fields carefully.",
+      });
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Unknown error";
+      setAiUpload((prev) => ({ ...prev, loading: false, error: msg }));
+    }
+  }
+
+  function clearUpload() {
+    setAiUpload({ file: null, loading: false, error: null, confidence: null, extractedFrom: null });
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }
 
   async function addLaw() {
@@ -466,11 +520,102 @@ export default function Admin() {
 
         {/* LAW LIBRARY TAB */}
         <TabsContent value="law" className="space-y-4 mt-4">
+
+          {/* AI UPLOAD CARD */}
+          <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-primary" /> AI Document Extraction
+              </CardTitle>
+              <CardDescription>
+                Upload a PDF, Word doc, or text file — AI will read it and pre-fill the form fields below.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {/* Drop zone */}
+              <div
+                className={`relative border-2 border-dashed rounded-lg transition-colors ${aiUpload.file ? "border-primary/50 bg-primary/5" : "border-border hover:border-primary/40 hover:bg-muted/30"} cursor-pointer`}
+                onClick={() => !aiUpload.loading && fileInputRef.current?.click()}
+                onDragOver={(e) => e.preventDefault()}
+                onDrop={(e) => {
+                  e.preventDefault();
+                  const file = e.dataTransfer.files[0];
+                  if (file) { setAiUpload((prev) => ({ ...prev, file, error: null, confidence: null, extractedFrom: null })); extractDocument(file); }
+                }}
+              >
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".pdf,.doc,.docx,.txt"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (file) { setAiUpload((prev) => ({ ...prev, file, error: null, confidence: null, extractedFrom: null })); extractDocument(file); }
+                  }}
+                />
+                <div className="flex flex-col items-center justify-center py-6 gap-2 text-center">
+                  {aiUpload.loading ? (
+                    <>
+                      <RefreshCw className="h-8 w-8 text-primary animate-spin" />
+                      <p className="text-sm font-medium text-primary">Analyzing document…</p>
+                      <p className="text-xs text-muted-foreground">AI is extracting law library fields</p>
+                    </>
+                  ) : aiUpload.file ? (
+                    <>
+                      <FileText className="h-8 w-8 text-primary" />
+                      <p className="text-sm font-medium truncate max-w-xs">{aiUpload.file.name}</p>
+                      <p className="text-xs text-muted-foreground">Click to replace file</p>
+                    </>
+                  ) : (
+                    <>
+                      <Upload className="h-8 w-8 text-muted-foreground/60" />
+                      <p className="text-sm font-medium text-muted-foreground">Drop a file or click to browse</p>
+                      <p className="text-xs text-muted-foreground">PDF, DOCX, or TXT — up to 10 MB</p>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              {/* Status badges */}
+              {(aiUpload.confidence || aiUpload.error) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  {aiUpload.confidence && !aiUpload.error && (
+                    <span className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full font-medium border ${
+                      aiUpload.extractedFrom === "ai"
+                        ? "bg-emerald-50 text-emerald-700 border-emerald-200 dark:bg-emerald-900/30 dark:text-emerald-400 dark:border-emerald-800/50"
+                        : "bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-900/30 dark:text-amber-400"
+                    }`}>
+                      {aiUpload.extractedFrom === "ai" ? <Sparkles className="h-3 w-3" /> : <AlertCircle className="h-3 w-3" />}
+                      {aiUpload.extractedFrom === "ai" ? `AI extracted · ${aiUpload.confidence} confidence` : "Pattern extracted · review carefully"}
+                    </span>
+                  )}
+                  {aiUpload.file && !aiUpload.loading && (
+                    <button onClick={clearUpload} className="inline-flex items-center gap-1 text-xs text-muted-foreground hover:text-destructive transition-colors">
+                      <X className="h-3 w-3" /> Clear
+                    </button>
+                  )}
+                  {aiUpload.error && (
+                    <span className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" /> {aiUpload.error}
+                    </span>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* MANUAL / REVIEW FORM */}
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Plus className="h-4 w-4 text-primary" /> Add Law Resource
+                <Plus className="h-4 w-4 text-primary" />
+                {aiUpload.confidence ? "Review & Save Extracted Resource" : "Add Law Resource"}
               </CardTitle>
+              {aiUpload.confidence && (
+                <CardDescription>
+                  Fields pre-filled from your document. Edit anything before saving.
+                </CardDescription>
+              )}
             </CardHeader>
             <CardContent className="space-y-3">
               <div>
@@ -503,9 +648,19 @@ export default function Admin() {
                 <label className="text-xs font-medium text-muted-foreground mb-1 block">Tags (comma-separated)</label>
                 <Input placeholder="e.g. enrollment, sovereignty, trust" value={newLaw.tags} onChange={(e) => setNewLaw({ ...newLaw, tags: e.target.value })} />
               </div>
-              <Button onClick={addLaw} className="w-full sm:w-auto gap-2">
-                <Plus className="h-4 w-4" /> Add to Law Library
-              </Button>
+              <div className="flex gap-2 flex-wrap">
+                <Button onClick={addLaw} className="gap-2">
+                  <Plus className="h-4 w-4" /> Add to Law Library
+                </Button>
+                {aiUpload.confidence && (
+                  <Button variant="outline" onClick={() => {
+                    setNewLaw({ type: "tribal", title: "", citation: "", body: "", tags: "" });
+                    clearUpload();
+                  }} className="gap-2 text-muted-foreground">
+                    <X className="h-4 w-4" /> Reset Form
+                  </Button>
+                )}
+              </div>
             </CardContent>
           </Card>
 
