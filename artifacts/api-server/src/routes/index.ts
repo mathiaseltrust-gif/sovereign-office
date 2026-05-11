@@ -42,6 +42,7 @@ import communityAiRouter from "./community/ai-guidance";
 import communityActivityRouter from "./community/activity";
 import businessAnalyzeRouter from "./business/analyze";
 import businessConceptsRouter from "./business/concepts";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -89,5 +90,6 @@ router.use("/community/ai", communityAiRouter);
 router.use("/community/activity", communityActivityRouter);
 router.use("/business/analyze", businessAnalyzeRouter);
 router.use("/business/concepts", businessConceptsRouter);
+router.use(storageRouter);
 
 export default router;

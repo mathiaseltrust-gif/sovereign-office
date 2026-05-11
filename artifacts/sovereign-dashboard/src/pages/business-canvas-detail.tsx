@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -284,42 +284,100 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
 }
 
 function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onDocUpdated: () => void }) {
-  const [filename, setFilename] = useState("");
-  const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [progress, setProgress] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
 
-  async function addDocument() {
-    if (!filename.trim()) return;
-    setSaving(true);
+  async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const allowed = ["application/pdf", "application/msword",
+      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "image/png", "image/jpeg", "image/jpg"];
+    if (!allowed.includes(file.type) && !file.name.match(/\.(pdf|doc|docx|png|jpg|jpeg)$/i)) {
+      toast({ title: "Only PDF, Word, and image files are allowed", variant: "destructive" });
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast({ title: "File must be under 20 MB", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    setProgress(10);
     try {
-      const res = await fetch(`/api/business/concepts/${concept.id}/documents`, {
+      const urlRes = await fetch("/api/storage/uploads/request-url", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ filename }),
+        body: JSON.stringify({
+          name: file.name,
+          size: file.size,
+          contentType: file.type || "application/octet-stream",
+        }),
       });
-      if (!res.ok) throw new Error();
-      setFilename("");
+      if (!urlRes.ok) throw new Error("Failed to get upload URL");
+      const { uploadURL, objectPath } = await urlRes.json() as { uploadURL: string; objectPath: string };
+
+      setProgress(40);
+      const putRes = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "application/octet-stream" },
+      });
+      if (!putRes.ok) throw new Error("Failed to upload file");
+
+      setProgress(80);
+      const docRes = await fetch(`/api/business/concepts/${concept.id}/documents`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ filename: file.name, fileKey: objectPath }),
+      });
+      if (!docRes.ok) throw new Error("Failed to record document");
+
+      setProgress(100);
       onDocUpdated();
-      toast({ title: "Document recorded" });
-    } catch {
-      toast({ title: "Failed to add document", variant: "destructive" });
+      toast({ title: `${file.name} uploaded successfully` });
+    } catch (err) {
+      toast({ title: "Upload failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
     } finally {
-      setSaving(false);
+      setUploading(false);
+      setProgress(0);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   }
 
   return (
     <div className="space-y-4">
-      <div className="flex gap-2">
-        <Input
-          placeholder="Document filename (e.g. BIA_Charter_Application.pdf)"
-          value={filename}
-          onChange={(e) => setFilename(e.target.value)}
-          onKeyDown={(e) => { if (e.key === "Enter") addDocument(); }}
-        />
-        <Button onClick={addDocument} disabled={saving || !filename.trim()}>
-          {saving ? "..." : "Add"}
-        </Button>
+      <div>
+        <p className="text-sm text-muted-foreground mb-3">
+          Upload PDFs, Word documents, or images associated with this concept (charters, BIA applications, agreements). Max 20 MB per file.
+        </p>
+        <div className="flex items-center gap-3">
+          <Button
+            variant="outline"
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+          >
+            {uploading ? `Uploading… ${progress}%` : "Upload Document"}
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".pdf,.doc,.docx,.png,.jpg,.jpeg"
+            className="hidden"
+            onChange={handleFileChange}
+          />
+          {uploading && (
+            <div className="flex-1 h-2 rounded-full bg-muted overflow-hidden">
+              <div
+                className="h-2 rounded-full bg-primary transition-all duration-300"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+          )}
+        </div>
       </div>
 
       {concept.documents.length === 0 ? (
@@ -328,7 +386,9 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
         <div className="space-y-2">
           {concept.documents.map((d) => (
             <div key={d.id} className="flex items-center gap-3 p-3 rounded-lg border">
-              <span className="text-xl">📄</span>
+              <span className="text-xl">
+                {d.filename.match(/\.(png|jpg|jpeg)$/i) ? "🖼️" : "📄"}
+              </span>
               <div className="flex-1 min-w-0">
                 <p className="text-sm font-medium truncate">{d.filename}</p>
                 <p className="text-xs text-muted-foreground">
@@ -336,6 +396,16 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
                   {d.uploadedBy ? ` by ${d.uploadedBy}` : ""}
                 </p>
               </div>
+              {(d as BizDocument & { fileKey?: string }).fileKey && (
+                <a
+                  href={`/api/storage/objects/${(d as BizDocument & { fileKey?: string }).fileKey?.replace(/^\/objects\//, "")}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-primary underline shrink-0"
+                >
+                  Download
+                </a>
+              )}
             </div>
           ))}
         </div>

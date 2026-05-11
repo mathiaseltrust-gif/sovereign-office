@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type Request } from "express";
 import { db } from "@workspace/db";
 import {
   businessConceptsTable,
@@ -12,13 +12,30 @@ import { runAiEngine } from "../../sovereign/ai-engine";
 
 const router = Router();
 
+const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
+
+async function checkConceptAccess(conceptId: number, req: Request): Promise<boolean> {
+  const userId = req.user?.dbId;
+  if (!userId) return false;
+  const isElevated = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
+  if (isElevated) return true;
+  const [concept] = await db
+    .select({ ownerId: businessConceptsTable.ownerId })
+    .from(businessConceptsTable)
+    .where(eq(businessConceptsTable.id, conceptId));
+  if (!concept) return false;
+  return concept.ownerId === userId;
+}
+
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
+    if (!userId) { res.status(403).json({ error: "Registered user account required." }); return; }
+    const isElevated = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
     const concepts = await db
       .select()
       .from(businessConceptsTable)
-      .where(userId ? eq(businessConceptsTable.ownerId, userId) : undefined)
+      .where(isElevated ? undefined : eq(businessConceptsTable.ownerId, userId))
       .orderBy(desc(businessConceptsTable.updatedAt));
     res.json(concepts);
   } catch (err) {
@@ -29,6 +46,8 @@ router.get("/", requireAuth, async (req, res, next) => {
 router.post("/", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
+    if (!userId) { res.status(403).json({ error: "Registered user account required." }); return; }
+
     const {
       title, description, structure, status,
       aiSummary, suggestedStructures, protections, agenciesToContact,
@@ -56,7 +75,7 @@ router.post("/", requireAuth, async (req, res, next) => {
     const [concept] = await db
       .insert(businessConceptsTable)
       .values({
-        ownerId: userId ?? null,
+        ownerId: userId,
         title,
         description: description ?? "",
         structure: structure ?? "",
@@ -84,6 +103,11 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+    if (!await checkConceptAccess(id, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
+
     const [concept] = await db
       .select()
       .from(businessConceptsTable)
@@ -106,6 +130,11 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+    if (!await checkConceptAccess(id, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
 
     const allowedFields = [
       "title", "description", "structure", "status",
@@ -136,6 +165,11 @@ router.post("/:id/board", requireAuth, async (req, res, next) => {
     const conceptId = parseInt(String(req.params.id), 10);
     if (isNaN(conceptId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+    if (!await checkConceptAccess(conceptId, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
+
     const { memberName, memberRole, startDate } = req.body as {
       memberName: string;
       memberRole: string;
@@ -164,6 +198,11 @@ router.delete("/:id/board/:memberId", requireAuth, async (req, res, next) => {
     const memberId = parseInt(String(req.params.memberId), 10);
     if (isNaN(conceptId) || isNaN(memberId)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+    if (!await checkConceptAccess(conceptId, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
+
     await db
       .delete(businessBoardMembersTable)
       .where(and(
@@ -181,6 +220,11 @@ router.post("/:id/documents", requireAuth, async (req, res, next) => {
   try {
     const conceptId = parseInt(String(req.params.id), 10);
     if (isNaN(conceptId)) { res.status(400).json({ error: "Invalid id" }); return; }
+
+    if (!await checkConceptAccess(conceptId, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
 
     const { filename, fileKey } = req.body as { filename: string; fileKey?: string };
     if (!filename) { res.status(400).json({ error: "filename is required" }); return; }
@@ -203,6 +247,11 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
     const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
+    if (!await checkConceptAccess(id, req)) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
+
     const [concept] = await db
       .select()
       .from(businessConceptsTable)
@@ -216,6 +265,7 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
       `Structure: ${concept.structure}`,
       `Description: ${concept.description}`,
       `AI Summary: ${concept.aiSummary ?? "N/A"}`,
+      `Sovereign Protections: ${(concept.protections as string[] ?? []).join("; ")}`,
       `Status: ${concept.status}`,
     ].join("\n");
 
@@ -230,6 +280,7 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
       .set({ status: "submitted", updatedAt: new Date() })
       .where(eq(businessConceptsTable.id, id));
 
+    logger.info({ conceptId: id, userId: req.user?.dbId }, "Business concept submitted for validation");
     res.json({ ok: true, validation: report });
   } catch (err) {
     next(err);

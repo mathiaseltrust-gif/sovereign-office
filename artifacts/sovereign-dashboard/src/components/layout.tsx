@@ -36,6 +36,7 @@ function getCoreNav(role: Role): NavSection["items"] {
   if (role === "medical_provider") {
     return [
       { href: "/dashboard/medical-provider", label: "Medical Dashboard" },
+      { href: "/business-canvas", label: "Business Canvas" },
       { href: "/medical-notes", label: "Medical Notes" },
       { href: "/family-tree", label: "Patient Lineage" },
       ...common,
@@ -45,6 +46,7 @@ function getCoreNav(role: Role): NavSection["items"] {
   if (role === "elder") {
     return [
       { href: "/dashboard/elder", label: "Elder Dashboard" },
+      { href: "/business-canvas", label: "Business Canvas" },
       { href: "/family-tree", label: "Family Tree & Lineage" },
       { href: "/medical-notes", label: "Medical Notes" },
       { href: "/welfare", label: "Welfare Instruments" },

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -6,7 +6,6 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 
 interface SuggestedStructure {
@@ -78,13 +77,14 @@ function StepIndicator({ current, total }: { current: number; total: number }) {
 export default function BusinessCanvasWizard() {
   const [step, setStep] = useState(0);
   const [ideaText, setIdeaText] = useState("");
+  const [conceptTitle, setConceptTitle] = useState("");
   const [analysis, setAnalysis] = useState<AiAnalysis | null>(null);
   const [selectedStructure, setSelectedStructure] = useState("");
   const [planOutline, setPlanOutline] = useState<Record<string, string>>({});
   const [modelCanvas, setModelCanvas] = useState<Record<string, string>>({});
   const [analyzing, setAnalyzing] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [conceptTitle, setConceptTitle] = useState("");
+  const [patching, setPatching] = useState(false);
+  const conceptIdRef = useRef<number | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
 
@@ -105,47 +105,79 @@ export default function BusinessCanvasWizard() {
       setAnalysis(data);
       setPlanOutline(data.planOutline ?? {});
       setModelCanvas(data.modelCanvas ?? {});
-      if (!conceptTitle) setConceptTitle(ideaText.trim().substring(0, 60));
+      const title = conceptTitle.trim() || ideaText.trim().substring(0, 60);
+
+      const createRes = await fetch("/api/business/concepts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          title,
+          description: ideaText,
+          status: "draft",
+          aiSummary: data.summary,
+          suggestedStructures: data.suggestedStructures,
+          protections: data.protections,
+          agenciesToContact: data.agenciesToContact,
+          planOutline: data.planOutline,
+          modelCanvas: data.modelCanvas,
+          provisions: data.provisions,
+          whatNextSteps: data.whatNextSteps,
+        }),
+      });
+      if (!createRes.ok) throw new Error("Failed to save concept");
+      const created = await createRes.json() as { id: number; title: string };
+      conceptIdRef.current = created.id;
+      if (!conceptTitle) setConceptTitle(title);
+
+      toast({ title: "Analysis complete — concept file created" });
       setStep(1);
     } catch {
-      toast({ title: "AI analysis failed", description: "Using rule-based defaults instead.", variant: "destructive" });
+      toast({ title: "AI analysis failed", description: "Please try again.", variant: "destructive" });
     } finally {
       setAnalyzing(false);
     }
   }
 
-  async function saveConcept() {
-    if (!analysis) return;
-    setSaving(true);
+  async function saveStructure() {
+    const id = conceptIdRef.current;
+    if (!id || !analysis) return;
+    const structure = selectedStructure || analysis.suggestedStructures[0]?.name || "";
+    setPatching(true);
     try {
-      const body = {
-        title: conceptTitle || ideaText.substring(0, 60),
-        description: ideaText,
-        structure: selectedStructure || analysis.suggestedStructures[0]?.name || "",
-        status: "draft",
-        aiSummary: analysis.summary,
-        suggestedStructures: analysis.suggestedStructures,
-        protections: analysis.protections,
-        agenciesToContact: analysis.agenciesToContact,
-        planOutline,
-        modelCanvas,
-        provisions: analysis.provisions,
-        whatNextSteps: analysis.whatNextSteps,
-      };
-
-      const res = await fetch("/api/business/concepts", {
-        method: "POST",
+      await fetch(`/api/business/concepts/${id}`, {
+        method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body: JSON.stringify({ structure }),
       });
-      if (!res.ok) throw new Error(await res.text());
-      const concept = await res.json() as { id: number };
-      toast({ title: "Business concept saved!" });
-      navigate(`/business-canvas/${concept.id}`);
     } catch {
-      toast({ title: "Failed to save concept", variant: "destructive" });
-      setSaving(false);
+      toast({ title: "Could not save structure selection", variant: "destructive" });
+    } finally {
+      setPatching(false);
     }
+    setStep(2);
+  }
+
+  async function savePlanModel() {
+    const id = conceptIdRef.current;
+    if (!id) return;
+    setPatching(true);
+    try {
+      await fetch(`/api/business/concepts/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ planOutline, modelCanvas }),
+      });
+    } catch {
+      toast({ title: "Could not autosave plan", variant: "destructive" });
+    } finally {
+      setPatching(false);
+    }
+    setStep(3);
+  }
+
+  function goToDetail() {
+    const id = conceptIdRef.current;
+    if (id) navigate(`/business-canvas/${id}`);
   }
 
   return (
@@ -167,7 +199,7 @@ export default function BusinessCanvasWizard() {
           <CardHeader>
             <CardTitle>Step 1 — What is your business idea?</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Describe your idea in plain language. Our AI will analyze it and suggest sovereign business structures, protections, and a full formation plan.
+              Describe your idea in plain language. Our AI will analyze it, suggest sovereign business structures, protections, and a full formation plan — and create your Concept File immediately.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -195,7 +227,7 @@ export default function BusinessCanvasWizard() {
             <div className="flex justify-end">
               <Button onClick={runAnalysis} disabled={analyzing || ideaText.trim().length < 10} size="lg">
                 {analyzing ? (
-                  <><span className="animate-spin mr-2">⟳</span> Analyzing with AI...</>
+                  <><span className="animate-spin mr-2">⟳</span> Analyzing & creating concept file...</>
                 ) : (
                   "Analyze with AI →"
                 )}
@@ -256,15 +288,8 @@ export default function BusinessCanvasWizard() {
 
               <div className="flex justify-between pt-2">
                 <Button variant="outline" onClick={() => setStep(0)}>← Back</Button>
-                <Button
-                  onClick={() => {
-                    if (!selectedStructure && analysis.suggestedStructures.length > 0) {
-                      setSelectedStructure(analysis.suggestedStructures[0]?.name ?? "");
-                    }
-                    setStep(2);
-                  }}
-                >
-                  {selectedStructure ? "Continue →" : "Skip to Plan →"}
+                <Button onClick={saveStructure} disabled={patching}>
+                  {patching ? "Saving..." : selectedStructure ? "Continue →" : "Use Recommended →"}
                 </Button>
               </div>
             </CardContent>
@@ -276,7 +301,7 @@ export default function BusinessCanvasWizard() {
         <Card>
           <CardHeader>
             <CardTitle>Step 3 — Business Plan & Model Canvas</CardTitle>
-            <p className="text-sm text-muted-foreground">AI-drafted plan outline — edit inline to customize for your vision.</p>
+            <p className="text-sm text-muted-foreground">AI-drafted plan outline — edit inline to customize for your vision. Changes are autosaved when you continue.</p>
           </CardHeader>
           <CardContent className="space-y-6">
             <div>
@@ -313,7 +338,9 @@ export default function BusinessCanvasWizard() {
 
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep(1)}>← Back</Button>
-              <Button onClick={() => setStep(3)}>Continue →</Button>
+              <Button onClick={savePlanModel} disabled={patching}>
+                {patching ? "Saving..." : "Continue →"}
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -365,7 +392,7 @@ export default function BusinessCanvasWizard() {
           <CardHeader>
             <CardTitle>Step 5 — What Next: Activation Checklist</CardTitle>
             <p className="text-sm text-muted-foreground">
-              Numbered action steps with agency contacts to bring your business to life.
+              Your concept file is saved. Review the activation steps and open your Concept File to continue formation.
             </p>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -402,12 +429,8 @@ export default function BusinessCanvasWizard() {
 
             <div className="flex justify-between pt-2">
               <Button variant="outline" onClick={() => setStep(3)}>← Back</Button>
-              <Button onClick={saveConcept} disabled={saving} size="lg">
-                {saving ? (
-                  <><span className="animate-spin mr-2">⟳</span> Saving...</>
-                ) : (
-                  "Save Concept File →"
-                )}
+              <Button onClick={goToDetail} size="lg">
+                Open Concept File →
               </Button>
             </div>
           </CardContent>
