@@ -10,6 +10,49 @@ import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { processIntake } from "../../sovereign/intake-pipeline";
 import { claimUpload } from "../../lib/pendingUploads";
+import { z } from "zod";
+
+const ConceptCreateBody = z.object({
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).optional().default(""),
+  structure: z.string().max(100).optional().default(""),
+  status: z.enum(["draft", "submitted", "approved", "rejected"]).optional().default("draft"),
+  aiSummary: z.string().max(5000).nullable().optional(),
+  suggestedStructures: z.array(z.unknown()).optional().default([]),
+  protections: z.array(z.string()).optional().default([]),
+  agenciesToContact: z.array(z.unknown()).optional().default([]),
+  planOutline: z.record(z.string()).optional().default({}),
+  modelCanvas: z.record(z.string()).optional().default({}),
+  provisions: z.array(z.string()).optional().default([]),
+  whatNextSteps: z.array(z.unknown()).optional().default([]),
+});
+
+const ConceptPatchBody = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(2000).optional(),
+  structure: z.string().max(100).optional(),
+  status: z.enum(["draft", "submitted", "approved", "rejected"]).optional(),
+  aiSummary: z.string().max(5000).nullable().optional(),
+  suggestedStructures: z.array(z.unknown()).optional(),
+  protections: z.array(z.string()).optional(),
+  agenciesToContact: z.array(z.unknown()).optional(),
+  planOutline: z.record(z.string()).optional(),
+  modelCanvas: z.record(z.string()).optional(),
+  provisions: z.array(z.string()).optional(),
+  whatNextSteps: z.array(z.unknown()).optional(),
+});
+
+const BoardMemberBody = z.object({
+  memberName: z.string().min(1).max(200),
+  memberRole: z.string().min(1).max(200),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(),
+  directoryMemberId: z.number().int().positive().optional(),
+});
+
+const DocumentBody = z.object({
+  filename: z.string().min(1).max(500),
+  fileKey: z.string().max(500).optional(),
+});
 
 const router = Router();
 
@@ -49,46 +92,34 @@ router.post("/", requireAuth, async (req, res, next) => {
     const userId = req.user?.dbId;
     if (!userId) { res.status(403).json({ error: "Registered user account required." }); return; }
 
+    const parsed = ConceptCreateBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
+
     const {
       title, description, structure, status,
       aiSummary, suggestedStructures, protections, agenciesToContact,
       planOutline, modelCanvas, provisions, whatNextSteps,
-    } = req.body as {
-      title: string;
-      description?: string;
-      structure?: string;
-      status?: string;
-      aiSummary?: string;
-      suggestedStructures?: unknown[];
-      protections?: string[];
-      agenciesToContact?: unknown[];
-      planOutline?: Record<string, string>;
-      modelCanvas?: Record<string, string>;
-      provisions?: string[];
-      whatNextSteps?: unknown[];
-    };
-
-    if (!title || typeof title !== "string") {
-      res.status(400).json({ error: "title is required" });
-      return;
-    }
+    } = parsed.data;
 
     const [concept] = await db
       .insert(businessConceptsTable)
       .values({
         ownerId: userId,
         title,
-        description: description ?? "",
-        structure: structure ?? "",
-        status: status ?? "draft",
+        description,
+        structure,
+        status,
         aiSummary: aiSummary ?? null,
-        suggestedStructures: suggestedStructures ?? [],
-        protections: protections ?? [],
-        agenciesToContact: agenciesToContact ?? [],
-        planOutline: planOutline ?? {},
-        modelCanvas: modelCanvas ?? {},
-        provisions: provisions ?? [],
-        whatNextSteps: whatNextSteps ?? [],
+        suggestedStructures,
+        protections,
+        agenciesToContact,
+        planOutline,
+        modelCanvas,
+        provisions,
+        whatNextSteps,
       })
       .returning();
 
@@ -137,15 +168,15 @@ router.patch("/:id", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const allowedFields = [
-      "title", "description", "structure", "status",
-      "aiSummary", "suggestedStructures", "protections", "agenciesToContact",
-      "planOutline", "modelCanvas", "provisions", "whatNextSteps",
-    ];
+    const parsed = ConceptPatchBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.flatten().fieldErrors });
+      return;
+    }
 
     const updates: Record<string, unknown> = { updatedAt: new Date() };
-    for (const field of allowedFields) {
-      if (field in req.body) updates[field] = req.body[field];
+    for (const [k, v] of Object.entries(parsed.data)) {
+      if (v !== undefined) updates[k] = v;
     }
 
     const [updated] = await db
@@ -177,17 +208,13 @@ router.post("/:id/board", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { memberName, memberRole, startDate, directoryMemberId } = req.body as {
-      memberName: string;
-      memberRole: string;
-      startDate?: string;
-      directoryMemberId?: number;
-    };
-
-    if (!memberName || !memberRole) {
-      res.status(400).json({ error: "memberName and memberRole are required" });
+    const parsed = BoardMemberBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Invalid request", details: parsed.error.flatten().fieldErrors });
       return;
     }
+
+    const { memberName, memberRole, startDate, directoryMemberId } = parsed.data;
 
     const [member] = await db
       .insert(businessBoardMembersTable)
@@ -246,8 +273,12 @@ router.post("/:id/documents", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { filename, fileKey } = req.body as { filename: string; fileKey?: string };
-    if (!filename) { res.status(400).json({ error: "filename is required" }); return; }
+    const parsedDoc = DocumentBody.safeParse(req.body);
+    if (!parsedDoc.success) {
+      res.status(400).json({ error: "Invalid request", details: parsedDoc.error.flatten().fieldErrors });
+      return;
+    }
+    const { filename, fileKey } = parsedDoc.data;
 
     if (fileKey !== undefined && fileKey !== null) {
       const userId = String(req.user?.dbId ?? "");
