@@ -201,27 +201,44 @@ If running behind a reverse proxy, replace `localhost` with your domain.
 
 ## 8. Apply database schema (fresh install)
 
-If you are starting with an **empty database** (no pg_restore), run Drizzle's schema
-push to create all tables:
+If you are starting with an **empty database** (no pg_restore), use Drizzle's
+schema push to create all tables. The runtime API image does not include pnpm or
+workspace source, so this step runs on the **host machine** (or a separate
+migration step) using the cloned repository.
+
+### Prerequisites for this step
 
 ```bash
-# Run against the live DATABASE_URL from inside the api container
-docker compose exec api \
-  node -e "
-    const { execSync } = require('child_process');
-    execSync('pnpm --filter @workspace/db run push', { stdio: 'inherit' });
-  "
-```
+# Install Node 22 on the host (if not already present)
+curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+sudo apt-get install -y nodejs
 
-Alternatively, from a host machine with Node 22 and pnpm installed:
+# Install pnpm
+npm install -g pnpm@latest
 
-```bash
+# Install workspace dependencies from the repo root
 pnpm install
-DATABASE_URL="<your-connection-string>" pnpm --filter @workspace/db run push
 ```
 
-> The `push` command uses `drizzle-kit push` which applies schema changes
-> directly to the target database — no migration files are needed.
+### Push schema
+
+```bash
+DATABASE_URL="postgresql://<user>:<pass>@<host>:5432/sovereign_office?sslmode=require" \
+  pnpm --filter @workspace/db run push
+```
+
+> `pnpm run push` calls `drizzle-kit push`, which introspects the TypeScript
+> schema files in `lib/db/src/schema/` and applies the corresponding DDL
+> directly to the target database — no migration files are generated or needed.
+
+### Verify tables were created
+
+```bash
+psql "$DATABASE_URL" -c "\dt"
+```
+
+You should see tables including `users`, `family_lineage`, `trust_instruments`,
+`delegations`, `trust_filings`, etc.
 
 ---
 
