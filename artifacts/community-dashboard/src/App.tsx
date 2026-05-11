@@ -12,8 +12,16 @@ import Legal from "@/pages/legal";
 import Forum from "@/pages/forum";
 import ForumPost from "@/pages/forum-post";
 import Guidance from "@/pages/guidance";
+import Admin from "@/pages/admin";
 
-const queryClient = new QueryClient();
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30_000,
+    },
+  },
+});
 
 function Router() {
   return (
@@ -26,6 +34,7 @@ function Router() {
         <Route path="/forum" component={Forum} />
         <Route path="/forum/:id" component={ForumPost} />
         <Route path="/guidance" component={Guidance} />
+        <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
     </Layout>

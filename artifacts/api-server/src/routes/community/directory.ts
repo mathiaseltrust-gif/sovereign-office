@@ -2,17 +2,17 @@ import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
-import { like, or, eq, and, isNull, count, sql } from "drizzle-orm";
+import { like, or, eq, and, sql } from "drizzle-orm";
+import { ensureCommunitySeeded } from "./seed";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
+    await ensureCommunitySeeded();
     const q = req.query.q as string | undefined;
     const pendingReview = req.query.pendingReview === "true" ? true : req.query.pendingReview === "false" ? false : undefined;
     const isDeceased = req.query.isDeceased === "true" ? true : req.query.isDeceased === "false" ? false : undefined;
-
-    let query = db.select().from(familyLineageTable);
 
     const conditions: ReturnType<typeof eq>[] = [];
 
@@ -70,8 +70,9 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/stats", requireAuth, async (_req, res, next) => {
+router.get("/stats", async (_req, res, next) => {
   try {
+    await ensureCommunitySeeded();
     const all = await db.select().from(familyLineageTable);
 
     const totalMembers = all.length;
@@ -96,7 +97,52 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
+  try {
+    const {
+      firstName, lastName, fullName, birthYear, deathYear, gender,
+      tribalNation, tribalEnrollmentNumber, notes,
+      isDeceased, isAncestor, icwaEligible, trustBeneficiary,
+      pendingReview, generationalPosition,
+    } = req.body as Record<string, unknown>;
+
+    if (!fullName) {
+      res.status(400).json({ error: "fullName is required" });
+      return;
+    }
+
+    const [member] = await db.insert(familyLineageTable).values({
+      firstName: (firstName as string) || null,
+      lastName: (lastName as string) || null,
+      fullName: fullName as string,
+      birthYear: birthYear ? Number(birthYear) : null,
+      deathYear: deathYear ? Number(deathYear) : null,
+      gender: (gender as string) || null,
+      tribalNation: (tribalNation as string) || null,
+      tribalEnrollmentNumber: (tribalEnrollmentNumber as string) || null,
+      notes: (notes as string) || null,
+      isDeceased: Boolean(isDeceased),
+      isAncestor: isAncestor !== undefined ? Boolean(isAncestor) : true,
+      icwaEligible: icwaEligible !== undefined ? Boolean(icwaEligible) : null,
+      trustBeneficiary: trustBeneficiary !== undefined ? Boolean(trustBeneficiary) : null,
+      pendingReview: pendingReview !== undefined ? Boolean(pendingReview) : false,
+      generationalPosition: generationalPosition ? Number(generationalPosition) : 0,
+      sourceType: "manual",
+    }).returning();
+
+    res.status(201).json({
+      id: member.id,
+      fullName: member.fullName,
+      firstName: member.firstName,
+      lastName: member.lastName,
+      createdAt: member.createdAt.toISOString(),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
   try {
     const id = parseInt(req.params.id, 10);
     if (isNaN(id)) {
@@ -167,6 +213,20 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       children: childrenIds.map((cid) => byId.get(cid)).filter(Boolean).map(toSummary),
       spouses: spouseIds.map((sid) => byId.get(sid)).filter(Boolean).map(toSummary),
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.delete("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+    await db.delete(familyLineageTable).where(eq(familyLineageTable.id, id));
+    res.status(204).end();
   } catch (err) {
     next(err);
   }

@@ -39,6 +39,7 @@ import communityDirectoryRouter from "./community/directory";
 import communityLawRouter from "./community/law";
 import communityForumRouter from "./community/forum";
 import communityAiRouter from "./community/ai-guidance";
+import communityActivityRouter from "./community/activity";
 
 const router: IRouter = Router();
 
@@ -83,5 +84,6 @@ router.use("/community/directory", communityDirectoryRouter);
 router.use("/community/law", communityLawRouter);
 router.use("/community/forum", communityForumRouter);
 router.use("/community/ai", communityAiRouter);
+router.use("/community/activity", communityActivityRouter);
 
 export default router;

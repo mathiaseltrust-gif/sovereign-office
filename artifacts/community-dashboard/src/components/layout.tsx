@@ -1,109 +1,150 @@
-import React from "react";
+import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
-import { 
-  Users, 
-  Home, 
-  BookOpen, 
-  MessageSquare, 
+import {
+  Users,
+  Home,
+  BookOpen,
+  MessageSquare,
   MessageCircle,
   Menu,
   Sun,
-  Moon
+  Moon,
+  Shield,
+  X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 
-export function Layout({ children }: { children: React.ReactNode }) {
+const navigation = [
+  { name: "Dashboard", href: "/", icon: Home },
+  { name: "Family Directory", href: "/directory", icon: Users },
+  { name: "Legal Resources", href: "/legal", icon: BookOpen },
+  { name: "Community Forum", href: "/forum", icon: MessageSquare },
+  { name: "Legal Guidance", href: "/guidance", icon: MessageCircle },
+  { name: "Admin", href: "/admin", icon: Shield },
+];
+
+const mobileNav = navigation.slice(0, 5);
+
+function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location] = useLocation();
-  const { theme, setTheme } = useTheme();
-
-  const navigation = [
-    { name: "Dashboard", href: "/", icon: Home },
-    { name: "Family Directory", href: "/directory", icon: Users },
-    { name: "Legal Resources", href: "/legal", icon: BookOpen },
-    { name: "Community Forum", href: "/forum", icon: MessageSquare },
-    { name: "Legal Guidance", href: "/guidance", icon: MessageCircle },
-  ];
-
-  const NavLinks = () => (
-    <div className="space-y-1">
+  return (
+    <div className="space-y-0.5">
       {navigation.map((item) => {
-        const isActive = location === item.href || (item.href !== "/" && location.startsWith(item.href));
+        const isActive =
+          location === item.href ||
+          (item.href !== "/" && location.startsWith(item.href));
         return (
-          <Link key={item.name} href={item.href}>
+          <Link key={item.name} href={item.href} onClick={onNavigate}>
             <div
-              className={`flex items-center gap-3 px-3 py-2 rounded-md transition-colors cursor-pointer ${
+              className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer ${
                 isActive
                   ? "bg-primary text-primary-foreground"
                   : "text-muted-foreground hover:bg-secondary hover:text-foreground"
               }`}
             >
-              <item.icon className="h-5 w-5" />
+              <item.icon className="h-4 w-4 shrink-0" />
               <span className="font-medium text-sm">{item.name}</span>
+              {item.name === "Admin" && (
+                <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider opacity-60">Office</span>
+              )}
             </div>
           </Link>
         );
       })}
     </div>
   );
+}
+
+export function Layout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+  const { theme, setTheme } = useTheme();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       {/* Mobile header */}
-      <header className="md:hidden flex items-center justify-between p-4 border-b bg-card sticky top-0 z-30">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded bg-primary flex items-center justify-center">
-            <Users className="h-5 w-5 text-primary-foreground" />
+      <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-card sticky top-0 z-30 shadow-sm">
+        <div className="flex items-center gap-2.5">
+          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
+            <Users className="h-4 w-4 text-primary-foreground" />
           </div>
-          <span className="font-bold text-lg">Mathias El Tribe</span>
+          <span className="font-bold text-base leading-tight">Mathias El Tribe</span>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon"
+            className="h-8 w-8"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
-            {theme === "dark" ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
+            {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
           </Button>
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button variant="ghost" size="icon">
-                <Menu className="h-6 w-6" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="left" className="w-64 p-0">
-              <div className="p-4 border-b">
-                <div className="flex items-center gap-2">
-                  <div className="h-8 w-8 rounded bg-primary flex items-center justify-center">
-                    <Users className="h-5 w-5 text-primary-foreground" />
-                  </div>
-                  <span className="font-bold text-lg">Mathias El Tribe</span>
-                </div>
-              </div>
-              <div className="p-4">
-                <NavLinks />
-              </div>
-            </SheetContent>
-          </Sheet>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-8 w-8"
+            onClick={() => setMobileMenuOpen((v) => !v)}
+          >
+            {mobileMenuOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
         </div>
       </header>
 
-      {/* Desktop sidebar */}
-      <aside className="hidden md:flex w-64 flex-col border-r bg-card h-screen sticky top-0">
-        <div className="p-6 border-b flex items-center gap-3">
-          <div className="h-10 w-10 rounded bg-primary flex items-center justify-center shrink-0">
-            <Users className="h-6 w-6 text-primary-foreground" />
+      {/* Mobile slide-out menu */}
+      {mobileMenuOpen && (
+        <>
+          <div
+            className="md:hidden fixed inset-0 bg-black/40 z-40 backdrop-blur-sm"
+            onClick={() => setMobileMenuOpen(false)}
+          />
+          <div className="md:hidden fixed top-0 left-0 h-full w-72 bg-card border-r z-50 flex flex-col shadow-xl animate-in slide-in-from-left duration-200">
+            <div className="p-4 border-b flex items-center gap-2.5">
+              <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
+                <Users className="h-5 w-5 text-primary-foreground" />
+              </div>
+              <div>
+                <p className="font-bold text-base leading-none">Mathias El Tribe</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Sovereign Office Portal</p>
+              </div>
+            </div>
+            <div className="flex-1 overflow-auto p-3">
+              <NavLinks onNavigate={() => setMobileMenuOpen(false)} />
+            </div>
+            <div className="p-3 border-t">
+              <Button
+                variant="outline"
+                className="w-full justify-start gap-2 text-sm"
+                onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+              >
+                {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
+                {theme === "dark" ? "Light Mode" : "Dark Mode"}
+              </Button>
+            </div>
           </div>
-          <span className="font-bold text-xl leading-tight">Mathias El Tribe</span>
+        </>
+      )}
+
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex w-60 flex-col border-r bg-card h-screen sticky top-0">
+        <div className="p-5 border-b">
+          <div className="flex items-center gap-2.5">
+            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <Users className="h-5 w-5 text-primary-foreground" />
+            </div>
+            <div className="min-w-0">
+              <p className="font-bold text-sm leading-tight truncate">Mathias El Tribe</p>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">Sovereign Office Portal</p>
+            </div>
+          </div>
         </div>
-        <div className="flex-1 overflow-auto p-4">
+        <div className="flex-1 overflow-auto p-3">
           <NavLinks />
         </div>
-        <div className="p-4 border-t">
+        <div className="p-3 border-t">
           <Button
             variant="outline"
-            className="w-full justify-start gap-2"
+            className="w-full justify-start gap-2 text-sm"
             onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
           >
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
@@ -114,12 +155,35 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Main content */}
       <main className="flex-1 flex flex-col min-h-0 overflow-hidden">
-        <div className="flex-1 overflow-auto p-4 md:p-8">
-          <div className="max-w-6xl mx-auto w-full">
+        <div className="flex-1 overflow-auto p-4 pb-20 md:p-6 md:pb-6">
+          <div className="max-w-5xl mx-auto w-full">
             {children}
           </div>
         </div>
       </main>
+
+      {/* Mobile bottom navigation bar */}
+      <nav className="md:hidden fixed bottom-0 left-0 right-0 bg-card border-t z-30 shadow-lg">
+        <div className="flex">
+          {mobileNav.map((item) => {
+            const isActive =
+              location === item.href ||
+              (item.href !== "/" && location.startsWith(item.href));
+            return (
+              <Link key={item.name} href={item.href} className="flex-1">
+                <div
+                  className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+                    isActive ? "text-primary" : "text-muted-foreground"
+                  }`}
+                >
+                  <item.icon className="h-5 w-5" />
+                  <span className="text-[9px] font-medium leading-none">{item.name.split(" ")[0]}</span>
+                </div>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
     </div>
   );
 }

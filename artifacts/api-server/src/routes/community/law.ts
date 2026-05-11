@@ -2,12 +2,12 @@ import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { tribalLawTable, federalIndianLawTable, doctrineSourcesTable } from "@workspace/db";
-import { like, or, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { ensureLawDbSeeded } from "../../sovereign/law-db";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req, res, next) => {
+router.get("/", async (req, res, next) => {
   try {
     await ensureLawDbSeeded();
 
@@ -113,59 +113,61 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
-    if (isNaN(id)) {
-      res.status(400).json({ error: "Invalid ID" });
+    const { type, title, citation, body, tags } = req.body as {
+      type?: string;
+      title?: string;
+      citation?: string;
+      body?: string;
+      tags?: string[];
+    };
+
+    if (!type || !title || !citation || !body) {
+      res.status(400).json({ error: "type, title, citation, and body are required" });
       return;
     }
 
+    const parsedTags = Array.isArray(tags) ? tags : [];
+
+    if (type === "tribal") {
+      const [row] = await db.insert(tribalLawTable).values({ title, citation, body, tags: parsedTags }).returning();
+      res.status(201).json({ id: row.id, type: "tribal", title: row.title, citation: row.citation });
+      return;
+    }
+
+    if (type === "federal") {
+      const [row] = await db.insert(federalIndianLawTable).values({ title, citation, body, tags: parsedTags }).returning();
+      res.status(201).json({ id: row.id, type: "federal", title: row.title, citation: row.citation });
+      return;
+    }
+
+    res.status(400).json({ error: "type must be 'tribal' or 'federal'" });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/:id", async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id, 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
     const [federal] = await db.select().from(federalIndianLawTable).where(eq(federalIndianLawTable.id, id)).limit(1);
     if (federal) {
-      res.json({
-        id: federal.id,
-        type: "federal",
-        title: federal.title,
-        citation: federal.citation,
-        body: federal.body,
-        tags: (federal.tags as string[]) ?? [],
-        caseName: null,
-        summary: null,
-        updatedAt: federal.updatedAt.toISOString(),
-      });
+      res.json({ id: federal.id, type: "federal", title: federal.title, citation: federal.citation, body: federal.body, tags: (federal.tags as string[]) ?? [], caseName: null, summary: null, updatedAt: federal.updatedAt.toISOString() });
       return;
     }
 
     const [tribal] = await db.select().from(tribalLawTable).where(eq(tribalLawTable.id, id)).limit(1);
     if (tribal) {
-      res.json({
-        id: tribal.id,
-        type: "tribal",
-        title: tribal.title,
-        citation: tribal.citation,
-        body: tribal.body,
-        tags: (tribal.tags as string[]) ?? [],
-        caseName: null,
-        summary: null,
-        updatedAt: tribal.updatedAt.toISOString(),
-      });
+      res.json({ id: tribal.id, type: "tribal", title: tribal.title, citation: tribal.citation, body: tribal.body, tags: (tribal.tags as string[]) ?? [], caseName: null, summary: null, updatedAt: tribal.updatedAt.toISOString() });
       return;
     }
 
     const [doctrine] = await db.select().from(doctrineSourcesTable).where(eq(doctrineSourcesTable.id, id)).limit(1);
     if (doctrine) {
-      res.json({
-        id: doctrine.id,
-        type: "doctrine",
-        title: doctrine.caseName,
-        citation: doctrine.citation,
-        body: doctrine.summary,
-        tags: (doctrine.tags as string[]) ?? [],
-        caseName: doctrine.caseName,
-        summary: doctrine.summary,
-        updatedAt: null,
-      });
+      res.json({ id: doctrine.id, type: "doctrine", title: doctrine.caseName, citation: doctrine.citation, body: doctrine.summary, tags: (doctrine.tags as string[]) ?? [], caseName: doctrine.caseName, summary: doctrine.summary, updatedAt: null });
       return;
     }
 
