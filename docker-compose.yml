@@ -37,6 +37,7 @@ services:
 
   # ── API Server ──────────────────────────────────────────────────────────────
   api:
+    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/sovereign-api:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: artifacts/api-server/Dockerfile
@@ -75,6 +76,7 @@ services:
 
   # ── Sovereign Office Dashboard ──────────────────────────────────────────────
   sovereign:
+    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/sovereign-dashboard:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: artifacts/sovereign-dashboard/Dockerfile
@@ -89,6 +91,7 @@ services:
 
   # ── Trust Instruments Dashboard ─────────────────────────────────────────────
   trust:
+    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/trust-dashboard:${IMAGE_TAG:-latest}
     build:
       context: .
       dockerfile: artifacts/trust-dashboard/Dockerfile

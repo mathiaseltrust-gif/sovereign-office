@@ -18,6 +18,7 @@ containerised and wired together with Docker Compose.
 8. [Apply database schema (fresh install)](#8-apply-database-schema-fresh-install)
 9. [Reverse proxy & TLS (recommended)](#9-reverse-proxy--tls-recommended)
 10. [Updating the application](#10-updating-the-application)
+11. [CI/CD — automated deployments via GitHub Actions](#11-cicd--automated-deployments-via-github-actions)
 
 ---
 
@@ -315,6 +316,181 @@ docker compose up --build -d --no-deps trust
 DATABASE_URL="postgresql://<user>:<pass>@<host>:5432/sovereign_office?sslmode=require" \
   pnpm --filter @workspace/db run push
 ```
+
+---
+
+## 11. CI/CD — automated deployments via GitHub Actions
+
+The repository ships with a GitHub Actions pipeline at
+`.github/workflows/deploy.yml` that turns every push to `main` into a live
+deployment — no SSH or manual `docker compose` commands required.
+
+### How it works
+
+```
+Push to main
+     │
+     ▼
+┌─────────────────────────────┐
+│  Job 1: build-and-push      │   runs on GitHub-hosted runner
+│                             │
+│  1. Checkout code           │
+│  2. Set up Docker Buildx    │
+│  3. docker login → ACR      │
+│  4. Build & push:           │
+│       sovereign-api:sha     │
+│       sovereign-api:latest  │
+│       sovereign-dashboard:* │
+│       trust-dashboard:*     │
+└────────────┬────────────────┘
+             │ success
+             ▼
+┌─────────────────────────────┐
+│  Job 2: deploy              │   environment: production
+│                             │
+│  SSH into Azure VM          │
+│  1. git pull origin main    │
+│  2. docker compose pull     │
+│  3. Rolling restart:        │
+│       api   (waits healthy) │
+│       sovereign             │
+│       trust                 │
+│  4. docker image prune      │
+└─────────────────────────────┘
+```
+
+Each image is tagged with both a short Git SHA (immutable, safe to roll back to)
+and `latest` (floating, always points at the newest build). The `latest` tag is
+also used as a build cache source so subsequent builds are fast.
+
+The pipeline uses a concurrency lock (`deploy-main`) — if a second push arrives
+while a deploy is in progress the in-flight run is cancelled and replaced by the
+newer one, ensuring the server always ends up on the latest code.
+
+### One-time setup
+
+#### 1. Create an Azure Container Registry
+
+```bash
+az acr create \
+  --resource-group <your-rg> \
+  --name sovereignoffice \
+  --sku Basic \
+  --admin-enabled true
+```
+
+Note the **Login server** — it will look like `sovereignoffice.azurecr.io`.
+
+#### 2. Retrieve ACR credentials
+
+```bash
+az acr credential show --name sovereignoffice
+# outputs: username + two passwords — copy either password
+```
+
+#### 3. Authorise the VM to pull from ACR (on the VM)
+
+```bash
+# Log in once so docker compose pull works without a password on the VM
+docker login sovereignoffice.azurecr.io \
+  --username <acr-username> \
+  --password <acr-password>
+```
+
+#### 4. Point docker-compose.yml at the ACR images
+
+Edit `docker-compose.yml` on the VM (and in the repo) so each service uses a
+pre-built image instead of a `build:` block:
+
+```yaml
+services:
+  api:
+    image: sovereignoffice.azurecr.io/sovereign-api:latest
+    # remove the build: block
+    ...
+
+  sovereign:
+    image: sovereignoffice.azurecr.io/sovereign-dashboard:latest
+    # remove the build: block
+    ...
+
+  trust:
+    image: sovereignoffice.azurecr.io/trust-dashboard:latest
+    # remove the build: block
+    ...
+```
+
+#### 5. Add GitHub repository secrets
+
+In your GitHub repository go to **Settings → Secrets and variables → Actions →
+New repository secret** and add each of the following:
+
+| Secret name | Value |
+|---|---|
+| `ACR_REGISTRY` | `sovereignoffice.azurecr.io` |
+| `ACR_USERNAME` | ACR admin username (from step 2) |
+| `ACR_PASSWORD` | ACR admin password (from step 2) |
+| `DEPLOY_HOST` | Public IP or hostname of the Azure VM |
+| `DEPLOY_USER` | SSH login user (e.g. `azureuser`) |
+| `DEPLOY_SSH_KEY` | Full PEM-encoded **private** SSH key |
+| `DEPLOY_PATH` | Absolute path to repo on the VM (e.g. `/home/azureuser/sovereign-office`) |
+
+Optionally add a **repository variable** (not secret — it's not sensitive):
+
+| Variable name | Value |
+|---|---|
+| `VITE_API_URL` | Public URL of the API server (e.g. `https://api.yourdomain.com`) |
+
+#### 6. Create the SSH key pair (if you don't already have one)
+
+```bash
+# On your local machine
+ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/deploy_key -N ""
+
+# Copy the public key to the VM
+ssh-copy-id -i ~/.ssh/deploy_key.pub azureuser@<vm-ip>
+
+# Paste the contents of ~/.ssh/deploy_key (private key) into the DEPLOY_SSH_KEY secret
+cat ~/.ssh/deploy_key
+```
+
+#### 7. Protect the `production` environment (recommended)
+
+The `deploy` job runs in the `production` GitHub Environment. In **Settings →
+Environments → production** you can add:
+
+- **Required reviewers** — a human must approve before the VM is touched.
+- **Deployment branches** — restrict deploys to `main` only.
+
+### Verifying a deployment
+
+After a push to `main`, open the **Actions** tab in GitHub. You will see:
+
+1. **Build & Push Docker images** — watch each image compile and upload to ACR.
+2. **Rolling restart on Azure VM** — the SSH log shows each service restarting
+   and the final `docker compose ps` confirms everything is `running`.
+
+To verify manually on the VM:
+
+```bash
+docker compose ps          # all services should show "running"
+docker compose logs --tail 50 api
+curl -sf http://localhost:8080/api/healthz && echo "API OK"
+```
+
+### Rolling back to a previous version
+
+Every successful build pushes an immutable `:<git-sha>` tag. To roll back:
+
+```bash
+# On the VM — replace <sha> with the 8-char tag from the GitHub Actions log
+IMAGE_TAG=<sha> docker compose up -d --no-deps --no-build api sovereign trust
+```
+
+The `IMAGE_TAG` variable is read by `docker-compose.yml` at start time, so this
+single command pins all three services to the chosen build without editing any
+files. After verifying the rollback is stable you can set `IMAGE_TAG=<sha>` in
+your `.env` file to make it persist across reboots.
 
 ---
 

@@ -1,0 +1,161 @@
+# ============================================================================
+# Sovereign Office — CI/CD Pipeline
+#
+# Triggers on every push to `main`.
+#
+# What it does:
+#   1. Builds all three Docker images (api, sovereign-dashboard, trust-dashboard)
+#   2. Pushes each image to Azure Container Registry (ACR) with two tags:
+#        - <git-sha>  — immutable, pinned to this exact commit
+#        - latest     — floating tag always pointing at the newest build
+#   3. SSHs into the Azure VM and performs a rolling restart:
+#        pulls the new images, then restarts each service one at a time
+#        so the system is never fully down.
+#
+# Required GitHub repository secrets (Settings → Secrets and variables → Actions):
+#
+#   ACR_REGISTRY      Azure Container Registry login server
+#                     e.g. sovereignoffice.azurecr.io
+#   ACR_USERNAME      ACR admin username  OR  service-principal client ID
+#   ACR_PASSWORD      ACR admin password  OR  service-principal client secret
+#   DEPLOY_HOST       Public IP or hostname of the Azure VM
+#                     e.g. 20.1.2.3  or  vm.yourdomain.com
+#   DEPLOY_USER       SSH login user on the VM  (e.g. azureuser)
+#   DEPLOY_SSH_KEY    Full PEM-encoded private key matching an authorised_key on the VM
+#   DEPLOY_PATH       Absolute path to the cloned repo on the VM
+#                     e.g. /home/azureuser/sovereign-office
+# ============================================================================
+
+name: Build & Deploy
+
+on:
+  push:
+    branches:
+      - main
+
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  REGISTRY: ${{ secrets.ACR_REGISTRY }}
+
+jobs:
+  # ── 1. Build and push all images ──────────────────────────────────────────
+  build-and-push:
+    name: Build & Push Docker images
+    runs-on: ubuntu-latest
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "sha_tag=${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # ── API Server ─────────────────────────────────────────────────────────
+      - name: Build and push — api
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/api-server/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/sovereign-api:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/sovereign-api:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/sovereign-api:latest
+          cache-to: type=inline
+
+      # ── Sovereign Office Dashboard ─────────────────────────────────────────
+      - name: Build and push — sovereign-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/sovereign-dashboard/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:8080' }}
+          tags: |
+            ${{ env.REGISTRY }}/sovereign-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/sovereign-dashboard:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/sovereign-dashboard:latest
+          cache-to: type=inline
+
+      # ── Trust Instruments Dashboard ────────────────────────────────────────
+      - name: Build and push — trust-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/trust-dashboard/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:8080' }}
+          tags: |
+            ${{ env.REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/trust-dashboard:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/trust-dashboard:latest
+          cache-to: type=inline
+
+  # ── 2. Deploy to Azure VM via SSH ─────────────────────────────────────────
+  deploy:
+    name: Rolling restart on Azure VM
+    runs-on: ubuntu-latest
+    needs: build-and-push
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Pulling latest code"
+            git pull origin main
+
+            echo "==> Logging in to ACR"
+            echo "${{ secrets.ACR_PASSWORD }}" | \
+              docker login "${{ secrets.ACR_REGISTRY }}" \
+                --username "${{ secrets.ACR_USERNAME }}" \
+                --password-stdin
+
+            echo "==> Pulling new images"
+            docker compose pull api sovereign trust
+
+            echo "==> Rolling restart — api"
+            docker compose up -d --no-deps --no-build api
+            echo "    Waiting for api health check..."
+            timeout 60 bash -c \
+              'until docker compose ps api | grep -q "healthy"; do sleep 3; done'
+
+            echo "==> Rolling restart — sovereign dashboard"
+            docker compose up -d --no-deps --no-build sovereign
+
+            echo "==> Rolling restart — trust dashboard"
+            docker compose up -d --no-deps --no-build trust
+
+            echo "==> Pruning unused images (keeps disk clean)"
+            docker image prune -f
+
+            echo "==> Deploy complete. Running containers:"
+            docker compose ps
