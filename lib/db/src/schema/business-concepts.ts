@@ -1,8 +1,10 @@
 import { pgTable, serial, integer, text, jsonb, varchar, timestamp } from "drizzle-orm/pg-core";
+import { usersTable } from "./users";
+import { familyLineageTable } from "./family-lineage";
 
 export const businessConceptsTable = pgTable("business_concepts", {
   id: serial("id").primaryKey(),
-  ownerId: integer("owner_id"),
+  ownerId: integer("owner_id").references(() => usersTable.id, { onDelete: "set null" }),
   title: text("title").notNull(),
   description: text("description").notNull().default(""),
   structure: varchar("structure", { length: 100 }).default(""),
@@ -21,7 +23,8 @@ export const businessConceptsTable = pgTable("business_concepts", {
 
 export const businessBoardMembersTable = pgTable("business_board_members", {
   id: serial("id").primaryKey(),
-  conceptId: integer("concept_id").notNull(),
+  conceptId: integer("concept_id").notNull().references(() => businessConceptsTable.id, { onDelete: "cascade" }),
+  directoryMemberId: integer("directory_member_id").references(() => familyLineageTable.id, { onDelete: "set null" }),
   memberName: text("member_name").notNull(),
   memberRole: text("member_role").notNull(),
   startDate: text("start_date"),
@@ -30,7 +33,7 @@ export const businessBoardMembersTable = pgTable("business_board_members", {
 
 export const businessDocumentsTable = pgTable("business_documents", {
   id: serial("id").primaryKey(),
-  conceptId: integer("concept_id").notNull(),
+  conceptId: integer("concept_id").notNull().references(() => businessConceptsTable.id, { onDelete: "cascade" }),
   filename: text("filename").notNull(),
   uploadedAt: timestamp("uploaded_at").defaultNow().notNull(),
   uploadedBy: text("uploaded_by"),

@@ -187,29 +187,69 @@ function WhatNextTab({ concept }: { concept: BusinessConcept }) {
   );
 }
 
+interface DirectoryMember {
+  id: number;
+  fullName: string;
+  membershipStatus: string;
+  tribalNation: string;
+}
+
 function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoardUpdated: () => void }) {
   const [open, setOpen] = useState(false);
-  const [form, setForm] = useState({ memberName: "", memberRole: "", startDate: "" });
+  const [memberSearch, setMemberSearch] = useState("");
+  const [directoryResults, setDirectoryResults] = useState<DirectoryMember[]>([]);
+  const [selectedDirectoryMember, setSelectedDirectoryMember] = useState<DirectoryMember | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [form, setForm] = useState({ memberRole: "", startDate: "" });
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
   const { activeRole } = useAuth();
   const canManageBoard = ELEVATED_ROLES.includes(activeRole);
 
+  async function searchDirectory(q: string) {
+    if (!q.trim() || q.trim().length < 2) { setDirectoryResults([]); return; }
+    setSearching(true);
+    try {
+      const res = await fetch(`/api/community/directory?q=${encodeURIComponent(q)}`);
+      if (res.ok) {
+        const data = await res.json() as DirectoryMember[];
+        setDirectoryResults(data.slice(0, 8));
+      }
+    } catch { }
+    finally { setSearching(false); }
+  }
+
+  function selectMember(m: DirectoryMember) {
+    setSelectedDirectoryMember(m);
+    setDirectoryResults([]);
+    setMemberSearch(m.fullName);
+  }
+
   async function addMember() {
-    if (!form.memberName || !form.memberRole) {
-      toast({ title: "Name and role are required", variant: "destructive" });
+    const memberName = selectedDirectoryMember?.fullName ?? memberSearch.trim();
+    if (!memberName || !form.memberRole) {
+      toast({ title: "Select a member and enter their role", variant: "destructive" });
       return;
     }
     setSaving(true);
     try {
+      const body = {
+        memberName,
+        memberRole: form.memberRole,
+        startDate: form.startDate || undefined,
+        directoryMemberId: selectedDirectoryMember?.id,
+      };
       const res = await fetch(`/api/business/concepts/${concept.id}/board`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(body),
       });
       if (!res.ok) throw new Error();
       setOpen(false);
-      setForm({ memberName: "", memberRole: "", startDate: "" });
+      setMemberSearch("");
+      setSelectedDirectoryMember(null);
+      setForm({ memberRole: "", startDate: "" });
+      setDirectoryResults([]);
       onBoardUpdated();
       toast({ title: "Board member added" });
     } catch {
@@ -234,29 +274,70 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
       <div className="flex justify-between items-center">
         <h3 className="text-sm font-semibold">Board Members & Delegated Authority</h3>
         {canManageBoard && (
-          <Dialog open={open} onOpenChange={setOpen}>
+          <Dialog open={open} onOpenChange={(o) => { setOpen(o); if (!o) { setMemberSearch(""); setSelectedDirectoryMember(null); setDirectoryResults([]); } }}>
             <DialogTrigger asChild>
               <Button size="sm">+ Add Member</Button>
             </DialogTrigger>
             <DialogContent>
               <DialogHeader>
-                <DialogTitle>Add Board Member</DialogTitle>
+                <DialogTitle>Add Board Member from Tribal Directory</DialogTitle>
               </DialogHeader>
               <div className="space-y-3">
                 <div>
-                  <Label>Member Name *</Label>
-                  <Input placeholder="Full name" value={form.memberName} onChange={(e) => setForm((f) => ({ ...f, memberName: e.target.value }))} className="mt-1" />
+                  <Label>Search Tribal Member Directory *</Label>
+                  <div className="relative mt-1">
+                    <Input
+                      placeholder="Type name to search directory…"
+                      value={memberSearch}
+                      onChange={(e) => {
+                        setMemberSearch(e.target.value);
+                        setSelectedDirectoryMember(null);
+                        searchDirectory(e.target.value);
+                      }}
+                    />
+                    {directoryResults.length > 0 && (
+                      <div className="absolute z-10 top-full left-0 right-0 bg-popover border rounded-md shadow-lg mt-1 max-h-48 overflow-y-auto">
+                        {searching && <p className="text-xs p-2 text-muted-foreground">Searching…</p>}
+                        {directoryResults.map((m) => (
+                          <button
+                            key={m.id}
+                            type="button"
+                            className="w-full text-left px-3 py-2 text-sm hover:bg-accent transition-colors"
+                            onClick={() => selectMember(m)}
+                          >
+                            <span className="font-medium">{m.fullName}</span>
+                            <span className="text-muted-foreground ml-2 text-xs">{m.tribalNation} · {m.membershipStatus}</span>
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  {selectedDirectoryMember && (
+                    <p className="text-xs text-primary mt-1">
+                      ✓ Selected: {selectedDirectoryMember.fullName} ({selectedDirectoryMember.tribalNation})
+                    </p>
+                  )}
                 </div>
                 <div>
-                  <Label>Role / Title *</Label>
-                  <Input placeholder="e.g. Chief Executive Officer, Board Secretary" value={form.memberRole} onChange={(e) => setForm((f) => ({ ...f, memberRole: e.target.value }))} className="mt-1" />
+                  <Label>Delegation Role / Title *</Label>
+                  <Input
+                    placeholder="e.g. Chief Executive Officer, Board Secretary"
+                    value={form.memberRole}
+                    onChange={(e) => setForm((f) => ({ ...f, memberRole: e.target.value }))}
+                    className="mt-1"
+                  />
                 </div>
                 <div>
                   <Label>Start Date</Label>
-                  <Input type="date" value={form.startDate} onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))} className="mt-1" />
+                  <Input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) => setForm((f) => ({ ...f, startDate: e.target.value }))}
+                    className="mt-1"
+                  />
                 </div>
-                <Button onClick={addMember} disabled={saving} className="w-full">
-                  {saving ? "Saving..." : "Add Board Member"}
+                <Button onClick={addMember} disabled={saving || !form.memberRole || (!selectedDirectoryMember && !memberSearch.trim())} className="w-full">
+                  {saving ? "Saving..." : "Assign to Board"}
                 </Button>
               </div>
             </DialogContent>
@@ -265,7 +346,7 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
       </div>
 
       {!canManageBoard && (
-        <p className="text-xs text-muted-foreground italic">Board member management is restricted to officers, trustees, and sovereign admins.</p>
+        <p className="text-xs text-muted-foreground italic">Board member assignment is restricted to officers, trustees, and sovereign admins.</p>
       )}
 
       {concept.boardMembers.length === 0 ? (
@@ -276,7 +357,13 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
             <div key={m.id} className="flex items-center justify-between p-3 rounded-lg border">
               <div>
                 <p className="text-sm font-medium">{m.memberName}</p>
-                <p className="text-xs text-muted-foreground">{m.memberRole}{m.startDate ? ` · Since ${new Date(m.startDate).toLocaleDateString()}` : ""}</p>
+                <p className="text-xs text-muted-foreground">
+                  {m.memberRole}
+                  {m.startDate ? ` · Since ${new Date(m.startDate).toLocaleDateString()}` : ""}
+                  {(m as BoardMember & { directoryMemberId?: number }).directoryMemberId && (
+                    <span className="ml-2 text-primary">· Directory verified</span>
+                  )}
+                </p>
               </div>
               {canManageBoard && (
                 <Button

@@ -8,7 +8,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
-import { runAiEngine } from "../../sovereign/ai-engine";
+import { processIntake } from "../../sovereign/intake-pipeline";
 
 const router = Router();
 
@@ -176,10 +176,11 @@ router.post("/:id/board", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { memberName, memberRole, startDate } = req.body as {
+    const { memberName, memberRole, startDate, directoryMemberId } = req.body as {
       memberName: string;
       memberRole: string;
       startDate?: string;
+      directoryMemberId?: number;
     };
 
     if (!memberName || !memberRole) {
@@ -189,7 +190,13 @@ router.post("/:id/board", requireAuth, async (req, res, next) => {
 
     const [member] = await db
       .insert(businessBoardMembersTable)
-      .values({ conceptId, memberName, memberRole, startDate: startDate ?? null })
+      .values({
+        conceptId,
+        memberName,
+        memberRole,
+        startDate: startDate ?? null,
+        directoryMemberId: directoryMemberId ?? null,
+      })
       .returning();
 
     res.status(201).json(member);
@@ -282,12 +289,11 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
     ].join("\n");
 
     const userId = req.user?.dbId;
-    logger.info({ userId, textLen: intakeText.length, conceptId: id }, "Business formation AI intake engine request received");
-
-    const report = await runAiEngine({
+    const { report, meta } = await processIntake({
       text: intakeText,
       userId,
       context: { caseType: "business_formation", role: req.user?.roles?.[0] ?? "member" },
+      logContext: { conceptId: id, source: "submit-validation" },
     });
 
     await db
@@ -295,16 +301,8 @@ router.post("/:id/submit-validation", requireAuth, async (req, res, next) => {
       .set({ status: "submitted", updatedAt: new Date() })
       .where(eq(businessConceptsTable.id, id));
 
-    logger.info({ conceptId: id, userId: req.user?.dbId }, "Business concept submitted for validation");
-    res.json({
-      ok: true,
-      validation: report,
-      _meta: {
-        tier: (report as { tier?: string }).tier,
-        tierReason: (report as { tierReason?: string }).tierReason,
-        azureAvailable: (report as { azureAvailable?: boolean }).azureAvailable,
-      },
-    });
+    logger.info({ conceptId: id, userId }, "Business concept submitted for validation");
+    res.json({ ok: true, validation: report, _meta: meta });
   } catch (err) {
     next(err);
   }

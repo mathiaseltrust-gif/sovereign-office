@@ -4,6 +4,11 @@ import { z } from "zod";
 import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
 import { logger } from "../lib/logger";
 import { requireAuth } from "../auth/entra-guard";
+import { db } from "@workspace/db";
+import { businessDocumentsTable, businessConceptsTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
 
 const RequestUploadUrlBody = z.object({
   name: z.string(),
@@ -94,15 +99,42 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
  * GET /storage/objects/*
  *
  * Serve private object entities from PRIVATE_OBJECT_DIR.
- * Requires authentication. Only the uploading user or elevated roles may access.
+ * Requires authentication. Enforces concept-ownership ACL:
+ * elevated roles (trustee/officer/sovereign_admin) can access any object;
+ * other users can only access objects belonging to their own business concepts.
  */
 router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
+    const userId = req.user?.dbId;
+    const isElevated = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
+
+    if (!isElevated) {
+      const [doc] = await db
+        .select({ conceptId: businessDocumentsTable.conceptId })
+        .from(businessDocumentsTable)
+        .where(eq(businessDocumentsTable.fileKey, objectPath));
+
+      if (!doc) {
+        res.status(403).json({ error: "Access denied: document not found." });
+        return;
+      }
+
+      const [concept] = await db
+        .select({ ownerId: businessConceptsTable.ownerId })
+        .from(businessConceptsTable)
+        .where(eq(businessConceptsTable.id, doc.conceptId));
+
+      if (!concept || concept.ownerId !== userId) {
+        res.status(403).json({ error: "Access denied: you do not own this document." });
+        return;
+      }
+    }
+
+    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.status(response.status);

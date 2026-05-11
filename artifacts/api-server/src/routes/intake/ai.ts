@@ -1,7 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { runAiEngine } from "../../sovereign/ai-engine";
-import { logger } from "../../lib/logger";
+import { processIntake } from "../../sovereign/intake-pipeline";
 
 const router = Router();
 
@@ -26,24 +25,9 @@ router.post("/", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const userId = req.user?.dbId;
+    const { report, meta } = await processIntake({ text, userId: req.user?.dbId, context });
 
-    logger.info({ userId, textLen: text.length }, "AI intake engine request received");
-
-    const report = await runAiEngine({
-      text,
-      userId,
-      context,
-    });
-
-    res.status(200).json({
-      ...report,
-      _meta: {
-        tier: report.tier,
-        tierReason: report.tierReason,
-        azureAvailable: report.azureAvailable,
-      },
-    });
+    res.status(200).json({ ...report, _meta: meta });
   } catch (err) {
     next(err);
   }
