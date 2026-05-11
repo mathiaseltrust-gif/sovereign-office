@@ -314,6 +314,55 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
+  // ── Search state ──────────────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [searchFocusIdx, setSearchFocusIdx] = useState(0);
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  const q = searchQuery.trim().toLowerCase();
+  const matchingNodes = useMemo(() => {
+    if (!q) return [] as PositionedNode[];
+    return positioned.filter(
+      (n) =>
+        n.fullName.toLowerCase().includes(q) ||
+        (n.tribalNation ?? "").toLowerCase().includes(q) ||
+        (n.nameVariants ?? []).some((v) => v.toLowerCase().includes(q))
+    );
+  }, [q, positioned]);
+
+  const matchingIdSet = useMemo(() => new Set(matchingNodes.map((n) => n.id)), [matchingNodes]);
+  const hasSearch = q.length > 0;
+
+  const panToNode = useCallback((node: PositionedNode) => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const targetScale = Math.max(transform.scale, 0.8);
+    const x = clientWidth / 2 - (node.x + NODE_W / 2) * targetScale;
+    const y = clientHeight / 2 - (node.y + NODE_H / 2) * targetScale;
+    setTransform({ x, y, scale: targetScale });
+    setSelectedNodeId(node.id);
+  }, [transform.scale]);
+
+  const handleSearchKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (matchingNodes.length === 0) return;
+    if (e.key === "Enter") {
+      const idx = searchFocusIdx % matchingNodes.length;
+      panToNode(matchingNodes[idx]);
+      setSearchFocusIdx((i) => i + 1);
+    } else if (e.key === "Escape") {
+      setSearchQuery("");
+      setSearchFocusIdx(0);
+    }
+  }, [matchingNodes, searchFocusIdx, panToNode]);
+
+  const clearSearch = useCallback(() => {
+    setSearchQuery("");
+    setSearchFocusIdx(0);
+    searchInputRef.current?.focus();
+  }, []);
+
+  // ─────────────────────────────────────────────────────────────────────────
+
   const selectedNode = positioned.find((n) => n.id === selectedNodeId) ?? null;
 
   const fitToScreen = useCallback(() => {
@@ -420,6 +469,40 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
         <Button size="sm" variant="outline" onClick={fitToScreen}>Fit to Screen</Button>
         <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>＋</Button>
         <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>－</Button>
+
+        {/* ── Search bar ────────────────────────────────────────────────── */}
+        <div className="relative flex items-center ml-2">
+          <svg className="absolute left-2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+            <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
+          </svg>
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => { setSearchQuery(e.target.value); setSearchFocusIdx(0); }}
+            onKeyDown={handleSearchKey}
+            placeholder="Search by name or nation…"
+            className="pl-7 pr-7 py-1 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring w-52"
+          />
+          {hasSearch && (
+            <button
+              onClick={clearSearch}
+              className="absolute right-2 text-muted-foreground hover:text-foreground leading-none text-base"
+              title="Clear search"
+            >
+              ✕
+            </button>
+          )}
+        </div>
+        {hasSearch && (
+          <span className="text-xs text-muted-foreground">
+            {matchingNodes.length === 0
+              ? "No matches"
+              : `${matchingNodes.length} match${matchingNodes.length !== 1 ? "es" : ""} · Enter to jump`}
+          </span>
+        )}
+        {/* ──────────────────────────────────────────────────────────────── */}
+
         <span className="text-xs text-muted-foreground ml-auto">{nodes.length} records · scroll to zoom · drag to pan</span>
       </div>
 
@@ -487,6 +570,8 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
               {positioned.map((node) => {
                 const { border, bg } = nodeCardClasses(node);
                 const isSelected = node.id === selectedNodeId;
+                const isMatch = hasSearch && matchingIdSet.has(node.id);
+                const isDimmed = hasSearch && !matchingIdSet.has(node.id);
                 return (
                   <div
                     key={node.id}
@@ -494,9 +579,11 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
                     onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
                     style={{ position: "absolute", left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
                     className={[
-                      "rounded-lg border-2 px-3 py-2 cursor-pointer transition-shadow",
+                      "rounded-lg border-2 px-3 py-2 cursor-pointer transition-all duration-150",
                       bg, border,
                       isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md",
+                      isMatch ? "ring-2 ring-amber-400 shadow-amber-200 shadow-md" : "",
+                      isDimmed ? "opacity-25" : "",
                       node.sourceType === "archived" ? "opacity-50" : "",
                     ].join(" ")}
                   >
