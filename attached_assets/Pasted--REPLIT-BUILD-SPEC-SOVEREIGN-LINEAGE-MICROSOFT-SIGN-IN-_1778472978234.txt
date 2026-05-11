@@ -1,0 +1,172 @@
+🔥 REPLIT BUILD SPEC — SOVEREIGN LINEAGE + MICROSOFT SIGN‑IN SYSTEM
+We now have real ancestry data from the “Mathew‑Allen: McCaster Family Tree” (e.g., Ned McCaster, born about 1876 in Mitchell’s Station, Alabama, and Mattie Beatrice Watson McCaster 1935–2021 ).
+We will also export the full tree from Ancestry as GEDCOM (.ged) or CSV.
+
+We need Replit to build the following system:
+
+1. Hidden Sovereign Lineage Database
+Create a secure, non‑public lineage registry with these tables:
+
+A. Ancestor
+id
+
+fullName
+
+birthDate
+
+deathDate
+
+birthPlace
+
+notes
+
+B. Person / ProtectedMember
+id
+
+fullName
+
+nameVariants
+
+dateOfBirth
+
+lineageId (FK to ancestor or lineage root)
+
+parentId
+
+grandparentId
+
+protectionLevel (ancestor, descendant, pending)
+
+membershipStatus (verified, pending, denied)
+
+entraObjectId (null until first Microsoft sign‑in)
+
+C. Relationship
+parentId
+
+childId
+
+relationshipType (biological, adopted, etc.)
+
+This database must support:
+
+lineage chains
+
+ancestor → descendant mapping
+
+“Am I on the list?” checks
+
+automatic descendant verification
+
+2. Ancestry Importer (GEDCOM / CSV)
+Build an importer that can:
+
+Parse GEDCOM (.ged) and CSV exports from Ancestry
+
+Create ancestor nodes
+
+Create parent/child relationships
+
+Detect duplicates
+
+Merge nodes
+
+Mark foundational/protected ancestors
+
+Populate the lineage database automatically
+
+PDF imports (like “Horizontal Tree View – Ancestry” and “Fan View – Ancestry” )
+→ Optional OCR + pattern‑matching parser
+→ GEDCOM/CSV is the primary deterministic path.
+
+3. Visual Family Tree UI
+Build a modern, interactive family‑tree interface that:
+
+Displays ancestors and descendants
+
+Allows adding relatives
+
+Allows merging duplicates
+
+Allows importing additional ancestry files
+
+Connects directly to the lineage database
+
+Shows protected lines and descendant chains
+
+This UI becomes the community‑facing “native family tree.”
+
+4. First‑Time Microsoft Sign‑In Flow
+When a user signs in with Microsoft for the first time:
+
+A. Authentication (Microsoft Entra ID)
+Use Microsoft sign‑in for authentication only
+
+Do NOT require DOB
+
+Do NOT require obvious matching
+
+B. Post‑Sign‑In Identity Questions
+Ask the user:
+
+Full name
+
+Family name
+
+Parent(s) name(s)
+
+C. Lineage Matching Logic
+Check the lineage database:
+
+Exact person match → verify membership
+
+Family name match → ask parent → verify if parent is in lineage
+
+Parent match → link as descendant → membershipVerified = true
+
+No match → create pending lineage review record
+
+D. After Verification
+Link entraObjectId to ProtectedMember
+
+Unlock membership benefits
+
+Load sovereign dashboard
+
+Apply protectionLevel and eligibility
+
+5. Integration With Existing Sovereign Engines
+This lineage system must integrate with:
+
+identity engine
+
+cascade engine
+
+welfare authority engine
+
+familyGroup engine
+
+trust‑land engines
+
+membership verification logic
+
+Verified descendants become protected members with access to benefits and protections.
+
+6. Summary of What Replit Must Build
+Hidden lineage registry
+
+GEDCOM/CSV importer
+
+Optional PDF parser
+
+Visual family tree UI
+
+First‑time Microsoft sign‑in identity flow
+
+Lineage‑matching engine
+
+Protected membership verification
+
+Integration with existing sovereign engines
+
+This system must allow protected descendants to be recognized automatically, even if they have never signed in before.
