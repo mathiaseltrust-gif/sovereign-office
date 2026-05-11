@@ -89,8 +89,16 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 DATABASE_URL=postgresql://<user>@<server>:<password>@<server>.postgres.database.azure.com:5432/sovereign_office?sslmode=require
 ```
 
-Remove (or comment out) the `postgres` service and `db_data` volume from
-`docker-compose.yml` when pointing to an external database.
+When pointing to an external database, edit `docker-compose.yml` to:
+1. Remove (or comment out) the `postgres` service and the `db_data` volume.
+2. Also remove the `depends_on` block from the `api` service (or Compose will fail
+   because the `postgres` service no longer exists):
+   ```yaml
+   # Remove or comment out these lines from the api service:
+   # depends_on:
+   #   postgres:
+   #     condition: service_healthy
+   ```
 
 ---
 
