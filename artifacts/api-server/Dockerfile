@@ -56,6 +56,12 @@ RUN if [ -d ./node_modules_local ] && [ "$(ls -A ./node_modules_local 2>/dev/nul
       cp -rn ./node_modules_local/. ./node_modules/ ; \
     fi && rm -rf ./node_modules_local
 
+# Install packages that esbuild externalises (cannot inline due to .proto / native file loading).
+# These must be present as real npm packages at runtime — not pnpm symlinks.
+RUN npm install --no-save \
+      @google-cloud/storage \
+      google-auth-library
+
 EXPOSE 8080
 
 CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
