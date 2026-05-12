@@ -55,6 +55,16 @@ externalPort = 3000
 
 [userenv.shared]
 M365_SERVICE_KEY = "e0c7f0e2fa39d120a9c15d363b932c022b3603d2faf85bec067ddde3af070762"
+ACR_REGISTRY = "sovereignoffice.azurecr.io"
+ACR_LOGIN_SERVER = "sovereignoffice.azurecr.io"
+ACR_NAME = "tribal-firewall-backend"
+ACR_USERNAME = "sovereignoffice"
+SOVEREIGN_DASHBOARD_URL = "http://20.83.210.26:3001"
+TRUST_DASHBOARD_URL = "http://20.83.210.26:3002"
+COMMUNITY_DASHBOARD_URL = "http://20.83.210.26:3003"
+APP_URL = "http://20.83.210.26:8080"
+LOG_LEVEL = "info"
+IMAGE_TAG = "latest"
 
 [nix]
 channel = "stable-25_05"
