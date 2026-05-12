@@ -10,7 +10,7 @@ FROM node:22-slim AS deps
 
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
-RUN corepack enable && corepack prepare pnpm@latest --activate
+RUN npm install -g pnpm@9 --quiet
 
 WORKDIR /workspace
 
@@ -22,7 +22,7 @@ COPY lib/api-client-react/package.json       lib/api-client-react/
 COPY artifacts/trust-dashboard/package.json  artifacts/trust-dashboard/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --frozen-lockfile
+    pnpm install --no-frozen-lockfile
 
 # ── Stage 2: build ───────────────────────────────────────────────────────────
 FROM deps AS builder
