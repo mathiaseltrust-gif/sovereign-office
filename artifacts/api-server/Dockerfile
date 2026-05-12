@@ -23,6 +23,9 @@ COPY lib/api-zod/package.json            lib/api-zod/
 COPY lib/api-client-react/package.json   lib/api-client-react/
 COPY artifacts/api-server/package.json   artifacts/api-server/
 
+# Copy generated SQL migrations (produced by drizzle-kit generate — no live DB needed)
+COPY lib/db/migrations                   lib/db/migrations/
+
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --no-frozen-lockfile
 
@@ -42,8 +45,11 @@ FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy the bundled output (esbuild writes dist/index.mjs + pino worker files)
+# Copy the bundled output (esbuild writes dist/index.mjs + dist/migrate.mjs + pino worker files)
 COPY --from=builder /workspace/artifacts/api-server/dist ./dist
+
+# Copy SQL migrations so drizzle migrator can apply them at startup
+COPY --from=builder /workspace/lib/db/migrations ./migrations
 
 # Copy node_modules: esbuild externalises pdfkit and its text-rendering deps
 # (fontkit, linebreak, unicode-*) so they must be present at runtime.
@@ -62,6 +68,10 @@ RUN npm install --no-save \
       @google-cloud/storage \
       google-auth-library
 
+# Entrypoint: run migrations then start the server
+COPY artifacts/api-server/docker-entrypoint.sh /docker-entrypoint.sh
+RUN chmod +x /docker-entrypoint.sh
+
 EXPOSE 8080
 
-CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
+CMD ["/docker-entrypoint.sh"]
