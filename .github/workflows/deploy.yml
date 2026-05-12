@@ -4,7 +4,7 @@
 # Triggers on every push to `main`.
 #
 # What it does:
-#   1. Builds all three Docker images (api, sovereign-dashboard, trust-dashboard)
+#   1. Builds all four Docker images (api, sovereign, trust, community)
 #   2. Pushes each image to Azure Container Registry (ACR) with two tags:
 #        - <git-sha>  — immutable, pinned to this exact commit
 #        - latest     — floating tag always pointing at the newest build
@@ -16,14 +16,16 @@
 #
 #   ACR_REGISTRY      Azure Container Registry login server
 #                     e.g. sovereignoffice.azurecr.io
-#   ACR_USERNAME      ACR admin username  OR  service-principal client ID
-#   ACR_PASSWORD      ACR admin password  OR  service-principal client secret
-#   DEPLOY_HOST       Public IP or hostname of the Azure VM
-#                     e.g. 20.1.2.3  or  vm.yourdomain.com
-#   DEPLOY_USER       SSH login user on the VM  (e.g. azureuser)
+#   ACR_USERNAME      ACR admin username
+#   ACR_PASSWORD      ACR admin password
+#   DEPLOY_HOST       Public IP of the Azure VM  e.g. 20.83.210.26
+#   DEPLOY_USER       SSH login user on the VM   e.g. azureuser
 #   DEPLOY_SSH_KEY    Full PEM-encoded private key matching an authorised_key on the VM
-#   DEPLOY_PATH       Absolute path to the cloned repo on the VM
-#                     e.g. /home/azureuser/sovereign-office
+#   DEPLOY_PATH       Absolute path on the VM    e.g. /home/azureuser/sovereign-office
+#
+# Optional GitHub repository variables (Settings → Variables → Actions):
+#
+#   VITE_API_URL      Public URL of the API  e.g. http://20.83.210.26:8080
 # ============================================================================
 
 name: Build & Deploy
@@ -89,7 +91,7 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
           tags: |
             ${{ env.REGISTRY }}/sovereign-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/sovereign-dashboard:latest
@@ -105,11 +107,26 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://localhost:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
           tags: |
             ${{ env.REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/trust-dashboard:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/trust-dashboard:latest
+          cache-to: type=inline
+
+      # ── Family & Community Dashboard ───────────────────────────────────────
+      - name: Build and push — community-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/community-dashboard/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+          tags: |
+            ${{ env.REGISTRY }}/community-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/community-dashboard:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/community-dashboard:latest
           cache-to: type=inline
 
   # ── 2. Deploy to Azure VM via SSH ─────────────────────────────────────────
@@ -130,9 +147,6 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
 
-            echo "==> Pulling latest code"
-            git pull origin main
-
             echo "==> Logging in to ACR"
             echo "${{ secrets.ACR_PASSWORD }}" | \
               docker login "${{ secrets.ACR_REGISTRY }}" \
@@ -140,22 +154,25 @@ jobs:
                 --password-stdin
 
             echo "==> Pulling new images"
-            docker compose pull api sovereign trust
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community
 
             echo "==> Rolling restart — api"
-            docker compose up -d --no-deps --no-build api
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api
             echo "    Waiting for api health check..."
-            timeout 60 bash -c \
-              'until docker compose ps api | grep -q "healthy"; do sleep 3; done'
+            timeout 90 bash -c \
+              'until docker compose -f docker-compose.prod.yml ps api | grep -q "healthy"; do sleep 3; done'
 
             echo "==> Rolling restart — sovereign dashboard"
-            docker compose up -d --no-deps --no-build sovereign
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build sovereign
 
             echo "==> Rolling restart — trust dashboard"
-            docker compose up -d --no-deps --no-build trust
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build trust
+
+            echo "==> Rolling restart — community dashboard"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build community
 
             echo "==> Pruning unused images (keeps disk clean)"
             docker image prune -f
 
             echo "==> Deploy complete. Running containers:"
-            docker compose ps
+            docker compose -f docker-compose.prod.yml ps

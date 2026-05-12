@@ -1,184 +1,162 @@
-# Sovereign Office — Azure Deployment Setup Guide
+# Sovereign Office — Azure Deployment Guide
 
-**Five services, one command to deploy.  
-Estimated time: 30–45 minutes (most of it waiting for Azure to provision).**
+**Your infrastructure is already provisioned. This guide gets the app live on your VM.**
 
----
-
-## What you're deploying
-
-| Service | What it does | Port |
-|---|---|---|
-| **API Server** | All backend logic, authentication, AI, database | 8080 |
-| **Sovereign Dashboard** | Sovereign Office staff portal (Microsoft SSO login) | 3001 |
-| **Trust Dashboard** | Trust instruments management portal | 3002 |
-| **Community Dashboard** | Family & community public portal | 3003 |
-| **PostgreSQL** | Database (or use Azure Database for PostgreSQL) | 5432 |
+| What | Where |
+|---|---|
+| Azure VM | `20.83.210.26` |
+| Container Registry | `sovereignoffice.azurecr.io` |
+| Database | `tribalpostgres-db.postgres.database.azure.com` |
 
 ---
 
-## Before you start — what you need
+## Two paths — pick one
 
-- [ ] An **Azure account** with permission to create resources
-- [ ] **Azure CLI** installed on your local machine ([download](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli))
-- [ ] **Docker** installed on your local machine ([download](https://docs.docker.com/get-docker/))
-- [ ] The **source code** cloned from your repository
-- [ ] Your **Azure Entra (Active Directory) App Registration** already created with:
-  - Client ID
-  - Client Secret
-  - Tenant ID
-- [ ] Your **Azure OpenAI** resource already created with:
-  - Endpoint URL
-  - API Key
-  - Deployment name (e.g. `gpt-4o`)
+### Path A — GitHub Actions (recommended, fully automatic)
 
-> **You do NOT need Node.js on the server.** Everything runs in Docker.
+Every push to `main` builds all four images, pushes them to your ACR, and deploys to your VM automatically. Set it up once, then every code change deploys itself.
 
----
+**You need 7 GitHub repository secrets** (Settings → Secrets and variables → Actions → New repository secret):
 
-## Step 1 — Fill in your .env file
+| Secret name | Value |
+|---|---|
+| `ACR_REGISTRY` | `sovereignoffice.azurecr.io` |
+| `ACR_USERNAME` | `sovereignoffice` |
+| `ACR_PASSWORD` | `16Ef4DDsKUCPWasmGFNNoEUjDnTYWcfrJnVdEfiRNxyNtwZphI6jJQQJ99CEACYeBjFEqg7NAAACAZCROBYv` |
+| `DEPLOY_HOST` | `20.83.210.26` |
+| `DEPLOY_USER` | `azureuser` (or whatever user you SSH in as) |
+| `DEPLOY_SSH_KEY` | Your VM's private SSH key (the full PEM file contents) |
+| `DEPLOY_PATH` | `/opt/sovereign-office` (or wherever you want files on the VM) |
 
-Copy `.env.template` to `.env` in this folder:
+And one **repository variable** (Settings → Variables → Actions):
+
+| Variable name | Value |
+|---|---|
+| `VITE_API_URL` | `http://20.83.210.26:8080` |
+
+**First-time VM prep** — before the first deploy, SSH into your VM and run:
 
 ```bash
-cp .env.template .env
+# Install Docker
+curl -fsSL https://get.docker.com | sh
+sudo usermod -aG docker $USER && newgrp docker
+
+# Create deploy directory and .env file
+sudo mkdir -p /opt/sovereign-office
+sudo chown $USER:$USER /opt/sovereign-office
+cd /opt/sovereign-office
 ```
 
-Open `.env` and fill in the values marked **← FILL IN**. Everything else has safe defaults.
+Then copy `.env.vm` from this folder to `/opt/sovereign-office/.env` on the VM:
 
-The required values are:
+```bash
+scp deploy-package/.env.vm azureuser@20.83.210.26:/opt/sovereign-office/.env
+```
 
-```
-AZURE_ENTRA_TENANT_ID       ← from Azure Portal → App Registrations → your app
-AZURE_ENTRA_CLIENT_ID       ← from Azure Portal → App Registrations → your app
-AZURE_ENTRA_CLIENT_SECRET   ← from Azure Portal → Certificates & secrets
-AZURE_OPENAI_ENDPOINT       ← from Azure Portal → your OpenAI resource
-AZURE_OPENAI_API_KEY        ← from Azure Portal → your OpenAI resource → Keys
-AZURE_OPENAI_DEPLOYMENT     ← name you gave your model (e.g. gpt-4o)
-SESSION_SECRET              ← generate: node -e "console.log(require('crypto').randomBytes(64).toString('hex'))"
-SERVICE_KEY                 ← generate: node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-```
+Fill in the two `FILL_IN` placeholders in that `.env` (SESSION_SECRET and AZURE_ENTRA_CLIENT_SECRET — see below).
+
+Once the secrets are set and the VM is prepped, push any commit to `main` and GitHub Actions does the rest.
 
 ---
 
-## Step 2 — Provision Azure resources (one script)
+### Path B — Manual first deployment (bootstrap script)
 
-This creates the Container Registry and (optionally) an Azure VM.  
-Run from this folder:
+Use this if you want to start the app right now without setting up GitHub Actions.
 
 ```bash
-bash 1-provision-azure.sh
+# On your local machine — copy files to VM
+scp deploy-package/.env.vm azureuser@20.83.210.26:/tmp/.env
+scp deploy-package/docker-compose.prod.yml azureuser@20.83.210.26:/tmp/
+scp deploy-package/vm-bootstrap.sh azureuser@20.83.210.26:/tmp/
+
+# SSH into the VM
+ssh azureuser@20.83.210.26
+
+# Run the bootstrap
+cd /tmp
+chmod +x vm-bootstrap.sh
+./vm-bootstrap.sh
 ```
 
-The script will:
-1. Log you into Azure
-2. Create a Resource Group
-3. Create an Azure Container Registry (ACR) to store your Docker images
-4. Print the ACR login server, username, and password — **paste these into your .env**
-
-> If you already have an ACR, skip this and just set `ACR_REGISTRY` in your .env.
+The script installs Docker, pulls all 4 images from ACR, and starts everything. Takes about 5 minutes.
 
 ---
 
-## Step 3 — Build and push Docker images (one script)
+## Two values you still need to fill in
 
-This builds all 4 application images and uploads them to your ACR.  
-Run from the **root of the cloned source repository** (not this folder):
+Before either path works, fill these two placeholders in `.env.vm`:
 
-```bash
-bash /path/to/this/folder/2-build-push.sh
-```
+### 1. SESSION_SECRET
 
-This takes 5–15 minutes the first time. Subsequent runs are faster (Docker caches layers).
+Get this from your Replit project → Tools → Secrets → SESSION_SECRET.  
+Copy the full value (it's a 128-character hex string).
 
----
+### 2. AZURE_ENTRA_CLIENT_SECRET
 
-## Step 4 — Deploy to your server
+⚠️ The value `355884d8-e37b-4a05-ad0d-818050712056` is the **Secret ID**, not the secret **value**.
 
-Copy these files to your Azure VM (or any Linux server with Docker):
-
-```bash
-scp .env docker-compose.prod.yml 3-vm-deploy.sh azureuser@YOUR-VM-IP:~/sovereign-office/
-```
-
-SSH into your VM and run:
-
-```bash
-ssh azureuser@YOUR-VM-IP
-cd ~/sovereign-office
-bash 3-vm-deploy.sh
-```
-
-The script installs Docker (if needed), pulls your images, and starts everything.
+To get the real value:
+1. Go to [Azure Portal](https://portal.azure.com) → App Registrations
+2. Open your app (`9d408980-8fbf-4384-a712-436e70480eb9`)
+3. Click **Certificates & secrets** → **Client secrets**
+4. Look at the **Value** column (NOT Secret ID)
+5. If the value is hidden (shows `***`), create a new secret and copy its value immediately — Azure never shows it again after you navigate away
 
 ---
 
-## Step 5 — Set Microsoft SSO redirect URIs
+## After the VM is running — set the SSO redirect URI
 
 In **Azure Portal → App Registrations → your app → Authentication → Redirect URIs**, add:
 
 ```
-http://YOUR-VM-IP:8080/api/auth/callback
+http://20.83.210.26:8080/api/auth/callback
 ```
-
-Replace `YOUR-VM-IP` with your actual server IP or domain name.  
-If you have a domain with HTTPS, use `https://yourdomain.com/api/auth/callback`.
 
 ---
 
-## Step 6 — Verify everything is working
+## Verify it's working
 
 ```bash
-# On your VM:
-docker compose -f docker-compose.prod.yml ps        # all 4 services should be "running"
-curl http://localhost:8080/api/healthz              # should return {"ok":true}
+# SSH into your VM
+ssh azureuser@20.83.210.26
+
+# Check all containers are running
+docker compose -f /opt/sovereign-office/docker-compose.prod.yml ps
+
+# Test the API
+curl http://localhost:8080/api/healthz
+# Expected: {"ok":true}
 ```
 
 Open in a browser:
-- `http://YOUR-VM-IP:3001` → Sovereign Dashboard (login with Microsoft)
-- `http://YOUR-VM-IP:3002` → Trust Dashboard
-- `http://YOUR-VM-IP:3003` → Community Dashboard
+- `http://20.83.210.26:3001` → Sovereign Dashboard (Microsoft SSO login)
+- `http://20.83.210.26:3002` → Trust Dashboard
+- `http://20.83.210.26:3003` → Community Dashboard
 
 ---
 
-## Common issues
+## Updating after a code change (Path A)
+
+Just push to `main`. GitHub Actions builds and deploys automatically.
+
+## Updating after a code change (Path B — manual)
+
+```bash
+ssh azureuser@20.83.210.26
+cd /opt/sovereign-office
+echo "ACR_PASSWORD_HERE" | docker login sovereignoffice.azurecr.io -u sovereignoffice --password-stdin
+docker compose -f docker-compose.prod.yml pull
+docker compose -f docker-compose.prod.yml up -d
+```
+
+---
+
+## Troubleshooting
 
 | Problem | Fix |
 |---|---|
-| `EADDRINUSE` port conflict | Run `sudo fuser -k 8080/tcp 3001/tcp 3002/tcp 3003/tcp` then redeploy |
-| Database migration not applied | Run `docker compose -f docker-compose.prod.yml exec api node dist/migrate.mjs` |
-| Microsoft login redirect fails | Check redirect URI in Azure Portal matches your server URL exactly |
-| Images not found in ACR | Re-run `2-build-push.sh` and confirm `ACR_REGISTRY` in .env is correct |
-| Container exits immediately | Run `docker compose -f docker-compose.prod.yml logs api` to see the error |
-
----
-
-## Updating after a code change
-
-On your local machine (in the source repo):
-
-```bash
-bash /path/to/deploy-folder/2-build-push.sh        # rebuild and push new images
-```
-
-On your VM:
-
-```bash
-docker compose -f docker-compose.prod.yml pull      # pull new images
-docker compose -f docker-compose.prod.yml up -d     # restart with new images
-```
-
----
-
-## Using Azure Database for PostgreSQL instead of the built-in container
-
-1. Create an Azure Database for PostgreSQL Flexible Server in the Azure Portal
-2. Set `DATABASE_URL` in your .env to the connection string Azure gives you:
-   ```
-   postgresql://adminuser@yourserver:Password123@yourserver.postgres.database.azure.com:5432/sovereign_office?sslmode=require
-   ```
-3. In `docker-compose.prod.yml`, the `postgres` service is already commented out for this case — just leave `USE_AZURE_DB=true` in your .env
-
----
-
-*For help, check the full `DEPLOY.md` in the source repository.*
+| Container exits immediately | `docker compose -f docker-compose.prod.yml logs api` |
+| Microsoft login redirect fails | Check redirect URI in Azure Portal matches `http://20.83.210.26:8080/api/auth/callback` |
+| Database connection refused | Confirm `DATABASE_URL` in .env has the correct Azure PostgreSQL hostname |
+| Port not reachable | Check Azure VM Network Security Group allows inbound on 8080, 3001, 3002, 3003 |
+| Images not found in ACR | Ensure GitHub Actions ran successfully, or re-run vm-bootstrap.sh |
