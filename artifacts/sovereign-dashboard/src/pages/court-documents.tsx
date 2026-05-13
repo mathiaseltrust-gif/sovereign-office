@@ -9,7 +9,145 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
+import { Link } from "wouter";
+
+interface GweLetter {
+  id: number;
+  recipientName: string;
+  letterDate: string;
+  programName: string;
+  exclusionBasis: string;
+  amount: string;
+  issuingOfficer: string;
+  storageKey: string | null;
+  generatedBy: string | null;
+  createdAt: string;
+}
+
+function useGweLetters(enabled: boolean) {
+  return useQuery<GweLetter[]>({
+    queryKey: ["gwe-letters-court-doc"],
+    enabled,
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const r = await fetch("/api/documents/gwe-letter", {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Failed to load GWE letters");
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+}
+
+async function downloadGweLetter(id: number, recipientName: string): Promise<void> {
+  const token = getCurrentBearerToken();
+  const r = await fetch(`/api/documents/gwe-letter/${id}/pdf`, {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+  if (!r.ok) throw new Error("Failed to download GWE letter PDF");
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `gwe-letter-${id}-${recipientName.replace(/[^a-zA-Z0-9]/g, "-")}.pdf`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+function GweLettersTab() {
+  const { activeRole } = useAuth();
+  const { toast } = useToast();
+  const canView = ["trustee", "officer", "sovereign_admin", "admin", "elder"].includes(activeRole);
+  const { data: letters, isLoading } = useGweLetters(canView);
+  const [downloading, setDownloading] = useState<number | null>(null);
+
+  if (!canView) {
+    return (
+      <Card>
+        <CardContent className="py-12 text-center text-muted-foreground">
+          You do not have permission to view GWE letters.
+        </CardContent>
+      </Card>
+    );
+  }
+
+  const handleDownload = async (letter: GweLetter) => {
+    setDownloading(letter.id);
+    try {
+      await downloadGweLetter(letter.id, letter.recipientName);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not download PDF";
+      toast({ title: "Download Failed", description: msg, variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <p className="text-sm text-muted-foreground">
+          General Welfare Exclusion letters issued under 25 U.S.C. § 117b / IRC § 139E.
+        </p>
+        {["trustee", "officer", "sovereign_admin"].includes(activeRole) && (
+          <Link href="/gwe-letter">
+            <Button size="sm">Generate New GWE Letter</Button>
+          </Link>
+        )}
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+      ) : !letters?.length ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            No GWE letters generated yet.{" "}
+            {["trustee", "officer", "sovereign_admin"].includes(activeRole) && (
+              <Link href="/gwe-letter" className="underline">Generate your first letter.</Link>
+            )}
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {letters.map((letter) => (
+            <Card key={letter.id}>
+              <CardContent className="flex items-center justify-between py-4">
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    <Badge className="bg-emerald-700 text-white text-xs">GWE</Badge>
+                    <span className="font-semibold text-sm">{letter.recipientName}</span>
+                    {letter.storageKey && (
+                      <Badge variant="outline" className="text-xs text-green-700 border-green-400">Stored</Badge>
+                    )}
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1">
+                    Program: {letter.programName} · Amount: {letter.amount} · {letter.letterDate}
+                  </div>
+                  <div className="text-xs text-muted-foreground">
+                    Basis: {letter.exclusionBasis} · Officer: {letter.issuingOfficer}
+                  </div>
+                </div>
+                <div className="flex items-center gap-2 ml-4 shrink-0">
+                  <span className="text-xs text-muted-foreground">GWE-{String(letter.id).padStart(6, "0")}</span>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    disabled={downloading === letter.id}
+                    onClick={() => handleDownload(letter)}
+                  >
+                    {downloading === letter.id ? "…" : "PDF"}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Template { id: string; name: string; documentType: string; category: string; troSensitive: boolean; emergencyEligible: boolean }
 interface CourtDoc {
@@ -127,6 +265,7 @@ export default function CourtDocumentsPage() {
           <TabsTrigger value="generate">Generate New</TabsTrigger>
           <TabsTrigger value="all">All Documents ({docs?.length ?? 0})</TabsTrigger>
           <TabsTrigger value="templates">Templates ({templates?.length ?? 0})</TabsTrigger>
+          <TabsTrigger value="gwe">GWE Letters</TabsTrigger>
         </TabsList>
 
         <TabsContent value="generate">
@@ -276,6 +415,10 @@ export default function CourtDocumentsPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="gwe">
+          <GweLettersTab />
         </TabsContent>
       </Tabs>
     </div>

@@ -1108,3 +1108,185 @@ export async function buildInstrumentPdfBuffer(
   const result = await buildInstrumentRecorderPdf(instrumentId, content, jurisdiction, inputOverride);
   return result.buffer;
 }
+
+// ---------------------------------------------------------------------------
+// General Welfare Exclusion (GWE) Letter
+// ---------------------------------------------------------------------------
+
+export interface GweLetterInput {
+  recipientName: string;
+  letterDate: string;
+  programName: string;
+  exclusionBasis: "25 U.S.C. § 117b" | "IRC § 139E" | "25 U.S.C. § 117b / IRC § 139E";
+  amount: string;
+  issuingOfficer: string;
+  referenceNumber?: string;
+}
+
+export async function buildGweLetterPdf(input: GweLetterInput): Promise<PdfResult> {
+  const pdfDoc = await PDFDocument.create();
+  const timesRoman = await pdfDoc.embedFont(StandardFonts.TimesRoman);
+  const timesBold = await pdfDoc.embedFont(StandardFonts.TimesRomanBold);
+  const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
+  const sealImage = await embedSeal(pdfDoc);
+
+  const allPages: PDFPage[] = [];
+
+  function addNewPage(): PDFPage {
+    const p = pdfDoc.addPage([PAGE_W, PAGE_H]);
+    allPages.push(p);
+    return p;
+  }
+
+  let page = addNewPage();
+
+  let currentY = PAGE_H - 12;
+
+  // Header: office name
+  page.drawText("SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", {
+    x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.1, 0.1, 0.4),
+  });
+  currentY -= 12;
+  page.drawText("Mathias El Tribe — General Welfare Exclusion Program", {
+    x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman, color: rgb(0.3, 0.3, 0.3),
+  });
+
+  // Separator line below 2.5" margin area
+  page.drawLine({
+    start: { x: MARGIN_LEFT, y: MARGIN_TOP - 4 },
+    end: { x: PAGE_W - MARGIN_RIGHT, y: MARGIN_TOP - 4 },
+    thickness: 1.5,
+    color: rgb(0.1, 0.1, 0.4),
+  });
+
+  // Tribal seal
+  if (sealImage) drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
+
+  drawCentered(page, "GENERAL WELFARE EXCLUSION LETTER", CONTENT_TOP_Y + 38, timesBold, FONT_TITLE_SIZE);
+  drawCentered(page, `${input.exclusionBasis}`, CONTENT_TOP_Y + 20, timesItalic, FONT_BODY_SIZE, rgb(0.3, 0.1, 0.1));
+  drawCentered(page, "MATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT", CONTENT_TOP_Y + 4, timesRoman, FONT_SMALL_SIZE - 1, rgb(0.35, 0.35, 0.35));
+
+  currentY = CONTENT_TOP_Y - 16;
+
+  page.drawLine({
+    start: { x: MARGIN_LEFT, y: currentY + 2 },
+    end: { x: PAGE_W - MARGIN_RIGHT, y: currentY + 2 },
+    thickness: 0.5,
+    color: rgb(0, 0, 0),
+  });
+  currentY -= 20;
+
+  // Date and reference
+  const refLine = input.referenceNumber ? `Ref: GWE-${input.referenceNumber}` : `Date: ${input.letterDate}`;
+  page.drawText(`Date: ${input.letterDate}`, { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesRoman });
+  if (input.referenceNumber) {
+    const refW = timesRoman.widthOfTextAtSize(refLine, FONT_BODY_SIZE);
+    page.drawText(refLine, { x: PAGE_W - MARGIN_RIGHT - refW, y: currentY, size: FONT_BODY_SIZE, font: timesRoman });
+  }
+  currentY -= LINE_HEIGHT_BODY * 1.5;
+
+  // Recipient
+  page.drawText("TO:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  const toLabelW = timesBold.widthOfTextAtSize("TO: ", FONT_BODY_SIZE);
+  page.drawText(input.recipientName, { x: MARGIN_LEFT + toLabelW, y: currentY, size: FONT_BODY_SIZE, font: timesRoman });
+  currentY -= LINE_HEIGHT_BODY * 2;
+
+  // Subject line
+  page.drawText("RE:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  const reLabelW = timesBold.widthOfTextAtSize("RE: ", FONT_BODY_SIZE);
+  const subjectText = `General Welfare Exclusion — ${input.programName}`;
+  page.drawText(subjectText, { x: MARGIN_LEFT + reLabelW, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  currentY -= LINE_HEIGHT_BODY * 2;
+
+  // Body paragraphs
+  const bodyParagraphs = [
+    `Dear ${input.recipientName},`,
+
+    `This letter serves as official notification from the Sovereign Office of the Chief Justice & Trustee, Mathias El Tribe, that the payment or distribution described herein qualifies for exclusion from gross income under the General Welfare Exclusion doctrine codified at ${input.exclusionBasis}.`,
+
+    `PROGRAM: ${input.programName}`,
+
+    `EXCLUSION AMOUNT: ${input.amount}`,
+
+    `LEGAL BASIS: Pursuant to ${input.exclusionBasis}, amounts paid under a tribal government program for the promotion of the general welfare of the members of the Indian tribe are excluded from the gross income of the recipients. This program meets all applicable requirements, including that (1) it is administered under specific Indian tribal government programs, (2) it is based on need, and (3) the excluded amounts are not compensation for services.`,
+
+    `FEDERAL AUTHORITY: The General Welfare Exclusion reflects longstanding federal policy recognizing the unique government-to-government relationship between Indian tribes and the United States. Distributions made pursuant to tribal programs established for the general welfare of tribal members are not treated as income under applicable provisions of the Internal Revenue Code and federal Indian law.`,
+
+    `This letter may be retained for your records and presented to any federal, state, or local agency as documentation that the referenced distribution is excluded from gross income under the applicable federal statutes. This Office assumes no responsibility for any independent tax obligations the recipient may have arising from other sources.`,
+
+    `Questions regarding this exclusion determination may be directed to the Sovereign Office of the Chief Justice & Trustee.`,
+  ];
+
+  for (const para of bodyParagraphs) {
+    if (currentY < CONTENT_BOTTOM_Y + 120) {
+      page = addNewPage();
+      currentY = CONTENT_TOP_Y;
+    }
+    if (para.startsWith("PROGRAM:") || para.startsWith("EXCLUSION AMOUNT:") || para.startsWith("LEGAL BASIS:") || para.startsWith("FEDERAL AUTHORITY:")) {
+      const colonIdx = para.indexOf(":");
+      const heading = para.substring(0, colonIdx + 1);
+      const rest = para.substring(colonIdx + 1).trim();
+      page.drawText(heading, { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+      currentY -= LINE_HEIGHT_BODY;
+      if (rest) {
+        currentY = drawTextWrapped(page, rest, MARGIN_LEFT + 12, currentY, CONTENT_WIDTH - 12, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+      }
+    } else {
+      currentY = drawTextWrapped(page, para, MARGIN_LEFT, currentY, CONTENT_WIDTH, timesRoman, FONT_BODY_SIZE, LINE_HEIGHT_BODY);
+    }
+    currentY -= LINE_HEIGHT_BODY * 0.6;
+  }
+
+  // Signature block
+  const sigY = CONTENT_BOTTOM_Y + 2.0 * PT_PER_INCH;
+  if (currentY < sigY + 80) {
+    page = addNewPage();
+    currentY = CONTENT_TOP_Y;
+  }
+
+  currentY = sigY + 60;
+  page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 8 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 8 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText("SIGNATURE BLOCK — SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE", {
+    x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3),
+  });
+  currentY -= LINE_HEIGHT_BODY + 8;
+
+  page.drawText("Respectfully issued by:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesRoman });
+  currentY -= LINE_HEIGHT_BODY + 4;
+
+  page.drawText(input.issuingOfficer, { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  currentY -= LINE_HEIGHT_BODY;
+  page.drawText("Issuing Officer — Sovereign Office of the Chief Justice & Trustee", {
+    x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesItalic, color: rgb(0.35, 0.35, 0.35),
+  });
+  currentY -= LINE_HEIGHT_BODY * 1.5;
+
+  page.drawText("Signature:", { x: MARGIN_LEFT, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  page.drawText("Date:", { x: PAGE_W / 2 + 18, y: currentY, size: FONT_BODY_SIZE, font: timesBold });
+  currentY -= 4;
+  page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 16 }, end: { x: PAGE_W / 2 - 18, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  page.drawLine({ start: { x: PAGE_W / 2 + 48, y: currentY - 16 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 16 }, thickness: 0.5, color: rgb(0, 0, 0) });
+
+  // Post-pass: draw page footers on every page now that total is known
+  const totalPages = allPages.length;
+  allPages.forEach((p, idx) => {
+    drawCentered(p, `Page ${idx + 1} of ${totalPages}`, MARGIN_BOTTOM - 4, timesRoman, FONT_SMALL_SIZE, rgb(0.3, 0.3, 0.3));
+    p.drawText(
+      `This document is issued under tribal sovereign authority. ${input.exclusionBasis}. Not valid as legal advice.`,
+      { x: MARGIN_LEFT, y: MARGIN_BOTTOM + 6, size: FONT_SMALL_SIZE - 1, font: timesItalic, color: rgb(0.5, 0.5, 0.5) },
+    );
+  });
+
+  const pdfBytes = await pdfDoc.save();
+  const crypto = await import("node:crypto");
+  const checksum = crypto.createHash("sha256").update(pdfBytes).digest("hex").substring(0, 16);
+
+  logger.info({ recipientName: input.recipientName, programName: input.programName, pages: totalPages }, "GWE letter PDF generated");
+
+  return {
+    buffer: Buffer.from(pdfBytes),
+    pageCount: totalPages,
+    generatedAt: new Date().toISOString(),
+    checksum,
+  };
+}

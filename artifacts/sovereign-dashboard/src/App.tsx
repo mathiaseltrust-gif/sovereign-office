@@ -48,6 +48,7 @@ import BusinessConceptDetail from "@/pages/business-canvas-detail";
 import OnboardingLineagePage from "@/pages/onboarding-lineage";
 import OnboardingPendingPage from "@/pages/onboarding-pending";
 import HubPage from "@/pages/hub";
+import GweLetterPage from "@/pages/gwe-letter";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -266,6 +267,9 @@ function AppRouter() {
       </Route>
       <Route path="/hub">
         {() => <ProtectedRoute component={HubPage} />}
+      </Route>
+      <Route path="/gwe-letter">
+        {() => <ProtectedRoute component={GweLetterPage} />}
       </Route>
       <Route path="/onboarding/lineage">
         {() => <ProtectedRoute component={OnboardingLineagePage} />}
