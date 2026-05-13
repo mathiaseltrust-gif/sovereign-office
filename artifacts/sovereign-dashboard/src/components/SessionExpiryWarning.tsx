@@ -1,7 +1,7 @@
 import { useEffect, useRef, useCallback } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { toast } from "@/hooks/use-toast";
-import { Button } from "@/components/ui/button";
+import { ToastAction } from "@/components/ui/toast";
 
 const WARN_BEFORE_SECS = 2 * 60;
 const CHECK_INTERVAL_MS = 30 * 1000;
@@ -39,10 +39,10 @@ export function SessionExpiryWarning() {
           description: "Save your work or renew your session to stay signed in.",
           duration: Infinity,
           action: (
-            <Button size="sm" variant="outline" onClick={() => void handleRenew()}>
+            <ToastAction altText="Renew session" onClick={() => void handleRenew()}>
               Renew session
-            </Button>
-          ) as React.ReactElement,
+            </ToastAction>
+          ),
         });
         dismissRef.current = dismiss;
       }
