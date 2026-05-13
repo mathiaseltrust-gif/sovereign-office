@@ -154,12 +154,12 @@ export default function M365IntegrationPage() {
             <CardTitle className="text-sm font-semibold uppercase tracking-widest">Power Automate Endpoints</CardTitle>
           </CardHeader>
           <CardContent>
-            {status ? (
+            {status?.endpoints ? (
               <>
-                <CopyBlock value={status.endpoints.webhook} label="Webhook (fact extraction + drafting)" />
-                <CopyBlock value={status.endpoints.factExtraction} label="Fact extraction only" />
-                <CopyBlock value={status.endpoints.drafts} label="Drafting engine" />
-                <CopyBlock value={status.endpoints.identityGateway} label="Identity gateway" />
+                <CopyBlock value={status.endpoints.webhook ?? ""} label="Webhook (fact extraction + drafting)" />
+                <CopyBlock value={status.endpoints.factExtraction ?? ""} label="Fact extraction only" />
+                <CopyBlock value={status.endpoints.drafts ?? ""} label="Drafting engine" />
+                <CopyBlock value={status.endpoints.identityGateway ?? ""} label="Identity gateway" />
                 <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
                   <p className="text-xs text-amber-800 font-medium">Authentication</p>
                   <p className="text-xs text-amber-700 mt-0.5">
