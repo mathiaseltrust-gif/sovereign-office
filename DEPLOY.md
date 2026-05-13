@@ -19,6 +19,7 @@ containerised and wired together with Docker Compose.
 9. [Reverse proxy & TLS (recommended)](#9-reverse-proxy--tls-recommended)
 10. [Updating the application](#10-updating-the-application)
 11. [CI/CD — automated deployments via GitHub Actions](#11-cicd--automated-deployments-via-github-actions)
+12. [Automated database backups](#12-automated-database-backups)
 
 ---
 
@@ -491,6 +492,231 @@ The `IMAGE_TAG` variable is read by `docker-compose.yml` at start time, so this
 single command pins all three services to the chosen build without editing any
 files. After verifying the rollback is stable you can set `IMAGE_TAG=<sha>` in
 your `.env` file to make it persist across reboots.
+
+---
+
+## 12. Automated database backups
+
+Tribal lineage records, trust instruments, and welfare filings are irreplaceable.
+The backup system runs `pg_dump` nightly, uploads the compressed dump to Azure
+Blob Storage, and automatically purges dumps older than 30 days.
+
+### 12a. Create the Azure Blob Storage container
+
+```bash
+# Create a storage account (skip if one already exists)
+az storage account create \
+  --name sovereignbackups \
+  --resource-group <your-rg> \
+  --location australiaeast \
+  --sku Standard_LRS \
+  --kind StorageV2
+
+# Retrieve the account key
+az storage account keys list \
+  --account-name sovereignbackups \
+  --query "[0].value" -o tsv
+
+# Create the backup container
+az storage container create \
+  --account-name sovereignbackups \
+  --name db-backups
+```
+
+### 12b. Add backup environment variables
+
+Add the following to your `.env` file on the server (and to `.env.example` for
+documentation — never commit real credentials):
+
+```env
+# Azure Blob Storage — backup destination
+AZURE_STORAGE_ACCOUNT=sovereignbackups
+AZURE_STORAGE_KEY=<account-key-from-step-above>
+AZURE_BACKUP_CONTAINER=db-backups
+
+# How many daily backups to keep (default: 30)
+BACKUP_RETENTION_DAYS=30
+```
+
+### 12c. Install the nightly cron job (first-time setup)
+
+Run this **once** on the Azure VM after cloning the repository:
+
+```bash
+sudo ./scripts/setup-backup-cron.sh
+```
+
+This script:
+1. Installs `azure-cli` and `postgresql-client` if not present.
+2. Creates `/etc/cron.d/sovereign-backup` — runs `scripts/backup.sh` at
+   **02:00 UTC** every day.
+3. Appends all output to `/var/log/sovereign-backup.log`.
+
+Verify the cron entry was written:
+
+```bash
+cat /etc/cron.d/sovereign-backup
+```
+
+### 12d. Run a manual backup (CLI)
+
+You can trigger a backup at any time from the server:
+
+```bash
+# Load variables from .env first
+set -a && source .env && set +a
+./scripts/backup.sh
+```
+
+### 12e. Run a manual backup via the API
+
+Admins can trigger a backup directly from the API without SSH access.
+
+> **Deployment boundary note:** This endpoint shells out to `scripts/backup.sh`
+> and requires `pg_dump` and `az` (Azure CLI) to be present in the same
+> environment as the Node.js process. When the API runs as a **Docker container**
+> (the default production setup) the `scripts/` directory and these binaries
+> are **not** included in the image, so the endpoint will return HTTP 503.
+>
+> **Recommended approach:** use the host cron job from section 12c for all
+> scheduled and on-demand backups. To optionally enable the API endpoint inside
+> a container, bind-mount `scripts/backup.sh` and set the `BACKUP_SCRIPT` env
+> var to its path inside the container; then ensure `pg_dump` and `az` are
+> installed in the image.
+
+When running on the **host directly** (e.g. `pnpm dev` or a bare-metal deploy
+without Docker) the endpoint works without any extra configuration.
+
+```
+POST /api/admin/backup
+Authorization: Bearer <admin-token>
+```
+
+**Response (success):**
+
+```json
+{
+  "success": true,
+  "triggeredBy": "admin@example.com",
+  "startedAt": "2026-05-13T02:00:00.000Z",
+  "completedAt": "2026-05-13T02:01:23.456Z",
+  "output": "[backup] 2026-05-13T02:01:23Z — backup finished successfully"
+}
+```
+
+**Response (unavailable in container):**
+
+```json
+{
+  "error": "Backup script not available in this environment...",
+  "hint": "See DEPLOY.md § 12 for full setup instructions."
+}
+```
+
+Check backup configuration and environment availability without triggering a run:
+
+```
+GET /api/admin/backup/status
+Authorization: Bearer <admin-token>
+```
+
+```json
+{
+  "backupConfigured": true,
+  "scriptAvailable": false,
+  "binariesAvailable": { "pg_dump": false, "az": false },
+  "retentionDays": 30,
+  "storageAccount": "sovereignbackups",
+  "container": "db-backups"
+}
+```
+
+### 12f. Verify backups are being created
+
+```bash
+# List all blobs in the backup container
+az storage blob list \
+  --account-name sovereignbackups \
+  --container-name db-backups \
+  --query "[].{name:name, size:properties.contentLength, modified:properties.lastModified}" \
+  --output table
+
+# Check the backup log on the server
+tail -50 /var/log/sovereign-backup.log
+```
+
+### 12g. Restore from a backup
+
+#### Step 1 — Download the dump from blob storage
+
+```bash
+# List available backups
+az storage blob list \
+  --account-name sovereignbackups \
+  --container-name db-backups \
+  --query "[].name" -o tsv
+
+# Download the desired dump (replace the filename below)
+az storage blob download \
+  --account-name sovereignbackups \
+  --container-name db-backups \
+  --name sovereign_office_20260513T020000Z.dump \
+  --file /tmp/restore.dump
+```
+
+#### Step 2 — Stop the API so no writes occur during restore
+
+```bash
+docker compose stop api
+```
+
+#### Step 3 — Restore into the target database
+
+```bash
+# WARNING: this replaces all existing data in the database
+pg_restore \
+  --dbname="$DATABASE_URL" \
+  --no-owner \
+  --no-acl \
+  --clean \
+  --if-exists \
+  --verbose \
+  /tmp/restore.dump
+```
+
+#### Step 4 — Verify row counts
+
+```bash
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM users;"
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM family_lineage;"
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM trust_instruments;"
+psql "$DATABASE_URL" -c "SELECT COUNT(*) FROM trust_filings;"
+```
+
+#### Step 5 — Restart the API
+
+```bash
+docker compose up -d api
+curl -sf http://localhost:8080/api/healthz && echo "API OK"
+```
+
+### 12h. Retention policy
+
+| Frequency | Kept for |
+|---|---|
+| Daily nightly dumps | 30 days (configurable via `BACKUP_RETENTION_DAYS`) |
+
+Old blobs are deleted automatically at the end of each backup run. To keep
+backups longer, increase `BACKUP_RETENTION_DAYS` before running the next backup.
+
+### 12i. Disaster recovery summary
+
+| Scenario | Action |
+|---|---|
+| Accidental row deletion | Restore latest nightly dump (RPO ≤ 24 h) |
+| Database corruption | Restore last known-good dump, then replay any audit logs |
+| VM loss | Provision new VM, follow sections 1–8 of this guide, then restore |
+| Blob storage loss | Use Azure Geo-Redundant Storage (GRS) SKU for the storage account |
 
 ---
 
