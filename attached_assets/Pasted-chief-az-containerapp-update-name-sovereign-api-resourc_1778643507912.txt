@@ -1,0 +1,36 @@
+chief [ ~ ]$ az containerapp update \
+  --name sovereign-api \
+  --resource-group sovereign-office-rg \
+  --set-env-vars "DATABASE_URL=postgresql://tribaladmin:ElevatedTrust2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require" \
+  --query "properties.latestRevisionName" -o tsv
+
+sleep 45
+
+az containerapp logs show \
+  --name sovereign-api \
+  --resource-group sovereign-office-rg \
+  --tail 20
+sovereign-api--0000002
+{"TimeStamp": "2026-05-13T03:36:45.34357", "Log": "Connecting to the container 'sovereign-api'..."}
+{"TimeStamp": "2026-05-13T03:36:45.45303", "Log": "Successfully Connected to container: 'sovereign-api' [Revision: 'sovereign-api--0000002', Replica: 'sovereign-api--0000002-5b5b77d5f4-hzslx']"}
+{"TimeStamp": "2026-05-13T03:36:00.9080629+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:36:00.9080641+00:00", "Log": "F See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions."}
+{"TimeStamp": "2026-05-13T03:36:00.9080655+00:00", "Log": "F (Use `node --trace-warnings ...` to show where the warning was created)"}
+{"TimeStamp": "2026-05-13T03:36:01.7140424+00:00", "Log": "F [migrate] All migrations applied successfully."}
+{"TimeStamp": "2026-05-13T03:36:01.7175034+00:00", "Log": "F [entrypoint] Migrations complete \u2014 starting server..."}
+{"TimeStamp": "2026-05-13T03:36:02.2914179+00:00", "Log": "F {\"level\":30,\"time\":1778643362289,\"pid\":1,\"hostname\":\"sovereign-api--0000002-5b5b77d5f4-hzslx\",\"authority\":\"Sovereign Office of the Chief Justice & Trustee\",\"msg\":\"Sovereign Office initialized\"}"}
+{"TimeStamp": "2026-05-13T03:36:02.3030129+00:00", "Log": "F (node:1) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead."}
+{"TimeStamp": "2026-05-13T03:36:02.3030568+00:00", "Log": "F (Use `node --trace-deprecation ...` to show where the warning was created)"}
+{"TimeStamp": "2026-05-13T03:36:02.3035223+00:00", "Log": "F (node:1) Warning: SECURITY WARNING: The SSL modes 'prefer', 'require', and 'verify-ca' are treated as aliases for 'verify-full'."}
+{"TimeStamp": "2026-05-13T03:36:02.3035338+00:00", "Log": "F In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees."}
+{"TimeStamp": "2026-05-13T03:36:02.3035531+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:36:02.303555+00:00", "Log": "F To prepare for this change:"}
+{"TimeStamp": "2026-05-13T03:36:02.3035565+00:00", "Log": "F - If you want the current behavior, explicitly use 'sslmode=verify-full'"}
+{"TimeStamp": "2026-05-13T03:36:02.3035579+00:00", "Log": "F - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'"}
+{"TimeStamp": "2026-05-13T03:36:02.3035594+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:36:02.3035613+00:00", "Log": "F See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions."}
+{"TimeStamp": "2026-05-13T03:36:02.3044038+00:00", "Log": "F {\"level\":30,\"time\":1778643362292,\"pid\":1,\"hostname\":\"sovereign-api--0000002-5b5b77d5f4-hzslx\",\"authority\":\"Sovereign Office of the Chief Justice & Trustee\",\"msg\":\"Sovereign authority online\"}"}
+{"TimeStamp": "2026-05-13T03:36:02.304477+00:00", "Log": "F {\"level\":30,\"time\":1778643362303,\"pid\":1,\"hostname\":\"sovereign-api--0000002-5b5b77d5f4-hzslx\",\"port\":8080,\"msg\":\"Server listening\"}"}
+{"TimeStamp": "2026-05-13T03:36:02.8643755+00:00", "Log": "F {\"level\":40,\"time\":1778643362864,\"pid\":1,\"hostname\":\"sovereign-api--0000002-5b5b77d5f4-hzslx\",\"bootstrapToken\":\"eb01bfb565e4f4ff0ac386f074794f49cc5f61af1f0a5cf1\",\"msg\":\"\u26a0\ufe0f  NO ADMIN ACCOUNT EXISTS. Use this one-time token to bootstrap the first admin via POST /api/admin/bootstrap. It expires on next restart.\"}"}
+{"TimeStamp": "2026-05-13T03:36:39.1022703+00:00", "Log": "F {\"level\":30,\"time\":1778643399101,\"pid\":1,\"hostname\":\"sovereign-api--0000002-5b5b77d5f4-hzslx\",\"req\":{\"id\":1,\"method\":\"GET\",\"url\":\"/\"},\"res\":{\"statusCode\":404},\"responseTime\":3,\"msg\":\"request completed\"}"}
+chief [ ~ ]$ 
