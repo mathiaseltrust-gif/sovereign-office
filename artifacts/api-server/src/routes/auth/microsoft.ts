@@ -21,6 +21,7 @@ const SOVEREIGN_DASHBOARD_URL = () =>
   "/sovereign-dashboard";
 
 function redirectUri(req: import("express").Request): string {
+  if (process.env.MICROSOFT_REDIRECT_URI) return process.env.MICROSOFT_REDIRECT_URI;
   const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
   const proto = req.headers["x-forwarded-proto"] ?? (req.secure ? "https" : "http");
   return `${proto}://${host}/api/auth/microsoft/callback`;
