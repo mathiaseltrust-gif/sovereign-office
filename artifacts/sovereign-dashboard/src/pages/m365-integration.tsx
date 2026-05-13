@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "")}/api`;
 
@@ -107,18 +107,24 @@ const POWER_AUTOMATE_STEPS = [
 ];
 
 export default function M365IntegrationPage() {
+  const { user, loading: authLoading } = useAuth();
   const [status, setStatus] = useState<M365Status | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (authLoading) return;
+    if (!user) { setLoading(false); return; }
     fetch(`${API_BASE}/m365/status`, {
-      headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
+      headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
     })
-      .then((r) => r.json() as Promise<M365Status>)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json() as Promise<M365Status>;
+      })
       .then(setStatus)
       .catch(() => setStatus(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [user, authLoading]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
