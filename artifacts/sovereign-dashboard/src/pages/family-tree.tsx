@@ -191,7 +191,13 @@ function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; to
     byGen.get(gen)!.push(n);
   }
 
-  const sortedGens = [...byGen.keys()].sort((a, b) => a - b);
+  // Sort: non-negative gens ascending (gen 0 = root at top, gen 5 = oldest ancestors below),
+  // then negative gens ascending in abs value (gen -1 = children just below ancestors, gen -2 = grandchildren, etc.)
+  const sortedGens = [...byGen.keys()].sort((a, b) => {
+    if (a >= 0 && b >= 0) return a - b;
+    if (a < 0 && b < 0) return b - a;
+    return a >= 0 ? -1 : 1;
+  });
 
   // ── Sort within each generation: root → paternal (left) → maternal (right) ─
   for (const [gen, arr] of byGen) {
@@ -1459,11 +1465,47 @@ function MemberAddFamilyModal({ allNodes, onClose, onSuccess }: {
           <div>
             <Label>Relationship to You <span className="text-destructive">*</span></Label>
             <select value={form.relationshipType} onChange={f("relationshipType")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
-              <option value="child">Child (biological)</option>
-              <option value="parent">Parent (biological)</option>
-              <option value="sibling">Sibling (biological)</option>
+              <optgroup label="Descendants">
+                <option value="child">My Child (son / daughter)</option>
+                <option value="grandchild">My Grandchild</option>
+                <option value="niece_nephew">My Niece or Nephew</option>
+              </optgroup>
+              <optgroup label="Same Generation">
+                <option value="sibling">My Sibling (same mother &amp; father)</option>
+                <option value="half_sibling">My Half-Sibling (one shared parent)</option>
+                <option value="cousin">My Cousin</option>
+                <option value="spouse">My Spouse / Partner</option>
+              </optgroup>
+              <optgroup label="Ancestors">
+                <option value="parent">My Parent (mother / father)</option>
+                <option value="aunt_uncle">My Aunt or Uncle</option>
+              </optgroup>
             </select>
-            <p className="text-xs text-muted-foreground mt-1">For adoptions, guardianships, or other relationships requiring documentation — contact an administrator for the full intake process.</p>
+            {{
+              child: "Your child will be linked to you automatically as their parent.",
+              grandchild: "Your grandchild will be added below your generation.",
+              niece_nephew: "Your niece or nephew will be linked to you as parent — use the link below to also add their other parent.",
+              sibling: "Your shared parents will be copied automatically from your own record.",
+              half_sibling: "Use the 'Link to Existing Member' search below to specify the one parent you share.",
+              cousin: "Use 'Link to Existing Member' to connect them to their parent (your aunt or uncle).",
+              spouse: "Your spouse will be linked to your record automatically.",
+              parent: "Use 'Link to Existing Member' to attach them to your grandparents if known.",
+              aunt_uncle: "Use 'Link to Existing Member' to connect them to your grandparents.",
+            }[form.relationshipType] && (
+              <p className="text-xs text-blue-600 dark:text-blue-400 mt-1 leading-relaxed">
+                {({
+                  child: "Your child will be linked to you automatically as their parent.",
+                  grandchild: "Your grandchild will be added below your generation.",
+                  niece_nephew: "Your niece or nephew will be linked to you as parent — use the link below to also add their other parent.",
+                  sibling: "Your shared parents will be copied automatically from your own record.",
+                  half_sibling: "Use the 'Link to Existing Member' search below to specify the one parent you share.",
+                  cousin: "Use 'Link to Existing Member' to connect them to their parent (your aunt or uncle).",
+                  spouse: "Your spouse will be linked to your record automatically.",
+                  parent: "Use 'Link to Existing Member' to attach them to your grandparents if known.",
+                  aunt_uncle: "Use 'Link to Existing Member' to connect them to your grandparents.",
+                } as Record<string, string>)[form.relationshipType]}
+              </p>
+            )}
           </div>
 
           <div>
@@ -1639,7 +1681,7 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
 
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <Label>Generation (0 = oldest)</Label>
+              <Label>Generation (0 = you · higher = older ancestors · negative = descendants)</Label>
               <Input data-testid="add-person-generation" className="mt-1" type="number" value={form.generationalPosition} onChange={f("generationalPosition")} />
             </div>
             <div>

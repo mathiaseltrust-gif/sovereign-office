@@ -121,22 +121,72 @@ router.post("/member", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const validRelationships = ["child", "parent", "sibling"];
+    const validRelationships = [
+      "child", "parent", "sibling", "half_sibling",
+      "spouse", "grandchild", "aunt_uncle", "niece_nephew", "cousin",
+    ];
     if (!relationshipType || !validRelationships.includes(String(relationshipType))) {
-      res.status(400).json({ error: "relationshipType must be one of: child, parent, sibling" });
+      res.status(400).json({ error: `relationshipType must be one of: ${validRelationships.join(", ")}` });
       return;
     }
 
+    const callerId = req.user?.dbId ?? null;
+
+    // Look up the submitter's lineage node so we can auto-compute generation & parentIds
+    let submitterNode: { id: number; generationalPosition: number | null; parentIds: unknown; spouseIds: unknown } | null = null;
+    if (callerId) {
+      const [found] = await db
+        .select({
+          id: familyLineageTable.id,
+          generationalPosition: familyLineageTable.generationalPosition,
+          parentIds: familyLineageTable.parentIds,
+          spouseIds: familyLineageTable.spouseIds,
+        })
+        .from(familyLineageTable)
+        .where(eq(familyLineageTable.linkedProfileUserId, callerId))
+        .limit(1);
+      submitterNode = found ?? null;
+    }
+
+    const submitterGen = submitterNode?.generationalPosition ?? 0;
+
+    // Determine generationalPosition for the new node based on relationship
+    const genByRelationship: Record<string, number> = {
+      child: submitterGen - 1,
+      grandchild: submitterGen - 2,
+      niece_nephew: submitterGen - 1,
+      sibling: submitterGen,
+      half_sibling: submitterGen,
+      spouse: submitterGen,
+      cousin: submitterGen,
+      parent: submitterGen + 1,
+      aunt_uncle: submitterGen + 1,
+    };
+    const computedGen = genByRelationship[String(relationshipType)] ?? submitterGen;
+
+    // Auto-resolve parentIds: merge caller-supplied IDs with relationship-inferred IDs
     const rawIds: unknown[] = Array.isArray(parentIds) ? parentIds : [];
-    const pIds: number[] = rawIds
+    let pIds: number[] = rawIds
       .map((v) => (typeof v === "number" ? v : parseInt(String(v), 10)))
-      .filter((v) => Number.isFinite(v) && v > 0)
-      .slice(0, 5);
+      .filter((v) => Number.isFinite(v) && v > 0);
+
+    const submitterParentIds: number[] = Array.isArray(submitterNode?.parentIds)
+      ? (submitterNode!.parentIds as unknown[]).map(Number).filter((v) => Number.isFinite(v) && v > 0)
+      : [];
+
+    // Auto-link: for child/grandchild, make the submitter's node a parent
+    if ((relationshipType === "child" || relationshipType === "niece_nephew") && submitterNode) {
+      if (!pIds.includes(submitterNode.id)) pIds = [submitterNode.id, ...pIds];
+    }
+    // For sibling/half_sibling, inherit the submitter's parents if none supplied
+    if ((relationshipType === "sibling" || relationshipType === "half_sibling") && pIds.length === 0) {
+      pIds = submitterParentIds;
+    }
+
+    pIds = [...new Set(pIds)].slice(0, 6);
 
     if (pIds.length > 0) {
-      const existingNodes = await db
-        .select({ id: familyLineageTable.id })
-        .from(familyLineageTable);
+      const existingNodes = await db.select({ id: familyLineageTable.id }).from(familyLineageTable);
       const validIds = new Set(existingNodes.map((r) => r.id));
       const invalid = pIds.filter((id) => !validIds.has(id));
       if (invalid.length > 0) {
@@ -145,7 +195,11 @@ router.post("/member", requireAuth, async (req, res, next) => {
       }
     }
 
-    const callerId = req.user?.dbId ?? null;
+    // Auto-resolve spouseIds for "spouse" relationship
+    const newSpouseIds: number[] = [];
+    if (relationshipType === "spouse" && submitterNode) {
+      newSpouseIds.push(submitterNode.id);
+    }
 
     const [node] = await db
       .insert(familyLineageTable)
@@ -159,7 +213,8 @@ router.post("/member", requireAuth, async (req, res, next) => {
         notes: `Relationship: ${relationshipType}`,
         parentIds: pIds,
         childrenIds: [],
-        spouseIds: [],
+        spouseIds: newSpouseIds,
+        generationalPosition: computedGen,
         protectionLevel: "pending",
         membershipStatus: "pending",
         nameVariants: [],
@@ -172,6 +227,7 @@ router.post("/member", requireAuth, async (req, res, next) => {
       })
       .returning();
 
+    // Back-link: update parent nodes' childrenIds
     for (const parentId of pIds) {
       const [parent] = await db.select({ childrenIds: familyLineageTable.childrenIds }).from(familyLineageTable).where(eq(familyLineageTable.id, parentId)).limit(1);
       if (parent) {
@@ -182,6 +238,15 @@ router.post("/member", requireAuth, async (req, res, next) => {
       }
     }
 
+    // Back-link: update submitter's spouseIds
+    if (relationshipType === "spouse" && submitterNode) {
+      const existingSpouses = Array.isArray(submitterNode.spouseIds) ? (submitterNode.spouseIds as number[]) : [];
+      if (!existingSpouses.includes(node.id)) {
+        await db.update(familyLineageTable).set({ spouseIds: [...existingSpouses, node.id] }).where(eq(familyLineageTable.id, submitterNode.id));
+      }
+    }
+
+    logger.info({ relationshipType, computedGen, submitterGen, newNodeId: node.id }, "Member self-add submitted");
     res.status(201).json(node);
   } catch (err) {
     next(err);
