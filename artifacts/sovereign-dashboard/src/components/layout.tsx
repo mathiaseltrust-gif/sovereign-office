@@ -48,7 +48,10 @@ function getCoreNav(role: Role): NavSection["items"] {
     return [
       { href: "/dashboard/elder", label: "Elder Dashboard" },
       { href: "/business-canvas", label: "Business Canvas" },
+      { href: "/elder-advisory", label: "Elder Advisory Panel" },
+      { href: "/family-governance", label: "Family Governance" },
       { href: "/family-tree", label: "Family Tree & Lineage" },
+      { href: "/membership", label: "Membership Status" },
       { href: "/medical-notes", label: "Medical Notes" },
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/complaints", label: "Complaints" },
@@ -60,6 +63,8 @@ function getCoreNav(role: Role): NavSection["items"] {
     return [
       { href: "/dashboard/member", label: "Dashboard" },
       { href: "/business-canvas", label: "Business Canvas" },
+      { href: "/membership", label: "Membership Status" },
+      { href: "/family-governance", label: "Family Governance" },
       { href: "/filings", label: "Filings" },
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/complaints", label: "Complaints" },
@@ -73,6 +78,9 @@ function getCoreNav(role: Role): NavSection["items"] {
     return [
       { href: "/dashboard/officer", label: "Dashboard" },
       { href: "/business-canvas", label: "Business Canvas" },
+      { href: "/membership", label: "Membership Status" },
+      { href: "/org", label: "Organizations" },
+      { href: "/drafts", label: "AI Document Drafts" },
       { href: "/complaints", label: "Complaints" },
       { href: "/welfare", label: "Welfare Instruments" },
       { href: "/gwe-letter", label: "GWE Letters" },
@@ -88,6 +96,11 @@ function getCoreNav(role: Role): NavSection["items"] {
   return [
     { href: "/dashboard/trustee", label: "Dashboard" },
     { href: "/business-canvas", label: "Business Canvas" },
+    { href: "/membership", label: "Membership Status" },
+    { href: "/org", label: "Organizations" },
+    { href: "/elder-advisory", label: "Elder Advisory Panel" },
+    { href: "/family-governance", label: "Family Governance" },
+    { href: "/drafts", label: "AI Document Drafts" },
     { href: "/instruments", label: "Trust Instruments" },
     { href: "/filings", label: "Filings" },
     { href: "/nfr", label: "Notice of Federal Review" },

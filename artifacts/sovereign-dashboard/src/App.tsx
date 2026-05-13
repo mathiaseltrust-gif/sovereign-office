@@ -49,6 +49,11 @@ import OnboardingLineagePage from "@/pages/onboarding-lineage";
 import OnboardingPendingPage from "@/pages/onboarding-pending";
 import HubPage from "@/pages/hub";
 import GweLetterPage from "@/pages/gwe-letter";
+import MembershipPage from "@/pages/membership";
+import ElderAdvisoryPage from "@/pages/elder-advisory";
+import FamilyGovernancePage from "@/pages/family-governance";
+import OrgOverviewPage from "@/pages/org";
+import DraftsPage from "@/pages/drafts";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -270,6 +275,21 @@ function AppRouter() {
       </Route>
       <Route path="/gwe-letter">
         {() => <ProtectedRoute component={GweLetterPage} />}
+      </Route>
+      <Route path="/membership">
+        {() => <ProtectedRoute component={MembershipPage} />}
+      </Route>
+      <Route path="/elder-advisory">
+        {() => <ProtectedRoute component={ElderAdvisoryPage} />}
+      </Route>
+      <Route path="/family-governance">
+        {() => <ProtectedRoute component={FamilyGovernancePage} />}
+      </Route>
+      <Route path="/org">
+        {() => <ProtectedRoute component={OrgOverviewPage} />}
+      </Route>
+      <Route path="/drafts">
+        {() => <ProtectedRoute component={DraftsPage} />}
       </Route>
       <Route path="/onboarding/lineage">
         {() => <ProtectedRoute component={OnboardingLineagePage} />}
