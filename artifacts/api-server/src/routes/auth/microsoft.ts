@@ -54,11 +54,13 @@ router.get("/login", (req, res) => {
     res.status(503).json({ error: "Microsoft authentication is not configured on this server." });
     return;
   }
-  const state = randomBytes(16).toString("hex");
+  const nonce = randomBytes(16).toString("hex");
   const codeVerifier = randomBytes(32).toString("base64url");
   const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
 
-  const statePayload = signSessionJwt({ state, codeVerifier, type: "oauth_state" });
+  // Embed codeVerifier into the state JWT so the callback can read it
+  // without relying on cookies (frontend and API are on different domains).
+  const stateJwt = signSessionJwt({ nonce, codeVerifier, type: "oauth_state" });
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID(),
@@ -66,14 +68,14 @@ router.get("/login", (req, res) => {
     redirect_uri: redirectUri(req),
     response_mode: "query",
     scope: "openid profile email User.Read",
-    state,
+    state: stateJwt,
     code_challenge: codeChallenge,
     code_challenge_method: "S256",
   });
 
   const authUrl = `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/authorize?${params}`;
 
-  res.json({ authUrl, stateCookie: statePayload });
+  res.json({ authUrl });
 });
 
 router.get("/callback", async (req, res) => {
@@ -86,22 +88,14 @@ router.get("/callback", async (req, res) => {
       return;
     }
 
-    const stateCookie = req.headers["x-oauth-state"] as string | undefined
-      ?? (req.query.state_cookie as string | undefined);
-
-    const cookieHeader = req.headers.cookie ?? "";
-    const cookieMatch = cookieHeader.match(/oauth_state=([^;]+)/);
-    const rawStateCookie = cookieMatch ? decodeURIComponent(cookieMatch[1]) : stateCookie ?? "";
-
-    let codeVerifier = "";
-    if (rawStateCookie) {
-      const statePayload = verifySessionJwt(rawStateCookie);
-      if (statePayload?.state !== returnedState) {
-        res.status(400).json({ error: "OAuth state mismatch — possible CSRF attack." });
-        return;
-      }
-      codeVerifier = statePayload.codeVerifier as string;
+    // The state param IS the signed JWT containing codeVerifier —
+    // no cookie needed (frontend and API live on different domains).
+    const statePayload = verifySessionJwt(returnedState ?? "");
+    if (!statePayload || statePayload.type !== "oauth_state") {
+      res.status(400).json({ error: "OAuth state missing or invalid — possible CSRF attack." });
+      return;
     }
+    const codeVerifier = (statePayload.codeVerifier as string) ?? "";
 
     const tokenRes = await fetch(
       `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/token`,

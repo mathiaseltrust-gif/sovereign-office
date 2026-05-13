@@ -53,8 +53,7 @@ export default function Login() {
         toast({ title: "Microsoft login unavailable", description: err.error ?? "Contact your administrator.", variant: "destructive" });
         return;
       }
-      const { authUrl, stateCookie } = await res.json() as { authUrl: string; stateCookie: string };
-      document.cookie = `oauth_state=${encodeURIComponent(stateCookie)}; path=/; max-age=600; SameSite=Lax`;
+      const { authUrl } = await res.json() as { authUrl: string };
       if (nextPath) {
         sessionStorage.setItem("oauth_next", nextPath);
       } else {
