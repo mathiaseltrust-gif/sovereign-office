@@ -3,7 +3,136 @@ import { runIntakeFilter, type IntakeFilterResult } from "./intake-filter";
 import { queryLawDb, ensureLawDbSeeded } from "./law-db";
 import { computeDelegatedAuthorities } from "./delegated-authority";
 import { logger } from "../lib/logger";
-import type { LawReference, IntakeAgentReport, LineageVerification } from "./ai-intake-agent";
+import type { LawReference, IntakeAgentReport, LineageVerification, ExtractedIntakeData, IntakeRecap, IntakeOption, IntakeForm } from "./ai-intake-agent";
+
+const INSTRUMENT_OPTIONS: Record<string, IntakeOption> = {
+  TRO_ICWA: { label: "Issue ICWA TRO", action: "generate_tro_icwa", endpoint: "/api/court/welfare", description: "Generate a Temporary Restraining Order under the Indian Child Welfare Act" },
+  TRO_GENERAL: { label: "Issue TRO", action: "generate_tro", endpoint: "/api/court/welfare", description: "Generate a general Temporary Restraining Order under sovereign emergency authority" },
+  ICWA_NOTICE: { label: "File ICWA Notice", action: "file_icwa_notice", endpoint: "/api/court/nfr", description: "File mandatory ICWA Notice of Proceeding — 25 U.S.C. § 1912" },
+  NFR: { label: "Notice of Federal Review", action: "generate_nfr", endpoint: "/api/court/nfr", description: "Generate and file Notice of Federal Review with applicable statute citations" },
+  EMERGENCY_WELFARE: { label: "Emergency Welfare Order", action: "emergency_welfare", endpoint: "/api/court/welfare", description: "Issue an emergency welfare protection order under ICWA and sovereign authority" },
+  TRUST_DEED: { label: "Trust Deed Declaration", action: "trust_deed", endpoint: "/api/trust/instruments", description: "Generate a trust deed or declaration of trust land status" },
+  JURISDICTIONAL_STATEMENT: { label: "Jurisdictional Statement", action: "jurisdictional_statement", endpoint: "/api/court/documents", description: "File a statement of exclusive tribal jurisdiction" },
+};
+
+const INSTRUMENT_FORMS: Record<string, IntakeForm> = {
+  TRO_ICWA: { form_code: "TRO-ICWA-001", form_name: "ICWA Temporary Restraining Order", form_type: "Emergency Court Order", recommended: true },
+  TRO_GENERAL: { form_code: "TRO-GEN-001", form_name: "General Temporary Restraining Order", form_type: "Emergency Court Order", recommended: true },
+  ICWA_NOTICE: { form_code: "ICWA-NOT-001", form_name: "ICWA Notice of Proceedings (25 U.S.C. § 1912)", form_type: "Mandatory Federal Notice", recommended: true },
+  NFR: { form_code: "NFR-001", form_name: "Notice of Federal Review", form_type: "Federal Sovereignty Notice", recommended: true },
+  EMERGENCY_WELFARE: { form_code: "WELFARE-EMG-001", form_name: "Emergency Tribal Welfare Order", form_type: "Sovereign Protection Order", recommended: true },
+  TRUST_DEED: { form_code: "TRUST-DEED-001", form_name: "Trust Deed Declaration", form_type: "Trust Instrument", recommended: false },
+  JURISDICTIONAL_STATEMENT: { form_code: "JXST-001", form_name: "Statement of Tribal Jurisdiction", form_type: "Jurisdictional Filing", recommended: false },
+};
+
+function extractParties(text: string): { names: string[]; agencies: string[] } {
+  const agencyPatterns = /\b(BIA|Bureau of Indian Affairs|HHS|Department of Health|State Court|County Court|Child Protective Services|CPS|DCFS|DHS|Social Services|State of \w+|County of \w+|City of \w+|Tribal Council|Tribal Court)\b/gi;
+  const agencies = Array.from(new Set(Array.from(text.matchAll(agencyPatterns)).map(m => m[0])));
+  const namePattern = /\b([A-Z][a-z]+ [A-Z][a-z]+(?:\s[A-Z][a-z]+)?)\b/g;
+  const allNames = Array.from(new Set(Array.from(text.matchAll(namePattern)).map(m => m[0])));
+  const stopWords = new Set(["Indian Child", "Child Welfare", "Indian Country", "United States", "Federal Court", "State Court", "Tribal Court", "Supreme Court", "Indian Law"]);
+  const names = allNames.filter(n => !stopWords.has(n) && n.split(" ").every(w => w[0] === w[0].toUpperCase())).slice(0, 10);
+  return { names, agencies: agencies.slice(0, 8) };
+}
+
+function extractState(text: string): string {
+  const statePattern = /\b(Alabama|Alaska|Arizona|Arkansas|California|Colorado|Connecticut|Delaware|Florida|Georgia|Hawaii|Idaho|Illinois|Indiana|Iowa|Kansas|Kentucky|Louisiana|Maine|Maryland|Massachusetts|Michigan|Minnesota|Mississippi|Missouri|Montana|Nebraska|Nevada|New Hampshire|New Jersey|New Mexico|New York|North Carolina|North Dakota|Ohio|Oklahoma|Oregon|Pennsylvania|Rhode Island|South Carolina|South Dakota|Tennessee|Texas|Utah|Vermont|Virginia|Washington|West Virginia|Wisconsin|Wyoming)\b/i;
+  const match = text.match(statePattern);
+  return match ? match[0] : "Unknown";
+}
+
+function deriveStructuredOutput(
+  report: IntakeAgentReport,
+  rawText: string,
+): Pick<IntakeAgentReport, "extracted" | "recap" | "options" | "forms" | "formData"> {
+  const parties = extractParties(rawText);
+  const state = extractState(rawText);
+
+  const domainTags: string[] = [];
+  if (report.intakeFlags.indianStatusViolation) domainTags.push("ICWA violation", "Indian status challenge");
+  if (report.intakeFlags.troRecommended) domainTags.push("emergency protection needed");
+  if (report.nfrRecommended) domainTags.push("federal review required");
+  const issues = [...new Set([...domainTags, ...report.intakeFlags.violations.slice(0, 5)])];
+
+  const jurisdictionType = report.doctrinesApplied.some(d => /state|county|local/i.test(d))
+    ? "federal-tribal concurrent"
+    : "exclusive tribal";
+
+  const extracted: ExtractedIntakeData = {
+    parties,
+    issues,
+    timeline: [],
+    summary: report.summary,
+    jurisdiction: report.intakeFlags.canonicalPosture,
+    state,
+    form_type: report.recommendedInstruments.includes("TRO_ICWA") || report.recommendedInstruments.includes("TRO_GENERAL")
+      ? "Emergency TRO Filing"
+      : report.recommendedInstruments.includes("NFR")
+      ? "Notice of Federal Review"
+      : report.recommendedInstruments.includes("ICWA_NOTICE")
+      ? "ICWA Notice Filing"
+      : "Legal Intake",
+  };
+
+  const facts = report.factSummary
+    .split(/\n+/)
+    .map(l => l.replace(/^[-•*#\s]+/, "").trim())
+    .filter(l => l.length > 10 && !l.startsWith("HARD") && !l.startsWith("INTAKE:") && !l.startsWith("VIOLATIONS:") && !l.startsWith("CANONICAL"))
+    .slice(0, 8);
+
+  const recap: IntakeRecap = {
+    facts: facts.length > 0 ? facts : [report.summary],
+    parties: [...parties.names, ...parties.agencies].slice(0, 6),
+    jurisdiction: {
+      state,
+      type: jurisdictionType,
+      description: report.intakeFlags.canonicalPosture,
+    },
+    legal: report.lawRefs.slice(0, 6).map(ref => ({
+      citation: ref.citation,
+      title: ref.title,
+      relevance: ref.relevanceReason,
+    })),
+    rules: report.doctrinesApplied.slice(0, 5),
+    recommended_action: report.recommendedActions[0] ?? "Standard intake processing",
+    protective_summary: report.intakeFlags.indianStatusViolation
+      ? `ICWA protections apply — 25 U.S.C. §§ 1901–1963. ${report.intakeFlags.troRecommended ? "Emergency TRO posture active. " : ""}Full Faith and Credit of Tribal Court orders must be recognized.`
+      : report.nfrRecommended
+      ? "Federal Notice of Review recommended. Tribal sovereignty protections apply under federal trust responsibility doctrine."
+      : "Standard sovereign intake — tribal protections apply. All federal Indian law rights preserved.",
+  };
+
+  const options: IntakeOption[] = [
+    ...report.recommendedInstruments
+      .filter(inst => INSTRUMENT_OPTIONS[inst])
+      .map(inst => INSTRUMENT_OPTIONS[inst]),
+    { label: "Full AI Intake Analysis", action: "full_intake", endpoint: "/api/intake/ai", description: "Run the full 4-tier sovereign AI intake engine on this matter" },
+    { label: "File as Complaint", action: "file_complaint", endpoint: "/api/complaints", description: "Open this as a formal court complaint matter" },
+  ];
+
+  const forms: IntakeForm[] = [
+    ...report.recommendedInstruments
+      .filter(inst => INSTRUMENT_FORMS[inst])
+      .map(inst => INSTRUMENT_FORMS[inst]),
+    { form_code: "INTAKE-LOG-001", form_name: "Intake Log Entry", form_type: "Administrative Record", recommended: false },
+  ];
+
+  const formData: Record<string, unknown> = {
+    summary: report.summary,
+    riskLevel: report.riskLevel,
+    submittedAt: report.processedAt,
+    parties: parties.names.join("; "),
+    agencies: parties.agencies.join("; "),
+    state,
+    jurisdiction: extracted.jurisdiction,
+    icwaApplicable: report.intakeFlags.indianStatusViolation || report.intakeFlags.troRecommended,
+    troRecommended: report.troRecommended,
+    nfrRecommended: report.nfrRecommended,
+    instruments: report.recommendedInstruments.join(", "),
+  };
+
+  return { extracted, recap, options, forms, formData };
+}
 
 export type AiTier = "azure_openai" | "rule_based" | "legal_logic" | "delegated_authority" | "hard_sovereign";
 
@@ -252,8 +381,10 @@ export async function runAiEngine(input: {
           processedAt: new Date().toISOString(),
           lineageVerification: lineage,
         };
+        const structured = deriveStructuredOutput(report, input.text);
         return {
           ...report,
+          ...structured,
           tier: "azure_openai",
           tierReason: "Azure OpenAI gpt-4o — full legal reasoning with law database context",
           azureAvailable: true,
@@ -304,9 +435,11 @@ export async function runAiEngine(input: {
     ].filter((v, i, arr) => arr.indexOf(v) === i);
 
     logger.info("AI Engine: rule-based + delegated authority succeeded (Tier 2/3)");
+    const ruleReportFinal = { ...ruleReport, recommendedActions: combinedActions };
+    const ruleStructured = deriveStructuredOutput(ruleReportFinal, input.text);
     return {
-      ...ruleReport,
-      recommendedActions: combinedActions,
+      ...ruleReportFinal,
+      ...ruleStructured,
       tier: "rule_based",
       tierReason: "Rule-based intake filter + legal-logic module + delegated authority engine",
       azureAvailable,
@@ -317,8 +450,10 @@ export async function runAiEngine(input: {
 
   logger.warn("AI Engine: Hard Sovereign Defaults applied (Tier 4)");
   const hardDefaults = buildHardSovereignDefaults(input.text, flags, lawRefs, lineage);
+  const hardStructured = deriveStructuredOutput(hardDefaults, input.text);
   return {
     ...hardDefaults,
+    ...hardStructured,
     tier: "hard_sovereign",
     tierReason: "Hard Sovereign Defaults — ICWA, Trust, Tribal Medical Authority enforced. No downtime.",
     azureAvailable,

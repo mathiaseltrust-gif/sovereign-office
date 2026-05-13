@@ -39,6 +39,40 @@ export interface LawReference {
   relevanceReason: string;
 }
 
+export interface ExtractedIntakeData {
+  parties: { names: string[]; agencies: string[] };
+  issues: string[];
+  timeline: { date: string; event: string }[];
+  summary: string;
+  jurisdiction: string;
+  state: string;
+  form_type: string;
+}
+
+export interface IntakeRecap {
+  facts: string[];
+  parties: string[];
+  jurisdiction: { state: string; type: string; description: string };
+  legal: { citation: string; title: string; relevance: string }[];
+  rules: string[];
+  recommended_action: string;
+  protective_summary: string;
+}
+
+export interface IntakeOption {
+  label: string;
+  action: string;
+  endpoint?: string;
+  description: string;
+}
+
+export interface IntakeForm {
+  form_code: string;
+  form_name: string;
+  form_type: string;
+  recommended: boolean;
+}
+
 export interface IntakeAgentReport {
   summary: string;
   riskLevel: "low" | "moderate" | "elevated" | "critical" | "emergency";
@@ -54,6 +88,11 @@ export interface IntakeAgentReport {
   aiConfidence: number;
   processedAt: string;
   lineageVerification?: LineageVerification;
+  extracted?: ExtractedIntakeData;
+  recap?: IntakeRecap;
+  options?: IntakeOption[];
+  forms?: IntakeForm[];
+  formData?: Record<string, unknown>;
 }
 
 export interface LineageVerification {

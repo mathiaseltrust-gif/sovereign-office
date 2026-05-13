@@ -1,0 +1,95 @@
+how do i import aspects of this project to our other project? is theri a way to reference it alone or provide me with what i need
+
+1 minute ago
+
+Planning integration strategy (8 seconds)
+Good question. Let me check what's available — the OpenAPI spec and the current API surface — so I can give you the right options.
+
+
+3 actions
+You have three options depending on what your other project needs:
+
+Option 1 — Call the live API (simplest)
+Your API is already publicly accessible. From any other project, just fetch against your Replit dev domain:
+
+// Works from any frontend or backend
+const BASE = "https://98cbe74d-6ea3-4137-b6b9-87effd6480bd-00-2hklvovsft8cp.kirk.replit.dev";
+// Upload a PDF
+const form = new FormData();
+form.append("file", pdfFile);
+const upload = await fetch(`${BASE}/api/intake/upload`, { method: "POST", body: form });
+const { session_id } = await upload.json();
+// Analyze it
+const analysis = await fetch(`${BASE}/api/intake/analyze`, {
+  method: "POST",
+  headers: { "Content-Type": "application/json" },
+  body: JSON.stringify({ session_id })
+});
+const result = await analysis.json();
+// result.recap, result.recommended_action, result.legalMatches, etc.
+
+When to use: your other project just needs the analysis results and doesn't need to own the backend code.
+
+Once you publish/deploy this project, swap the dev domain for your .replit.app production URL — it never changes.
+
+Option 2 — Drop the plugin into another Express backend
+Use the ZIP you already have. The plugin is a self-contained Express router. In your other project:
+
+1. Copy the intake_ai folder into your server (e.g. src/plugins/intake_ai/)
+
+2. Install the required packages:
+
+npm install openai pdf-parse multer drizzle-orm pg zod
+
+3. Make sure these three database tables exist (run the SQL from db/schema.sql)
+
+4. Wire it in:
+
+import intakeRouter from "./plugins/intake_ai/index.js";
+app.use("/api/intake", intakeRouter);
+
+5. Set these environment variables:
+
+DATABASE_URL=postgresql://...
+AI_INTEGRATIONS_OPENAI_API_KEY=...
+AI_INTEGRATIONS_OPENAI_BASE_URL=https://...
+
+When to use: your other project is an Express 5 + TypeScript backend and you want to own the analysis logic locally.
+
+Option 3 — TypeScript types only (for typed clients)
+If your other project is TypeScript and just calls the API, paste these types in — no extra packages needed:
+
+export type IntakeUploadResult = {
+  session_id: string;
+  doc_id: string;
+  filename: string;
+  page_count: number;
+  char_count: number;
+};
+export type IntakeAnalysis = {
+  success: boolean;
+  session: { session_id: string; status: string; updated_at: string };
+  extracted: {
+    parties: { names: string[]; agencies: string[] };
+    issues: string[];
+    timeline: { date: string; event: string }[];
+    summary: string;
+    jurisdiction: string;
+    state: string;
+    form_type: string;
+  };
+  recap: {
+    facts: string[];
+    parties: string[];
+    jurisdiction: { state: string; type: string; description: string };
+    legal: { citation: string; title: string; relevance: string }[];
+    rules: string[];
+    recommended_action: string;
+    protective_summary: string;
+  };
+  recommended_action: string;
+  reasoning: string;
+  options: { label: string; action: string; endpoint?: string; description: string }[];
+  forms: { form_code: string; form_name: string; form_type: string; recommended: boolean }[];
+  formData: Record<string, unknown>;
+};
