@@ -15,6 +15,7 @@ import MemberProfile from "@/pages/member-profile";
 import FamilyGovernance from "@/pages/family-governance";
 import { NiacPage, CharitableTrustPage, IEEPage } from "@/pages/panel-page";
 import VisitorDashboard from "@/pages/visitor-dashboard";
+import Members from "@/pages/members";
 import NotFound from "@/pages/not-found";
 
 const queryClient = new QueryClient({
@@ -51,6 +52,7 @@ function AuthenticatedRouter() {
       <Route path="/niac" component={NiacPage} />
       <Route path="/charitable-trust" component={CharitableTrustPage} />
       <Route path="/iee" component={IEEPage} />
+      <Route path="/members" component={Members} />
       <Route component={NotFound} />
     </Switch>
   );

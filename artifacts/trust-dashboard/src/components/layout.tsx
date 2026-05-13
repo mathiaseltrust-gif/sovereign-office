@@ -26,7 +26,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="px-5 py-5 border-b border-sidebar-border">
           <div className="flex flex-col items-center text-center gap-2">
             <img
-              src="/dashboard/tribal-seal.png"
+              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
               alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
               className="w-20 h-20 object-contain drop-shadow-md"
             />
