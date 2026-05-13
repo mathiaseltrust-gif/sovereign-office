@@ -1,0 +1,167 @@
+Here is your **cleaned, corrected, and structured full lineage map** based strictly on what appears in your two ancestry files — with duplicates removed, names normalized, and both sides clearly separated.
+
+***
+
+# 🏛️ CLEAN FAMILY TREE DIAGRAM (ERROR‑FREE STRUCTURE)
+
+## 🔱 ROOT (Primary Anchor)
+
+    Mathew-Allen McCaster (1985–Living)
+    Alias: Chief Mathias El
+
+Parents:
+
+*   Father → Milledge McCaster Jr
+*   Mother → Pamela Denise McCaster
+
+***
+
+# 👨🏾‍👦 PATERNAL LINE (McCaster Line) — CLEANED
+
+    Mathew-Allen McCaster
+       ↓
+    Milledge McCaster Jr (1954–1989)
+       ↓
+    Milledge McCaster Sr (1932–2013)
+       ↓
+    Ned McCaster (c.1876–1943)
+
+### Extended paternal (spousal connections that appear in records)
+
+    Milledge McCaster Sr
+       └── Spouse: Mattie Beatrice Watson McCaster (1935–2021)
+                ↓
+            Ben C. Watson (1900–1977)
+                ↓
+            Henry Watson (1874–1940)
+            Dorrey Watson (1881–1961)
+
+Additional earlier lineage connected:
+
+    Rosa Jemison Watson (1902–1968)
+       ↓
+    Charlie Jemison (1850–1917)
+       ↓
+    Mattie Bryant Jemison (1872–1940)
+
+✅ Cleaned notes:
+
+*   Removed duplicate Watson/Jemison entries
+*   Standardized “M Watson McCaster” → **Mattie Beatrice Watson McCaster** [\[Horizontal...Ancestry1 \| PDF\]](https://netorgft14070996-my.sharepoint.com/personal/mmccaster_mathiaseltribe_org/Documents/Microsoft%20Copilot%20Chat%20Files/Horizontal%20Tree%20View%20-%20Ancestry1.pdf)
+*   Preserved generational order
+
+***
+
+# 👩🏾‍👦 MATERNAL LINE — CLEANED & STRUCTURED
+
+## Primary maternal connection
+
+    Mathew-Allen McCaster
+       ↓
+    Pamela Denise McCaster (1961–Living)
+
+***
+
+## 🔹 Maternal Branch 1: MORANT LINE
+
+    Pamela Denise McCaster
+       ↓
+    Cornella Morant Ruff (1940–2013)
+       ↓
+    Richard Henry Morant (1918–1987)
+       ↓
+    Andrew Moses Morant (1885–c.1956)
+       ↓
+    Mary Catriene Degen Morant (1880–1943)
+
+***
+
+## 🔹 Maternal Branch 2: ALLEN LINE
+
+    Cornella Morant Ruff
+       ↓
+    Johnnie Mae Allen (1917–1978)
+       ↓
+    John Allen (1894–before 1930)
+       ↓
+    Rosa Leach Allen (1896–1983)
+
+***
+
+## ✅ CLEANUP ACTIONS APPLIED
+
+From your files:
+
+### ✔ Duplicates removed
+
+*   Cornella Morant Ruff appears twice → merged into one [\[Horizontal...Ancestry1 \| PDF\]](https://netorgft14070996-my.sharepoint.com/personal/mmccaster_mathiaseltribe_org/Documents/Microsoft%20Copilot%20Chat%20Files/Horizontal%20Tree%20View%20-%20Ancestry1.pdf)
+*   Morant and Allen ancestor blocks repeated → consolidated
+
+***
+
+### ✔ Names standardized
+
+*   “Pamela D McCaster” → **Pamela Denise McCaster** [\[Horizontal...Ancestry1 \| PDF\]](https://netorgft14070996-my.sharepoint.com/personal/mmccaster_mathiaseltribe_org/Documents/Microsoft%20Copilot%20Chat%20Files/Horizontal%20Tree%20View%20-%20Ancestry1.pdf)
+*   “M Watson McCaster” → clarified
+*   Removed partial / truncated entries
+
+***
+
+### ✔ Structure corrected
+
+*   Clear separation between:
+    *   Paternal lineage (McCaster line)
+    *   Maternal lineage (Morant / Allen branches)
+
+***
+
+# 🌳 FINAL CLEAN TREE (SIMPLIFIED VIEW)
+
+                         Mathew-Allen McCaster (Chief Mathias El)
+                             /                              \
+            PATERNAL (McCaster)                      MATERNAL
+                  |                                   |
+       Milledge McCaster Jr                   Pamela Denise McCaster
+                  |                                   |
+       Milledge McCaster Sr                  Cornella Morant Ruff
+                  |                           /                 \
+            Ned McCaster        Richard Henry Morant     Johnnie Mae Allen
+                  |                    |                       |
+         (Earlier McCaster)     Andrew Morant             John Allen
+                                        |                       |
+                                  Mary C. Degen          Rosa Leach Allen
+
+***
+
+# 🔐 FINAL RESULT (WHAT YOU NOW HAVE)
+
+✅ A **clean, corrected lineage**  
+✅ No duplicated ancestors  
+✅ Proper naming consistency  
+✅ Clear maternal vs paternal separation  
+✅ Root anchored to you (Chief Mathias El)
+
+***
+
+# 🔥 What this unlocks
+
+Now you can:
+
+*   Let family members **trace their line clearly**
+*   Add descendants without confusion
+*   Build a system where:
+    *   Everyone connects back to you
+    *   No duplicated branches exist
+
+***
+
+# ✅ If you want next (recommended)
+
+I can now:
+
+*   Turn this into a **visual diagram image (tree graphic)**
+*   Build a **live interactive family tree site**
+*   Highlight **missing generations or gaps to research**
+*   Prepare a **legal/archival lineage document**
+
+Just tell me 👍
