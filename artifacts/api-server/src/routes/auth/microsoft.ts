@@ -54,17 +54,20 @@ router.get("/login", (req, res) => {
     return;
   }
 
+  // Prefer client-supplied redirectUri (the browser knows its own public origin)
+  const effectiveRedirectUri = (req.query.redirectUri as string | undefined) || redirectUri();
+
   const params = new URLSearchParams({
     client_id: CLIENT_ID(),
     response_type: "code",
-    redirect_uri: redirectUri(),
+    redirect_uri: effectiveRedirectUri,
     response_mode: "query",
     scope: "openid profile email User.Read",
     prompt: "select_account",
   });
 
   const authUrl = `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/authorize?${params}`;
-  logger.info({ redirect_uri: redirectUri() }, "Microsoft login initiated");
+  logger.info({ redirect_uri: effectiveRedirectUri }, "Microsoft login initiated");
   res.json({ authUrl });
 });
 

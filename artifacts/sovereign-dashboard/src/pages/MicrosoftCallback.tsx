@@ -1,8 +1,6 @@
 import { useEffect, useState } from "react";
 import { useAuth, roleLandingPath } from "@/components/auth-provider";
 
-const REDIRECT_URI = "https://sovereign-dashboard.redstone-3e658f00.eastus.azurecontainerapps.io/microsoft/callback";
-
 export default function MicrosoftCallback() {
   const { loginWithSessionToken } = useAuth();
   const [status, setStatus] = useState<"exchanging" | "error">("exchanging");
@@ -26,12 +24,15 @@ export default function MicrosoftCallback() {
       return;
     }
 
+    // Compute redirect URI from current page — matches what the login page sent to Microsoft
+    const redirectUri = `${window.location.origin}${window.location.pathname}`;
+
     (async () => {
       try {
         const res = await fetch("/api/auth/microsoft/exchange", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ code, redirectUri: REDIRECT_URI }),
+          body: JSON.stringify({ code, redirectUri }),
         });
 
         const data = await res.json() as {

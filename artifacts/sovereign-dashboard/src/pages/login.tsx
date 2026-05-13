@@ -47,7 +47,8 @@ export default function Login() {
   async function handleMicrosoftLogin() {
     setMicrosoftLoading(true);
     try {
-      const res = await fetch(`${API_BASE}/auth/microsoft/login`);
+      const callbackUrl = `${window.location.origin}${import.meta.env.BASE_URL}microsoft/callback`.replace(/([^:])\/\/+/g, "$1/");
+      const res = await fetch(`${API_BASE}/auth/microsoft/login?redirectUri=${encodeURIComponent(callbackUrl)}`);
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Microsoft login unavailable" })) as { error?: string };
         toast({ title: "Microsoft login unavailable", description: err.error ?? "Contact your administrator.", variant: "destructive" });
@@ -62,6 +63,7 @@ export default function Login() {
       }
 
       const w = 520;
+
       const h = 640;
       const left = Math.max(0, (window.screen.width - w) / 2);
       const top = Math.max(0, (window.screen.height - h) / 2);
