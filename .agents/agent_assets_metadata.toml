@@ -18,3 +18,9 @@ id = "9HEZceNb87vC90RzSfEaW"
 uri = "file://sovereign-office-deploy.zip"
 type = "unspecified"
 title = "Sovereign Office — Azure Deployment Package"
+
+[[outputs]]
+id = "FQhYWPb7I8CTKCAvtwOV-"
+uri = "file://sovereign-office-azure-deploy.zip"
+type = "unspecified"
+title = "Sovereign Office — Azure Deploy Package"
