@@ -1,5 +1,6 @@
 import express, { type Express, type Request, type Response, type NextFunction } from "express";
 import cors from "cors";
+import compression from "compression";
 import pinoHttp from "pino-http";
 import multer from "multer";
 import path from "path";
@@ -18,6 +19,7 @@ const communityDashboardDist = path.resolve(__dirname, "../../../artifacts/commu
 
 const app: Express = express();
 
+app.use(compression());
 app.use(
   pinoHttp({
     logger,

@@ -1,61 +1,65 @@
+import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth, roleLandingPath } from "@/components/auth-provider";
 import { Layout } from "@/components/layout";
-import Login from "@/pages/login";
-import MicrosoftCallback from "@/pages/MicrosoftCallback";
-import NotFound from "@/pages/not-found";
-import TrusteeDashboard from "@/pages/dashboard-trustee";
-import OfficerDashboard from "@/pages/dashboard-officer";
-import MemberDashboard from "@/pages/dashboard-member";
-import AdminDashboard from "@/pages/dashboard-admin";
-import ElderDashboard from "@/pages/dashboard-elder";
-import MedicalProviderDashboard from "@/pages/dashboard-medical-provider";
-import VisitorDashboard from "@/pages/dashboard-visitor";
-import InstrumentsPage from "@/pages/instruments";
-import InstrumentDetail from "@/pages/instrument-detail";
-import { FilingsListPage, FilingDetailPage } from "@/pages/filings";
-import NfrPage from "@/pages/nfr";
-import ClassifyPage from "@/pages/classify";
-import { ComplaintsListPage, ComplaintDetailPage } from "@/pages/complaints";
-import TasksPage from "@/pages/tasks";
-import CalendarPage from "@/pages/calendar";
-import SearchPage from "@/pages/search";
-import AdminPage from "@/pages/admin";
-import ProfilePage from "@/pages/profile";
-import TemplatesPage from "@/pages/templates";
-import WelfarePage from "@/pages/welfare";
-import NotificationsPage from "@/pages/notifications";
-import LawLibraryPage from "@/pages/law";
-import IntakeAiPage from "@/pages/intake-ai";
-import CourtDocumentsPage from "@/pages/court-documents";
-import FamilyTreePage from "@/pages/family-tree";
-import MedicalNotesPage from "@/pages/medical-notes";
-import SupremeCourtPage from "@/pages/supreme-court";
-import TribalTrustPage from "@/pages/tribal-trust";
-import CharitableTrustPage from "@/pages/charitable-trust";
-import NiacPage from "@/pages/niac";
-import IeePage from "@/pages/iee";
-import AdminStubPage from "@/pages/admin-stub";
-import TribalIdPage from "@/pages/tribal-id";
-import M365IntegrationPage from "@/pages/m365-integration";
-import AdminLineageImportPage from "@/pages/admin-lineage-import";
-import BusinessCanvas from "@/pages/business-canvas";
-import BusinessCanvasWizard from "@/pages/business-canvas-wizard";
-import BusinessConceptDetail from "@/pages/business-canvas-detail";
-import OnboardingLineagePage from "@/pages/onboarding-lineage";
-import OnboardingPendingPage from "@/pages/onboarding-pending";
-import HubPage from "@/pages/hub";
-import GweLetterPage from "@/pages/gwe-letter";
-import MembershipPage from "@/pages/membership";
-import ElderAdvisoryPage from "@/pages/elder-advisory";
-import FamilyGovernancePage from "@/pages/family-governance";
-import OrgOverviewPage from "@/pages/org";
-import DraftsPage from "@/pages/drafts";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
+
+const Login = lazy(() => import("@/pages/login"));
+const MicrosoftCallback = lazy(() => import("@/pages/MicrosoftCallback"));
+const NotFound = lazy(() => import("@/pages/not-found"));
+const TrusteeDashboard = lazy(() => import("@/pages/dashboard-trustee"));
+const OfficerDashboard = lazy(() => import("@/pages/dashboard-officer"));
+const MemberDashboard = lazy(() => import("@/pages/dashboard-member"));
+const AdminDashboard = lazy(() => import("@/pages/dashboard-admin"));
+const ElderDashboard = lazy(() => import("@/pages/dashboard-elder"));
+const MedicalProviderDashboard = lazy(() => import("@/pages/dashboard-medical-provider"));
+const VisitorDashboard = lazy(() => import("@/pages/dashboard-visitor"));
+const InstrumentsPage = lazy(() => import("@/pages/instruments"));
+const InstrumentDetail = lazy(() => import("@/pages/instrument-detail"));
+const FilingsListPage = lazy(() => import("@/pages/filings").then(m => ({ default: m.FilingsListPage })));
+const FilingDetailPage = lazy(() => import("@/pages/filings").then(m => ({ default: m.FilingDetailPage })));
+const NfrPage = lazy(() => import("@/pages/nfr"));
+const ClassifyPage = lazy(() => import("@/pages/classify"));
+const ComplaintsListPage = lazy(() => import("@/pages/complaints").then(m => ({ default: m.ComplaintsListPage })));
+const ComplaintDetailPage = lazy(() => import("@/pages/complaints").then(m => ({ default: m.ComplaintDetailPage })));
+const TasksPage = lazy(() => import("@/pages/tasks"));
+const CalendarPage = lazy(() => import("@/pages/calendar"));
+const SearchPage = lazy(() => import("@/pages/search"));
+const AdminPage = lazy(() => import("@/pages/admin"));
+const ProfilePage = lazy(() => import("@/pages/profile"));
+const TemplatesPage = lazy(() => import("@/pages/templates"));
+const WelfarePage = lazy(() => import("@/pages/welfare"));
+const NotificationsPage = lazy(() => import("@/pages/notifications"));
+const LawLibraryPage = lazy(() => import("@/pages/law"));
+const IntakeAiPage = lazy(() => import("@/pages/intake-ai"));
+const CourtDocumentsPage = lazy(() => import("@/pages/court-documents"));
+const FamilyTreePage = lazy(() => import("@/pages/family-tree"));
+const MedicalNotesPage = lazy(() => import("@/pages/medical-notes"));
+const SupremeCourtPage = lazy(() => import("@/pages/supreme-court"));
+const TribalTrustPage = lazy(() => import("@/pages/tribal-trust"));
+const CharitableTrustPage = lazy(() => import("@/pages/charitable-trust"));
+const NiacPage = lazy(() => import("@/pages/niac"));
+const IeePage = lazy(() => import("@/pages/iee"));
+const AdminStubPage = lazy(() => import("@/pages/admin-stub"));
+const TribalIdPage = lazy(() => import("@/pages/tribal-id"));
+const M365IntegrationPage = lazy(() => import("@/pages/m365-integration"));
+const AdminLineageImportPage = lazy(() => import("@/pages/admin-lineage-import"));
+const BusinessCanvas = lazy(() => import("@/pages/business-canvas"));
+const BusinessCanvasWizard = lazy(() => import("@/pages/business-canvas-wizard"));
+const BusinessConceptDetail = lazy(() => import("@/pages/business-canvas-detail"));
+const OnboardingLineagePage = lazy(() => import("@/pages/onboarding-lineage"));
+const OnboardingPendingPage = lazy(() => import("@/pages/onboarding-pending"));
+const HubPage = lazy(() => import("@/pages/hub"));
+const GweLetterPage = lazy(() => import("@/pages/gwe-letter"));
+const MembershipPage = lazy(() => import("@/pages/membership"));
+const ElderAdvisoryPage = lazy(() => import("@/pages/elder-advisory"));
+const FamilyGovernancePage = lazy(() => import("@/pages/family-governance"));
+const OrgOverviewPage = lazy(() => import("@/pages/org"));
+const DraftsPage = lazy(() => import("@/pages/drafts"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -64,7 +68,9 @@ const queryClient = new QueryClient({
         if ((error as { status?: number })?.status === 401) return false;
         return failureCount < 1;
       },
-      staleTime: 30_000,
+      staleTime: 5 * 60_000,
+      gcTime: 15 * 60_000,
+      refetchOnWindowFocus: false,
     },
   },
 });
@@ -363,6 +369,17 @@ function AppRouter() {
   );
 }
 
+function PageFallback() {
+  return (
+    <div className="flex items-center justify-center min-h-[40vh]">
+      <div className="flex flex-col items-center gap-3">
+        <div className="w-8 h-8 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+        <p className="text-xs text-muted-foreground">Loading…</p>
+      </div>
+    </div>
+  );
+}
+
 function AuthenticatedLayout() {
   const { user } = useAuth();
 
@@ -370,10 +387,14 @@ function AuthenticatedLayout() {
     <>
       {user ? (
         <Layout>
-          <AppRouter />
+          <Suspense fallback={<PageFallback />}>
+            <AppRouter />
+          </Suspense>
         </Layout>
       ) : (
-        <AppRouter />
+        <Suspense fallback={<PageFallback />}>
+          <AppRouter />
+        </Suspense>
       )}
       <AuthGatedChatWidget />
       <SessionExpiryWarning />
