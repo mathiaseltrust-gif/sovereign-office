@@ -290,6 +290,17 @@ export default function FamilyTreePage() {
   );
 }
 
+const TREE_SESSION_KEY = "family-tree-viewport";
+
+function readTreeSession(): { transform: { x: number; y: number; scale: number }; selectedNodeId: number | null } | null {
+  try {
+    const raw = sessionStorage.getItem(TREE_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
 function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; canEdit: boolean; onDataChange: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -310,10 +321,13 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   const edges = useMemo(() => buildEdges(positioned), [positioned]);
 
   const containerRef = useRef<HTMLDivElement>(null);
-  const [transform, setTransform] = useState({ x: 0, y: 0, scale: 1 });
+
+  const [_savedSession] = useState(readTreeSession);
+  const [transform, setTransform] = useState(_savedSession?.transform ?? { x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(_savedSession?.selectedNodeId ?? null);
+  const hasRestoredSession = useRef(!!_savedSession);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
@@ -418,8 +432,27 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   }, [totalW, totalH]);
 
   useEffect(() => {
-    if (positioned.length > 0) fitToScreen();
+    if (positioned.length > 0) {
+      if (hasRestoredSession.current) {
+        hasRestoredSession.current = false;
+      } else {
+        fitToScreen();
+      }
+    }
   }, [positioned.length > 0]);
+
+  useEffect(() => {
+    const id = setTimeout(() => {
+      try {
+        sessionStorage.setItem(
+          TREE_SESSION_KEY,
+          JSON.stringify({ transform, selectedNodeId })
+        );
+      } catch {
+      }
+    }, 300);
+    return () => clearTimeout(id);
+  }, [transform, selectedNodeId]);
 
   const handleWheel = useCallback((e: React.WheelEvent) => {
     e.preventDefault();
