@@ -16,9 +16,16 @@ const SOVEREIGN_DASHBOARD_URL = () =>
   (process.env.SOVEREIGN_DASHBOARD_URL ?? "").replace(/\/+$/, "") ||
   "/sovereign-dashboard";
 
-function redirectUri(): string {
+function defaultRedirectUri(): string {
   if (process.env.MICROSOFT_REDIRECT_URI) return process.env.MICROSOFT_REDIRECT_URI;
-  return "http://localhost:5173/api/auth/microsoft/callback";
+  const domain = process.env.REPLIT_DEV_DOMAIN;
+  if (domain) return `https://${domain}/sovereign-dashboard/microsoft/callback`;
+  return "http://localhost:5173/sovereign-dashboard/microsoft/callback";
+}
+
+function extractAadstsCode(body: string): string | null {
+  const match = body.match(/AADSTS\d+/);
+  return match ? match[0] : null;
 }
 
 function signSessionJwt(payload: object): string {
@@ -47,6 +54,13 @@ export function verifySessionJwt(token: string): Record<string, unknown> | null 
   }
 }
 
+// /config — returns whether Microsoft auth is configured and the expected redirect URI
+router.get("/config", (req, res) => {
+  const configured = Boolean(TENANT_ID() && CLIENT_ID() && CLIENT_SECRET());
+  const redirectUri = defaultRedirectUri();
+  res.json({ configured, redirectUri, clientId: CLIENT_ID() || null });
+});
+
 // /login — standard confidential-client auth code flow (no PKCE needed when client_secret is present)
 router.get("/login", (req, res) => {
   if (!TENANT_ID() || !CLIENT_ID()) {
@@ -55,7 +69,7 @@ router.get("/login", (req, res) => {
   }
 
   // Prefer client-supplied redirectUri (the browser knows its own public origin)
-  const effectiveRedirectUri = (req.query.redirectUri as string | undefined) || redirectUri();
+  const effectiveRedirectUri = (req.query.redirectUri as string | undefined) || defaultRedirectUri();
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID(),
@@ -71,13 +85,14 @@ router.get("/login", (req, res) => {
   res.json({ authUrl });
 });
 
-// /callback — exchange code for token using client_secret (no PKCE)
+// /callback — server-side redirect flow: exchange code for token using client_secret
 router.get("/callback", async (req, res) => {
   try {
     const { code, error, error_description } = req.query as Record<string, string>;
 
     if (error) {
-      logger.warn({ error, error_description }, "Microsoft OAuth error returned");
+      const aadsts = extractAadstsCode(error_description ?? error);
+      logger.warn({ error, error_description, aadsts }, "Microsoft OAuth error returned");
       res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=${encodeURIComponent(error_description ?? error)}`);
       return;
     }
@@ -86,6 +101,8 @@ router.get("/callback", async (req, res) => {
       res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=no_code`);
       return;
     }
+
+    const usedRedirectUri = defaultRedirectUri();
 
     const tokenRes = await fetch(
       `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/token`,
@@ -96,7 +113,7 @@ router.get("/callback", async (req, res) => {
           client_id: CLIENT_ID(),
           client_secret: CLIENT_SECRET(),
           code,
-          redirect_uri: redirectUri(),
+          redirect_uri: usedRedirectUri,
           grant_type: "authorization_code",
         }).toString(),
       }
@@ -104,7 +121,8 @@ router.get("/callback", async (req, res) => {
 
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
-      logger.error({ status: tokenRes.status, body: errBody }, "Token exchange failed");
+      const aadsts = extractAadstsCode(errBody);
+      logger.error({ status: tokenRes.status, aadsts, body: errBody }, "Token exchange failed (callback)");
       res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=token_exchange_failed`);
       return;
     }
@@ -188,7 +206,12 @@ router.post("/exchange", async (req, res) => {
       return;
     }
 
-    const usedRedirectUri = redirectUri ?? redirectUri_();
+    if (!TENANT_ID() || !CLIENT_ID() || !CLIENT_SECRET()) {
+      res.status(503).json({ error: "Microsoft authentication is not configured on this server." });
+      return;
+    }
+
+    const usedRedirectUri = redirectUri ?? defaultRedirectUri();
 
     const tokenRes = await fetch(
       `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/token`,
@@ -207,8 +230,16 @@ router.post("/exchange", async (req, res) => {
 
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
-      logger.error({ status: tokenRes.status, body: errBody }, "Token exchange failed (exchange endpoint)");
-      res.status(401).json({ error: "Token exchange with Microsoft failed. Check redirect URI and client secret." });
+      const aadsts = extractAadstsCode(errBody);
+      logger.error({ status: tokenRes.status, aadsts, redirect_uri: usedRedirectUri, body: errBody }, "Token exchange failed (exchange endpoint)");
+
+      if (aadsts === "AADSTS50011") {
+        res.status(401).json({
+          error: `Redirect URI mismatch (${aadsts}). The URI "${usedRedirectUri}" must be registered in Azure Portal under App Registrations → Authentication → Redirect URIs.`,
+        });
+      } else {
+        res.status(401).json({ error: `Token exchange with Microsoft failed${aadsts ? ` (${aadsts})` : ""}. Check the client secret and redirect URI configuration.` });
+      }
       return;
     }
 
@@ -265,7 +296,5 @@ router.post("/exchange", async (req, res) => {
     res.status(500).json({ error: "Server error during token exchange." });
   }
 });
-
-function redirectUri_() { return redirectUri(); }
 
 export default router;

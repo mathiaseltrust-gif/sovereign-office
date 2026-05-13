@@ -80,6 +80,14 @@ export default function Login() {
       }
 
       const messageHandler = (event: MessageEvent) => {
+        if (event.origin !== window.location.origin) return;
+        if (event.data?.type === "OAUTH_ERROR") {
+          window.removeEventListener("message", messageHandler);
+          clearInterval(closedPoll);
+          toast({ title: "Microsoft sign-in failed", description: event.data.error as string, variant: "destructive" });
+          setMicrosoftLoading(false);
+          return;
+        }
         if (event.data?.type !== "OAUTH_SUCCESS") return;
         window.removeEventListener("message", messageHandler);
         clearInterval(closedPoll);
