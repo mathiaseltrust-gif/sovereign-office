@@ -395,14 +395,6 @@ export function useIsTrustee() { const { activeRole } = useAuth(); return active
 export function useIsOfficer() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin"].includes(activeRole); }
 export function useCanReviewLineage() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin", "elder"].includes(activeRole); }
 
-export function roleLandingPath(role: Role): string {
-  switch (role) {
-    case "trustee": return "/dashboard/trustee";
-    case "officer": return "/dashboard/officer";
-    case "member": return "/dashboard/member";
-    case "sovereign_admin": return "/dashboard/admin";
-    case "elder": return "/dashboard/elder";
-    case "medical_provider": return "/dashboard/medical-provider";
-    case "visitor_media": return "/dashboard/visitor";
-  }
+export function roleLandingPath(_role: Role): string {
+  return "/hub";
 }

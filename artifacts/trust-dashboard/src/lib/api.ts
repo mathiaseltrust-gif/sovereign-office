@@ -1,7 +1,42 @@
 const API_BASE = "/api";
+const SOVEREIGN_LS_KEY = "sovereign_auth_v3";
+
+function tryParseSovereignSession(): { id: string; email: string; name: string; roles: string[] } | null {
+  try {
+    const raw = localStorage.getItem(SOVEREIGN_LS_KEY);
+    if (!raw) return null;
+    const s = JSON.parse(raw) as { user?: { id?: number | string; email?: string; name?: string; roles?: string[] }; sessionToken?: string };
+    if (!s.user?.email) return null;
+    return {
+      id: String(s.user.id ?? ""),
+      email: s.user.email,
+      name: s.user.name ?? s.user.email,
+      roles: s.user.roles ?? ["member"],
+    };
+  } catch { return null; }
+}
+
+function tryParseSsoToken(token: string): { id: string; email: string; name: string; roles: string[] } | null {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return null;
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+      sub?: string; email?: string; name?: string; role?: string; exp?: number;
+    };
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return null;
+    if (!payload.email) return null;
+    return {
+      id: payload.sub ?? "",
+      email: payload.email,
+      name: payload.name ?? payload.email,
+      roles: payload.role ? [payload.role] : ["member"],
+    };
+  } catch { return null; }
+}
 
 export function getAuthToken(): string | null {
-  return localStorage.getItem("trust_auth_token");
+  const sovereign = JSON.parse(localStorage.getItem(SOVEREIGN_LS_KEY) ?? "null") as { sessionToken?: string } | null;
+  return sovereign?.sessionToken ?? localStorage.getItem("trust_auth_token");
 }
 
 export function setAuthSession(user: { id: string; email: string; name: string; roles: string[] }) {
@@ -16,6 +51,24 @@ export function clearAuthSession() {
 }
 
 export function getAuthUser(): { id: string; email: string; name: string; roles: string[] } | null {
+  // 1. Check URL for sso_token (from hub link)
+  const params = new URLSearchParams(window.location.search);
+  const ssoToken = params.get("sso_token");
+  if (ssoToken) {
+    const user = tryParseSsoToken(ssoToken);
+    if (user) {
+      setAuthSession(user);
+      // Remove from URL without reload
+      const url = new URL(window.location.href);
+      url.searchParams.delete("sso_token");
+      window.history.replaceState({}, "", url.toString());
+      return user;
+    }
+  }
+  // 2. Check sovereign session in localStorage (same browser)
+  const sovereign = tryParseSovereignSession();
+  if (sovereign) return sovereign;
+  // 3. Fall back to trust-specific session
   const raw = localStorage.getItem("trust_auth_user");
   if (!raw) return null;
   try { return JSON.parse(raw); } catch { return null; }

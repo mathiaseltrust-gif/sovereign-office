@@ -46,6 +46,7 @@ import BusinessCanvasWizard from "@/pages/business-canvas-wizard";
 import BusinessConceptDetail from "@/pages/business-canvas-detail";
 import OnboardingLineagePage from "@/pages/onboarding-lineage";
 import OnboardingPendingPage from "@/pages/onboarding-pending";
+import HubPage from "@/pages/hub";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 
@@ -77,7 +78,7 @@ function AuthGatedChatWidget() {
   return <ChatWidget />;
 }
 
-const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/notifications", "/dashboard/visitor", "/profile", "/login"]);
+const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/notifications", "/dashboard/visitor", "/profile", "/login", "/hub"]);
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, lineagePending } = useAuth();
@@ -260,6 +261,9 @@ function AppRouter() {
       </Route>
       <Route path="/business-canvas">
         {() => <ProtectedRoute component={BusinessCanvas} />}
+      </Route>
+      <Route path="/hub">
+        {() => <ProtectedRoute component={HubPage} />}
       </Route>
       <Route path="/onboarding/lineage">
         {() => <ProtectedRoute component={OnboardingLineagePage} />}

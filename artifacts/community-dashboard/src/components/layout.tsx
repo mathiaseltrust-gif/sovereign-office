@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Home,
@@ -11,9 +11,11 @@ import {
   Shield,
   Users,
   X,
+  LogOut,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
+import { getSovereignSession } from "@/lib/utils";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -60,6 +62,14 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const u = getSovereignSession();
+    if (u) setSessionUser({ name: u.name, email: u.email });
+  }, []);
+
+  const initials = sessionUser?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? null;
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
@@ -123,7 +133,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 flex-col border-r bg-card h-screen sticky top-0">
-        <div className="p-5 border-b">
+        <div className="p-4 border-b">
           <div className="flex items-center gap-2.5">
             <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
             <div className="min-w-0">
@@ -131,11 +141,21 @@ export function Layout({ children }: { children: React.ReactNode }) {
               <p className="text-xs text-muted-foreground mt-0.5 truncate">Community Center</p>
             </div>
           </div>
+          {sessionUser && (
+            <div className="mt-3 flex items-center gap-2 bg-muted/50 rounded-lg px-2.5 py-2">
+              <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">
+                <span className="text-[10px] font-bold text-primary-foreground">{initials}</span>
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs font-medium text-foreground truncate">{sessionUser.name}</p>
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex-1 overflow-auto p-3">
           <NavLinks />
         </div>
-        <div className="p-3 border-t">
+        <div className="p-3 border-t space-y-1">
           <Button
             variant="outline"
             className="w-full justify-start gap-2 text-sm"
@@ -144,6 +164,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
             {theme === "dark" ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
             <span>{theme === "dark" ? "Light Mode" : "Dark Mode"}</span>
           </Button>
+          {sessionUser && (
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-2 text-sm text-muted-foreground"
+              onClick={() => { localStorage.removeItem("community_auth_user"); setSessionUser(null); }}
+            >
+              <LogOut className="h-4 w-4" />
+              Sign out
+            </Button>
+          )}
         </div>
       </aside>
 
