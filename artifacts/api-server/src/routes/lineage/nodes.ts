@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, notificationsTable, profilesTable } from "@workspace/db";
+import { familyLineageTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
@@ -130,7 +130,15 @@ router.post("/member", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const callerId = req.user?.dbId ?? null;
+    let callerId: number | null = req.user?.dbId ?? null;
+
+    // Fallback: if dbId was not resolved during auth (transient DB error), look up by email now
+    if (!callerId && req.user?.email) {
+      try {
+        const [dbUser] = await db.select({ id: usersTable.id }).from(usersTable).where(eq(usersTable.email, req.user.email)).limit(1);
+        if (dbUser) callerId = dbUser.id;
+      } catch { /* ignore — proceed without callerId */ }
+    }
 
     // Look up the submitter's lineage node so we can auto-compute generation & parentIds
     let submitterNode: { id: number; generationalPosition: number | null; parentIds: unknown; spouseIds: unknown } | null = null;
