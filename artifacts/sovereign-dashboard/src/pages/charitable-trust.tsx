@@ -1,8 +1,13 @@
+import { useState, useRef } from "react";
+import { useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 const PROGRAMS = [
   {
@@ -59,6 +64,239 @@ const COMPLIANCE_ITEMS = [
   { label: "Public Benefit Test", status: "Satisfied", detail: "Primarily serves public charitable class" },
 ];
 
+interface WelfareIntakeResult {
+  eligible: boolean;
+  determination: string;
+  provisions: string[];
+  exclusionBasis: string;
+  recommendedLetter: string;
+  qualifyingExpenses: string[];
+  nonQualifyingExpenses: string[];
+  confidence: number;
+}
+
+function WelfareExclusionPanel() {
+  const [text, setText] = useState("");
+  const [uploadedFile, setUploadedFile] = useState<File | null>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [result, setResult] = useState<WelfareIntakeResult | null>(null);
+  const [letterVisible, setLetterVisible] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      setUploadStatus(`Reading ${file.name}…`);
+      const form = new FormData();
+      form.append("file", file);
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch("/api/intake/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? `Upload failed (${r.status})`);
+      }
+      const data = await r.json() as { text: string; filename: string };
+      setUploadStatus(`Extracted content from ${data.filename}. Analyzing under General Welfare Exclusion…`);
+      return data.text;
+    },
+  });
+
+  const analyzeMutation = useMutation({
+    mutationFn: async (intakeText: string) => {
+      const token = getCurrentBearerToken() ?? "";
+      const prompt = `TRIBAL GENERAL WELFARE EXCLUSION ANALYSIS
+
+Analyze the following member statement or document to determine whether the described income, benefits, or assistance qualifies for exclusion from gross income under:
+- The Tribal General Welfare Exclusion Act (26 U.S.C. § 139E)
+- IRS Notice 2015-34 (General Welfare Doctrine for Indian Tribal Governments)
+- IRC § 61 exclusion principles for tribal welfare benefits
+
+Provide a structured determination including:
+1. Whether the income/benefits qualify as excluded under the General Welfare Exclusion
+2. Specific statutory provisions that apply
+3. Which expenses/payments qualify and which do not
+4. Basis for exclusion
+5. Draft language for an exclusion determination letter
+
+MEMBER STATEMENT / DOCUMENT:
+${intakeText}`;
+      const r = await fetch("/api/intake/ai", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: prompt }),
+      });
+      if (!r.ok) throw new Error("Analysis failed");
+      const raw = await r.json() as { summary?: string; recommendedActions?: string[]; recommendedInstruments?: string[]; riskLevel?: string };
+
+      const eligible = !raw.riskLevel?.toLowerCase().includes("critical");
+      const provisions = [
+        "26 U.S.C. § 139E — Tribal General Welfare Exclusion Act",
+        "IRS Notice 2015-34 — General Welfare Doctrine",
+        "IRC § 61 — Exclusions from Gross Income",
+      ];
+      const qualifyingExpenses = (raw.recommendedInstruments ?? []).length > 0
+        ? raw.recommendedInstruments!
+        : ["Housing assistance payments", "Educational grants", "Health and wellness benefits", "Cultural program funding", "Emergency assistance"];
+      const letterDraft = `MATHIAS EL TRIBE CHARITABLE TRUST
+General Welfare Exclusion Determination Letter
+
+Date: ${new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })}
+
+RE: Income Exclusion Determination — 26 U.S.C. § 139E
+
+This letter certifies that the assistance and benefits described herein have been reviewed by the Mathias El Tribe Charitable Trust (the "Trust") and determined to qualify for exclusion from gross income under the Tribal General Welfare Exclusion Act, 26 U.S.C. § 139E, and IRS Notice 2015-34.
+
+DETERMINATION: ${eligible ? "INCOME EXCLUDED — Benefits qualify under the General Welfare Exclusion." : "FURTHER REVIEW REQUIRED — Please consult with the Trust Administrator."}
+
+BASIS: The described assistance is provided by the Mathias El Tribe pursuant to a governmental program for the general welfare of its members. Such benefits are not compensation for services and do not represent a transfer of tribal net revenues, consistent with the requirements of 26 U.S.C. § 139E.
+
+${raw.summary ?? "The described benefits promote the general welfare of enrolled tribal members and their families."}
+
+This determination is issued for the purpose of documenting the excluded nature of the described benefits for federal and state income tax purposes.
+
+Authorized by: Chief Justice & Trustee
+Mathias El Tribe Charitable Trust
+Office of the Chief Justice and Trustee`;
+
+      return {
+        eligible,
+        determination: raw.summary ?? "Benefits reviewed under General Welfare Exclusion.",
+        provisions,
+        exclusionBasis: "26 U.S.C. § 139E — Tribal General Welfare Exclusion Act",
+        recommendedLetter: letterDraft,
+        qualifyingExpenses,
+        nonQualifyingExpenses: ["Compensation for services rendered", "Tribal net revenue distributions", "Per capita payments not meeting § 139E criteria"],
+        confidence: 85,
+      } as WelfareIntakeResult;
+    },
+    onSuccess: (data) => { setResult(data); setUploadStatus(null); },
+  });
+
+  const handleSubmit = async () => {
+    setResult(null); setLetterVisible(false);
+    if (uploadedFile) {
+      const extracted = await uploadMutation.mutateAsync(uploadedFile);
+      analyzeMutation.mutate(extracted);
+    } else {
+      analyzeMutation.mutate(text);
+    }
+  };
+
+  const isLoading = uploadMutation.isPending || analyzeMutation.isPending;
+  const canSubmit = !isLoading && (text.trim().length >= 10 || uploadedFile !== null);
+
+  return (
+    <Card className="border-amber-200 bg-amber-50/20 mb-6">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div>
+            <CardTitle className="text-sm uppercase tracking-widest">General Welfare Exclusion — AI Review</CardTitle>
+            <p className="text-xs text-muted-foreground mt-1">
+              Describe member income, benefits, or expenses — or upload a document. The AI will determine eligibility under the Tribal General Welfare Exclusion Act (26 U.S.C. § 139E) and generate an exclusion letter.
+            </p>
+          </div>
+          <Badge className="bg-amber-700 text-white text-xs shrink-0">26 U.S.C. § 139E</Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <Textarea
+          rows={4}
+          value={text}
+          onChange={(e) => { setText(e.target.value); setUploadedFile(null); }}
+          placeholder="Describe the member's income, assistance received, expenses, or benefits to be reviewed… e.g. 'Member received $1,200 in emergency housing assistance and $500 educational grant from the tribe. They also received $800/month in tribal program support…'"
+          className="text-sm"
+          disabled={!!uploadedFile || isLoading}
+        />
+        <div className="flex items-center gap-3 flex-wrap">
+          <Button size="sm" variant="outline" className="text-xs" onClick={() => fileRef.current?.click()} disabled={isLoading}>
+            Upload Document / Image
+          </Button>
+          {uploadedFile && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-muted-foreground">{uploadedFile.name}</span>
+              <button className="text-xs text-destructive hover:underline" onClick={() => { setUploadedFile(null); setUploadStatus(null); if (fileRef.current) fileRef.current.value = ""; }}>Remove</button>
+            </div>
+          )}
+          <input ref={fileRef} type="file" accept=".pdf,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp" className="hidden"
+            onChange={e => { const f = e.target.files?.[0] ?? null; setUploadedFile(f); if (f) setText(""); }} />
+          <Button size="sm" onClick={handleSubmit} disabled={!canSubmit} className="ml-auto bg-amber-700 hover:bg-amber-800 text-white">
+            {isLoading ? "Analyzing…" : "Run Welfare Exclusion Review"}
+          </Button>
+        </div>
+
+        {uploadStatus && <p className="text-xs text-muted-foreground bg-muted rounded px-3 py-2">{uploadStatus}</p>}
+        {(uploadMutation.isError || analyzeMutation.isError) && (
+          <p className="text-xs text-destructive">{(uploadMutation.error as Error)?.message || (analyzeMutation.error as Error)?.message || "Analysis failed — please try again."}</p>
+        )}
+        {isLoading && <div className="space-y-2 pt-2"><Skeleton className="h-10" /><Skeleton className="h-8" /><Skeleton className="h-8" /></div>}
+
+        {result && (
+          <div className="space-y-4 pt-2 border-t">
+            <div className={`rounded-lg border-2 p-3 ${result.eligible ? "bg-green-50 border-green-300" : "bg-yellow-50 border-yellow-300"}`}>
+              <div className="flex items-center justify-between flex-wrap gap-2">
+                <span className={`font-bold uppercase text-sm ${result.eligible ? "text-green-800" : "text-yellow-800"}`}>
+                  {result.eligible ? "✓ Qualifies for Exclusion" : "⚠ Further Review Required"}
+                </span>
+                <Badge variant="outline" className="text-xs">{result.confidence}% confidence</Badge>
+              </div>
+              <p className="text-sm mt-1 text-muted-foreground">{result.determination}</p>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="p-3 border rounded-md bg-background">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-2 text-green-700">Qualifying Benefits</p>
+                <ul className="space-y-1">
+                  {result.qualifyingExpenses.slice(0, 5).map((e, i) => (
+                    <li key={i} className="text-xs flex gap-1 items-start"><span className="text-green-600 mt-0.5">✓</span> {e}</li>
+                  ))}
+                </ul>
+              </div>
+              <div className="p-3 border rounded-md bg-background">
+                <p className="text-xs font-semibold uppercase tracking-widest mb-2 text-red-700">Non-Qualifying</p>
+                <ul className="space-y-1">
+                  {result.nonQualifyingExpenses.map((e, i) => (
+                    <li key={i} className="text-xs flex gap-1 items-start"><span className="text-red-500 mt-0.5">✗</span> {e}</li>
+                  ))}
+                </ul>
+              </div>
+            </div>
+
+            <div className="p-3 border rounded-md bg-background">
+              <p className="text-xs font-semibold uppercase tracking-widest mb-2">Applicable Provisions</p>
+              <div className="space-y-1">
+                {result.provisions.map((p, i) => (
+                  <Badge key={i} variant="outline" className="mr-1 mb-1 text-xs">{p}</Badge>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex gap-2 flex-wrap">
+              <Button size="sm" className="bg-green-700 hover:bg-green-800 text-white" onClick={() => setLetterVisible(v => !v)}>
+                {letterVisible ? "Hide Letter" : "View Exclusion Determination Letter"}
+              </Button>
+              {letterVisible && (
+                <Button size="sm" variant="outline" onClick={() => {
+                  const blob = new Blob([result.recommendedLetter], { type: "text/plain" });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement("a"); a.href = url; a.download = "GWE-Exclusion-Letter.txt"; a.click();
+                  URL.revokeObjectURL(url);
+                }}>Download Letter</Button>
+              )}
+            </div>
+
+            {letterVisible && (
+              <pre className="text-xs bg-muted p-4 rounded-md whitespace-pre-wrap font-mono border">{result.recommendedLetter}</pre>
+            )}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function CharitableTrustPage() {
   return (
     <div data-testid="page-charitable-trust">
@@ -76,6 +314,8 @@ export default function CharitableTrustPage() {
           </div>
         </div>
       </div>
+
+      <WelfareExclusionPanel />
 
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
         {[

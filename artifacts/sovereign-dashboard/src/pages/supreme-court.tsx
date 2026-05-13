@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 
 const STATUTES = [
   { code: "25 U.S.C. § 1302", title: "Indian Civil Rights Act" },
@@ -67,7 +67,7 @@ interface QuickIntakeResult {
 }
 
 function QuickIntakePanel() {
-  const { sessionToken } = useAuth();
+  useAuth();
   const [text, setText] = useState("");
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
@@ -79,24 +79,29 @@ function QuickIntakePanel() {
       setUploadStatus(`Extracting text from ${file.name}…`);
       const form = new FormData();
       form.append("file", file);
+      const token = getCurrentBearerToken() ?? "";
       const r = await fetch("/api/intake/upload", {
         method: "POST",
-        headers: { Authorization: `Bearer ${sessionToken ?? ""}` },
+        headers: { Authorization: `Bearer ${token}` },
         body: form,
       });
-      if (!r.ok) throw new Error("Upload failed");
+      if (!r.ok) {
+        const errBody = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(errBody.error ?? `Upload failed (${r.status})`);
+      }
       const data = await r.json() as { text: string; filename: string; page_count: number; char_count: number };
-      setUploadStatus(`Extracted ${data.char_count.toLocaleString()} chars from ${data.filename} (${data.page_count} pages). Running analysis…`);
+      setUploadStatus(`Extracted ${data.char_count.toLocaleString()} chars from ${data.filename}. Running analysis…`);
       return data.text as string;
     },
   });
 
   const analyzeMutation = useMutation({
     mutationFn: async (intakeText: string) => {
+      const token = getCurrentBearerToken() ?? "";
       const r = await fetch("/api/intake/ai", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${sessionToken ?? ""}`,
+          Authorization: `Bearer ${token}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({ text: intakeText }),
@@ -164,7 +169,7 @@ function QuickIntakePanel() {
             onClick={() => fileRef.current?.click()}
             disabled={isLoading}
           >
-            Upload PDF / Document
+            Upload Document / Image
           </Button>
           {uploadedFile && (
             <div className="flex items-center gap-2">
@@ -177,7 +182,7 @@ function QuickIntakePanel() {
               </button>
             </div>
           )}
-          <input ref={fileRef} type="file" accept=".pdf,.txt,.doc,.docx" className="hidden" onChange={handleFileChange} />
+          <input ref={fileRef} type="file" accept=".pdf,.csv,.txt,.png,.jpg,.jpeg,.gif,.webp" className="hidden" onChange={handleFileChange} />
           <Button
             size="sm"
             onClick={handleSubmit}
