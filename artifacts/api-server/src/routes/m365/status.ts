@@ -5,7 +5,7 @@ import { getAzureOpenAIClient } from "../../lib/azure-openai";
 const router = Router();
 
 router.get("/status", requireAuth, (_req, res) => {
-  const serviceKeyConfigured = !!process.env.M365_SERVICE_KEY;
+  const serviceKeyConfigured = !!(process.env.SERVICE_KEY || process.env.M365_SERVICE_KEY);
   const azureConfigured =
     !!process.env.AZURE_OPENAI_API_KEY &&
     !!process.env.AZURE_OPENAI_ENDPOINT &&
