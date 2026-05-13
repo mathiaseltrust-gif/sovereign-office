@@ -182,11 +182,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       <aside className="w-64 border-r bg-card flex flex-col shrink-0">
         <div className="p-5 border-b flex flex-col items-center text-center">
-          <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-            alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
-            className="w-20 h-20 object-contain mb-3 drop-shadow-md"
-          />
+          <Link href={roleLandingPath(activeRole)} className="block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+            <img
+              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+              alt="Go to home — Office of the Chief Justice and Trustee"
+              className="w-20 h-20 object-contain mb-3 drop-shadow-md hover:opacity-80 transition-opacity cursor-pointer"
+            />
+          </Link>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-0.5">
             Office of the
           </p>
