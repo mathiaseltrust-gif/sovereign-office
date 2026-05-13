@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { createHash, createHmac, randomBytes } from "crypto";
+import { createHmac } from "crypto";
 import { db } from "@workspace/db";
 import { usersTable, familyLineageTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -12,24 +12,22 @@ const CLIENT_ID = () => process.env.AZURE_ENTRA_CLIENT_ID ?? "";
 const CLIENT_SECRET = () => process.env.AZURE_ENTRA_CLIENT_SECRET ?? "";
 const SESSION_SECRET = () => process.env.SESSION_SECRET ?? "dev-secret-change-me";
 
-// URL of the Sovereign Office Dashboard where users land after login.
-// In Replit dev this is the path-based route (/sovereign-dashboard).
-// In Docker/Azure set SOVEREIGN_DASHBOARD_URL to the full origin, e.g.:
-//   https://sovereign.yourdomain.com
 const SOVEREIGN_DASHBOARD_URL = () =>
   (process.env.SOVEREIGN_DASHBOARD_URL ?? "").replace(/\/+$/, "") ||
   "/sovereign-dashboard";
 
-function redirectUri(req: import("express").Request): string {
+function redirectUri(): string {
   if (process.env.MICROSOFT_REDIRECT_URI) return process.env.MICROSOFT_REDIRECT_URI;
-  const host = req.headers["x-forwarded-host"] ?? req.headers.host ?? "localhost";
-  const proto = req.headers["x-forwarded-proto"] ?? (req.secure ? "https" : "http");
-  return `${proto}://${host}/api/auth/microsoft/callback`;
+  return "http://localhost:5173/api/auth/microsoft/callback";
 }
 
 function signSessionJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
-  const body = Buffer.from(JSON.stringify({ ...payload, iat: Math.floor(Date.now() / 1000), exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8 })).toString("base64url");
+  const body = Buffer.from(JSON.stringify({
+    ...payload,
+    iat: Math.floor(Date.now() / 1000),
+    exp: Math.floor(Date.now() / 1000) + 60 * 60 * 8,
+  })).toString("base64url");
   const sig = createHmac("sha256", SESSION_SECRET()).update(`${header}.${body}`).digest("base64url");
   return `${header}.${body}.${sig}`;
 }
@@ -49,53 +47,42 @@ export function verifySessionJwt(token: string): Record<string, unknown> | null 
   }
 }
 
+// /login — standard confidential-client auth code flow (no PKCE needed when client_secret is present)
 router.get("/login", (req, res) => {
   if (!TENANT_ID() || !CLIENT_ID()) {
     res.status(503).json({ error: "Microsoft authentication is not configured on this server." });
     return;
   }
-  const nonce = randomBytes(16).toString("hex");
-  const codeVerifier = randomBytes(32).toString("base64url");
-  const codeChallenge = createHash("sha256").update(codeVerifier).digest("base64url");
-
-  // Embed codeVerifier into the state JWT so the callback can read it
-  // without relying on cookies (frontend and API are on different domains).
-  const stateJwt = signSessionJwt({ nonce, codeVerifier, type: "oauth_state" });
 
   const params = new URLSearchParams({
     client_id: CLIENT_ID(),
     response_type: "code",
-    redirect_uri: redirectUri(req),
+    redirect_uri: redirectUri(),
     response_mode: "query",
     scope: "openid profile email User.Read",
-    state: stateJwt,
-    code_challenge: codeChallenge,
-    code_challenge_method: "S256",
+    prompt: "select_account",
   });
 
   const authUrl = `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/authorize?${params}`;
-
+  logger.info({ redirect_uri: redirectUri() }, "Microsoft login initiated");
   res.json({ authUrl });
 });
 
+// /callback — exchange code for token using client_secret (no PKCE)
 router.get("/callback", async (req, res) => {
   try {
-    const { code, state: returnedState, error, error_description } = req.query as Record<string, string>;
+    const { code, error, error_description } = req.query as Record<string, string>;
 
     if (error) {
-      logger.warn({ error, error_description }, "Microsoft OAuth error");
+      logger.warn({ error, error_description }, "Microsoft OAuth error returned");
       res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=${encodeURIComponent(error_description ?? error)}`);
       return;
     }
 
-    // The state param IS the signed JWT containing codeVerifier —
-    // no cookie needed (frontend and API live on different domains).
-    const statePayload = verifySessionJwt(returnedState ?? "");
-    if (!statePayload || statePayload.type !== "oauth_state") {
-      res.status(400).json({ error: "OAuth state missing or invalid — possible CSRF attack." });
+    if (!code) {
+      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=no_code`);
       return;
     }
-    const codeVerifier = (statePayload.codeVerifier as string) ?? "";
 
     const tokenRes = await fetch(
       `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/token`,
@@ -106,9 +93,8 @@ router.get("/callback", async (req, res) => {
           client_id: CLIENT_ID(),
           client_secret: CLIENT_SECRET(),
           code,
-          redirect_uri: redirectUri(req),
+          redirect_uri: redirectUri(),
           grant_type: "authorization_code",
-          ...(codeVerifier ? { code_verifier: codeVerifier } : {}),
         }).toString(),
       }
     );
@@ -116,7 +102,7 @@ router.get("/callback", async (req, res) => {
     if (!tokenRes.ok) {
       const errBody = await tokenRes.text();
       logger.error({ status: tokenRes.status, body: errBody }, "Token exchange failed");
-      res.status(502).json({ error: "Token exchange with Microsoft failed." });
+      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=token_exchange_failed`);
       return;
     }
 
@@ -124,7 +110,7 @@ router.get("/callback", async (req, res) => {
 
     const idTokenParts = tokenData.id_token?.split(".");
     if (!idTokenParts || idTokenParts.length < 2) {
-      res.status(502).json({ error: "Invalid ID token from Microsoft." });
+      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=invalid_id_token`);
       return;
     }
     const idPayload = JSON.parse(Buffer.from(idTokenParts[1], "base64url").toString("utf8")) as {
@@ -180,7 +166,9 @@ router.get("/callback", async (req, res) => {
     });
 
     const encoded = encodeURIComponent(sessionJwt);
-    res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?session_token=${encoded}`);
+    const dashboardUrl = SOVEREIGN_DASHBOARD_URL();
+    logger.info({ email, dashboardUrl }, "Microsoft login successful — redirecting to dashboard");
+    res.redirect(`${dashboardUrl}/?session_token=${encoded}`);
   } catch (err) {
     logger.error({ err }, "Microsoft OAuth callback error");
     res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=server_error`);

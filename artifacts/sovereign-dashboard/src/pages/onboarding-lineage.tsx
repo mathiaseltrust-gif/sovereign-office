@@ -6,6 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, roleLandingPath } from "@/components/auth-provider";
+import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 
 interface MatchResult {
   matchType: "exact" | "family_name" | "parent_only" | "none";
@@ -29,6 +30,7 @@ export default function OnboardingLineagePage() {
   const [parentName, setParentName] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<MatchResult | null>(null);
+  const [guardCleared, setGuardCleared] = useState(false);
 
   const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
   const apiBase = base.replace(/\/sovereign-dashboard$/, "");
@@ -120,7 +122,14 @@ export default function OnboardingLineagePage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
-      <Card className="max-w-lg w-full">
+      <div className="max-w-lg w-full space-y-4">
+      {!guardCleared && (
+        <SovereignIntakeGuard
+          intakeType="lineage"
+          onClear={() => setGuardCleared(true)}
+        />
+      )}
+      <Card className="w-full">
         <CardHeader>
           <CardTitle className="text-xl font-serif">Lineage Verification</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
@@ -177,6 +186,7 @@ export default function OnboardingLineagePage() {
           </p>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
+import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 import {
   useListWelfareInstruments,
   useGenerateWelfareInstrument,
@@ -293,12 +294,21 @@ export default function WelfarePage() {
 
   const listProps = { isLoading, onDownload: downloadPdf, onIssue: handleIssue, canIssue };
 
+  const [guardCleared, setGuardCleared] = useState(false);
+
   return (
     <div data-testid="page-welfare">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Welfare Instruments</h1>
         <p className="text-muted-foreground mt-1">ICWA · IHCIA · ISDEAA · Tribal Protective Orders · Emergency Orders · TRO Declarations</p>
       </div>
+
+      {!guardCleared && (
+        <SovereignIntakeGuard
+          intakeType="welfare"
+          onClear={() => setGuardCleared(true)}
+        />
+      )}
 
       <Tabs value={tab} onValueChange={setTab}>
         <TabsList className="mb-6 flex-wrap h-auto gap-1">

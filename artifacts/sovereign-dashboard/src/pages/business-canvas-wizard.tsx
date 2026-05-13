@@ -1,6 +1,7 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
+import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
@@ -84,6 +85,7 @@ export default function BusinessCanvasWizard() {
   const [modelCanvas, setModelCanvas] = useState<Record<string, string>>({});
   const [analyzing, setAnalyzing] = useState(false);
   const [patching, setPatching] = useState(false);
+  const [guardCleared, setGuardCleared] = useState(false);
   const conceptIdRef = useRef<number | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -191,6 +193,13 @@ export default function BusinessCanvasWizard() {
           <p className="text-sm text-muted-foreground">AI-guided sovereign business formation</p>
         </div>
       </div>
+
+      {!guardCleared && (
+        <SovereignIntakeGuard
+          intakeType="business"
+          onClear={() => setGuardCleared(true)}
+        />
+      )}
 
       <StepIndicator current={step} total={5} />
 

@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
+import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 
 interface IntakeFilterResult {
   indianStatusViolation: boolean;
@@ -57,8 +58,6 @@ const LAW_TYPE_COLORS: Record<string, string> = {
   tribal: "bg-amber-700",
   doctrine: "bg-green-700",
 };
-
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
 
 function MemberReport({ report }: { report: IntakeAgentReport }) {
   return (
@@ -318,7 +317,7 @@ function FullReport({ report }: { report: IntakeAgentReport }) {
 }
 
 export default function IntakeAiPage() {
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, sessionToken } = useAuth();
   const [text, setText] = useState("");
   const [actorType, setActorType] = useState("__all__");
   const [landStatus, setLandStatus] = useState("__all__");
@@ -330,7 +329,7 @@ export default function IntakeAiPage() {
       const r = await fetch("/api/intake/ai", {
         method: "POST",
         headers: {
-          Authorization: `Bearer ${makeToken(user)}`,
+          Authorization: `Bearer ${sessionToken ?? ""}`,
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
@@ -358,12 +357,21 @@ export default function IntakeAiPage() {
     ? "Officer intake review — violations, risk level, recommended actions, and applicable law references"
     : "Submit a case description to receive guidance from the Office of the Chief Justice and Trustee";
 
+  const [guardCleared, setGuardCleared] = useState(false);
+
   return (
     <div data-testid="page-intake-ai">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">AI Intake Review</h1>
         <p className="text-muted-foreground mt-1">{subtitle}</p>
       </div>
+
+      {!guardCleared && (
+        <SovereignIntakeGuard
+          intakeType="case"
+          onClear={() => setGuardCleared(true)}
+        />
+      )}
 
       <Card className="mb-6">
         <CardHeader>
