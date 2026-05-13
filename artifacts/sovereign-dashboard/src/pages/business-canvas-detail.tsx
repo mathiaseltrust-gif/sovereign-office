@@ -83,6 +83,8 @@ function PlanTab({ conceptId, concept, onSaved }: { conceptId: number; concept: 
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
 
+  const isDirty = editing && planKeys.some((k) => (draft[k] ?? "") !== (plan[k] ?? ""));
+
   async function handleSave() {
     setSaving(true);
     try {
@@ -110,8 +112,8 @@ function PlanTab({ conceptId, concept, onSaved }: { conceptId: number; concept: 
       <div className="flex justify-end gap-2">
         {editing ? (
           <>
-            <Button size="sm" variant="outline" onClick={() => { setDraft(plan); setEditing(false); }}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Plan"}</Button>
+            <Button size="sm" variant="outline" onClick={() => { setDraft({ ...plan }); setEditing(false); }}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving || !isDirty}>{saving ? "Saving…" : "Save Plan"}</Button>
           </>
         ) : (
           <Button size="sm" variant="outline" onClick={() => { setDraft({ ...plan }); setEditing(true); }}>Edit Plan</Button>
@@ -127,7 +129,6 @@ function PlanTab({ conceptId, concept, onSaved }: { conceptId: number; concept: 
               rows={3}
               value={draft[key] ?? ""}
               onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-              onBlur={handleSave}
               className="text-sm"
             />
           ) : (
@@ -146,6 +147,8 @@ function ModelTab({ conceptId, concept, onSaved }: { conceptId: number; concept:
   const [draft, setDraft] = useState<Record<string, string>>(model);
   const [saving, setSaving] = useState(false);
   const { toast } = useToast();
+
+  const isDirty = editing && keys.some((k) => (draft[k] ?? "") !== (model[k] ?? ""));
 
   async function handleSave() {
     setSaving(true);
@@ -175,7 +178,7 @@ function ModelTab({ conceptId, concept, onSaved }: { conceptId: number; concept:
         {editing ? (
           <>
             <Button size="sm" variant="outline" onClick={() => { setDraft({ ...model }); setEditing(false); }}>Cancel</Button>
-            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Canvas"}</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving || !isDirty}>{saving ? "Saving…" : "Save Canvas"}</Button>
           </>
         ) : (
           <Button size="sm" variant="outline" onClick={() => { setDraft({ ...model }); setEditing(true); }}>Edit Canvas</Button>
@@ -195,7 +198,6 @@ function ModelTab({ conceptId, concept, onSaved }: { conceptId: number; concept:
                   rows={3}
                   value={draft[key] ?? ""}
                   onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
-                  onBlur={handleSave}
                   className="text-sm"
                 />
               ) : (
