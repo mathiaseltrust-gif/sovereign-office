@@ -6,7 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 
 interface PendingLineageNode {
   id: number;
@@ -17,7 +17,7 @@ interface PendingLineageNode {
 }
 
 function PendingLineageReviews() {
-  const { sessionToken } = useAuth();
+  const { } = useAuth();
   const queryClient = useQueryClient();
   const [actionState, setActionState] = useState<Record<number, "loading" | "done" | "error">>({});
 
@@ -28,7 +28,7 @@ function PendingLineageReviews() {
     queryKey: ["lineage-pending-reviews"],
     queryFn: async () => {
       const res = await fetch(`${apiBase}/api/lineage/nodes/pending-reviews`, {
-        headers: sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {},
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!res.ok) return [];
       return res.json() as Promise<PendingLineageNode[]>;
@@ -43,7 +43,7 @@ function PendingLineageReviews() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
         },
         body: JSON.stringify(action === "reject" ? { reason: "Could not verify lineage claim at this time." } : {}),
       });

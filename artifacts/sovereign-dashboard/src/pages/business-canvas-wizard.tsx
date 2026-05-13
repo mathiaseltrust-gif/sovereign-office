@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -97,9 +98,10 @@ export default function BusinessCanvasWizard() {
     }
     setAnalyzing(true);
     try {
+      const token = getCurrentBearerToken() ?? "";
       const res = await fetch("/api/business/analyze", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ ideaText, structure: selectedStructure || undefined }),
       });
       if (!res.ok) throw new Error(await res.text());

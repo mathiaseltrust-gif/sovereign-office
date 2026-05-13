@@ -7,9 +7,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
 
@@ -73,42 +75,136 @@ function statusBadge(status: string) {
   }
 }
 
-function PlanTab({ concept }: { concept: BusinessConcept }) {
+function PlanTab({ conceptId, concept, onSaved }: { conceptId: number; concept: BusinessConcept; onSaved: () => void }) {
   const plan = concept.planOutline ?? {};
   const planKeys = Object.keys(plan);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>(plan);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`/api/business/concepts/${conceptId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ planOutline: draft }),
+      });
+      if (!r.ok) throw new Error();
+      toast({ title: "Plan saved" });
+      setEditing(false);
+      onSaved();
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (planKeys.length === 0) return <p className="text-sm text-muted-foreground">No plan outline yet.</p>;
+
   return (
     <div className="space-y-4">
+      <div className="flex justify-end gap-2">
+        {editing ? (
+          <>
+            <Button size="sm" variant="outline" onClick={() => { setDraft(plan); setEditing(false); }}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Plan"}</Button>
+          </>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => { setDraft({ ...plan }); setEditing(true); }}>Edit Plan</Button>
+        )}
+      </div>
       {planKeys.map((key) => (
         <div key={key}>
           <h3 className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-1">
             {key.replace(/([A-Z])/g, " $1").trim()}
           </h3>
-          <p className="text-sm">{plan[key]}</p>
+          {editing ? (
+            <Textarea
+              rows={3}
+              value={draft[key] ?? ""}
+              onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+              onBlur={handleSave}
+              className="text-sm"
+            />
+          ) : (
+            <p className="text-sm whitespace-pre-wrap">{plan[key]}</p>
+          )}
         </div>
       ))}
     </div>
   );
 }
 
-function ModelTab({ concept }: { concept: BusinessConcept }) {
+function ModelTab({ conceptId, concept, onSaved }: { conceptId: number; concept: BusinessConcept; onSaved: () => void }) {
   const model = concept.modelCanvas ?? {};
   const keys = Object.keys(model);
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState<Record<string, string>>(model);
+  const [saving, setSaving] = useState(false);
+  const { toast } = useToast();
+
+  async function handleSave() {
+    setSaving(true);
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`/api/business/concepts/${conceptId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ modelCanvas: draft }),
+      });
+      if (!r.ok) throw new Error();
+      toast({ title: "Model canvas saved" });
+      setEditing(false);
+      onSaved();
+    } catch {
+      toast({ title: "Save failed", variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  }
+
   if (keys.length === 0) return <p className="text-sm text-muted-foreground">No model canvas yet.</p>;
+
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-      {keys.map((key) => (
-        <Card key={key} className="bg-muted/20">
-          <CardHeader className="pb-1 pt-4 px-4">
-            <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-              {key.replace(/([A-Z])/g, " $1").trim()}
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="px-4 pb-4">
-            <p className="text-sm">{model[key]}</p>
-          </CardContent>
-        </Card>
-      ))}
+    <div className="space-y-4">
+      <div className="flex justify-end gap-2">
+        {editing ? (
+          <>
+            <Button size="sm" variant="outline" onClick={() => { setDraft({ ...model }); setEditing(false); }}>Cancel</Button>
+            <Button size="sm" onClick={handleSave} disabled={saving}>{saving ? "Saving…" : "Save Canvas"}</Button>
+          </>
+        ) : (
+          <Button size="sm" variant="outline" onClick={() => { setDraft({ ...model }); setEditing(true); }}>Edit Canvas</Button>
+        )}
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {keys.map((key) => (
+          <Card key={key} className={editing ? "border-primary/40 bg-primary/5" : "bg-muted/20"}>
+            <CardHeader className="pb-1 pt-4 px-4">
+              <CardTitle className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                {key.replace(/([A-Z])/g, " $1").trim()}
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="px-4 pb-4">
+              {editing ? (
+                <Textarea
+                  rows={3}
+                  value={draft[key] ?? ""}
+                  onChange={(e) => setDraft((d) => ({ ...d, [key]: e.target.value }))}
+                  onBlur={handleSave}
+                  className="text-sm"
+                />
+              ) : (
+                <p className="text-sm whitespace-pre-wrap">{model[key]}</p>
+              )}
+            </CardContent>
+          </Card>
+        ))}
+      </div>
     </div>
   );
 }
@@ -625,11 +721,11 @@ export default function BusinessConceptDetail({ params }: { params: { id: string
         </TabsList>
 
         <TabsContent value="plan">
-          <Card><CardContent className="pt-6"><PlanTab concept={concept} /></CardContent></Card>
+          <Card><CardContent className="pt-6"><PlanTab conceptId={concept.id} concept={concept} onSaved={load} /></CardContent></Card>
         </TabsContent>
 
         <TabsContent value="model">
-          <Card><CardContent className="pt-6"><ModelTab concept={concept} /></CardContent></Card>
+          <Card><CardContent className="pt-6"><ModelTab conceptId={concept.id} concept={concept} onSaved={load} /></CardContent></Card>
         </TabsContent>
 
         <TabsContent value="provisions">
