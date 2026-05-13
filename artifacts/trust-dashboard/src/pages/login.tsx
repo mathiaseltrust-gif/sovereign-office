@@ -38,7 +38,7 @@ export default function Login() {
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
           <div className="inline-flex items-center justify-center w-20 h-20 mb-4">
-            <img src="/dashboard/tribal-seal.png" alt="Mathias El Tribe Seal" className="w-20 h-20 object-contain" />
+            <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="w-20 h-20 object-contain" />
           </div>
           <h1 className="text-xl font-bold text-foreground">Mathias El Tribe</h1>
           <p className="text-sm text-muted-foreground mt-1">Office of the Chief Justice &amp; Trustee</p>
