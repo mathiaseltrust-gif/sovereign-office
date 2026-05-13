@@ -801,6 +801,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
   const queryClient = useQueryClient();
   const [showEditOwn, setShowEditOwn] = useState(false);
   const [editOwnForm, setEditOwnForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", gender: "", tribalNation: "", supportingDocumentName: "" });
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
@@ -846,6 +847,35 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
     },
     onError: (err: Error) => {
       toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async ({ isMemberOwn }: { isMemberOwn: boolean }) => {
+      const url = isMemberOwn
+        ? `/api/lineage/nodes/member/${n.id}`
+        : `/api/lineage/nodes/${n.id}`;
+      const r = await fetch(url, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) {
+        const d = await r.json() as { error?: string };
+        throw new Error(d.error ?? "Delete failed");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Record deleted", description: `${n.fullName} has been removed from the family tree.` });
+      queryClient.invalidateQueries({ queryKey: ["family-tree"] });
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      setConfirmDelete(false);
+      onClose();
+      onRefresh();
+    },
+    onError: (err: Error) => {
+      toast({ title: "Delete failed", description: err.message, variant: "destructive" });
+      setConfirmDelete(false);
     },
   });
 
@@ -994,10 +1024,25 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
           )}
 
           {canEditOwn && !showEditOwn && (
-            <div className="pt-1">
+            <div className="pt-1 space-y-2">
               <Button size="sm" variant="outline" className="w-full" onClick={openEditOwn}>
                 Edit My Submission
               </Button>
+              {!confirmDelete ? (
+                <Button size="sm" variant="outline" className="w-full border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
+                  Delete My Submission
+                </Button>
+              ) : (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                  <p className="text-xs text-destructive font-medium">Remove this record permanently?</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => deleteMutation.mutate({ isMemberOwn: true })} disabled={deleteMutation.isPending}>
+                      {deleteMutation.isPending ? "Deleting…" : "Yes, delete"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -1051,9 +1096,26 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
           )}
 
           {canEdit && (
-            <div className="flex gap-2 pt-2">
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(n)}>Edit</Button>
-              <Button size="sm" variant="outline" className="flex-1" onClick={() => onMerge(n)}>Merge</Button>
+            <div className="space-y-2 pt-2">
+              <div className="flex gap-2">
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => onEdit(n)}>Edit</Button>
+                <Button size="sm" variant="outline" className="flex-1" onClick={() => onMerge(n)}>Merge</Button>
+              </div>
+              {!confirmDelete ? (
+                <Button size="sm" variant="outline" className="w-full border-destructive/40 text-destructive hover:bg-destructive/10" onClick={() => setConfirmDelete(true)}>
+                  Delete Record
+                </Button>
+              ) : (
+                <div className="rounded-md border border-destructive/40 bg-destructive/5 p-3 space-y-2">
+                  <p className="text-xs text-destructive font-medium">Permanently delete <strong>{n.fullName}</strong> and remove all links to this record?</p>
+                  <div className="flex gap-2">
+                    <Button size="sm" variant="destructive" className="flex-1" onClick={() => deleteMutation.mutate({ isMemberOwn: false })} disabled={deleteMutation.isPending}>
+                      {deleteMutation.isPending ? "Deleting…" : "Yes, delete"}
+                    </Button>
+                    <Button size="sm" variant="outline" className="flex-1" onClick={() => setConfirmDelete(false)}>Cancel</Button>
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>

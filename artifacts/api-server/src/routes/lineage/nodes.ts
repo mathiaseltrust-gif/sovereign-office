@@ -539,4 +539,67 @@ router.post("/:id/merge", requireAuth, requireRole("trustee"), async (req, res, 
   }
 });
 
+// ── Member deletes their own pending submission ────────────────────────────
+router.delete("/member/:id", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Record not found" }); return; }
+
+    if (!existing.pendingReview) {
+      res.status(403).json({ error: "Only pending submissions can be deleted by the submitter. Contact a trustee to remove approved records." });
+      return;
+    }
+    if (existing.addedByMemberId !== req.user.dbId) {
+      res.status(403).json({ error: "You can only delete your own pending submissions." });
+      return;
+    }
+
+    await db.delete(familyLineageTable).where(eq(familyLineageTable.id, id));
+    logger.info({ id, userId: req.user.dbId }, "Member deleted own pending lineage submission");
+    res.json({ deleted: id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── Trustee hard-deletes any node and cleans up all references ────────────
+router.delete("/:id", requireAuth, requireRole("trustee"), async (req, res, next) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+    if (!existing) { res.status(404).json({ error: "Record not found" }); return; }
+
+    // Remove this id from every other node's parentIds / childrenIds / spouseIds
+    const allOthers = await db
+      .select({ id: familyLineageTable.id, parentIds: familyLineageTable.parentIds, childrenIds: familyLineageTable.childrenIds, spouseIds: familyLineageTable.spouseIds })
+      .from(familyLineageTable)
+      .where(ne(familyLineageTable.id, id));
+
+    for (const node of allOthers) {
+      const pIds = Array.isArray(node.parentIds) ? (node.parentIds as number[]) : [];
+      const cIds = Array.isArray(node.childrenIds) ? (node.childrenIds as number[]) : [];
+      const sIds = Array.isArray(node.spouseIds) ? (node.spouseIds as number[]) : [];
+      if (!pIds.includes(id) && !cIds.includes(id) && !sIds.includes(id)) continue;
+      await db.update(familyLineageTable).set({
+        parentIds: pIds.filter((x) => x !== id),
+        childrenIds: cIds.filter((x) => x !== id),
+        spouseIds: sIds.filter((x) => x !== id),
+        updatedAt: new Date(),
+      }).where(eq(familyLineageTable.id, node.id));
+    }
+
+    await db.delete(familyLineageTable).where(eq(familyLineageTable.id, id));
+    logger.info({ id, adminId: req.user?.dbId }, "Trustee hard-deleted lineage node");
+    res.json({ deleted: id });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
