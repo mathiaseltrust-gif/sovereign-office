@@ -5,9 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
-
-function makeDevToken(user: unknown) { return btoa(JSON.stringify(user)); }
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 interface ImportResult {
   format: string;
@@ -61,20 +59,16 @@ const STATUS_COLORS: Record<string, string> = {
 };
 
 export default function AdminLineageImportPage() {
-  const { user, sessionToken } = useAuth();
   const { toast } = useToast();
   const fileRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<ImportResult | null>(null);
   const [selectedFile, setSelectedFile] = useState<string>("");
-  // Prefer the signed session JWT (Microsoft/password sign-in); fall back to
-  // the unsigned dev token only in dev mode when sessionToken is unavailable.
-  const token = sessionToken ?? makeDevToken(user);
 
   const { data: nodesData, isLoading: nodesLoading, refetch } = useQuery<{ nodes: LineageNode[]; count: number }>({
     queryKey: ["lineage-nodes"],
     queryFn: async () => {
       const r = await fetch("/api/lineage/nodes?limit=200", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
       if (!r.ok) throw new Error("Failed to load registry");
       return r.json();
@@ -89,7 +83,7 @@ export default function AdminLineageImportPage() {
       form.append("file", file);
       const r = await fetch("/api/lineage/import", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
         body: form,
       });
       if (!r.ok) {

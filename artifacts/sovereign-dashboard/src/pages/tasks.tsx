@@ -10,9 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
-
-function makeDevToken(user: unknown) { return btoa(JSON.stringify(user)); }
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 function statusVariant(status: string) {
   switch (status) {
@@ -42,15 +40,13 @@ export default function TasksPage() {
   const createTask = useCreateTask();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user, sessionToken } = useAuth();
-  const token = sessionToken ?? makeDevToken(user);
   const [open, setOpen] = useState(false);
   const [form, setForm] = useState({ title: "", description: "", dueDate: "" });
 
   const { data: delegData } = useQuery<{ received: ActiveDelegation[] }>({
     queryKey: ["delegations-tasks"],
     queryFn: async () => {
-      const r = await fetch("/api/delegations", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/delegations", { headers: { Authorization: `Bearer ${getCurrentBearerToken()}` } });
       if (!r.ok) return { received: [] };
       const d = await r.json();
       return { received: (d.received ?? []).filter((x: ActiveDelegation & { isActive: boolean }) => x.isActive) };

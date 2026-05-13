@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "")}/api`;
 
@@ -111,7 +112,7 @@ export default function M365IntegrationPage() {
 
   useEffect(() => {
     fetch(`${API_BASE}/m365/status`, {
-      headers: { Authorization: `Bearer ${localStorage.getItem("sovereign_auth_v3") ? (() => { try { return (JSON.parse(localStorage.getItem("sovereign_auth_v3")!) as { sessionToken?: string }).sessionToken ?? btoa(localStorage.getItem("sovereign_auth_v3")!); } catch { return ""; } })() : ""}` },
+      headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
     })
       .then((r) => r.json() as Promise<M365Status>)
       .then(setStatus)

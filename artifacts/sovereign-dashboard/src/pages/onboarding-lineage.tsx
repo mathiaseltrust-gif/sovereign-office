@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, roleLandingPath } from "@/components/auth-provider";
+import { useAuth, roleLandingPath, getCurrentBearerToken } from "@/components/auth-provider";
 import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
 
 interface MatchResult {
@@ -22,7 +22,7 @@ interface MatchResult {
 
 export default function OnboardingLineagePage() {
   const [, setLocation] = useLocation();
-  const { activeRole, sessionToken, setLineagePendingFlag } = useAuth();
+  const { activeRole, setLineagePendingFlag } = useAuth();
   const { toast } = useToast();
 
   const [fullName, setFullName] = useState("");
@@ -48,7 +48,7 @@ export default function OnboardingLineagePage() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(sessionToken ? { Authorization: `Bearer ${sessionToken}` } : {}),
+          Authorization: `Bearer ${getCurrentBearerToken()}`,
         },
         body: JSON.stringify({ fullName: fullName.trim(), familyName: familyName.trim(), parentName: parentName.trim() || undefined }),
       });

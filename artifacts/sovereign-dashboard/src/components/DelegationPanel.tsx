@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 const SCOPE_DESCRIPTIONS: Record<string, string> = {
   welfare_actions: "Act on welfare matters on your behalf",
@@ -56,8 +56,6 @@ interface DelegationsData {
   received: Delegation[];
   validScopes: DelegationScope[];
 }
-
-function makeDevToken(user: unknown) { return btoa(JSON.stringify(user)); }
 
 function DelegationCard({ d, onRevoke, isRevoking }: { d: Delegation; onRevoke?: (id: number) => void; isRevoking?: boolean }) {
   const expired = d.expiresAt && new Date(d.expiresAt) <= new Date();
@@ -125,10 +123,8 @@ function DelegationCard({ d, onRevoke, isRevoking }: { d: Delegation; onRevoke?:
 }
 
 export function DelegationPanel() {
-  const { user, sessionToken } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
-  const token = sessionToken ?? makeDevToken(user);
 
   const [open, setOpen] = useState(false);
   const [delegateeEmail, setDelegateeEmail] = useState("");
@@ -141,7 +137,7 @@ export function DelegationPanel() {
   const { data, isLoading } = useQuery<DelegationsData>({
     queryKey: ["delegations"],
     queryFn: async () => {
-      const r = await fetch("/api/delegations", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/delegations", { headers: { Authorization: `Bearer ${getCurrentBearerToken()}` } });
       if (!r.ok) throw new Error("Failed to load delegations");
       return r.json();
     },
@@ -151,7 +147,7 @@ export function DelegationPanel() {
     mutationFn: async () => {
       const r = await fetch("/api/delegations", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}`, "Content-Type": "application/json" },
         body: JSON.stringify({ delegateeEmail, scopes: selectedScopes, reason: reason || undefined, note: note || undefined, expiresAt: expiresAt || undefined }),
       });
       if (!r.ok) {
@@ -173,7 +169,7 @@ export function DelegationPanel() {
     mutationFn: async (id: number) => {
       const r = await fetch(`/api/delegations/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}`, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
       if (!r.ok) {
