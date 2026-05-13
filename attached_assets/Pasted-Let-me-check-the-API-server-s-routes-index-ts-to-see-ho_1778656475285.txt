@@ -1,0 +1,76 @@
+Let me check the API server's routes/index.ts to see how intake/ai is wired, and also read the trust-dashboard api.ts and community-dashboard layout.tsx in parallel.
+
+
+Ran rg
+$ rg --type ts intake artifacts/api-server/src/routes/index.ts
+
+Opened api.ts
+
+Opened layout.tsx
+
+Analyzing intake/AI route setup
+Now let me read the actual intake/ai route to see if it's hooked to Azure OpenAI or just a mock.
+
+Good — the route is registered. Let me read the actual intake AI handler and check the getSovereignSession utility:
+
+
+3 actions
+The intake route folder doesn't exist at all — the import will fail silently or crash. Let me check the full routes structure and also look at the import in index.ts more carefully:
+
+
+3 actions
+The intake folder exists — let me read what's actually in it:
+
+
+4 actions
+The endpoint exists and calls a real processIntake pipeline. Let me check the pipeline and Azure OpenAI lib:
+
+
+3 actions
+Both critical files are missing — the pipeline and Azure OpenAI client don't exist, which means the API server will crash the moment /api/intake/ai is called. Let me check the server logs and then create both files:
+
+
+2 actions
+Two issues to fix simultaneously — the JSX syntax error in lineage and the missing Azure OpenAI + pipeline files. Let me read the lineage page to diagnose the exact structure, and create the two missing files in parallel:
+
+
+2 actions
+The lineage page JSX structure looks okay visually — let me check the early return branch that might have mismatched tags, and read the azure-openai file before writing:
+
+
+3 actions
+The Azure OpenAI client is already well-built. Now let me check the intake pipeline and the early return in lineage simultaneously:
+
+
+3 actions
+Let me check the lineage imports and also what the SovereignIntakeGuard file looks like, while creating the missing intake pipeline:
+
+
+3 actions
+Good — the JSX error in lineage was from the intermediate edit state; the latest version looks correct. The critical missing piece is sovereign/intake-pipeline.ts. Let me read the full guard component to understand exactly what the API response shape needs to be, then create the pipeline:
+
+
+2 actions
+Now I have the full picture. The API response needs riskLevel, intakeFlags, doctrinesApplied, and summary. The sovereign/intake-pipeline.ts is completely missing — this is what's called every time the guard runs. Creating it now, along with everything else needed:
+
+
+5 actions
+The pipeline already exists and calls runAiEngine from ./ai-engine. Let me check that file too:
+
+
+2 actions
+ai-engine.ts is missing — it's what the pipeline calls. I need to create it. Let me check what other sovereign files exist first:
+
+
+2 actions
+ai-engine.ts already exists. Let me read it to see if it's actually using Azure OpenAI correctly:
+
+
+2 actions
+Everything is already built — the full AI pipeline (intake-pipeline.ts → ai-engine.ts → Azure OpenAI tier 1 → rule-based tier 2 → hard sovereign defaults tier 4) was already in the repo and is solid. The v5 API image already contains it.
+
+What still needs doing: sovereign-dashboard needs a new build (the guard is now on all 4 pages), and trust-dashboard + community-dashboard still need their az containerapp update commands run. Let me build and push now:
+
+
+Ran pnpm @workspace/sovereign-dashboard
+The ability to use Replit Agent has been disabled by your admin.
