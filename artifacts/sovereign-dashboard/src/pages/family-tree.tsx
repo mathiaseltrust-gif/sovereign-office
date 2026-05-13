@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage } from "@/components/auth-provider";
 
-type Tab = "import-document" | "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
+type Tab = "import-document" | "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
 interface LineageNode {
   id: number;
@@ -126,6 +126,7 @@ const TAB_LABELS: Record<Tab, string> = {
   "view-lineage": "Visual Tree",
   "edit-ancestors": "Edit Ancestors",
   "knowledge-of-self": "Knowledge-of-Self Links",
+  "deduplicate": "Find Duplicates",
 };
 
 const PROTECTION_COLORS: Record<string, string> = {
@@ -289,6 +290,9 @@ export default function FamilyTreePage() {
       )}
       {activeTab === "knowledge-of-self" && (
         <KnowledgeOfSelfTab token={token} kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
+      )}
+      {activeTab === "deduplicate" && (
+        <DeduplicateTab token={token} onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
     </div>
   );
@@ -2244,6 +2248,248 @@ function ImportDocumentTab({ token, onSuccess }: { token: string; onSuccess: () 
               </p>
             </div>
           )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Deduplicate Tab ──────────────────────────────────────────────────────────
+
+interface DupRow {
+  id: number;
+  fullName: string;
+  birthYear: number | null;
+  deathYear: number | null;
+  sourceType: string;
+  createdAt: string;
+}
+
+interface ExactGroup {
+  ids: number[];
+  name: string;
+  birthYear: number | null;
+  rows: DupRow[];
+}
+
+interface FuzzyGroup {
+  ids: number[];
+  name: string;
+  reason: string;
+  rows: DupRow[];
+}
+
+interface DupScanResult {
+  total: number;
+  exact: ExactGroup[];
+  fuzzy: FuzzyGroup[];
+}
+
+function DeduplicateTab({ token, onResolved }: { token: string; onResolved: () => void }) {
+  const { toast } = useToast();
+  const isTrustee = useIsTrustee();
+
+  const { data, isLoading, refetch } = useQuery<DupScanResult>({
+    queryKey: ["lineage-duplicates"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/duplicates", { headers: { Authorization: `Bearer ${token}` } });
+      if (!r.ok) throw new Error("Failed to scan duplicates");
+      return r.json();
+    },
+  });
+
+  const autoRemoveMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/lineage/duplicates/auto-remove", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json() as Promise<{ merged: number; removed: number }>;
+    },
+    onSuccess: (result) => {
+      toast({ title: "Auto-remove complete", description: `${result.removed} exact duplicate${result.removed !== 1 ? "s" : ""} removed across ${result.merged} group${result.merged !== 1 ? "s" : ""}.` });
+      refetch();
+      onResolved();
+    },
+    onError: (err: Error) => toast({ title: "Auto-remove failed", description: err.message, variant: "destructive" }),
+  });
+
+  const mergeMutation = useMutation({
+    mutationFn: async ({ keepId, removeId }: { keepId: number; removeId: number }) => {
+      const r = await fetch("/api/lineage/duplicates/merge", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ keepId, removeId }),
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    onSuccess: (_, vars) => {
+      toast({ title: "Records merged", description: `Record #${vars.removeId} merged into #${vars.keepId}.` });
+      refetch();
+      onResolved();
+    },
+    onError: (err: Error) => toast({ title: "Merge failed", description: err.message, variant: "destructive" }),
+  });
+
+  const deleteMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const r = await fetch(`/api/lineage/duplicates/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error(await r.text());
+      return r.json();
+    },
+    onSuccess: (_, id) => {
+      toast({ title: "Record deleted", description: `Record #${id} removed.` });
+      refetch();
+      onResolved();
+    },
+    onError: (err: Error) => toast({ title: "Delete failed", description: err.message, variant: "destructive" }),
+  });
+
+  const busy = autoRemoveMutation.isPending || mergeMutation.isPending || deleteMutation.isPending;
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        {[1, 2, 3].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+      </div>
+    );
+  }
+
+  const exactCount = data?.exact.length ?? 0;
+  const fuzzyCount = data?.fuzzy.length ?? 0;
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h2 className="text-lg font-semibold">Duplicate Ancestor Detection</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Scanned <strong>{data?.total ?? 0}</strong> records —{" "}
+            <span className={exactCount > 0 ? "text-destructive font-medium" : ""}>{exactCount} exact duplicate group{exactCount !== 1 ? "s" : ""}</span>
+            {" "}and{" "}
+            <span className={fuzzyCount > 0 ? "text-amber-600 font-medium" : ""}>{fuzzyCount} suggested review{fuzzyCount !== 1 ? "s" : ""}</span>.
+          </p>
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          <Button variant="outline" size="sm" onClick={() => refetch()} disabled={busy}>Rescan</Button>
+          {isTrustee && exactCount > 0 && (
+            <Button variant="destructive" size="sm" onClick={() => autoRemoveMutation.mutate()} disabled={busy}>
+              {autoRemoveMutation.isPending ? "Removing…" : `Auto-Remove All ${exactCount} Exact Group${exactCount !== 1 ? "s" : ""}`}
+            </Button>
+          )}
+        </div>
+      </div>
+
+      {exactCount === 0 && fuzzyCount === 0 && (
+        <Card>
+          <CardContent className="py-10 text-center text-muted-foreground">
+            <p className="text-2xl mb-2">✓</p>
+            <p className="font-medium">No duplicates found.</p>
+            <p className="text-sm mt-1">All {data?.total ?? 0} ancestor records appear unique.</p>
+          </CardContent>
+        </Card>
+      )}
+
+      {exactCount > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-destructive flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-destructive" />
+            Exact Duplicates — same name &amp; birth year (auto-removable)
+          </h3>
+          {data!.exact.map((group, gi) => (
+            <Card key={gi} className="border-destructive/30 bg-destructive/5">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <Badge variant="destructive">{group.rows.length} copies</Badge>
+                  {group.name}
+                  {group.birthYear && <span className="text-muted-foreground font-normal">b. {group.birthYear}</span>}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2">
+                {group.rows.map((row, ri) => (
+                  <div key={row.id} className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+                    <div className="space-y-0.5">
+                      <p className="font-medium">#{row.id} — {row.fullName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {row.birthYear ? `b. ${row.birthYear}` : "birth year unknown"}
+                        {row.deathYear ? ` · d. ${row.deathYear}` : ""}
+                        {" · "}source: {row.sourceType}
+                        {" · "}added {new Date(row.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {isTrustee && ri > 0 ? (
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy}
+                          onClick={() => mergeMutation.mutate({ keepId: group.rows[0].id, removeId: row.id })}>
+                          Merge into #{group.rows[0].id}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" disabled={busy}
+                          onClick={() => deleteMutation.mutate(row.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-xs shrink-0">Keep (best record)</Badge>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      {fuzzyCount > 0 && (
+        <div className="space-y-3">
+          <h3 className="font-semibold text-amber-700 flex items-center gap-2">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-500" />
+            Suggested Reviews — possible duplicates requiring manual decision
+          </h3>
+          {data!.fuzzy.map((group, gi) => (
+            <Card key={gi} className="border-amber-200 bg-amber-50/40">
+              <CardHeader className="pb-2 pt-4 px-4">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2 flex-wrap">
+                  <Badge variant="outline" className="border-amber-400 text-amber-700">{group.rows.length} records</Badge>
+                  {group.name}
+                </CardTitle>
+                <p className="text-xs text-amber-700 mt-1">{group.reason}</p>
+              </CardHeader>
+              <CardContent className="px-4 pb-4 space-y-2">
+                {group.rows.map((row, ri) => (
+                  <div key={row.id} className="flex items-center justify-between gap-2 rounded-md border bg-background px-3 py-2 text-sm">
+                    <div className="space-y-0.5">
+                      <p className="font-medium">#{row.id} — {row.fullName}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {row.birthYear ? `b. ${row.birthYear}` : "birth year unknown"}
+                        {row.deathYear ? ` · d. ${row.deathYear}` : ""}
+                        {" · "}source: {row.sourceType}
+                        {" · "}added {new Date(row.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    {isTrustee && ri > 0 ? (
+                      <div className="flex gap-1 shrink-0">
+                        <Button size="sm" variant="outline" className="h-7 text-xs" disabled={busy}
+                          onClick={() => mergeMutation.mutate({ keepId: group.rows[0].id, removeId: row.id })}>
+                          Merge into #{group.rows[0].id}
+                        </Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-xs text-destructive hover:text-destructive" disabled={busy}
+                          onClick={() => deleteMutation.mutate(row.id)}>
+                          Delete
+                        </Button>
+                      </div>
+                    ) : (
+                      <Badge variant="outline" className="text-xs shrink-0">Primary</Badge>
+                    )}
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          ))}
         </div>
       )}
     </div>
