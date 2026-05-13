@@ -51,12 +51,12 @@ export default function ForumPost() {
 
   const handleReply = () => {
     if (!replyBody.trim()) return;
-    createReply.mutate({ data: { body: replyBody }, params: { id: postId } });
+    createReply.mutate({ id: postId, data: { body: replyBody } });
   };
 
   const handlePin = () => {
     if (!post) return;
-    pinPost.mutate({ data: { pinned: !post.pinned }, params: { id: postId } });
+    pinPost.mutate({ id: postId, data: { pinned: !post.pinned } });
   };
 
   const formatDate = (iso: string) => {
