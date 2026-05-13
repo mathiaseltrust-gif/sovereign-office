@@ -1,0 +1,50 @@
+chief [ ~ ]$ RG="sovereign-office-rg"
+PG="tribalpostgres-db"
+DB_USER="tribaladmin"
+DB_PASS="TribalSecurePass2026"
+DB_NAME="sovereign_office"
+
+echo "▶ Creating PostgreSQL Flexible Server (takes ~3-4 min)..."
+az postgres flexible-server create \
+  --name "$PG" \
+  --resource-group "$RG" \
+  --location "eastus" \
+  --admin-user "$DB_USER" \
+  --admin-password "$DB_PASS" \
+  --tail 20e-group "$RG" \\ 30s for container to restart)...".
+▶ Creating PostgreSQL Flexible Server (takes ~3-4 min)...
+Checking the existence of the resource group 'sovereign-office-rg'...
+Resource group 'sovereign-office-rg' exists ? : True 
+Specified server name is already used.
+▶ Creating database...
+The --database-name/-d argument has been deprecated and will be removed in next breaking change release(2.86.0) scheduled for May 2026.
+The --name/-n argument will be repurposed to specify the database name. The --server-name/-s argument will be introduced to specify the server name in next breaking change release(2.86.0) scheduled for May 2026.
+(ResourceNotFound) The Resource 'Microsoft.DBforPostgreSQL/flexibleServers/tribalpostgres-db' under resource group 'sovereign-office-rg' was not found. For more details please go to https://aka.ms/ARMResourceNotFoundFix
+Code: ResourceNotFound
+Message: The Resource 'Microsoft.DBforPostgreSQL/flexibleServers/tribalpostgres-db' under resource group 'sovereign-office-rg' was not found. For more details please go to https://aka.ms/ARMResourceNotFoundFix
+▶ Updating API Container App with correct DATABASE_URL...
+sovereign-api--0000001
+▶ Watching logs (wait 30s for container to restart)...
+{"TimeStamp": "2026-05-13T03:25:54.07056", "Log": "Connecting to the container 'sovereign-api'..."}
+{"TimeStamp": "2026-05-13T03:25:54.15722", "Log": "Successfully Connected to container: 'sovereign-api' [Revision: 'sovereign-api--0000001', Replica: 'sovereign-api--0000001-bf46dbd8c-tth49']"}
+{"TimeStamp": "2026-05-13T03:23:20.5236359+00:00", "Log": "F     severity: 'FATAL',"}
+{"TimeStamp": "2026-05-13T03:23:20.5236381+00:00", "Log": "F     code: '28P01',"}
+{"TimeStamp": "2026-05-13T03:23:20.5236402+00:00", "Log": "F     detail: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236422+00:00", "Log": "F     hint: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236474+00:00", "Log": "F     position: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236496+00:00", "Log": "F     internalPosition: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236515+00:00", "Log": "F     internalQuery: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236534+00:00", "Log": "F     where: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236553+00:00", "Log": "F     schema: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236572+00:00", "Log": "F     table: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.5236591+00:00", "Log": "F     column: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.523661+00:00", "Log": "F     dataType: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.523663+00:00", "Log": "F     constraint: undefined,"}
+{"TimeStamp": "2026-05-13T03:23:20.523665+00:00", "Log": "F     file: 'auth.c',"}
+{"TimeStamp": "2026-05-13T03:23:20.5236667+00:00", "Log": "F     line: '401',"}
+{"TimeStamp": "2026-05-13T03:23:20.5236684+00:00", "Log": "F     routine: 'auth_failed'"}
+{"TimeStamp": "2026-05-13T03:23:20.5236703+00:00", "Log": "F   }"}
+{"TimeStamp": "2026-05-13T03:23:20.523672+00:00", "Log": "F }"}
+{"TimeStamp": "2026-05-13T03:23:20.5236741+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:23:20.5236761+00:00", "Log": "F Node.js v22.22.2"}
+chief [ ~ ]$ 
