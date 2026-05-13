@@ -22,7 +22,7 @@ COPY lib/api-client-react/package.json          lib/api-client-react/
 COPY artifacts/sovereign-dashboard/package.json artifacts/sovereign-dashboard/
 
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
-    pnpm install --no-frozen-lockfile
+    pnpm install --no-frozen-lockfile --shamefully-hoist
 
 # ── Stage 2: build ───────────────────────────────────────────────────────────
 FROM deps AS builder

@@ -175,4 +175,94 @@ router.get("/callback", async (req, res) => {
   }
 });
 
+// /exchange — client-side callback: frontend posts {code, redirectUri} here
+router.post("/exchange", async (req, res) => {
+  try {
+    const { code, redirectUri } = req.body as { code?: string; redirectUri?: string };
+
+    if (!code) {
+      res.status(400).json({ error: "code is required" });
+      return;
+    }
+
+    const usedRedirectUri = redirectUri ?? redirectUri_();
+
+    const tokenRes = await fetch(
+      `https://login.microsoftonline.com/${TENANT_ID()}/oauth2/v2.0/token`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/x-www-form-urlencoded" },
+        body: new URLSearchParams({
+          client_id: CLIENT_ID(),
+          client_secret: CLIENT_SECRET(),
+          code,
+          redirect_uri: usedRedirectUri,
+          grant_type: "authorization_code",
+        }).toString(),
+      }
+    );
+
+    if (!tokenRes.ok) {
+      const errBody = await tokenRes.text();
+      logger.error({ status: tokenRes.status, body: errBody }, "Token exchange failed (exchange endpoint)");
+      res.status(401).json({ error: "Token exchange with Microsoft failed. Check redirect URI and client secret." });
+      return;
+    }
+
+    const tokenData = await tokenRes.json() as { access_token: string; id_token: string };
+
+    const idTokenParts = tokenData.id_token?.split(".");
+    if (!idTokenParts || idTokenParts.length < 2) {
+      res.status(401).json({ error: "Invalid ID token from Microsoft." });
+      return;
+    }
+    const idPayload = JSON.parse(Buffer.from(idTokenParts[1], "base64url").toString("utf8")) as {
+      oid: string; email?: string; preferred_username?: string; name?: string; roles?: string[];
+    };
+
+    const email = idPayload.email ?? idPayload.preferred_username ?? "";
+    const name = idPayload.name ?? email;
+    const entraId = idPayload.oid;
+
+    let dbUser = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1).then(r => r[0] ?? null);
+
+    if (!dbUser) {
+      const [created] = await db.insert(usersTable).values({
+        email, name, role: "member", entraId, entraRequired: true,
+      }).returning();
+      dbUser = created;
+      logger.info({ email, entraId }, "New user auto-provisioned from Microsoft exchange");
+    } else if (!dbUser.entraId) {
+      await db.update(usersTable).set({ entraId, updatedAt: new Date() }).where(eq(usersTable.id, dbUser.id));
+      dbUser = { ...dbUser, entraId };
+    }
+
+    const sessionJwt = signSessionJwt({
+      sub: String(dbUser.id),
+      email: dbUser.email,
+      name: dbUser.name,
+      role: dbUser.role,
+      entraId,
+      type: "session",
+    });
+
+    logger.info({ email }, "Microsoft exchange succeeded");
+    res.json({
+      sessionToken: sessionJwt,
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        role: dbUser.role,
+        roles: [dbUser.role],
+      },
+    });
+  } catch (err) {
+    logger.error({ err }, "Microsoft exchange error");
+    res.status(500).json({ error: "Server error during token exchange." });
+  }
+});
+
+function redirectUri_() { return redirectUri(); }
+
 export default router;
