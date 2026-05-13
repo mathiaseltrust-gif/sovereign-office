@@ -322,11 +322,13 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchFocusIdx, setSearchFocusIdx] = useState(0);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [activeIdx, setActiveIdx] = useState(-1);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const searchWrapperRef = useRef<HTMLDivElement>(null);
 
   const q = searchQuery.trim().toLowerCase();
-  const matchingNodes = useMemo(() => {
+  const allMatchingNodes = useMemo(() => {
     if (!q) return [] as PositionedNode[];
     return positioned.filter(
       (n) =>
@@ -336,8 +338,19 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
     );
   }, [q, positioned]);
 
-  const matchingIdSet = useMemo(() => new Set(matchingNodes.map((n) => n.id)), [matchingNodes]);
+  const matchingNodes = useMemo(() => allMatchingNodes.slice(0, 8), [allMatchingNodes]);
+  const matchingIdSet = useMemo(() => new Set(allMatchingNodes.map((n) => n.id)), [allMatchingNodes]);
   const hasSearch = q.length > 0;
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (searchWrapperRef.current && !searchWrapperRef.current.contains(e.target as Node)) {
+        setDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const panToNode = useCallback((node: PositionedNode) => {
     if (!containerRef.current) return;
@@ -349,23 +362,43 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
     setSelectedNodeId(node.id);
   }, [transform.scale]);
 
+  const handleSuggestionClick = useCallback((node: PositionedNode) => {
+    panToNode(node);
+    setDropdownOpen(false);
+    setActiveIdx(-1);
+  }, [panToNode]);
+
   const handleSearchKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
-      setSearchQuery("");
-      setSearchFocusIdx(0);
+      setDropdownOpen(false);
+      setActiveIdx(-1);
+      if (!dropdownOpen) {
+        setSearchQuery("");
+      }
       return;
     }
     if (matchingNodes.length === 0) return;
-    if (e.key === "Enter") {
-      const idx = searchFocusIdx % matchingNodes.length;
-      panToNode(matchingNodes[idx]);
-      setSearchFocusIdx((i) => i + 1);
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      setActiveIdx((i) => (i + 1) % matchingNodes.length);
+      setDropdownOpen(true);
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      setActiveIdx((i) => (i <= 0 ? matchingNodes.length - 1 : i - 1));
+      setDropdownOpen(true);
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      const idx = activeIdx >= 0 ? activeIdx : 0;
+      if (matchingNodes[idx]) {
+        handleSuggestionClick(matchingNodes[idx]);
+      }
     }
-  }, [matchingNodes, searchFocusIdx, panToNode]);
+  }, [matchingNodes, activeIdx, dropdownOpen, handleSuggestionClick]);
 
   const clearSearch = useCallback(() => {
     setSearchQuery("");
-    setSearchFocusIdx(0);
+    setActiveIdx(-1);
+    setDropdownOpen(false);
     searchInputRef.current?.focus();
   }, []);
 
@@ -482,7 +515,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
         <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>－</Button>
 
         {/* ── Search bar + dropdown (wrapper is the anchor for the dropdown) ── */}
-        <div className="relative flex items-center ml-2">
+        <div ref={searchWrapperRef} className="relative flex items-center ml-2">
           <svg className="absolute left-2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
           </svg>
@@ -490,10 +523,14 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
             ref={searchInputRef}
             type="text"
             value={searchQuery}
-            onChange={(e) => { setSearchQuery(e.target.value); setSearchFocusIdx(0); }}
+            onChange={(e) => { setSearchQuery(e.target.value); setActiveIdx(-1); setDropdownOpen(true); }}
+            onFocus={() => { if (hasSearch) setDropdownOpen(true); }}
             onKeyDown={handleSearchKey}
             placeholder="Search by name or nation…"
             className="pl-7 pr-7 py-1 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring w-52"
+            autoComplete="off"
+            aria-autocomplete="list"
+            aria-expanded={dropdownOpen && hasSearch}
           />
           {hasSearch && (
             <button
@@ -506,41 +543,34 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
           )}
 
           {/* Dropdown — absolutely positioned below the input, inside the same relative wrapper */}
-          {hasSearch && matchingNodes.length > 0 && (
+          {dropdownOpen && hasSearch && matchingNodes.length > 0 && (
             <div className="absolute top-full left-0 mt-1 z-50 w-64 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
               <div className="px-2 py-1 text-xs text-muted-foreground border-b bg-muted/40 flex items-center justify-between">
-                <span>{matchingNodes.length} result{matchingNodes.length !== 1 ? "s" : ""}</span>
-                <span className="opacity-60">Enter to cycle</span>
+                <span>{allMatchingNodes.length} result{allMatchingNodes.length !== 1 ? "s" : ""}{allMatchingNodes.length > 8 ? " — showing 8" : ""}</span>
+                <span className="opacity-60">↑↓ to navigate · Enter to go</span>
               </div>
-              <ul className="max-h-48 overflow-y-auto divide-y divide-border/50">
-                {matchingNodes.slice(0, 12).map((node, i) => {
-                  const activeFocusIdx = searchFocusIdx % matchingNodes.length;
-                  return (
-                    <li key={node.id}>
-                      <button
-                        className={[
-                          "w-full text-left px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
-                          i === activeFocusIdx ? "bg-accent/50 font-medium" : "",
-                        ].join(" ")}
-                        onClick={() => { panToNode(node); setSearchFocusIdx(i + 1); }}
-                      >
-                        <span className="font-medium truncate block">{node.fullName}</span>
-                        {node.tribalNation && (
-                          <span className="text-muted-foreground truncate block">{node.tribalNation}</span>
-                        )}
-                      </button>
-                    </li>
-                  );
-                })}
-                {matchingNodes.length > 12 && (
-                  <li className="px-3 py-1.5 text-xs text-muted-foreground italic">
-                    +{matchingNodes.length - 12} more — refine your search
+              <ul role="listbox" className="max-h-48 overflow-y-auto divide-y divide-border/50">
+                {matchingNodes.map((node, i) => (
+                  <li key={node.id} role="option" aria-selected={i === activeIdx}>
+                    <button
+                      className={[
+                        "w-full text-left px-3 py-1.5 text-xs hover:bg-accent hover:text-accent-foreground transition-colors",
+                        i === activeIdx ? "bg-accent text-accent-foreground font-medium" : "",
+                      ].join(" ")}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => handleSuggestionClick(node)}
+                    >
+                      <span className="font-medium truncate block">{node.fullName}</span>
+                      {node.tribalNation && (
+                        <span className="text-muted-foreground truncate block">{node.tribalNation}</span>
+                      )}
+                    </button>
                   </li>
-                )}
+                ))}
               </ul>
             </div>
           )}
-          {hasSearch && matchingNodes.length === 0 && (
+          {dropdownOpen && hasSearch && matchingNodes.length === 0 && (
             <div className="absolute top-full left-0 mt-1 z-50 w-52 bg-popover border border-border rounded-md shadow-lg px-3 py-2 text-xs text-muted-foreground">
               No matches found
             </div>
