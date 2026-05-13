@@ -48,10 +48,6 @@ app.use(requireEntraIfRequired);
 logger.info({ authority: sovereignOffice.getAuthority() }, "Sovereign authority online");
 void initBootstrapToken();
 
-app.get("/api/health", (_req: Request, res: Response) => {
-  res.json({ status: "ok", authority: sovereignOffice.getAuthority(), timestamp: new Date().toISOString() });
-});
-
 app.use("/api", router);
 
 app.use("/community-dashboard", express.static(communityDashboardDist, { index: false }));
