@@ -373,10 +373,17 @@ export default function SupremeCourtPage() {
     <div data-testid="page-supreme-court">
       <div className="mb-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Tribal Court</p>
-            <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Supreme Court</h1>
-            <p className="text-muted-foreground mt-1">Office of the Chief Justice & Trustee — Full Faith and Credit</p>
+          <div className="flex items-center gap-5">
+            <img
+              src={`${import.meta.env.BASE_URL}supreme-court-seal.png`}
+              alt="The Mathias El Tribe Supreme Court"
+              className="w-20 h-20 object-contain drop-shadow-md shrink-0"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Tribal Court</p>
+              <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Supreme Court</h1>
+              <p className="text-muted-foreground mt-1">Office of the Chief Justice & Trustee — Full Faith and Credit</p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-red-700 text-white">Tribal Court of General Jurisdiction</Badge>
