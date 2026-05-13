@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage } from "@/components/auth-provider";
 
-type Tab = "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
+type Tab = "import-document" | "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self";
 
 interface LineageNode {
   id: number;
@@ -120,6 +120,7 @@ interface KnowledgeOfSelf {
 function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
 
 const TAB_LABELS: Record<Tab, string> = {
+  "import-document": "Import from Document",
   "upload-photo": "Upload Photo",
   "upload-csv": "Upload CSV",
   "view-lineage": "Visual Tree",
@@ -271,6 +272,9 @@ export default function FamilyTreePage() {
         ))}
       </div>
 
+      {activeTab === "import-document" && (
+        <ImportDocumentTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+      )}
       {activeTab === "upload-photo" && (
         <PhotoUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Photo uploaded", description: "Use Edit Ancestors to extract names and dates." }); }} />
       )}
@@ -2012,6 +2016,234 @@ function KnowledgeOfSelfTab({ token, kosData, lineageData, isLoading, onLink }: 
               </Card>
             ))}
           </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+interface ImportedPerson {
+  fullName: string;
+  birthYear?: number;
+  deathYear?: number;
+  gender?: string;
+  parentNames?: string[];
+  spouseNames?: string[];
+  notes?: string;
+}
+
+interface ImportDocumentResult {
+  sourceType: string;
+  extractionMethod: string;
+  filename: string;
+  total: number;
+  created: number;
+  merged: number;
+  skipped: number;
+  errors: string[];
+  people: ImportedPerson[];
+  graph: {
+    totalGenerations: number;
+    tribalNations: string[];
+    familyGroups: string[];
+    lineageTags: string[];
+    icwaEligible: boolean;
+    welfareEligible: boolean;
+  };
+}
+
+function ImportDocumentTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [result, setResult] = useState<ImportDocumentResult | null>(null);
+  const { toast } = useToast();
+
+  const importMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const r = await fetch("/api/lineage/import-document", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: "Upload failed" })) as { error?: string; hint?: string };
+        throw new Error(err.hint ? `${err.error} — ${err.hint}` : (err.error ?? "Upload failed"));
+      }
+      return r.json() as Promise<ImportDocumentResult>;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      onSuccess();
+      toast({
+        title: `Import complete — ${data.created} new, ${data.merged} merged`,
+        description: `${data.total} people extracted from ${data.filename}`,
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Import failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0] ?? null;
+    setSelectedFile(file);
+    setResult(null);
+    e.target.value = "";
+  }
+
+  const ACCEPTED = ".pdf,.png,.jpg,.jpeg,.webp,.gif,.csv,.ged,.gedcom,.txt";
+
+  return (
+    <div className="space-y-6">
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base">Import Family Tree from Document</CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-5">
+          <div className="rounded-md bg-muted/40 border p-4 text-sm space-y-1">
+            <p className="font-semibold text-foreground">Supported formats</p>
+            <ul className="text-muted-foreground space-y-0.5 text-xs list-disc list-inside">
+              <li><strong>PDF</strong> — Ancestry.com exports, FamilySearch prints, scanned genealogy reports</li>
+              <li><strong>Images</strong> (JPG, PNG, WEBP) — photos or scans of handwritten trees, charts, certificates</li>
+              <li><strong>GEDCOM</strong> (.ged) — standard genealogical file export from any family tree software</li>
+              <li><strong>CSV</strong> — spreadsheet with columns: name, birth_year, death_year, parent_names, spouse_names</li>
+              <li><strong>TXT</strong> — plain-text notes, family histories, or any document listing family members</li>
+            </ul>
+            <p className="text-xs text-muted-foreground pt-1">
+              AI extraction reads names, birth/death dates, and family relationships automatically. GEDCOM and structured CSV files use a direct parser (no AI required).
+            </p>
+          </div>
+
+          <div
+            className="border-2 border-dashed border-muted rounded-lg p-8 text-center cursor-pointer hover:border-primary/50 transition-colors"
+            onClick={() => fileRef.current?.click()}
+          >
+            {selectedFile ? (
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-foreground">{selectedFile.name}</p>
+                <p className="text-xs text-muted-foreground">{(selectedFile.size / 1024).toFixed(0)} KB · {selectedFile.type || "unknown type"}</p>
+                <p className="text-xs text-primary">Click to change file</p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p className="text-muted-foreground text-sm">Click to select a file, or drag and drop</p>
+                <p className="text-xs text-muted-foreground">PDF · JPG · PNG · GEDCOM · CSV · TXT · up to 25 MB</p>
+              </div>
+            )}
+            <input
+              ref={fileRef}
+              type="file"
+              accept={ACCEPTED}
+              className="hidden"
+              onChange={handleFileChange}
+            />
+          </div>
+
+          <Button
+            className="w-full"
+            onClick={() => { if (selectedFile) importMutation.mutate(selectedFile); }}
+            disabled={!selectedFile || importMutation.isPending}
+          >
+            {importMutation.isPending
+              ? "Extracting & Importing…"
+              : selectedFile
+              ? `Extract & Import "${selectedFile.name}"`
+              : "Select a file above"}
+          </Button>
+
+          {importMutation.isPending && (
+            <div className="space-y-2">
+              <div className="h-2 bg-muted rounded-full overflow-hidden">
+                <div className="h-full bg-primary rounded-full animate-pulse w-3/4" />
+              </div>
+              <p className="text-xs text-center text-muted-foreground">
+                AI is reading your document and identifying family members…
+              </p>
+            </div>
+          )}
+
+          {importMutation.isError && (
+            <p className="text-sm text-destructive">{(importMutation.error as Error).message}</p>
+          )}
+        </CardContent>
+      </Card>
+
+      {result && (
+        <div className="space-y-4">
+          <Card className="border-green-300 bg-green-50/50">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base text-green-800">Import Successful</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div className="rounded-lg bg-green-100 p-3">
+                  <p className="text-2xl font-bold text-green-800">{result.created}</p>
+                  <p className="text-xs text-green-700 font-medium">New Records</p>
+                </div>
+                <div className="rounded-lg bg-blue-100 p-3">
+                  <p className="text-2xl font-bold text-blue-800">{result.merged}</p>
+                  <p className="text-xs text-blue-700 font-medium">Merged / Updated</p>
+                </div>
+                <div className="rounded-lg bg-muted p-3">
+                  <p className="text-2xl font-bold text-muted-foreground">{result.skipped}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Skipped</p>
+                </div>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <Badge variant="outline" className="text-xs">{result.sourceType.toUpperCase()}</Badge>
+                <Badge variant="outline" className="text-xs">Extracted via {result.extractionMethod === "ai" ? "AI" : "Parser"}</Badge>
+                {result.graph.icwaEligible && <Badge className="bg-blue-700 text-white text-xs">ICWA Eligible</Badge>}
+                {result.graph.welfareEligible && <Badge className="bg-green-700 text-white text-xs">Welfare Eligible</Badge>}
+                {result.graph.totalGenerations > 0 && <Badge variant="outline" className="text-xs">{result.graph.totalGenerations} Generation{result.graph.totalGenerations !== 1 ? "s" : ""}</Badge>}
+              </div>
+              {result.graph.familyGroups.length > 0 && (
+                <p className="text-xs text-muted-foreground">Family groups: {result.graph.familyGroups.join(", ")}</p>
+              )}
+              {result.errors.length > 0 && (
+                <div className="rounded-md bg-destructive/10 p-3">
+                  <p className="text-xs font-semibold text-destructive mb-1">Skipped records ({result.errors.length})</p>
+                  {result.errors.slice(0, 5).map((e, i) => <p key={i} className="text-xs text-destructive">{e}</p>)}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {result.people.length > 0 && (
+            <div>
+              <h3 className="text-sm font-semibold mb-3">Extracted People ({result.people.length}{result.total > result.people.length ? ` of ${result.total}` : ""})</h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                {result.people.map((person, i) => (
+                  <div key={i} className="rounded-lg border bg-card p-3 space-y-1">
+                    <p className="text-sm font-semibold leading-tight">{person.fullName}</p>
+                    <div className="flex flex-wrap gap-1">
+                      {person.birthYear && <span className="text-xs text-muted-foreground">b. {person.birthYear}</span>}
+                      {person.birthYear && person.deathYear && <span className="text-xs text-muted-foreground">–</span>}
+                      {person.deathYear && <span className="text-xs text-muted-foreground">d. {person.deathYear}</span>}
+                      {person.gender && <Badge variant="outline" className="text-xs py-0">{person.gender}</Badge>}
+                    </div>
+                    {person.parentNames && person.parentNames.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Parents: {person.parentNames.join(", ")}
+                      </p>
+                    )}
+                    {person.spouseNames && person.spouseNames.length > 0 && (
+                      <p className="text-xs text-muted-foreground truncate">
+                        Spouse: {person.spouseNames.join(", ")}
+                      </p>
+                    )}
+                    {person.notes && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{person.notes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              <p className="text-xs text-muted-foreground mt-3">
+                Switch to the <strong>Visual Tree</strong> tab to see all imported members in the interactive family tree.
+              </p>
+            </div>
+          )}
         </div>
       )}
     </div>
