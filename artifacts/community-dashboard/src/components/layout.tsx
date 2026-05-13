@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "wouter";
 import {
-  Users,
   Home,
   BookOpen,
   MessageSquare,
@@ -10,6 +9,7 @@ import {
   Sun,
   Moon,
   Shield,
+  Users,
   X,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -66,9 +66,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Mobile header */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-card sticky top-0 z-30 shadow-sm">
         <div className="flex items-center gap-2.5">
-          <div className="h-8 w-8 rounded-lg bg-primary flex items-center justify-center">
-            <Users className="h-4 w-4 text-primary-foreground" />
-          </div>
+          <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full" />
           <span className="font-bold text-base leading-tight">Mathias El Tribe</span>
         </div>
         <div className="flex items-center gap-1">
@@ -100,12 +98,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
           />
           <div className="md:hidden fixed top-0 left-0 h-full w-72 bg-card border-r z-50 flex flex-col shadow-xl animate-in slide-in-from-left duration-200">
             <div className="p-4 border-b flex items-center gap-2.5">
-              <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center">
-                <Users className="h-5 w-5 text-primary-foreground" />
-              </div>
+              <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
               <div>
                 <p className="font-bold text-base leading-none">Mathias El Tribe</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Sovereign Office Portal</p>
+                <p className="text-xs text-muted-foreground mt-0.5">Community Center</p>
               </div>
             </div>
             <div className="flex-1 overflow-auto p-3">
@@ -129,12 +125,10 @@ export function Layout({ children }: { children: React.ReactNode }) {
       <aside className="hidden md:flex w-60 flex-col border-r bg-card h-screen sticky top-0">
         <div className="p-5 border-b">
           <div className="flex items-center gap-2.5">
-            <div className="h-9 w-9 rounded-lg bg-primary flex items-center justify-center shrink-0">
-              <Users className="h-5 w-5 text-primary-foreground" />
-            </div>
+            <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
             <div className="min-w-0">
               <p className="font-bold text-sm leading-tight truncate">Mathias El Tribe</p>
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">Sovereign Office Portal</p>
+              <p className="text-xs text-muted-foreground mt-0.5 truncate">Community Center</p>
             </div>
           </div>
         </div>
