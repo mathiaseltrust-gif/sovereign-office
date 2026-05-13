@@ -111,7 +111,7 @@ router.get("/:id", async (req, res, next) => {
 
 router.post("/:id/replies", requireAuth, async (req, res, next) => {
   try {
-    const postId = parseInt(req.params.id, 10);
+    const postId = parseInt(req.params.id as string, 10);
     if (isNaN(postId)) { res.status(400).json({ error: "Invalid post ID" }); return; }
 
     const { body } = req.body as { body?: string };
@@ -148,7 +148,7 @@ router.post("/:id/replies", requireAuth, async (req, res, next) => {
 
 router.post("/:id/pin", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
 
     const { pinned } = req.body as { pinned?: boolean };
@@ -174,7 +174,7 @@ router.post("/:id/pin", requireAuth, requireRole("officer"), async (req, res, ne
 
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
     await db.delete(forumPostsTable).where(eq(forumPostsTable.id, id));
     res.status(204).end();

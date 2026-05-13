@@ -220,7 +220,7 @@ router.get("/:id", async (req, res, next) => {
 
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) {
       res.status(400).json({ error: "Invalid ID" });
       return;

@@ -26,6 +26,18 @@ database migration, TLS configuration, and CI/CD.
 
 ---
 
+## Type checking
+
+Run the workspace-wide type check before pushing:
+
+```bash
+pnpm run typecheck
+```
+
+This checks all packages (API server, community dashboard, trust dashboard, sovereign dashboard) in one pass. The `build` script gates on this check, so type errors will block a build — catching regressions before they ship.
+
+---
+
 ## CI/CD — automated deployments
 
 Every push to `main` triggers the GitHub Actions pipeline at

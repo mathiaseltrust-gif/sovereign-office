@@ -261,7 +261,7 @@ router.post("/merge", requireAuth, requireRole("trustee"), async (req, res, next
 // DELETE /api/lineage/duplicates/:id — hard delete a single record (no merge)
 router.delete("/:id", requireAuth, requireRole("trustee"), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(req.params.id as string, 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
     await rewriteRelationshipRefs(id, -1);
     await db.delete(familyLineageTable).where(eq(familyLineageTable.id, id));

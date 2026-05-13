@@ -63,7 +63,7 @@ router.post("/upload", requireAuth, upload.single("file"), async (req, res, next
 
     if (mimetype === "application/pdf" || originalname.toLowerCase().endsWith(".pdf")) {
       fileType = "pdf";
-      const pdfParse = (await import("pdf-parse")).default;
+      const pdfParse = (await import("pdf-parse") as unknown as { default: (buf: Buffer, opts?: object) => Promise<{ text: string; numpages: number }> }).default;
       const parsed = await pdfParse(buffer);
       text = parsed.text;
       pageCount = parsed.numpages;
