@@ -1,0 +1,65 @@
+chief [ ~ ]$ RG="sovereign-office-rg"; ACR="sovereignoffice.azurecr.io"
+for APP in sovereign-dashboard trust-dashboard community-dashboard; do
+  az containerapp update --name "$APP" --resource-group "$RG" \
+    --image "$ACR/$APP:latest" --query "properties.latestRevisionName" -o tsv
+done
+sovereign-dashboard--ua6rggc
+trust-dashboard--yw5goiq
+community-dashboard--z3gtwy6
+chief [ ~ ]$ az containerapp logs show \
+  --name sovereign-api \
+  --resource-group sovereign-office-rg \
+  --tail 50
+{"TimeStamp": "2026-05-13T03:18:31.21339", "Log": "Connecting to the container 'sovereign-api'..."}
+{"TimeStamp": "2026-05-13T03:18:31.33404", "Log": "Successfully Connected to container: 'sovereign-api' [Revision: 'sovereign-api--0000001', Replica: 'sovereign-api--0000001-bf46dbd8c-tth49']"}
+{"TimeStamp": "2026-05-13T03:18:15.2546594+00:00", "Log": "F In the next major version (pg-connection-string v3.0.0 and pg v9.0.0), these modes will adopt standard libpq semantics, which have weaker security guarantees."}
+{"TimeStamp": "2026-05-13T03:18:15.2546806+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:18:15.2546843+00:00", "Log": "F To prepare for this change:"}
+{"TimeStamp": "2026-05-13T03:18:15.2546871+00:00", "Log": "F - If you want the current behavior, explicitly use 'sslmode=verify-full'"}
+{"TimeStamp": "2026-05-13T03:18:15.2546894+00:00", "Log": "F - If you want libpq compatibility now, use 'uselibpqcompat=true&sslmode=require'"}
+{"TimeStamp": "2026-05-13T03:18:15.2546915+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:18:15.2546971+00:00", "Log": "F See https://www.postgresql.org/docs/current/libpq-ssl.html for libpq SSL mode definitions."}
+{"TimeStamp": "2026-05-13T03:18:15.2546987+00:00", "Log": "F (Use `node --trace-warnings ...` to show where the warning was created)"}
+{"TimeStamp": "2026-05-13T03:18:17.7469763+00:00", "Log": "F file:///app/dist/migrate.mjs:10657"}
+{"TimeStamp": "2026-05-13T03:18:17.7470483+00:00", "Log": "F         throw new DrizzleQueryError(queryString, params, e);"}
+{"TimeStamp": "2026-05-13T03:18:17.7470755+00:00", "Log": "F               ^"}
+{"TimeStamp": "2026-05-13T03:18:17.747079+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:18:17.7470807+00:00", "Log": "F _DrizzleQueryError: Failed query: CREATE SCHEMA IF NOT EXISTS \"drizzle\""}
+{"TimeStamp": "2026-05-13T03:18:17.7470821+00:00", "Log": "F params:"}
+{"TimeStamp": "2026-05-13T03:18:17.7470835+00:00", "Log": "F     at NodePgPreparedQuery.queryWithCache (file:///app/dist/migrate.mjs:10657:15)"}
+{"TimeStamp": "2026-05-13T03:18:17.7470848+00:00", "Log": "F     at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"}
+{"TimeStamp": "2026-05-13T03:18:17.747086+00:00", "Log": "F     at async PgDialect.migrate (file:///app/dist/migrate.mjs:7555:5)"}
+{"TimeStamp": "2026-05-13T03:18:17.7470877+00:00", "Log": "F     at async migrate (file:///app/dist/migrate.mjs:11105:3)"}
+{"TimeStamp": "2026-05-13T03:18:17.7470955+00:00", "Log": "F     at async file:///app/dist/migrate.mjs:11122:1 {"}
+{"TimeStamp": "2026-05-13T03:18:17.7470968+00:00", "Log": "F   query: 'CREATE SCHEMA IF NOT EXISTS \"drizzle\"',"}
+{"TimeStamp": "2026-05-13T03:18:17.747098+00:00", "Log": "F   params: [],"}
+{"TimeStamp": "2026-05-13T03:18:17.7470992+00:00", "Log": "F   cause: error: password authentication failed for user \"tribaladmin\""}
+{"TimeStamp": "2026-05-13T03:18:17.7471004+00:00", "Log": "F       at file:///app/dist/migrate.mjs:4290:15"}
+{"TimeStamp": "2026-05-13T03:18:17.7471017+00:00", "Log": "F       at process.processTicksAndRejections (node:internal/process/task_queues:103:5)"}
+{"TimeStamp": "2026-05-13T03:18:17.747103+00:00", "Log": "F       at async file:///app/dist/migrate.mjs:10886:20"}
+{"TimeStamp": "2026-05-13T03:18:17.7471042+00:00", "Log": "F       at async NodePgPreparedQuery.queryWithCache (file:///app/dist/migrate.mjs:10655:16)"}
+{"TimeStamp": "2026-05-13T03:18:17.7471055+00:00", "Log": "F       at async PgDialect.migrate (file:///app/dist/migrate.mjs:7555:5)"}
+{"TimeStamp": "2026-05-13T03:18:17.7472059+00:00", "Log": "F       at async migrate (file:///app/dist/migrate.mjs:11105:3)"}
+{"TimeStamp": "2026-05-13T03:18:17.7472615+00:00", "Log": "F       at async file:///app/dist/migrate.mjs:11122:1 {"}
+{"TimeStamp": "2026-05-13T03:18:17.7472678+00:00", "Log": "F     length: 107,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472701+00:00", "Log": "F     severity: 'FATAL',"}
+{"TimeStamp": "2026-05-13T03:18:17.7472722+00:00", "Log": "F     code: '28P01',"}
+{"TimeStamp": "2026-05-13T03:18:17.7472743+00:00", "Log": "F     detail: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472763+00:00", "Log": "F     hint: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472783+00:00", "Log": "F     position: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472803+00:00", "Log": "F     internalPosition: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472824+00:00", "Log": "F     internalQuery: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472844+00:00", "Log": "F     where: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472863+00:00", "Log": "F     schema: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472882+00:00", "Log": "F     table: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472906+00:00", "Log": "F     column: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472925+00:00", "Log": "F     dataType: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472944+00:00", "Log": "F     constraint: undefined,"}
+{"TimeStamp": "2026-05-13T03:18:17.7472981+00:00", "Log": "F     file: 'auth.c',"}
+{"TimeStamp": "2026-05-13T03:18:17.7473001+00:00", "Log": "F     line: '401',"}
+{"TimeStamp": "2026-05-13T03:18:17.747302+00:00", "Log": "F     routine: 'auth_failed'"}
+{"TimeStamp": "2026-05-13T03:18:17.7473038+00:00", "Log": "F   }"}
+{"TimeStamp": "2026-05-13T03:18:17.7473057+00:00", "Log": "F }"}
+{"TimeStamp": "2026-05-13T03:18:17.747308+00:00", "Log": "F"}
+{"TimeStamp": "2026-05-13T03:18:17.7473102+00:00", "Log": "F Node.js v22.22.2"}
+chief [ ~ ]$ 
