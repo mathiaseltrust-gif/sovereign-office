@@ -23,7 +23,7 @@ ACR_SERVER="sovereignoffice.azurecr.io"
 ACR_USERNAME="sovereignoffice"
 ACR_PASSWORD="16Ef4DDsKUCPWasmGFNNoEUjDnTYWcfrJnVdEfiRNxyNtwZphI6jJQQJ99CEACYeBjFEqg7NAAACAZCROBYv"
 
-DATABASE_URL="postgresql://tribaladmin:TribalSecurePass2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require"
+DATABASE_URL="postgresql://tribaladmin:ElevatedTrust2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require"
 SESSION_SECRET="f4c0e3b9c2d7a1f8e6b4c9d2a7f1e3b8c4d2a9f7b1e6c3d8f2a7b9c4e1d6f8a3c7b2d9e4f1a6c8b3d7e2f9a4c1b6d8e3f7a2c9"
 SERVICE_KEY="241f3ea0fb713150b614e4b9f004521795f10cb30661b1aabecc4924046cb4fb"
 
