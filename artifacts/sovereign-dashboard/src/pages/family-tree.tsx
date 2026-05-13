@@ -802,6 +802,8 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
   const [showEditOwn, setShowEditOwn] = useState(false);
   const [editOwnForm, setEditOwnForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", gender: "", tribalNation: "", supportingDocumentName: "" });
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const [showEnroll, setShowEnroll] = useState(false);
+  const [enrollForm, setEnrollForm] = useState({ email: "", name: "", role: "member", temporaryPassword: "" });
 
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
@@ -877,6 +879,49 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
       toast({ title: "Delete failed", description: err.message, variant: "destructive" });
       setConfirmDelete(false);
     },
+  });
+
+  const enrollMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch(`/api/lineage/nodes/${n.id}/enroll`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: enrollForm.email,
+          name: enrollForm.name || n.fullName,
+          role: enrollForm.role,
+          ...(enrollForm.temporaryPassword ? { temporaryPassword: enrollForm.temporaryPassword } : {}),
+        }),
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Enrollment failed"); }
+      return r.json() as Promise<{ success: boolean; created: boolean; user: { id: number; email: string; name: string; role: string }; message: string; loginMethod: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: data.created ? "Account created" : "Account linked", description: data.message });
+      setShowEnroll(false);
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] });
+      queryClient.invalidateQueries({ queryKey: ["family-tree"] });
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Enrollment failed", description: err.message, variant: "destructive" }),
+  });
+
+  const updateEnrollMutation = useMutation({
+    mutationFn: async (updates: { role?: string; name?: string }) => {
+      const r = await fetch(`/api/lineage/nodes/${n.id}/enroll`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify(updates),
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Update failed"); }
+      return r.json() as Promise<{ success: boolean; user: { id: number; email: string; name: string; role: string } }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: "Access updated", description: `${data.user.name} is now a ${data.user.role}.` });
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] });
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
   });
 
   function openEditOwn() {
@@ -1020,6 +1065,115 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
           {n.pendingReview && !canApprove && (
             <div className="border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 rounded-md px-3 py-2">
               <p className="text-xs text-yellow-900 dark:text-yellow-300 font-medium">Awaiting officer review</p>
+            </div>
+          )}
+
+          {/* ── Grant Membership Access (trustees only) ─────────────────── */}
+          {canEdit && (
+            <div className="border border-primary/20 rounded-md overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 bg-primary/5 hover:bg-primary/10 transition-colors text-left"
+                onClick={() => {
+                  setShowEnroll((v) => !v);
+                  setEnrollForm({ email: "", name: n.fullName ?? "", role: (n.isAncestor && (n.generationalPosition ?? 0) >= 2) ? "elder" : "member", temporaryPassword: "" });
+                }}
+              >
+                <span className="text-xs font-semibold text-primary uppercase tracking-widest">
+                  {n.linkedProfileUserId ? "Membership Access" : "Grant Membership Access"}
+                </span>
+                <span className="text-xs text-primary">{showEnroll ? "▲" : "▼"}</span>
+              </button>
+
+              {showEnroll && (
+                <div className="p-3 space-y-3 bg-card">
+                  {n.linkedProfileUserId ? (
+                    /* ── Already enrolled — show update controls ── */
+                    <div className="space-y-3">
+                      <div className="flex items-center gap-2 text-xs text-green-700 bg-green-50 border border-green-200 rounded-md px-3 py-2">
+                        <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                        Account linked — User #{n.linkedProfileUserId}
+                      </div>
+                      <div>
+                        <Label className="text-xs">Update Role</Label>
+                        <select
+                          className="mt-1 w-full border rounded-md px-2 h-8 text-sm bg-input text-foreground"
+                          defaultValue={n.membershipStatus === "confirmed" ? "member" : "member"}
+                          onChange={(e) => updateEnrollMutation.mutate({ role: e.target.value })}
+                        >
+                          <option value="member">Member</option>
+                          <option value="elder">Tribal Elder</option>
+                          <option value="officer">Officer</option>
+                          <option value="trustee">Trustee</option>
+                          <option value="medical_provider">Medical Provider</option>
+                          <option value="visitor_media">Visitor / Media</option>
+                          <option value="sovereign_admin">Sovereign Admin</option>
+                        </select>
+                      </div>
+                      {updateEnrollMutation.isPending && <p className="text-xs text-muted-foreground">Saving…</p>}
+                    </div>
+                  ) : (
+                    /* ── Not yet enrolled — show grant form ── */
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        Create a login account for this person and link it to their lineage record. Their access level will match their assigned role.
+                      </p>
+                      <div>
+                        <Label className="text-xs">Email Address <span className="text-destructive">*</span></Label>
+                        <Input
+                          className="mt-1 h-8 text-sm"
+                          type="email"
+                          placeholder="member@example.com"
+                          value={enrollForm.email}
+                          onChange={(e) => setEnrollForm((p) => ({ ...p, email: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Display Name</Label>
+                        <Input
+                          className="mt-1 h-8 text-sm"
+                          value={enrollForm.name}
+                          onChange={(e) => setEnrollForm((p) => ({ ...p, name: e.target.value }))}
+                        />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Role / Access Level</Label>
+                        <select
+                          className="mt-1 w-full border rounded-md px-2 h-8 text-sm bg-input text-foreground"
+                          value={enrollForm.role}
+                          onChange={(e) => setEnrollForm((p) => ({ ...p, role: e.target.value }))}
+                        >
+                          <option value="member">Member</option>
+                          <option value="elder">Tribal Elder</option>
+                          <option value="officer">Officer</option>
+                          <option value="trustee">Trustee</option>
+                          <option value="medical_provider">Medical Provider</option>
+                          <option value="visitor_media">Visitor / Media</option>
+                          <option value="sovereign_admin">Sovereign Admin</option>
+                        </select>
+                      </div>
+                      <div>
+                        <Label className="text-xs">Temporary Password <span className="text-muted-foreground">(optional — leave blank for Microsoft login only)</span></Label>
+                        <Input
+                          className="mt-1 h-8 text-sm"
+                          type="password"
+                          placeholder="Min 8 characters"
+                          value={enrollForm.temporaryPassword}
+                          onChange={(e) => setEnrollForm((p) => ({ ...p, temporaryPassword: e.target.value }))}
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full"
+                        disabled={!enrollForm.email.trim() || enrollMutation.isPending}
+                        onClick={() => enrollMutation.mutate()}
+                      >
+                        {enrollMutation.isPending ? "Granting access…" : "Grant Membership Access"}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
