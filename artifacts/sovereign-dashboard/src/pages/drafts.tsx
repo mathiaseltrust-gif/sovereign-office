@@ -204,9 +204,14 @@ export default function DraftsPage() {
                   <div>
                     <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Legal Citations</p>
                     <ul className="space-y-1">
-                      {result.citations.map((c, i) => (
-                        <li key={i} className="text-xs font-mono text-muted-foreground">{c}</li>
-                      ))}
+                      {result.citations.map((c, i) => {
+                        const text = typeof c === "string"
+                          ? c
+                          : (c as Record<string, string>).citation
+                            ?? (c as Record<string, string>).title
+                            ?? JSON.stringify(c);
+                        return <li key={i} className="text-xs font-mono text-muted-foreground">{text}</li>;
+                      })}
                     </ul>
                   </div>
                 )}

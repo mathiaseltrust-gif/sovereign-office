@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 interface BusinessConcept {
   id: number;
@@ -64,7 +65,9 @@ export default function BusinessCanvas() {
   const { toast } = useToast();
 
   useEffect(() => {
-    fetch("/api/business/concepts")
+    fetch("/api/business/concepts", {
+      headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+    })
       .then((r) => r.json())
       .then((data) => {
         setConcepts(Array.isArray(data) ? data : []);

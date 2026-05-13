@@ -653,7 +653,9 @@ export default function BusinessConceptDetail({ params }: { params: { id: string
 
   async function load() {
     try {
-      const res = await fetch(`/api/business/concepts/${conceptId}`);
+      const res = await fetch(`/api/business/concepts/${conceptId}`, {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
       if (!res.ok) throw new Error();
       const data = await res.json() as BusinessConcept;
       setConcept(data);
@@ -672,7 +674,7 @@ export default function BusinessConceptDetail({ params }: { params: { id: string
     try {
       const res = await fetch(`/api/business/concepts/${concept.id}/submit-validation`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!res.ok) throw new Error();
       toast({ title: "Submitted for validation — AI intake review initiated" });

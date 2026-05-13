@@ -150,7 +150,7 @@ export default function BusinessCanvasWizard() {
 
       const createRes = await fetch("/api/business/concepts", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: JSON.stringify({
           title,
           description: ideaText,
@@ -187,7 +187,7 @@ export default function BusinessCanvasWizard() {
     try {
       await fetch(`/api/business/concepts/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: JSON.stringify({ structure }),
       });
     } catch {
@@ -205,7 +205,7 @@ export default function BusinessCanvasWizard() {
     try {
       await fetch(`/api/business/concepts/${id}`, {
         method: "PATCH",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: JSON.stringify({ planOutline, modelCanvas }),
       });
     } catch {
