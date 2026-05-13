@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useIsTrustee, useCanReviewLineage } from "@/components/auth-provider";
+import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
 
 type Tab = "import-document" | "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
@@ -116,8 +116,6 @@ interface KnowledgeOfSelf {
     createdAt?: string;
   }>;
 }
-
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
 
 const TAB_LABELS: Record<Tab, string> = {
   "import-document": "Import from Document",
@@ -227,12 +225,11 @@ export default function FamilyTreePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>("view-lineage");
-  const token = makeToken(user);
 
   const { data: lineageData, isLoading: lineageLoading } = useQuery<LineageData>({
     queryKey: ["family-tree"],
     queryFn: async () => {
-      const r = await fetch("/api/family-tree", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/family-tree", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load lineage");
       return r.json();
     },
@@ -241,7 +238,7 @@ export default function FamilyTreePage() {
   const { data: kosData, isLoading: kosLoading } = useQuery<KnowledgeOfSelf>({
     queryKey: ["family-tree-kos"],
     queryFn: async () => {
-      const r = await fetch("/api/family-tree/knowledge-of-self", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/family-tree/knowledge-of-self", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load knowledge-of-self");
       return r.json();
     },
@@ -274,25 +271,25 @@ export default function FamilyTreePage() {
       </div>
 
       {activeTab === "import-document" && (
-        <ImportDocumentTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        <ImportDocumentTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
       {activeTab === "upload-photo" && (
-        <PhotoUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Photo uploaded", description: "Use Edit Ancestors to extract names and dates." }); }} />
+        <PhotoUploadTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Photo uploaded", description: "Use Edit Ancestors to extract names and dates." }); }} />
       )}
       {activeTab === "upload-csv" && (
-        <CsvUploadTab token={token} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Lineage imported", description: "Family tree data has been stored." }); }} />
+        <CsvUploadTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Lineage imported", description: "Family tree data has been stored." }); }} />
       )}
       {activeTab === "view-lineage" && (
-        <InteractiveTreeTab token={token} canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
       {activeTab === "edit-ancestors" && (
-        <EditAncestorsTab token={token} lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
+        <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
       )}
       {activeTab === "knowledge-of-self" && (
-        <KnowledgeOfSelfTab token={token} kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
+        <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
       )}
       {activeTab === "deduplicate" && (
-        <DeduplicateTab token={token} onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
     </div>
   );
@@ -309,7 +306,7 @@ function readTreeSession(): { transform: { x: number; y: number; scale: number }
   }
 }
 
-function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; canEdit: boolean; onDataChange: () => void }) {
+function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDataChange: () => void }) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canApprove = useCanReviewLineage();
@@ -318,7 +315,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
     queryKey: ["lineage-nodes"],
     queryFn: async () => {
-      const r = await fetch("/api/lineage/nodes?limit=200", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/lineage/nodes?limit=200", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load tree data");
       return r.json();
     },
@@ -505,7 +502,7 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
       form.append("file", file);
       const r = await fetch("/api/lineage/import", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: form,
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Import failed");
@@ -733,7 +730,6 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
         {selectedNode && (
           <NodeDetailPanel
             node={selectedNode}
-            token={token}
             canEdit={canEdit}
             canApprove={canApprove}
             currentUserId={user?.dbId ?? null}
@@ -747,7 +743,6 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
 
       {showAddModal && (
         <AddPersonModal
-          token={token}
           allNodes={nodes}
           editingNode={editingNode}
           onClose={() => { setShowAddModal(false); setEditingNode(null); }}
@@ -763,7 +758,6 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
 
       {mergingNode && (
         <MergeModal
-          token={token}
           sourceNode={mergingNode}
           allNodes={nodes}
           onClose={() => setMergingNode(null)}
@@ -779,7 +773,6 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
 
       {showMemberAddModal && (
         <MemberAddFamilyModal
-          token={token}
           allNodes={nodes}
           onClose={() => setShowMemberAddModal(false)}
           onSuccess={() => {
@@ -794,9 +787,8 @@ function InteractiveTreeTab({ token, canEdit, onDataChange }: { token: string; c
   );
 }
 
-function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
   node: PositionedNode;
-  token: string;
   canEdit: boolean;
   canApprove: boolean;
   currentUserId?: number | null;
@@ -813,7 +805,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
     queryFn: async () => {
-      const r = await fetch(`/api/lineage/nodes/${node.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`/api/lineage/nodes/${node.id}`, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load node detail");
       return r.json();
     },
@@ -840,7 +832,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
       };
       const r = await fetch(`/api/lineage/nodes/member/${n.id}`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Update failed");
@@ -966,7 +958,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
                   onClick={async () => {
                     const r = await fetch(`/api/lineage/nodes/${n.id}/approve`, {
                       method: "POST",
-                      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                      headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
                       body: JSON.stringify({ membershipStatus: "descendant" }),
                     });
                     if (r.ok) { toast({ title: "Approved", description: `${n.fullName} has been approved.` }); queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] }); onRefresh(); }
@@ -982,7 +974,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
                   onClick={async () => {
                     const r = await fetch(`/api/lineage/nodes/${n.id}/reject`, {
                       method: "POST",
-                      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+                      headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
                       body: JSON.stringify({ reason: "Does not meet membership criteria" }),
                     });
                     if (r.ok) { toast({ title: "Rejected", description: `${n.fullName}'s submission has been rejected.` }); queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] }); onRefresh(); onClose(); }
@@ -1070,8 +1062,7 @@ function NodeDetailPanel({ node, token, canEdit, canApprove, currentUserId, onCl
   );
 }
 
-function MemberAddFamilyModal({ token, allNodes, onClose, onSuccess }: {
-  token: string;
+function MemberAddFamilyModal({ allNodes, onClose, onSuccess }: {
   allNodes: LineageNode[];
   onClose: () => void;
   onSuccess: () => void;
@@ -1116,7 +1107,7 @@ function MemberAddFamilyModal({ token, allNodes, onClose, onSuccess }: {
       };
       const r = await fetch("/api/lineage/nodes/member", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Submission failed");
@@ -1252,8 +1243,7 @@ function MemberAddFamilyModal({ token, allNodes, onClose, onSuccess }: {
   );
 }
 
-function AddPersonModal({ token, allNodes, editingNode, onClose, onSuccess }: {
-  token: string;
+function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
   allNodes: LineageNode[];
   editingNode: LineageNode | null;
   onClose: () => void;
@@ -1312,7 +1302,7 @@ function AddPersonModal({ token, allNodes, editingNode, onClose, onSuccess }: {
 
       const r = await fetch(url, {
         method,
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Save failed");
@@ -1450,8 +1440,7 @@ function AddPersonModal({ token, allNodes, editingNode, onClose, onSuccess }: {
   );
 }
 
-function MergeModal({ token, sourceNode, allNodes, onClose, onSuccess }: {
-  token: string;
+function MergeModal({ sourceNode, allNodes, onClose, onSuccess }: {
   sourceNode: LineageNode;
   allNodes: LineageNode[];
   onClose: () => void;
@@ -1474,7 +1463,7 @@ function MergeModal({ token, sourceNode, allNodes, onClose, onSuccess }: {
     mutationFn: async () => {
       const r = await fetch(`/api/lineage/nodes/${sourceNode.id}/merge`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({ targetId: targetNode!.id }),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Merge failed");
@@ -1556,7 +1545,7 @@ function MergeModal({ token, sourceNode, allNodes, onClose, onSuccess }: {
   );
 }
 
-function PhotoUploadTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+function PhotoUploadTab({ onSuccess }: { onSuccess: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
@@ -1570,7 +1559,7 @@ function PhotoUploadTab({ token, onSuccess }: { token: string; onSuccess: () => 
       if (notes) form.append("notes", notes);
       const r = await fetch("/api/family-tree/upload-photo", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: form,
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Upload failed");
@@ -1623,7 +1612,7 @@ function PhotoUploadTab({ token, onSuccess }: { token: string; onSuccess: () => 
   );
 }
 
-function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+function CsvUploadTab({ onSuccess }: { onSuccess: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
 
@@ -1635,7 +1624,7 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
       form.append("file", file);
       const r = await fetch("/api/family-tree/upload-csv", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: form,
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Upload failed");
@@ -1721,7 +1710,7 @@ function CsvUploadTab({ token, onSuccess }: { token: string; onSuccess: () => vo
   );
 }
 
-function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token: string; lineageData?: LineageData; isLoading: boolean; onSuccess: () => void }) {
+function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?: LineageData; isLoading: boolean; onSuccess: () => void }) {
   const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", generationalPosition: "0" });
   const [editId, setEditId] = useState<number | null>(null);
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
@@ -1744,7 +1733,7 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
       if (editId !== null) {
         const r = await fetch(`/api/family-tree/${editId}`, {
           method: "PUT",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         if (!r.ok) throw new Error((await r.json()).error ?? "Update failed");
@@ -1752,7 +1741,7 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
       } else {
         const r = await fetch("/api/family-tree/manual", {
           method: "POST",
-          headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+          headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
           body: JSON.stringify(body),
         });
         if (!r.ok) throw new Error((await r.json()).error ?? "Create failed");
@@ -1884,7 +1873,6 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
 
       {showMemberAddModal && (
         <MemberAddFamilyModal
-          token={token}
           allNodes={(lineageData?.lineage ?? []) as unknown as LineageNode[]}
           onClose={() => setShowMemberAddModal(false)}
           onSuccess={() => { setShowMemberAddModal(false); onSuccess(); }}
@@ -1894,14 +1882,14 @@ function EditAncestorsTab({ token, lineageData, isLoading, onSuccess }: { token:
   );
 }
 
-function KnowledgeOfSelfTab({ token, kosData, lineageData, isLoading, onLink }: { token: string; kosData?: KnowledgeOfSelf; lineageData?: LineageData; isLoading: boolean; onLink: () => void }) {
+function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosData?: KnowledgeOfSelf; lineageData?: LineageData; isLoading: boolean; onLink: () => void }) {
   const [selectedLineageId, setSelectedLineageId] = useState<number | "">("");
 
   const linkMutation = useMutation({
     mutationFn: async (lineageId: number) => {
       const r = await fetch(`/api/family-tree/${lineageId}/link-identity`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({}),
       });
       if (!r.ok) throw new Error((await r.json()).error ?? "Link failed");
@@ -2056,7 +2044,7 @@ interface ImportDocumentResult {
   };
 }
 
-function ImportDocumentTab({ token, onSuccess }: { token: string; onSuccess: () => void }) {
+function ImportDocumentTab({ onSuccess }: { onSuccess: () => void }) {
   const fileRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [result, setResult] = useState<ImportDocumentResult | null>(null);
@@ -2068,7 +2056,7 @@ function ImportDocumentTab({ token, onSuccess }: { token: string; onSuccess: () 
       form.append("file", file);
       const r = await fetch("/api/lineage/import-document", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
         body: form,
       });
       if (!r.ok) {
@@ -2285,14 +2273,14 @@ interface DupScanResult {
   fuzzy: FuzzyGroup[];
 }
 
-function DeduplicateTab({ token, onResolved }: { token: string; onResolved: () => void }) {
+function DeduplicateTab({ onResolved }: { onResolved: () => void }) {
   const { toast } = useToast();
   const isTrustee = useIsTrustee();
 
   const { data, isLoading, refetch } = useQuery<DupScanResult>({
     queryKey: ["lineage-duplicates"],
     queryFn: async () => {
-      const r = await fetch("/api/lineage/duplicates", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/lineage/duplicates", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to scan duplicates");
       return r.json();
     },
@@ -2302,7 +2290,7 @@ function DeduplicateTab({ token, onResolved }: { token: string; onResolved: () =
     mutationFn: async () => {
       const r = await fetch("/api/lineage/duplicates/auto-remove", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!r.ok) throw new Error(await r.text());
       return r.json() as Promise<{ merged: number; removed: number }>;
@@ -2319,7 +2307,7 @@ function DeduplicateTab({ token, onResolved }: { token: string; onResolved: () =
     mutationFn: async ({ keepId, removeId }: { keepId: number; removeId: number }) => {
       const r = await fetch("/api/lineage/duplicates/merge", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({ keepId, removeId }),
       });
       if (!r.ok) throw new Error(await r.text());
@@ -2337,7 +2325,7 @@ function DeduplicateTab({ token, onResolved }: { token: string; onResolved: () =
     mutationFn: async (id: number) => {
       const r = await fetch(`/api/lineage/duplicates/${id}`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!r.ok) throw new Error(await r.text());
       return r.json();

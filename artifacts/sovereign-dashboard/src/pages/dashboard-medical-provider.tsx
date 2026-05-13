@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
 
 const MEDICAL_CENTER = "Mathias El Tribe Medical Center";
@@ -34,8 +34,6 @@ const TRIBAL_AUTHORITY_RULES = [
   { rule: "Tribal Court Order", desc: "Tribal court medical orders take precedence over state court orders for tribal members" },
 ];
 
-function makeToken(u: unknown) { return btoa(JSON.stringify(u)); }
-
 interface MembershipData {
   membershipVerified: boolean;
   delegatedAuthorities: { medicalNotes: string; clinicalAuthority: boolean; memberType: string; allAuthorities: boolean };
@@ -46,9 +44,7 @@ interface MembershipData {
 }
 
 export default function MedicalProviderDashboard() {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const token = makeToken(user);
 
   const [noteType, setNoteType] = useState("clinical");
   const [patientName, setPatientName] = useState("");
@@ -66,7 +62,7 @@ export default function MedicalProviderDashboard() {
   const { data: membership, isLoading } = useQuery<MembershipData>({
     queryKey: ["membership-verify"],
     queryFn: async () => {
-      const r = await fetch("/api/membership/verify", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/membership/verify", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -77,7 +73,7 @@ export default function MedicalProviderDashboard() {
     mutationFn: async () => {
       const r = await fetch("/api/medical/notes/create", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           noteType, patientName: patientName || undefined, forDependent,
           dependentName: forDependent ? dependentName : undefined,

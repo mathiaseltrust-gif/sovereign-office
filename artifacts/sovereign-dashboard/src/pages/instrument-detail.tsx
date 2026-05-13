@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useState } from "react";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 export default function InstrumentDetail({ params }: { params: { id: string } }) {
   const id = Number(params.id);
@@ -18,7 +18,6 @@ export default function InstrumentDetail({ params }: { params: { id: string } })
   const fileInstrument = useFileInstrument();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
   const [fileOpen, setFileOpen] = useState(false);
   const [fileForm, setFileForm] = useState({ county: "", state: "", documentType: "", notes: "" });
 
@@ -41,8 +40,7 @@ export default function InstrumentDetail({ params }: { params: { id: string } })
   };
 
   const downloadPdf = async () => {
-    const token = btoa(JSON.stringify(user));
-    const r = await fetch(`/api/trust/instruments/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(`/api/trust/instruments/${id}/pdf`, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
     if (!r.ok) { toast({ title: "Error", description: "PDF not available.", variant: "destructive" }); return; }
     const blob = await r.blob();
     const url = URL.createObjectURL(blob);

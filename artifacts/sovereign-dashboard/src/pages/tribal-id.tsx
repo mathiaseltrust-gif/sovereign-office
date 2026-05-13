@@ -4,10 +4,8 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-
-function makeToken(u: unknown) { return btoa(JSON.stringify(u)); }
 
 interface GatewayData {
   identity: { userId: number; legalName: string; tribalName: string; title: string; familyGroup: string; courtCaption: string; role: string; identityTags: string[]; displayName: string };
@@ -35,12 +33,10 @@ export default function TribalIdPage() {
   const [generating, setGenerating] = useState(false);
   const [genLetter, setGenLetter] = useState(false);
 
-  const token = user ? makeToken(user) : "";
-
   const { data, isLoading } = useQuery<GatewayData>({
     queryKey: ["identity-gateway", user?.id],
     queryFn: async () => {
-      const r = await fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load identity gateway");
       return r.json();
     },
@@ -53,7 +49,7 @@ export default function TribalIdPage() {
   const handleDownloadId = async () => {
     setGenerating(true);
     try {
-      const r = await fetch(`/api/identity/tribal-id/${user.id}`, { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch(`/api/identity/tribal-id/${user.id}`, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to generate Tribal ID");
       const blob = await r.blob();
       const url = URL.createObjectURL(blob);
@@ -71,7 +67,7 @@ export default function TribalIdPage() {
     try {
       const r = await fetch("/api/identity/verification-letter/generate", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({ purpose: "General Identity Verification" }),
       });
       if (!r.ok) throw new Error("Failed to generate Verification Letter");

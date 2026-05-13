@@ -1,9 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from "react";
-import { useAuth } from "./auth-provider";
+import { useAuth, getCurrentBearerToken } from "./auth-provider";
 import { useLocation } from "wouter";
 
-const makeToken = (user: { id: number | string; email: string; roles: string[]; name: string }) =>
-  btoa(JSON.stringify(user));
 
 interface ChatLawRef {
   title: string;
@@ -117,7 +115,7 @@ export function ChatWidget() {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...(user ? { Authorization: `Bearer ${makeToken(user)}` } : {}),
+          ...(user ? { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } : {}),
         },
         body: JSON.stringify({ message: trimmed }),
       });

@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Link } from "wouter";
 
 function statusColor(status: string) {
@@ -175,7 +176,7 @@ export default function InstrumentsPage() {
                   <Badge variant={statusColor(inst.status) as any}>{inst.status}</Badge>
                   {inst.pdfUrl && (
                     <Button size="sm" variant="outline" data-testid={`button-pdf-${inst.id}`} onClick={async () => {
-                      const token = btoa(JSON.stringify({ id: 1, email: "trustee@sovereign.local", roles: ["trustee"] }));
+                      const token = getCurrentBearerToken() ?? "";
                       const r = await fetch(`/api/trust/instruments/${inst.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
                       const blob = await r.blob();
                       const url = URL.createObjectURL(blob);

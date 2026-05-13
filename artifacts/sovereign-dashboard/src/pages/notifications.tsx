@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 interface Notification {
   id: number;
@@ -100,18 +100,15 @@ function NotificationCard({
 }
 
 export default function NotificationsPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "red_flag" | "tro">("all");
 
-  const token = btoa(JSON.stringify(user));
-
   const loadNotifications = async () => {
     setIsLoading(true);
     try {
-      const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (r.ok) {
         const data = await r.json();
         setNotifications(data);
@@ -131,7 +128,7 @@ export default function NotificationsPage() {
     try {
       await fetch(`/api/notifications/${id}/read`, {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch {
@@ -143,7 +140,7 @@ export default function NotificationsPage() {
     try {
       await fetch("/api/notifications/read-all", {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       toast({ title: "All marked as read" });

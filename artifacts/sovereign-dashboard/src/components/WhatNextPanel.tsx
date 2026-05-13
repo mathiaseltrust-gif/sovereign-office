@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Link } from "wouter";
 
 type OrgAccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
@@ -78,17 +78,12 @@ const AUTHORITY_LABELS: Record<string, string> = {
   visitor_media: "Visitor / Media",
 };
 
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
-
 export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
-  const { user } = useAuth();
-  const token = makeToken(user);
-
   const { data, isLoading } = useQuery<MembershipData>({
     queryKey: ["membership-verify"],
     queryFn: async () => {
       const r = await fetch("/api/membership/verify", {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!r.ok) throw new Error("Failed to load membership data");
       return r.json();

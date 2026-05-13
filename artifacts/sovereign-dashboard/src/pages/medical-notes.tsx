@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
 
 const MEDICAL_CENTER = "Mathias El Tribe Medical Center";
@@ -30,8 +30,6 @@ const PROTECTION_STYLES: Record<string, string> = {
   critical: "bg-red-100 text-red-800",
 };
 
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
-
 interface MembershipData {
   membershipVerified: boolean;
   delegatedAuthorities: { medicalNotes: string; memberType: string; allAuthorities: boolean };
@@ -43,9 +41,7 @@ interface MembershipData {
 }
 
 export default function MedicalNotesPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
-  const token = makeToken(user);
 
   const [noteType, setNoteType] = useState("general");
   const [patientName, setPatientName] = useState("");
@@ -61,7 +57,7 @@ export default function MedicalNotesPage() {
   const { data: membership, isLoading: membershipLoading } = useQuery<MembershipData>({
     queryKey: ["membership-verify"],
     queryFn: async () => {
-      const r = await fetch("/api/membership/verify", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/membership/verify", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
@@ -72,7 +68,7 @@ export default function MedicalNotesPage() {
     mutationFn: async () => {
       const r = await fetch("/api/medical/notes/create", {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           noteType,
           patientName: patientName || undefined,

@@ -156,14 +156,11 @@ interface CourtDoc {
   emergencyOrder: boolean; intakeFlags: Record<string, unknown>; createdAt: string; pdfUrl: string | null;
 }
 
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
-
 function useTemplates() {
-  const { user } = useAuth();
   return useQuery<Template[]>({
     queryKey: ["court-doc-templates"],
     queryFn: async () => {
-      const r = await fetch("/api/court/documents/templates", { headers: { Authorization: `Bearer ${makeToken(user)}` } });
+      const r = await fetch("/api/court/documents/templates", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load templates");
       return r.json();
     },
@@ -172,11 +169,10 @@ function useTemplates() {
 }
 
 function useCourtDocs() {
-  const { user } = useAuth();
   return useQuery<CourtDoc[]>({
     queryKey: ["court-docs"],
     queryFn: async () => {
-      const r = await fetch("/api/court/documents", { headers: { Authorization: `Bearer ${makeToken(user)}` } });
+      const r = await fetch("/api/court/documents", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load court documents");
       return r.json();
     },
@@ -195,7 +191,6 @@ const DOC_TYPE_COLORS: Record<string, string> = {
 };
 
 export default function CourtDocumentsPage() {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { data: templates, isLoading: templatesLoading } = useTemplates();
@@ -214,7 +209,7 @@ export default function CourtDocumentsPage() {
     mutationFn: async () => {
       const r = await fetch("/api/court/documents/generate", {
         method: "POST",
-        headers: { Authorization: `Bearer ${makeToken(user)}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId: selectedTemplate,
           caseDetails: { caseNumber, court, notes },
@@ -243,7 +238,7 @@ export default function CourtDocumentsPage() {
   });
 
   const downloadPdf = async (id: number) => {
-    const r = await fetch(`/api/court/documents/${id}/pdf`, { headers: { Authorization: `Bearer ${makeToken(user)}` } });
+    const r = await fetch(`/api/court/documents/${id}/pdf`, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
     if (!r.ok) { toast({ title: "Error", description: "PDF not available.", variant: "destructive" }); return; }
     const blob = await r.blob();
     window.open(URL.createObjectURL(blob));

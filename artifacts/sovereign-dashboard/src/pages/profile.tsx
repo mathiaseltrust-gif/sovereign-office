@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { DelegationPanel } from "@/components/DelegationPanel";
 
 interface ProfileData {
@@ -56,13 +56,11 @@ export default function ProfilePage() {
   const [preferredJurisdiction, setPreferredJurisdiction] = useState("");
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
 
-  const token = btoa(JSON.stringify(user));
-
   useEffect(() => {
     const load = async () => {
       setIsLoading(true);
       try {
-        const r = await fetch("/api/user/profile", { headers: { Authorization: `Bearer ${token}` } });
+        const r = await fetch("/api/user/profile", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
         if (r.ok) {
           const d: ProfileData = await r.json();
           setData(d);
@@ -91,7 +89,7 @@ export default function ProfilePage() {
     try {
       const r = await fetch("/api/user/profile", {
         method: "PUT",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           legalName: legalName || undefined,
           preferredName: preferredName || undefined,

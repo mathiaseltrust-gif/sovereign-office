@@ -17,7 +17,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 
 type WelfareAct = "ICWA" | "SNYDER" | "IHCIA" | "ISDEAA" | "TRIBAL_CODE" | "TRIBAL_WELFARE" | "TRIBAL_PROTECTIVE_ORDER" | "EMERGENCY_WELFARE" | "TRO_WELFARE";
 type InstrumentType =
@@ -263,7 +263,7 @@ function CreateInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
 export default function WelfarePage() {
   const [tab, setTab] = useState("all");
   const { data, isLoading } = useListWelfareInstruments();
-  const { user, activeRole } = useAuth();
+  const { activeRole } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const issueInstrument = useIssueWelfareInstrument();
@@ -272,7 +272,7 @@ export default function WelfarePage() {
   const canIssue = ["trustee", "admin"].includes(activeRole);
 
   const downloadPdf = async (id: number) => {
-    const token = btoa(JSON.stringify(user));
+    const token = getCurrentBearerToken() ?? "";
     const r = await fetch(`/api/court/welfare/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
     if (!r.ok) {
       toast({ title: "Error", description: "PDF not available.", variant: "destructive" });

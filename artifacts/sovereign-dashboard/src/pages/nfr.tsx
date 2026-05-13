@@ -5,14 +5,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 export default function NfrPage() {
   const { data: nfrs, isLoading } = useListNfrs();
   const exportPdf = useExportNfrPdf();
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { user } = useAuth();
 
   const handleExport = (id: number) => {
     exportPdf.mutate({ id }, {
@@ -25,7 +24,7 @@ export default function NfrPage() {
   };
 
   const downloadPdf = async (id: number) => {
-    const token = btoa(JSON.stringify(user));
+    const token = getCurrentBearerToken() ?? "";
     const r = await fetch(`/api/court/nfr/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
     if (!r.ok) { toast({ title: "Error", description: "PDF not available.", variant: "destructive" }); return; }
     const blob = await r.blob();

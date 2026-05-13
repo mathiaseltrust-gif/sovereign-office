@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Shield, AlertTriangle, CheckCircle2, ChevronDown, ChevronUp, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 
 interface RedFlagResult {
   clear: boolean;
@@ -50,8 +50,7 @@ const RISK_COLORS: Record<string, string> = {
 
 async function runSovereignScreen(
   intakeType: Props["intakeType"],
-  contextHint: string | undefined,
-  sessionToken: string | undefined
+  contextHint: string | undefined
 ): Promise<RedFlagResult> {
   const systemMsg = `You are the Sovereign Protective Screen for the Mathias El Tribe Office of the Chief Justice & Trustee.
 Your function is to run a jurisdictional and sovereignty compliance pre-check BEFORE an intake is submitted.
@@ -83,7 +82,7 @@ Respond ONLY with JSON:
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        Authorization: `Bearer ${sessionToken ?? ""}`,
+        Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
       },
       body: JSON.stringify({
         text: `PRE-SCREEN CHECK — Intake type: ${intakeType}. ${contextHint ?? ""}`,
@@ -143,7 +142,6 @@ Respond ONLY with JSON:
 }
 
 export function SovereignIntakeGuard({ intakeType, contextHint, onClear }: Props) {
-  const { sessionToken } = useAuth();
   const [screening, setScreening] = useState(false);
   const [result, setResult] = useState<RedFlagResult | null>(null);
   const [showDoctrines, setShowDoctrines] = useState(false);
@@ -153,7 +151,7 @@ export function SovereignIntakeGuard({ intakeType, contextHint, onClear }: Props
 
   async function runScreen() {
     setScreening(true);
-    const r = await runSovereignScreen(intakeType, contextHint, sessionToken);
+    const r = await runSovereignScreen(intakeType, contextHint);
     setResult(r);
     setScreening(false);
     setScreened(true);

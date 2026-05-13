@@ -6,20 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 
 interface LawEntry { id: number; title: string; citation: string; body: string; tags: string[] }
 interface DoctrineEntry { id: number; caseName: string; citation: string; summary: string; tags: string[] }
 interface LawLibrary { federal: LawEntry[]; tribal: LawEntry[]; doctrines: DoctrineEntry[] }
 
-function makeToken(user: unknown) { return btoa(JSON.stringify(user)); }
-
 function useLawLibrary() {
-  const { user } = useAuth();
   return useQuery<LawLibrary>({
     queryKey: ["law-library"],
     queryFn: async () => {
-      const r = await fetch("/api/law", { headers: { Authorization: `Bearer ${makeToken(user)}` } });
+      const r = await fetch("/api/law", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load law library");
       return r.json();
     },
@@ -28,12 +25,11 @@ function useLawLibrary() {
 }
 
 function useLawSearch(q: string) {
-  const { user } = useAuth();
   return useQuery<LawLibrary>({
     queryKey: ["law-search", q],
     queryFn: async () => {
       const r = await fetch(`/api/law/search?q=${encodeURIComponent(q)}`, {
-        headers: { Authorization: `Bearer ${makeToken(user)}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!r.ok) throw new Error("Search failed");
       return r.json();

@@ -3,11 +3,9 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useAuth } from "@/components/auth-provider";
+import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
-
-function makeToken(u: unknown) { return btoa(JSON.stringify(u)); }
 
 interface GatewayData {
   identity: { legalName: string; tribalName: string; familyGroup: string; displayName: string; identityTags: string[] };
@@ -33,13 +31,10 @@ const ELDER_DUTIES = [
 ];
 
 export default function ElderDashboard() {
-  const { user } = useAuth();
-  const token = makeToken(user);
-
   const { data, isLoading } = useQuery<GatewayData>({
     queryKey: ["identity-gateway"],
     queryFn: async () => {
-      const r = await fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${token}` } });
+      const r = await fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load identity gateway");
       return r.json();
     },
