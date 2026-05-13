@@ -51,6 +51,7 @@ export default function Login() {
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Microsoft login unavailable" })) as { error?: string };
         toast({ title: "Microsoft login unavailable", description: err.error ?? "Contact your administrator.", variant: "destructive" });
+        setMicrosoftLoading(false);
         return;
       }
       const { authUrl } = await res.json() as { authUrl: string };
@@ -59,10 +60,51 @@ export default function Login() {
       } else {
         sessionStorage.removeItem("oauth_next");
       }
-      window.location.href = authUrl;
+
+      const w = 520;
+      const h = 640;
+      const left = Math.max(0, (window.screen.width - w) / 2);
+      const top = Math.max(0, (window.screen.height - h) / 2);
+      const popup = window.open(
+        authUrl,
+        "ms_oauth_login",
+        `width=${w},height=${h},left=${left},top=${top},scrollbars=yes,resizable=yes`,
+      );
+
+      if (!popup || popup.closed) {
+        window.open(authUrl, "_blank");
+        setMicrosoftLoading(false);
+        return;
+      }
+
+      const messageHandler = (event: MessageEvent) => {
+        if (event.data?.type !== "OAUTH_SUCCESS") return;
+        window.removeEventListener("message", messageHandler);
+        clearInterval(closedPoll);
+        const { sessionToken, user } = event.data as {
+          sessionToken: string;
+          user: { id: number; email: string; name: string; roles: string[] };
+        };
+        loginWithSessionToken(sessionToken, {
+          id: user.id,
+          dbId: user.id,
+          email: user.email,
+          name: user.name,
+          roles: user.roles,
+        });
+        setMicrosoftLoading(false);
+      };
+      window.addEventListener("message", messageHandler);
+
+      const closedPoll = setInterval(() => {
+        if (popup.closed) {
+          clearInterval(closedPoll);
+          window.removeEventListener("message", messageHandler);
+          setMicrosoftLoading(false);
+        }
+      }, 800);
     } catch {
       toast({ title: "Error", description: "Could not reach the authentication server.", variant: "destructive" });
-    } finally {
       setMicrosoftLoading(false);
     }
   }

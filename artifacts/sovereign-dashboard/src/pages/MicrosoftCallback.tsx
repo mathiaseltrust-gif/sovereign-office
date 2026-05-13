@@ -47,6 +47,20 @@ export default function MicrosoftCallback() {
         }
 
         const roles = data.user.roles ?? [data.user.role];
+
+        if (window.opener && !window.opener.closed) {
+          window.opener.postMessage(
+            {
+              type: "OAUTH_SUCCESS",
+              sessionToken: data.sessionToken,
+              user: { id: data.user.id, email: data.user.email, name: data.user.name, roles },
+            },
+            window.location.origin,
+          );
+          window.close();
+          return;
+        }
+
         loginWithSessionToken(data.sessionToken, {
           id: data.user.id,
           dbId: data.user.id,
