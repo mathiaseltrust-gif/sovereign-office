@@ -14,6 +14,9 @@
 
 set -euo pipefail
 
+# ── Image tag — versioned to force ACR pull (never use :latest — Azure caches it) ──
+IMAGE_TAG="v$(date +%Y%m%d-%H%M)"
+
 # ── Configuration — all pre-filled ───────────────────────────────────────────
 RESOURCE_GROUP="sovereign-office-rg"
 LOCATION="eastus"
@@ -73,7 +76,7 @@ az containerapp create \
   --name "sovereign-api" \
   --resource-group "$RESOURCE_GROUP" \
   --environment "$ENVIRONMENT_NAME" \
-  --image "$ACR_SERVER/sovereign-api:latest" \
+  --image "$ACR_SERVER/sovereign-api:$IMAGE_TAG" \
   --registry-server "$ACR_SERVER" \
   --registry-username "$ACR_USERNAME" \
   --registry-password "$ACR_PASSWORD" \
@@ -97,7 +100,17 @@ az containerapp create \
 az containerapp update \
   --name "sovereign-api" \
   --resource-group "$RESOURCE_GROUP" \
-  --image "$ACR_SERVER/sovereign-api:latest" \
+  --image "$ACR_SERVER/sovereign-api:$IMAGE_TAG" \
+  --set-env-vars \
+    "PORT=8080" \
+    "NODE_ENV=production" \
+    "DATABASE_URL=$DATABASE_URL" \
+    "SESSION_SECRET=$SESSION_SECRET" \
+    "SERVICE_KEY=$SERVICE_KEY" \
+    "AZURE_ENTRA_TENANT_ID=$ENTRA_TENANT_ID" \
+    "AZURE_ENTRA_CLIENT_ID=$ENTRA_CLIENT_ID" \
+    "AZURE_ENTRA_CLIENT_SECRET=$ENTRA_CLIENT_SECRET" \
+    "LOG_LEVEL=info" \
   --output none
 
 # Get the API URL
@@ -122,7 +135,7 @@ az containerapp create \
   --name "sovereign-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
   --environment "$ENVIRONMENT_NAME" \
-  --image "$ACR_SERVER/sovereign-dashboard:latest" \
+  --image "$ACR_SERVER/sovereign-dashboard:$IMAGE_TAG" \
   --registry-server "$ACR_SERVER" \
   --registry-username "$ACR_USERNAME" \
   --registry-password "$ACR_PASSWORD" \
@@ -136,7 +149,7 @@ az containerapp create \
 az containerapp update \
   --name "sovereign-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
-  --image "$ACR_SERVER/sovereign-dashboard:latest" \
+  --image "$ACR_SERVER/sovereign-dashboard:$IMAGE_TAG" \
   --output none
 
 SOVEREIGN_URL="https://$(az containerapp show \
@@ -152,7 +165,7 @@ az containerapp create \
   --name "trust-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
   --environment "$ENVIRONMENT_NAME" \
-  --image "$ACR_SERVER/trust-dashboard:latest" \
+  --image "$ACR_SERVER/trust-dashboard:$IMAGE_TAG" \
   --registry-server "$ACR_SERVER" \
   --registry-username "$ACR_USERNAME" \
   --registry-password "$ACR_PASSWORD" \
@@ -166,7 +179,7 @@ az containerapp create \
 az containerapp update \
   --name "trust-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
-  --image "$ACR_SERVER/trust-dashboard:latest" \
+  --image "$ACR_SERVER/trust-dashboard:$IMAGE_TAG" \
   --output none
 
 TRUST_URL="https://$(az containerapp show \
@@ -182,7 +195,7 @@ az containerapp create \
   --name "community-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
   --environment "$ENVIRONMENT_NAME" \
-  --image "$ACR_SERVER/community-dashboard:latest" \
+  --image "$ACR_SERVER/community-dashboard:$IMAGE_TAG" \
   --registry-server "$ACR_SERVER" \
   --registry-username "$ACR_USERNAME" \
   --registry-password "$ACR_PASSWORD" \
@@ -196,7 +209,7 @@ az containerapp create \
 az containerapp update \
   --name "community-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
-  --image "$ACR_SERVER/community-dashboard:latest" \
+  --image "$ACR_SERVER/community-dashboard:$IMAGE_TAG" \
   --output none
 
 COMMUNITY_URL="https://$(az containerapp show \

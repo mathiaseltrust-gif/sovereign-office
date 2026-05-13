@@ -1,0 +1,38 @@
+chief [ ~ ]$ TAG="v2-20260513"
+RG="sovereign-office-rg"
+ACR="sovereignoffice.azurecr.io"
+
+for APP in sovereign-dashboard trust-dashboard community-dashboard; do
+  echo "Updating $APP..."
+  az containerapp update --name "$APP" --resource-group "$RG" \
+    --image "$ACR/$APP:$TAG" \
+    --query "properties.latestRevisionName" -o tsv
+done
+Updating sovereign-dashboard...
+sovereign-dashboard--0000001
+Updating trust-dashboard...
+trust-dashboard--0000001
+Updating community-dashboard...
+community-dashboard--0000001
+chief [ ~ ]$ az containerapp logs show \
+  --name sovereign-dashboard \
+  --resource-group sovereign-office-rg \
+  --tail 15
+{"TimeStamp": "2026-05-13T05:10:08.90219", "Log": "Connecting to the container 'sovereign-dashboard'..."}
+{"TimeStamp": "2026-05-13T05:10:09.04109", "Log": "Successfully Connected to container: 'sovereign-dashboard' [Revision: 'sovereign-dashboard--0000001', Replica: 'sovereign-dashboard--0000001-b978fc659-8fckp']"}
+{"TimeStamp": "2026-05-13T05:09:11.0822517+00:00", "Log": "F /docker-entrypoint.sh: Sourcing /docker-entrypoint.d/15-local-resolvers.envsh"}
+{"TimeStamp": "2026-05-13T05:09:11.0822538+00:00", "Log": "F /docker-entrypoint.sh: Launching /docker-entrypoint.d/20-envsubst-on-templates.sh"}
+{"TimeStamp": "2026-05-13T05:09:11.0864997+00:00", "Log": "F /docker-entrypoint.sh: Launching /docker-entrypoint.d/30-tune-worker-processes.sh"}
+{"TimeStamp": "2026-05-13T05:09:11.0882954+00:00", "Log": "F /docker-entrypoint.sh: Configuration complete; ready for start up"}
+{"TimeStamp": "2026-05-13T05:09:11.1096939+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: using the \"epoll\" event method"}
+{"TimeStamp": "2026-05-13T05:09:11.1097319+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: nginx/1.27.5"}
+{"TimeStamp": "2026-05-13T05:09:11.1097476+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: built by gcc 14.2.0 (Alpine 14.2.0)"}
+{"TimeStamp": "2026-05-13T05:09:11.1097507+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: OS: Linux 6.6.130.1-3.azl3"}
+{"TimeStamp": "2026-05-13T05:09:11.109753+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: getrlimit(RLIMIT_NOFILE): 1048576:1048576"}
+{"TimeStamp": "2026-05-13T05:09:11.1098439+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: start worker processes"}
+{"TimeStamp": "2026-05-13T05:09:11.1100169+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: start worker process 19"}
+{"TimeStamp": "2026-05-13T05:09:11.1102989+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: start worker process 20"}
+{"TimeStamp": "2026-05-13T05:09:11.1106319+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: start worker process 21"}
+{"TimeStamp": "2026-05-13T05:09:11.1106473+00:00", "Log": "F 2026/05/13 05:09:11 [notice] 1#1: start worker process 22"}
+{"TimeStamp": "2026-05-13T05:10:03.147398+00:00", "Log": "F 100.100.0.28 - - [13/May/2026:05:10:03 +0000] \"GET / HTTP/1.1\" 200 612 \"-\" \"python-requests/2.33.0\" \"57.154.182.51\""}
+chief [ ~ ]$ 
