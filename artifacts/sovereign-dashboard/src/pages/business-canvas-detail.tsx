@@ -28,6 +28,7 @@ interface BizDocument {
   filename: string;
   uploadedAt: string;
   uploadedBy: string | null;
+  fileKey: string | null;
 }
 
 interface WhatNextStep {
@@ -484,8 +485,35 @@ function BoardTab({ concept, onBoardUpdated }: { concept: BusinessConcept; onBoa
 function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onDocUpdated: () => void }) {
   const [uploading, setUploading] = useState(false);
   const [progress, setProgress] = useState(0);
+  const [downloadingId, setDownloadingId] = useState<number | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  async function handleDownload(d: BizDocument) {
+    if (!d.fileKey) return;
+    setDownloadingId(d.id);
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const objectSuffix = d.fileKey.replace(/^\/objects\//, "");
+      const res = await fetch(`/api/storage/objects/${objectSuffix}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error(`Download failed (${res.status})`);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+      const anchor = document.createElement("a");
+      anchor.href = blobUrl;
+      anchor.download = d.filename;
+      document.body.appendChild(anchor);
+      anchor.click();
+      document.body.removeChild(anchor);
+      URL.revokeObjectURL(blobUrl);
+    } catch (err) {
+      toast({ title: "Download failed", description: err instanceof Error ? err.message : undefined, variant: "destructive" });
+    } finally {
+      setDownloadingId(null);
+    }
+  }
 
   async function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -506,9 +534,10 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
     setUploading(true);
     setProgress(10);
     try {
+      const token = getCurrentBearerToken() ?? "";
       const urlRes = await fetch("/api/storage/uploads/request-url", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({
           name: file.name,
           size: file.size,
@@ -529,7 +558,7 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
       setProgress(80);
       const docRes = await fetch(`/api/business/concepts/${concept.id}/documents`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
         body: JSON.stringify({ filename: file.name, fileKey: objectPath }),
       });
       if (!docRes.ok) throw new Error("Failed to record document");
@@ -594,15 +623,16 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
                   {d.uploadedBy ? ` by ${d.uploadedBy}` : ""}
                 </p>
               </div>
-              {(d as BizDocument & { fileKey?: string }).fileKey && (
-                <a
-                  href={`/api/storage/objects/${(d as BizDocument & { fileKey?: string }).fileKey?.replace(/^\/objects\//, "")}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="text-xs text-primary underline shrink-0"
+              {d.fileKey && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="text-xs text-primary shrink-0 px-2"
+                  disabled={downloadingId === d.id}
+                  onClick={() => handleDownload(d)}
                 >
-                  Download
-                </a>
+                  {downloadingId === d.id ? "Downloading…" : "Download"}
+                </Button>
               )}
             </div>
           ))}
