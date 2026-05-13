@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useLocation } from "wouter";
+import { useMutation } from "@tanstack/react-query";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
@@ -87,9 +88,45 @@ export default function BusinessCanvasWizard() {
   const [analyzing, setAnalyzing] = useState(false);
   const [patching, setPatching] = useState(false);
   const [guardCleared, setGuardCleared] = useState(false);
+  const [uploadedFileName, setUploadedFileName] = useState<string | null>(null);
+  const uploadFileRef = useRef<HTMLInputElement>(null);
   const conceptIdRef = useRef<number | null>(null);
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  const uploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const form = new FormData();
+      form.append("file", file);
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch("/api/intake/upload", {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: form,
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({ error: "Upload failed" })) as { error?: string };
+        throw new Error(err.error ?? "Upload failed");
+      }
+      return r.json() as Promise<{ text: string; filename: string; file_type: string; char_count: number }>;
+    },
+    onSuccess: (data) => {
+      if (data.text && data.text.trim().length > 0) {
+        setIdeaText((prev) => prev ? `${prev}\n\n---\n\n${data.text.trim()}` : data.text.trim());
+        setUploadedFileName(data.filename);
+        if (!conceptTitle && data.filename) {
+          const name = data.filename.replace(/\.[^/.]+$/, "").replace(/[_-]/g, " ");
+          setConceptTitle(name);
+        }
+        toast({ title: `Document extracted`, description: `${data.char_count.toLocaleString()} characters from "${data.filename}" added to the description.` });
+      } else {
+        toast({ title: "Nothing extracted", description: "The file had no readable text. Try a PDF with text or a typed document.", variant: "destructive" });
+      }
+    },
+    onError: (err: Error) => {
+      toast({ title: "Upload failed", description: err.message, variant: "destructive" });
+    },
+  });
 
   async function runAnalysis() {
     if (!ideaText.trim() || ideaText.trim().length < 10) {
@@ -225,15 +262,48 @@ export default function BusinessCanvasWizard() {
               />
             </div>
             <div>
-              <Label htmlFor="idea">Describe Your Idea *</Label>
+              <div className="flex items-center justify-between mb-1">
+                <Label htmlFor="idea">Describe Your Idea *</Label>
+                <div className="flex items-center gap-2">
+                  {uploadedFileName && !uploadMutation.isPending && (
+                    <span className="text-xs text-muted-foreground truncate max-w-[160px]">{uploadedFileName}</span>
+                  )}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="text-xs h-7 px-3"
+                    onClick={() => uploadFileRef.current?.click()}
+                    disabled={uploadMutation.isPending}
+                  >
+                    {uploadMutation.isPending ? "Extracting…" : "Upload Document"}
+                  </Button>
+                  <input
+                    ref={uploadFileRef}
+                    type="file"
+                    accept=".pdf,.csv,.txt,.doc,.docx,.png,.jpg,.jpeg,.gif,.webp"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) uploadMutation.mutate(file);
+                      e.target.value = "";
+                    }}
+                  />
+                </div>
+              </div>
               <Textarea
                 id="idea"
-                placeholder="Describe your business idea — what it does, who it serves, where it operates, and any initial thoughts on structure or goals..."
+                placeholder="Describe your business idea — what it does, who it serves, where it operates, and any initial thoughts on structure or goals…&#10;&#10;Or click 'Upload Document' above to extract text from a PDF, Word doc, or image."
                 value={ideaText}
                 onChange={(e) => setIdeaText(e.target.value)}
-                className="mt-1 min-h-[160px]"
+                className="min-h-[160px]"
               />
-              <p className="text-xs text-muted-foreground mt-1">{ideaText.length} characters</p>
+              <div className="flex items-center justify-between mt-1">
+                <p className="text-xs text-muted-foreground">{ideaText.length} characters</p>
+                {uploadMutation.isError && (
+                  <p className="text-xs text-destructive">{(uploadMutation.error as Error).message}</p>
+                )}
+              </div>
             </div>
             <div className="flex justify-end">
               <Button onClick={runAnalysis} disabled={analyzing || ideaText.trim().length < 10} size="lg">
