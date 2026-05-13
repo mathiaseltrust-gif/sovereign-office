@@ -50,6 +50,7 @@ COPY --from=builder /workspace/artifacts/community-dashboard/dist/public \
                     /usr/share/nginx/html
 
 ARG API_HOST=api:8080
+ARG API_SCHEME=http
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -58,9 +59,11 @@ RUN printf "server {\n\
     gzip_types text/plain text/css application/javascript application/json;\n\
 \n\
     location /api/ {\n\
-        proxy_pass         http://${API_HOST}/api/;\n\
+        proxy_pass         ${API_SCHEME}://${API_HOST}/api/;\n\
+        proxy_ssl_verify   off;\n\
+        proxy_ssl_server_name on;\n\
         proxy_http_version 1.1;\n\
-        proxy_set_header   Host \$host;\n\
+        proxy_set_header   Host ${API_HOST};\n\
         proxy_set_header   X-Real-IP \$remote_addr;\n\
         proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
         proxy_set_header   X-Forwarded-Proto \$scheme;\n\

@@ -63,6 +63,7 @@ COPY --from=builder /workspace/artifacts/sovereign-dashboard/dist/public \
 #  - /     → SPA static files with index.html fallback
 # API_HOST build arg lets you point at a different backend if needed.
 ARG API_HOST=api:8080
+ARG API_SCHEME=http
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -71,11 +72,12 @@ RUN printf "server {\n\
     gzip_types text/plain text/css application/javascript application/json;\n\
 \n\
     # Proxy all /api/* requests to the API server.\n\
-    # In docker-compose the API container is named 'api' and listens on 8080.\n\
     location /api/ {\n\
-        proxy_pass         http://${API_HOST}/api/;\n\
+        proxy_pass         ${API_SCHEME}://${API_HOST}/api/;\n\
+        proxy_ssl_verify   off;\n\
+        proxy_ssl_server_name on;\n\
         proxy_http_version 1.1;\n\
-        proxy_set_header   Host \$host;\n\
+        proxy_set_header   Host ${API_HOST};\n\
         proxy_set_header   X-Real-IP \$remote_addr;\n\
         proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
         proxy_set_header   X-Forwarded-Proto \$scheme;\n\
