@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
 
-type Tab = "import-document" | "upload-photo" | "upload-csv" | "view-lineage" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
+type Tab = "view-lineage" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
 interface LineageNode {
   id: number;
@@ -118,9 +118,6 @@ interface KnowledgeOfSelf {
 }
 
 const TAB_LABELS: Record<Tab, string> = {
-  "import-document": "Import from Document",
-  "upload-photo": "Upload Photo",
-  "upload-csv": "Upload CSV",
   "view-lineage": "Visual Tree",
   "edit-ancestors": "Edit Ancestors",
   "knowledge-of-self": "Knowledge-of-Self Links",
@@ -142,6 +139,51 @@ const CANVAS_PADDING = 60;
 function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; totalW: number; totalH: number } {
   if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
 
+  // ── Identify root (lowest gen, or ID 20 if present) ──────────────────────
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const rootNode = nodes.find((n) => n.id === 20) ?? nodes.reduce((a, b) =>
+    (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
+  );
+
+  // ── Tag each node as paternal / maternal / root via BFS ──────────────────
+  const side = new Map<number, "root" | "paternal" | "maternal">();
+  side.set(rootNode.id, "root");
+
+  // Build child→parent map for upward traversal
+  const parentOf = new Map<number, number[]>();
+  for (const n of nodes) {
+    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    parentOf.set(n.id, pids);
+  }
+
+  // Find direct parents of root — first = paternal, second = maternal
+  const rootParents = parentOf.get(rootNode.id) ?? [];
+  const paternalRootId = rootParents[0] ?? null;
+  const maternalRootId = rootParents[1] ?? null;
+
+  function tagSubtree(startId: number, label: "paternal" | "maternal") {
+    const queue = [startId];
+    while (queue.length) {
+      const cur = queue.shift()!;
+      if (side.has(cur)) continue;
+      side.set(cur, label);
+      const n = byId.get(cur);
+      if (!n) continue;
+      const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+      for (const pid of pids) {
+        if (!side.has(pid)) queue.push(pid);
+      }
+    }
+  }
+
+  if (paternalRootId) tagSubtree(paternalRootId, "paternal");
+  if (maternalRootId) tagSubtree(maternalRootId, "maternal");
+  // Any remaining untagged nodes default to paternal
+  for (const n of nodes) {
+    if (!side.has(n.id)) side.set(n.id, "paternal");
+  }
+
+  // ── Group by generation ───────────────────────────────────────────────────
   const byGen = new Map<number, LineageNode[]>();
   for (const n of nodes) {
     const gen = n.generationalPosition ?? 0;
@@ -150,20 +192,64 @@ function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; to
   }
 
   const sortedGens = [...byGen.keys()].sort((a, b) => a - b);
-  const positioned: PositionedNode[] = [];
+
+  // ── Sort within each generation: root → paternal (left) → maternal (right) ─
+  for (const [gen, arr] of byGen) {
+    byGen.set(gen, arr.sort((a, b) => {
+      const order = { root: 1, paternal: 0, maternal: 2 } as Record<string, number>;
+      const sa = order[side.get(a.id) ?? "paternal"] ?? 0;
+      const sb = order[side.get(b.id) ?? "paternal"] ?? 0;
+      return sa - sb;
+    }));
+  }
 
   const maxPerGen = Math.max(...[...byGen.values()].map((g) => g.length));
   const totalW = CANVAS_PADDING * 2 + maxPerGen * NODE_W + (maxPerGen - 1) * H_GAP;
+  const positioned: PositionedNode[] = [];
 
   sortedGens.forEach((gen, genIndex) => {
     const nodesInGen = byGen.get(gen)!;
-    const rowW = nodesInGen.length * NODE_W + (nodesInGen.length - 1) * H_GAP;
-    const startX = (totalW - rowW) / 2;
+    const paternal = nodesInGen.filter((n) => side.get(n.id) === "paternal");
+    const root = nodesInGen.filter((n) => side.get(n.id) === "root");
+    const maternal = nodesInGen.filter((n) => side.get(n.id) === "maternal");
+
+    // For gen 0: center the root node; for other gens: paternal left, maternal right with gap
     const y = CANVAS_PADDING + genIndex * (NODE_H + V_GAP);
-    nodesInGen.forEach((node, i) => {
-      const x = startX + i * (NODE_W + H_GAP);
-      positioned.push({ ...node, x, y });
-    });
+
+    if (root.length > 0 && paternal.length === 0 && maternal.length === 0) {
+      // Only root node in this row — center it
+      const x = (totalW - NODE_W) / 2;
+      root.forEach((n) => positioned.push({ ...n, x, y }));
+    } else {
+      // Lay out paternal on left half, root in center, maternal on right half
+      const CENTER_GAP = 32;
+      const halfW = (totalW - CENTER_GAP) / 2;
+
+      // Paternal block (left)
+      if (paternal.length > 0) {
+        const blockW = paternal.length * NODE_W + (paternal.length - 1) * H_GAP;
+        const startX = halfW - blockW; // right-align within left half
+        paternal.forEach((n, i) => {
+          positioned.push({ ...n, x: startX + i * (NODE_W + H_GAP), y });
+        });
+      }
+
+      // Root block (center)
+      if (root.length > 0) {
+        const centerX = (totalW - NODE_W) / 2;
+        root.forEach((n, i) => {
+          positioned.push({ ...n, x: centerX + i * (NODE_W + H_GAP), y });
+        });
+      }
+
+      // Maternal block (right)
+      if (maternal.length > 0) {
+        const startX = halfW + CENTER_GAP;
+        maternal.forEach((n, i) => {
+          positioned.push({ ...n, x: startX + i * (NODE_W + H_GAP), y });
+        });
+      }
+    }
   });
 
   const totalH = CANVAS_PADDING * 2 + sortedGens.length * NODE_H + (sortedGens.length - 1) * V_GAP;
@@ -270,15 +356,6 @@ export default function FamilyTreePage() {
         ))}
       </div>
 
-      {activeTab === "import-document" && (
-        <ImportDocumentTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-      )}
-      {activeTab === "upload-photo" && (
-        <PhotoUploadTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Photo uploaded", description: "Use Edit Ancestors to extract names and dates." }); }} />
-      )}
-      {activeTab === "upload-csv" && (
-        <CsvUploadTab onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Lineage imported", description: "Family tree data has been stored." }); }} />
-      )}
       {activeTab === "view-lineage" && (
         <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
