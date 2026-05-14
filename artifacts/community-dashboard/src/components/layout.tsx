@@ -12,6 +12,7 @@ import {
   Users,
   X,
   LogOut,
+  GraduationCap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -20,6 +21,7 @@ import { getSovereignSession } from "@/lib/utils";
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Family Directory", href: "/directory", icon: Users },
+  { name: "SDU", href: "/university", icon: GraduationCap },
   { name: "Legal Resources", href: "/legal", icon: BookOpen },
   { name: "Community Forum", href: "/forum", icon: MessageSquare },
   { name: "Legal Guidance", href: "/guidance", icon: MessageCircle },
