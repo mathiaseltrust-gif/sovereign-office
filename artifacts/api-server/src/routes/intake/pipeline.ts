@@ -193,7 +193,7 @@ router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => 
 
 router.post("/:id/print", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const userId = req.user ? Number(req.user.id) : undefined;
     const now = new Date();
 
@@ -274,7 +274,7 @@ router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => 
 
 router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     const [record] = await db
       .select()
       .from(sovereignPipelineTable)
