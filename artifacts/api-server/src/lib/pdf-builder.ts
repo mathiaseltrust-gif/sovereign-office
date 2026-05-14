@@ -824,7 +824,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   page.drawText("TRIBE", { x: 8 + (LOGO_PANEL_W - helveticaBold.widthOfTextAtSize("TRIBE", 7)) / 2, y: height - 42, size: 7, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
 
   // SSML enrollment number at bottom of logo panel
-  const ssmEl = input.tribalEnrollmentNumber ?? `SSML${String(input.userId).padStart(2, "0")}`;
+  const ssmEl = input.tribalEnrollmentNumber ?? `SSMEL${String(input.userId).padStart(2, "0")}`;
   const ssmElW = helveticaBold.widthOfTextAtSize(ssmEl, 8);
   page.drawText(ssmEl, { x: 8 + (LOGO_PANEL_W - ssmElW) / 2, y: 22, size: 8, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
   page.drawText("ENROLLMENT NO.", { x: 8 + (LOGO_PANEL_W - helvetica.widthOfTextAtSize("ENROLLMENT NO.", 5.5)) / 2, y: 14, size: 5.5, font: helvetica, color: rgb(0.65, 0.60, 0.40) });

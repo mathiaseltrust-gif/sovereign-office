@@ -1044,7 +1044,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
             {n.deathYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Death year</span><span>{n.deathYear}</span></div>}
             {n.gender && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Gender</span><span className="capitalize">{n.gender}</span></div>}
             {n.tribalNation && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>}
-            {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">SSML No.</span><span className="font-semibold">{n.tribalEnrollmentNumber}</span></div>}
+            {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">SSMEL No.</span><span className="font-semibold">{n.tribalEnrollmentNumber}</span></div>}
             {n.generationalPosition !== undefined && n.generationalPosition !== null && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Generation</span><span>{n.generationalPosition}</span></div>}
             {n.sourceType && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Source</span><span className="capitalize">{n.sourceType}</span></div>}
             {n.linkedProfileUserId && (
@@ -1728,12 +1728,12 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
               </select>
             </div>
             <div>
-              <Label>SSML Membership No.</Label>
+              <Label>SSMEL Membership No.</Label>
               <Input
                 className="mt-1"
                 value={form.tribalEnrollmentNumber}
                 onChange={f("tribalEnrollmentNumber")}
-                placeholder="e.g. SSML07"
+                placeholder="e.g. SSMEL07"
               />
             </div>
           </div>
