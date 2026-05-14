@@ -1,6 +1,6 @@
 import { runIntakeFilter, type IntakeFilterResult } from "./intake-filter";
 import { queryLawDb } from "./law-db";
-import { callAzureOpenAI, getAzureOpenAIClient } from "../lib/azure-openai";
+import { callAzureOpenAI, getAzureOpenAIClient, type ConversationMessage } from "../lib/azure-openai";
 import { logger } from "../lib/logger";
 
 export type ChatTier = "funnel" | "intake_filter" | "law_db" | "azure_openai" | "hard_default";
@@ -44,6 +44,7 @@ export interface ChatInput {
   userName?: string;
   userId?: number;
   uploadedDocumentText?: string;
+  conversationHistory?: ConversationMessage[];
 }
 
 interface FunnelDef {
@@ -474,11 +475,12 @@ async function handleAITier(input: ChatInput, intakeFlags: IntakeFilterResult): 
   }
 
   try {
-    const result = await callAzureOpenAI(SOVEREIGN_SYSTEM_PROMPT, userPrompt, {
-      maxTokens: 800,
-      temperature: 0.15,
-      timeoutMs: 25000,
-    });
+    const result = await callAzureOpenAI(
+      SOVEREIGN_SYSTEM_PROMPT,
+      userPrompt,
+      { maxTokens: 800, temperature: 0.15, timeoutMs: 25000 },
+      input.conversationHistory ?? [],
+    );
 
     logger.info({ tokens: result.usage?.totalTokens, redFlag: intakeFlags.redFlag }, "Chat AI tier completed");
 

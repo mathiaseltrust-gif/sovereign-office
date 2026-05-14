@@ -39,10 +39,16 @@ export interface AzureOpenAIResult {
   tier: "azure_openai";
 }
 
+export interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 export async function callAzureOpenAI(
   systemPrompt: string,
   userPrompt: string,
   options: { maxTokens?: number; temperature?: number; timeoutMs?: number } = {},
+  conversationHistory: ConversationMessage[] = [],
 ): Promise<AzureOpenAIResult> {
   const client = getAzureOpenAIClient();
   if (!client) throw new Error("Azure OpenAI not configured");
@@ -59,6 +65,7 @@ export async function callAzureOpenAI(
         model: deployment,
         messages: [
           { role: "system", content: systemPrompt },
+          ...conversationHistory,
           { role: "user", content: userPrompt },
         ],
         max_tokens: maxTokens,
