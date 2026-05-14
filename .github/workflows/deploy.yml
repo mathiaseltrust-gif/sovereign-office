@@ -144,26 +144,6 @@ jobs:
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
 
-            echo "==> Running DB schema migrations"
-            PG=$(docker ps --format '{{.Names}}' | grep postgres | head -1 || true)
-            if [ -n "$PG" ]; then
-              docker exec "$PG" psql -U sovereign -d sovereign_office -c "
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10);
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT;
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255);
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS pending_review BOOLEAN DEFAULT false;
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS added_by_member_id INTEGER;
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS supporting_document_name VARCHAR(500);
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS name_variants JSONB DEFAULT '[]';
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS protection_level VARCHAR(50) DEFAULT 'pending';
-                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS membership_status VARCHAR(50) DEFAULT 'pending';
-                SELECT 'Schema migration complete';
-              "
-              echo "    DB migration done."
-            else
-              echo "    No local postgres container found — skipping migration (external DB assumed up to date)."
-            fi
-
             echo "==> Logging in to ACR"
             echo "${{ secrets.ACR_PASSWORD }}" | \
               docker login "${{ secrets.ACR_REGISTRY }}" \

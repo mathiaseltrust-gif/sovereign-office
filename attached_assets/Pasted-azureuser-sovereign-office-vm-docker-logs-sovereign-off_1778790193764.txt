@@ -1,0 +1,264 @@
+azureuser@sovereign-office-vm:~$ docker logs sovereign-office-api-1 --tail=50
+
+[seed] Seeding McCaster / Chief Mathias El family tree...
+
+[seed] Failed: _DrizzleQueryError: Failed query: insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, default) returning "id"
+params: Mathew,McCaster,Mathew Jacob McCaster,2012,male,SSMEL03,Relationship: child,[],[],[],["mccaster-lineage"],member_self,-1,false,false,pending,pending,[],true,003
+    at NodePgPreparedQuery.queryWithCache (file:///app/dist/seed.mjs:11691:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///app/dist/seed.mjs:11924:22
+    at async findOrCreate (file:///app/dist/seed.mjs:12647:17)
+    at async main (file:///app/dist/seed.mjs:12660:25) {
+  query: 'insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, default) returning "id"',
+  params: [
+    'Mathew',                'McCaster',
+    'Mathew Jacob McCaster', 2012,
+    'male',                  'SSMEL03',
+    'Relationship: child',   '[]',
+    '[]',                    '[]',
+    '["mccaster-lineage"]',  'member_self',
+    -1,                      false,
+    false,                   'pending',
+    'pending',               '[]',
+    true,                    '003'
+  ],
+  cause: error: column "tribal_id_number" of relation "family_lineage" does not exist
+      at file:///app/dist/seed.mjs:4290:15
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///app/dist/seed.mjs:11931:18
+      at async NodePgPreparedQuery.queryWithCache (file:///app/dist/seed.mjs:11689:16)
+      at async file:///app/dist/seed.mjs:11924:22
+      at async findOrCreate (file:///app/dist/seed.mjs:12647:17)
+      at async main (file:///app/dist/seed.mjs:12660:25) {
+    length: 144,
+    severity: 'ERROR',
+    code: '42703',
+    detail: undefined,
+    hint: undefined,
+    position: '585',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_target.c',
+    line: '1068',
+    routine: 'checkInsertTargets'
+  }
+}
+azureuser@sovereign-office-vm:~$ azureuser@sovereign-office-vm:~$ docker logs sovereign-office-api-1 --tail=50
+
+[seed] Seeding McCaster / Chief Mathias El family tree...
+
+[seed] Failed: _DrizzleQueryError: Failed query: insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, default) returning "id"
+params: Mathew,McCaster,Mathew Jacob McCaster,2012,male,SSMEL03,Relationship: child,[],[],[],["mccaster-lineage"],member_self,-1,false,false,pending,pending,[],true,003
+    at NodePgPreparedQuery.queryWithCache (file:///app/dist/seed.mjs:11691:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///app/dist/seed.mjs:11924:22
+    at async findOrCreate (file:///app/dist/seed.mjs:12647:17)
+    at async main (file:///app/dist/seed.mjs:12660:25) {
+  query: 'insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, defaulazureuser@sovereign-office-vm:~$ dist/seed.mjs:12660:25) {47:17)is
+azureuser@sovereign-office-vm:~$: command not found
+[seed]: command not found
+-bash: syntax error near unexpected token `('
+params:: command not found
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `('
+Command 'at' not found, but can be installed with:
+sudo apt install at
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `('
+query:: command not found
+params:: command not found
+Mathew,: command not found
+Mathew Jacob McCaster,: command not found
+male,: command not found
+Relationship: child,: command not found
+[],: command not found
+["mccaster-lineage"],: command not found
+-1,: command not found
+Command 'false,' not found, did you mean:
+  command 'false' from deb coreutils (9.4-3ubuntu6.2)
+Try: sudo apt install <deb name>
+pending,: command not found
+Command 'true,' not found, did you mean:
+  command 'true' from deb coreutils (9.4-3ubuntu6.2)
+Try: sudo apt install <deb name>
+],: command not found
+cause:: command not found
+Command 'at' not found, but can be installed with:
+sudo apt install at
+-bash: syntax error near unexpected token `('
+Command 'at' not found, but can be installed with:
+sudo apt install at
+-bash: syntax error near unexpected token `('
+Command 'at' not found, but can be installed with:
+sudo apt install at
+-bash: syntax error near unexpected token `('
+-bash: syntax error near unexpected token `('
+length:: command not found
+severity:: command not found
+Command 'code:' not found, did you mean:
+  command 'coder' from snap coder (2.24.5)
+  command 'codex' from snap codex (0.114.0)
+  command 'codec' from snap codec (1.0.0)
+  command 'code' from snap code (0958016b)
+See 'snap info <snapname>' for additional versions.
+detail:: command not found
+hint:: command not found
+position:: command not found
+internalPosition:: command not found
+internalQuery:: command not found
+where:: command not found
+schema:: command not found
+Command 'table:' not found, did you mean:
+  command 'table' from snap table (1.0.5)
+See 'snap info <snapname>' for additional versions.
+Command 'column:' not found, did you mean:
+  command 'column' from deb bsdextrautils (2.39.3-9ubuntu6.5)
+  command 'columns' from deb autogen (1:5.18.16-5)
+Try: sudo apt install <deb name>
+dataType:: command not found
+constraint:: command not found
+Command 'file:' not found, did you mean:
+  command 'file2' from deb file-kanji (1.1-20)
+  command 'file' from deb file (1:5.45-2)
+Try: sudo apt install <deb name>
+Command 'line:' not found, did you mean:
+  command 'linex' from snap linex (0.1.6)
+See 'snap info <snapname>' for additional versions.
+routine:: command not found
+-bash: syntax error near unexpected token `}'
+-bash: syntax error near unexpected token `}'
+azureuser@sovereign-office-vm:~$: command not found
+azureuser@sovereign-office-vm:~$ docker ps
+CONTAINER ID   IMAGE                                             COMMAND                  CREATED          STATUS                          PORTS                                     NAMES
+e4614b1e884d   sovereignoffice.azurecr.io/sovereign-api:latest   "docker-entrypoint.s…"   30 minutes ago   Restarting (1) 57 seconds ago                                             sovereign-office-api-1
+10c0d1b15c32   d33babb2e831                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3003->80/tcp, [::]:3003->80/tcp   sovereign-office-community-1
+433e46f0c847   ca0194625dd2                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3001->80/tcp, [::]:3001->80/tcp   sovereign-office-sovereign-1
+04110ce53086   7a267ead449f                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3002->80/tcp, [::]:3002->80/tcp   sovereign-office-trust-1
+azureuser@sovereign-office-vm:~$ cd /opt/sovereign-office
+cat docker-compose.prod.yml
+# =============================================================================
+# Sovereign Office of the Chief Justice & Trustee
+# PRODUCTION Docker Compose
+# =============================================================================
+
+services:
+
+  api:
+    image: sovereignoffice.azurecr.io/sovereign-api:latest
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: "8080"
+      NODE_ENV: production
+      DATABASE_URL: postgresql://tribaladmin:ElevatedTrust2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require
+      SESSION_SECRET: ${SESSION_SECRET}
+      SERVICE_KEY: 241f3ea0fb713150b614e4b9f004521795f10cb30661b1aabecc4924046cb4fb
+      APP_URL: http://20.83.210.26:8080
+      SOVEREIGN_DASHBOARD_URL: http://20.83.210.26:3001
+      AZURE_ENTRA_TENANT_ID: 3b71074d-80fb-46a1-a481-3aed69152480
+      AZURE_ENTRA_CLIENT_ID: 9d408980-8fbf-4384-a712-436e70480eb9
+      AZURE_ENTRA_CLIENT_SECRET: ${AZURE_ENTRA_CLIENT_SECRET}
+      AZURE_OPENAI_ENDPOINT: ${AZURE_OPENAI_ENDPOINT:-}
+      AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY:-}
+      AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT:-}
+      LOG_LEVEL: info
+    healthcheck:
+      test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8080/api/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  sovereign:
+    image: sovereignoffice.azurecr.io/sovereign-dashboard:latest
+    restart: unless-stopped
+    ports:
+      - "3001:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  trust:
+    image: sovereignoffice.azurecr.io/trust-dashboard:latest
+    restart: unless-stopped
+    ports:
+      - "3002:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
+  community:
+    image: sovereignoffice.azurecr.io/community-dashboard:latest
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    depends_on:
+      api:
+        condition: service_healthy
+azureuser@sovereign-office-vm:/opt/sovereign-office$ cd /opt/sovereign-office
+docker compose down
+docker compose up -d
+no configuration file provided: not found
+no configuration file provided: not found
+azureuser@sovereign-office-vm:/opt/sovereign-office$ docker ps
+``
+CONTAINER ID   IMAGE                                             COMMAND                  CREATED          STATUS                          PORTS                                     NAMES
+e4614b1e884d   sovereignoffice.azurecr.io/sovereign-api:latest   "docker-entrypoint.s…"   34 minutes ago   Restarting (1) 42 seconds ago                                             sovereign-office-api-1
+10c0d1b15c32   d33babb2e831                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3003->80/tcp, [::]:3003->80/tcp   sovereign-office-community-1
+433e46f0c847   ca0194625dd2                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3001->80/tcp, [::]:3001->80/tcp   sovereign-office-sovereign-1
+04110ce53086   7a267ead449f                                      "/docker-entrypoint.…"   2 days ago       Up About an hour                0.0.0.0:3002->80/tcp, [::]:3002->80/tcp   sovereign-office-trust-1
+azureuser@sovereign-office-vm:/opt/sovereign-office$ psql "postgresql://tribaladmin:ElevatedTrust2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require"
+psql (16.13 (Ubuntu 16.13-0ubuntu0.24.04.1), server 18.3)
+WARNING: psql major version 16, server major version 18.
+         Some psql features might not work.
+SSL connection (protocol: TLSv1.3, cipher: TLS_AES_256_GCM_SHA384, compression: off)
+Type "help" for help.
+
+sovereign_office=> ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10);
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT;
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255);
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS pending_review BOOLEAN DEFAULT false;
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS added_by_member_id INTEGER;
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS supporting_document_name VARCHAR(500);
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS name_variants JSONB DEFAULT '[]';
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS protection_level VARCHAR(50) DEFAULT 'pending';
+ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS membership_status VARCHAR(50) DEFAULT 'pending';
+ALTER TABLE
+ALTER TABLE
+NOTICE:  column "entra_object_id" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "pending_review" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "added_by_member_id" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "supporting_document_name" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "name_variants" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "protection_level" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+NOTICE:  column "membership_status" of relation "family_lineage" already exists, skipping
+ALTER TABLE
+sovereign_office=> /q
+sovereign_office-> cd /opt/sovereign-office
+docker compose -f docker-compose.prod.yml restart api
+sovereign_office-> \q
+azureuser@sovereign-office-vm:/opt/sovereign-office$ cd /opt/sovereign-office
+azureuser@sovereign-office-vm:/opt/sovereign-office$ docker compose -f docker-compose.prod.yml restart api
+``
+[+] restart 0/1
+ ⠸ Container sovereign-office-api-1 Restarting               10.3s
+azureuser@sovereign-office-vm:/opt/sovereign-office$ docker ps
+CONTAINER ID   IMAGE                                             COMMAND                  CREATED          STATUS                    PORTS                                         NAMES
+e4614b1e884d   sovereignoffice.azurecr.io/sovereign-api:latest   "docker-entrypoint.s…"   38 minutes ago   Up 33 seconds (healthy)   0.0.0.0:8080->8080/tcp, [::]:8080->8080/tcp   sovereign-office-api-1
+10c0d1b15c32   d33babb2e831                                      "/docker-entrypoint.…"   2 days ago       Up About an hour          0.0.0.0:3003->80/tcp, [::]:3003->80/tcp       sovereign-office-community-1
+433e46f0c847   ca0194625dd2                                      "/docker-entrypoint.…"   2 days ago       Up About an hour          0.0.0.0:3001->80/tcp, [::]:3001->80/tcp       sovereign-office-sovereign-1
+04110ce53086   7a267ead449f                                      "/docker-entrypoint.…"   2 days ago       Up About an hour          0.0.0.0:3002->80/tcp, [::]:3002->80/tcp       sovereign-office-trust-1
+azureuser@sovereign-office-vm:/opt/sovereign-office$ 
