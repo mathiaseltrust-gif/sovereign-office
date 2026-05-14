@@ -169,7 +169,7 @@ export default function TribalIdPage() {
         style={{ background: "linear-gradient(135deg, #0d1529 0%, #141e3c 60%, #0a1020 100%)", border: "1.5px solid #8a6e24" }}
       >
         <div className="flex">
-          {/* Left panel — logo + photo + SSMEL */}
+          {/* Left panel — logo + photo + SSML */}
           <div
             className="flex flex-col items-center justify-between py-6 px-4 gap-4 shrink-0"
             style={{ width: 160, background: "rgba(0,0,0,0.35)", borderRight: "1px solid rgba(138,110,36,0.4)" }}
@@ -222,7 +222,7 @@ export default function TribalIdPage() {
               )}
             </div>
 
-            {/* SSMEL enrollment number */}
+            {/* SSML enrollment number */}
             <div className="text-center">
               {ssmel && (
                 <p className="font-bold text-[11px] tracking-widest" style={{ color: "#d4af37" }}>{ssmel}</p>

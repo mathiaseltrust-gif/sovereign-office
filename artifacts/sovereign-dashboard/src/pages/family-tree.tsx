@@ -1044,7 +1044,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
             {n.deathYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Death year</span><span>{n.deathYear}</span></div>}
             {n.gender && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Gender</span><span className="capitalize">{n.gender}</span></div>}
             {n.tribalNation && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>}
-            {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Enrollment #</span><span>{n.tribalEnrollmentNumber}</span></div>}
+            {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">SSML No.</span><span className="font-semibold">{n.tribalEnrollmentNumber}</span></div>}
             {n.generationalPosition !== undefined && n.generationalPosition !== null && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Generation</span><span>{n.generationalPosition}</span></div>}
             {n.sourceType && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Source</span><span className="capitalize">{n.sourceType}</span></div>}
             {n.linkedProfileUserId && (
@@ -1148,6 +1148,28 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
           {n.pendingReview && !canApprove && (
             <div className="border border-yellow-300 bg-yellow-50 dark:bg-yellow-950/30 rounded-md px-3 py-2">
               <p className="text-xs text-yellow-900 dark:text-yellow-300 font-medium">Awaiting officer review</p>
+            </div>
+          )}
+
+          {!n.pendingReview && n.membershipStatus === "pending" && canEdit && (
+            <div className="border border-blue-300 bg-blue-50 dark:bg-blue-950/30 rounded-md p-3 space-y-2">
+              <p className="text-xs font-semibold text-blue-900 dark:text-blue-300 uppercase tracking-widest">Membership Not Yet Confirmed</p>
+              <p className="text-xs text-blue-700 dark:text-blue-400">Confirm this member to activate their enrollment record.</p>
+              <Button
+                size="sm"
+                className="w-full bg-blue-600 hover:bg-blue-700 text-white"
+                onClick={async () => {
+                  const r = await fetch(`/api/lineage/nodes/${n.id}`, {
+                    method: "PATCH",
+                    headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+                    body: JSON.stringify({ membershipStatus: "confirmed", protectionLevel: n.protectionLevel === "pending" ? "descendant" : n.protectionLevel }),
+                  });
+                  if (r.ok) { toast({ title: "Member confirmed", description: `${n.fullName} has been confirmed.` }); queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] }); onRefresh(); }
+                  else { const d = await r.json(); toast({ title: "Error", description: d.error, variant: "destructive" }); }
+                }}
+              >
+                Confirm Member
+              </Button>
             </div>
           )}
 
@@ -1596,7 +1618,8 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
     tribalEnrollmentNumber: editingNode?.tribalEnrollmentNumber ?? "",
     notes: editingNode?.notes ?? "",
     generationalPosition: editingNode?.generationalPosition?.toString() ?? "0",
-    protectionLevel: editingNode?.protectionLevel ?? "pending",
+    protectionLevel: editingNode?.protectionLevel ?? "descendant",
+    membershipStatus: editingNode?.membershipStatus ?? "confirmed",
     parentSearch: "",
     selectedParentIds: Array.isArray(editingNode?.parentIds) ? (editingNode!.parentIds as number[]) : [] as number[],
   });
@@ -1629,6 +1652,7 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
         notes: form.notes || undefined,
         generationalPosition: parseInt(form.generationalPosition, 10) || 0,
         protectionLevel: form.protectionLevel,
+        membershipStatus: form.membershipStatus,
         parentIds: form.selectedParentIds,
       };
 
@@ -1687,10 +1711,30 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
             <div>
               <Label>Protection Level</Label>
               <select data-testid="add-person-protection" value={form.protectionLevel} onChange={f("protectionLevel")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
-                <option value="pending">Pending</option>
-                <option value="ancestor">Ancestor</option>
                 <option value="descendant">Descendant</option>
+                <option value="ancestor">Ancestor</option>
+                <option value="pending">Pending</option>
               </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Membership Status</Label>
+              <select value={form.membershipStatus} onChange={f("membershipStatus")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+                <option value="confirmed">Confirmed</option>
+                <option value="verified">Verified</option>
+                <option value="pending">Pending</option>
+              </select>
+            </div>
+            <div>
+              <Label>SSML Membership No.</Label>
+              <Input
+                className="mt-1"
+                value={form.tribalEnrollmentNumber}
+                onChange={f("tribalEnrollmentNumber")}
+                placeholder="e.g. SSML07"
+              />
             </div>
           </div>
 

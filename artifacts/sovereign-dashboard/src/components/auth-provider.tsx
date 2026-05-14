@@ -30,10 +30,10 @@ interface AuthContextType {
 }
 
 const DEV_USERS: Record<Role, User> = {
-  trustee: { id: 1, email: "cjt@sovereign.local", roles: ["trustee"], name: "Chief Justice & Trustee" },
-  officer: { id: 2, email: "officer@sovereign.local", roles: ["officer"], name: "Duty Officer" },
+  trustee: { id: 6, email: "mmccaster@mathiaseltribe.org", roles: ["trustee"], name: "Chief Justice & Trustee" },
+  officer: { id: 1, email: "officer@sovereign.gov", roles: ["officer"], name: "Duty Officer" },
   member: { id: 3, email: "member@sovereign.local", roles: ["member"], name: "Citizen Member" },
-  sovereign_admin: { id: 4, email: "admin@sovereign.local", roles: ["sovereign_admin", "trustee"], name: "System Administrator" },
+  sovereign_admin: { id: 4, email: "cj@sovereign.gov", roles: ["sovereign_admin", "trustee"], name: "System Administrator" },
   elder: { id: 5, email: "elder@sovereign.local", roles: ["elder"], name: "Tribal Elder" },
   medical_provider: { id: 6, email: "provider@sovereign.local", roles: ["medical_provider"], name: "Medical Provider" },
   visitor_media: { id: 7, email: "visitor@sovereign.local", roles: ["visitor_media"], name: "Visitor / Media" },
