@@ -1,5 +1,6 @@
 import { Link, useLocation, useRouter } from "wouter";
 import { useAuth, roleLandingPath, type Role } from "./auth-provider";
+import { canManageGovernors } from "@/lib/governor-access";
 import { Button } from "@/components/ui/button";
 
 const ROLE_LABELS: Record<Role, string> = {
@@ -153,6 +154,9 @@ function getAdminNav(role: Role): NavSection["items"] | null {
           { href: "/m365", label: "Microsoft 365" },
           { href: "/admin/lineage-import", label: "Lineage Registry" },
         ]
+      : []),
+    ...(canManageGovernors(role)
+      ? [{ href: "/role-governors", label: "Role Governor", highlight: true }]
       : []),
     ...(role === "sovereign_admin"
       ? [

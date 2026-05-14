@@ -1,6 +1,7 @@
 import { callAzureOpenAI, getAzureOpenAIClient } from "../lib/azure-openai";
 import { queryLawDb } from "./law-db";
 import { logger } from "../lib/logger";
+import { getGovernorByRole, getActiveGovernor, getSessionGovernor, buildGovernorSystemPromptPrefix, normalizeRoleKey, logGovernorActivation } from "./role-governor";
 import type { UnifiedIdentity } from "./identity-engine";
 import type { DelegatedAuthorities } from "./delegated-authority";
 
@@ -40,6 +41,9 @@ export interface DraftingInput {
   doctrineDatabase?: string[];
   lawDatabase?: string[];
   profilePhotoUrl?: string;
+  userRole?: string;
+  userId?: number;
+  userEmail?: string;
 }
 
 export interface DraftingOutput {
@@ -53,6 +57,8 @@ export interface DraftingOutput {
   tier: DraftingTier;
   tierReason: string;
   aiConfidence: number;
+  governorRoleKey?: string;
+  governorDisplayName?: string;
 }
 
 const DRAFTING_SYSTEM_PROMPT = `You are the Sovereign AI Drafting Engine for the Mathias El Tribe — Sovereign Office of the Chief Justice & Trustee.
@@ -106,7 +112,14 @@ function buildDraftingPrompt(input: DraftingInput, lawContext: string): string {
   ].filter(Boolean).join("\n\n");
 }
 
-function ruleBased(input: DraftingInput): DraftingOutput {
+interface GovernorContext {
+  documentHeaderTemplate: string;
+  signatureBlockTemplate: string;
+  displayName: string;
+  authorityCitation?: string;
+}
+
+function ruleBased(input: DraftingInput, governor?: GovernorContext): DraftingOutput {
   const { identity, documentType, jurisdiction } = input;
   const isIcwa = identity.icwaEligible;
   const isTrust = identity.trustInheritance;
@@ -157,14 +170,21 @@ function ruleBased(input: DraftingInput): DraftingOutput {
     { type: "federal" as const, citation: "25 U.S.C. § 13", title: "Snyder Act — General Welfare Authority" },
   ];
 
+  const issuedDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const docHeader = governor?.documentHeaderTemplate
+    ? governor.documentHeaderTemplate.replace("[DATE]", issuedDate)
+    : "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE\nMATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT";
+  const sigBlock = governor?.signatureBlockTemplate
+    ? governor.signatureBlockTemplate.replace("[NAME]", identity.legalName).replace("[DATE]", issuedDate)
+    : "_______________________________________________\nChief Justice & Trustee — Mathias El Tribe\nSovereign Office of the Chief Justice & Trustee\nMathias El Tribe Identity Gateway — Verified";
+
   const draftText = [
-    `SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE`,
-    `MATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT`,
+    docHeader,
     ``,
     `Document Type: ${documentType.replace(/_/g, " ").toUpperCase()}`,
     `Issued To: ${identity.courtCaption}`,
     `Jurisdiction: ${jurisdiction.toUpperCase()}`,
-    `Date: ${new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" })}`,
+    `Date: ${issuedDate}`,
     ``,
     `JURISDICTIONAL FRAMING`,
     jurisFraming[jurisdiction] ?? jurisFraming.tribal,
@@ -185,11 +205,9 @@ function ruleBased(input: DraftingInput): DraftingOutput {
     ``,
     `CITATIONS`,
     citations.map((c) => `${c.citation} — ${c.title}`).join("\n"),
+    governor?.authorityCitation ? `\nGOVERNING AUTHORITY\n${governor.authorityCitation}` : "",
     ``,
-    `_______________________________________________`,
-    `Chief Justice & Trustee — Mathias El Tribe`,
-    `Sovereign Office of the Chief Justice & Trustee`,
-    `Mathias El Tribe Identity Gateway — Verified`,
+    sigBlock,
   ].filter((l) => l !== undefined).join("\n");
 
   return {
@@ -213,8 +231,8 @@ function ruleBased(input: DraftingInput): DraftingOutput {
   };
 }
 
-function hardSovereignDraft(input: DraftingInput): DraftingOutput {
-  const base = ruleBased(input);
+function hardSovereignDraft(input: DraftingInput, governor?: GovernorContext): DraftingOutput {
+  const base = ruleBased(input, governor);
   return {
     ...base,
     tier: "hard_sovereign",
@@ -255,11 +273,44 @@ export async function runAiDraftingEngine(input: DraftingInput): Promise<Draftin
     logger.warn("AI Drafting Engine: law DB query failed — continuing without");
   }
 
+  let governorPrefix = "";
+  let governorRoleKey: string | undefined;
+  let governorDisplayName: string | undefined;
+  let governorId: number | undefined;
+  let resolvedGovernor: Awaited<ReturnType<typeof getGovernorByRole>> | null = null;
+  try {
+    let governor = null;
+    if (input.userId) {
+      governor = await getSessionGovernor(input.userId);
+    }
+    if (!governor) {
+      const roleKey = input.userRole ? normalizeRoleKey(input.userRole) : null;
+      governor = roleKey ? await getGovernorByRole(roleKey) : null;
+    }
+    if (!governor) {
+      governor = await getActiveGovernor();
+    }
+    if (governor) {
+      resolvedGovernor = governor;
+      governorPrefix = buildGovernorSystemPromptPrefix(governor);
+      governorRoleKey = governor.roleKey;
+      governorDisplayName = governor.displayName;
+      governorId = governor.id;
+      logger.info({ governorRoleKey: governor.roleKey }, "AI Drafting Engine: governor context injected");
+    }
+  } catch {
+    logger.warn("AI Drafting Engine: governor lookup failed — continuing without");
+  }
+
+  const governorEnrichedSystemPrompt = governorPrefix
+    ? `${governorPrefix}\n\n${DRAFTING_SYSTEM_PROMPT}`
+    : DRAFTING_SYSTEM_PROMPT;
+
   if (getAzureOpenAIClient()) {
     try {
       logger.info({ documentType: input.documentType }, "AI Drafting Engine: Tier 1 — Azure OpenAI");
       const userPrompt = buildDraftingPrompt(input, lawContext);
-      const result = await callAzureOpenAI(DRAFTING_SYSTEM_PROMPT, userPrompt, {
+      const result = await callAzureOpenAI(governorEnrichedSystemPrompt, userPrompt, {
         maxTokens: 3500,
         temperature: 0.1,
         timeoutMs: 25000,
@@ -269,6 +320,16 @@ export async function runAiDraftingEngine(input: DraftingInput): Promise<Draftin
         const parsed = JSON.parse(jsonMatch[0]) as Partial<DraftingOutput>;
         if (parsed.draftDocumentText && parsed.recommendedTemplate) {
           logger.info("AI Drafting Engine: Azure OpenAI succeeded (Tier 1)");
+          if (governorId) {
+            await logGovernorActivation({
+              governorId,
+              roleKey: governorRoleKey!,
+              eventType: "generation",
+              documentType: input.documentType,
+              actingUserId: input.userId,
+              actingUserEmail: input.userEmail,
+            });
+          }
           return {
             draftDocumentText: parsed.draftDocumentText,
             recommendedTemplate: parsed.recommendedTemplate,
@@ -280,6 +341,8 @@ export async function runAiDraftingEngine(input: DraftingInput): Promise<Draftin
             tier: "azure_openai",
             tierReason: "Azure OpenAI gpt-4o — sovereign document drafting with law database context",
             aiConfidence: 94,
+            governorRoleKey,
+            governorDisplayName,
           };
         }
       }
@@ -289,20 +352,50 @@ export async function runAiDraftingEngine(input: DraftingInput): Promise<Draftin
     }
   }
 
+  const governorCtx: GovernorContext | undefined = (resolvedGovernor && governorDisplayName)
+    ? {
+        documentHeaderTemplate: resolvedGovernor.documentHeaderTemplate ?? "",
+        signatureBlockTemplate: resolvedGovernor.signatureBlockTemplate ?? "",
+        displayName: governorDisplayName,
+        authorityCitation: resolvedGovernor.authorityCitation ?? "",
+      }
+    : undefined;
+
   try {
     logger.info("AI Drafting Engine: Tier 2 — rule-based engine");
-    return ruleBased(input);
+    const output = ruleBased(input, governorCtx);
+    if (governorId) {
+      await logGovernorActivation({
+        governorId,
+        roleKey: governorRoleKey!,
+        eventType: "generation",
+        documentType: input.documentType,
+        actingUserId: input.userId,
+        actingUserEmail: input.userEmail,
+      });
+    }
+    return { ...output, governorRoleKey, governorDisplayName };
   } catch (err) {
     logger.error({ err: (err as Error).message }, "AI Drafting Engine: Tier 2 failed — Tier 3 legal-logic");
   }
 
   try {
     logger.info("AI Drafting Engine: Tier 3 — legal-logic fallback");
-    const base = ruleBased(input);
-    return { ...base, tier: "legal_logic", tierReason: "Legal-logic module — core sovereignty framework applied", aiConfidence: 70 };
+    const base = ruleBased(input, governorCtx);
+    if (governorId) {
+      await logGovernorActivation({
+        governorId,
+        roleKey: governorRoleKey!,
+        eventType: "generation",
+        documentType: input.documentType,
+        actingUserId: input.userId,
+        actingUserEmail: input.userEmail,
+      });
+    }
+    return { ...base, tier: "legal_logic", tierReason: "Legal-logic module — core sovereignty framework applied", aiConfidence: 70, governorRoleKey, governorDisplayName };
   } catch {
     logger.warn("AI Drafting Engine: all tiers failed — hard sovereign defaults");
   }
 
-  return hardSovereignDraft(input);
+  return { ...hardSovereignDraft(input, governorCtx), governorRoleKey, governorDisplayName };
 }

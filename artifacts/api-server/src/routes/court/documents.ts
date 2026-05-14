@@ -87,12 +87,16 @@ router.post("/generate", requireAuth, requireRole("officer"), async (req, res, n
       return;
     }
     const userId = req.user?.dbId ?? undefined;
+    const userRole = req.user?.roles?.[0];
+    const userEmail = req.user?.email;
     const result = await generateCourtDocument({
       templateId,
       vars,
       parties,
       caseDetails,
       userId,
+      userRole,
+      userEmail,
       runIntakeAnalysis: runIntakeAnalysis !== false,
     });
     res.status(201).json(result);

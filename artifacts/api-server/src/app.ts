@@ -12,6 +12,7 @@ import { requireEntraIfRequired } from "./auth/entra-guard";
 import { serviceKeyMiddleware } from "./auth/service-key";
 import { sovereignOffice } from "./sovereign/office";
 import { initBootstrapToken } from "./lib/bootstrap-token";
+import { seedDefaultGovernors } from "./sovereign/role-governor";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -49,6 +50,7 @@ app.use(requireEntraIfRequired);
 
 logger.info({ authority: sovereignOffice.getAuthority() }, "Sovereign authority online");
 void initBootstrapToken();
+void seedDefaultGovernors();
 
 app.use("/api", router);
 

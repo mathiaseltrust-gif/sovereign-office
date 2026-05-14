@@ -15,6 +15,27 @@
       "when": 1747175400000,
       "tag": "0001_add_gwe_letters",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1747261800000,
+      "tag": "0002_add_role_governors",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1747348200000,
+      "tag": "0003_add_user_governor_sessions",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1747434600000,
+      "tag": "0004_governor_log_event_type",
+      "breakpoints": true
     }
   ]
 }

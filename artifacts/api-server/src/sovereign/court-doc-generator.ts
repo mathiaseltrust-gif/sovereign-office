@@ -5,6 +5,7 @@ import { runIntakeFilter } from "./intake-filter";
 import { queryLawDb } from "./law-db";
 import { getTemplate, listTemplates, LEGACY_TEMPLATE_MAP, type LegacyTemplate } from "../legacy/court-docs/templates";
 import { logger } from "../lib/logger";
+import { getGovernorByRole, getActiveGovernor, getSessionGovernor, normalizeRoleKey, logGovernorActivation } from "./role-governor";
 
 export interface GenerateCourtDocInput {
   templateId: string;
@@ -12,6 +13,8 @@ export interface GenerateCourtDocInput {
   parties?: Record<string, string>;
   caseDetails?: Record<string, string>;
   userId?: number;
+  userRole?: string;
+  userEmail?: string;
   runIntakeAnalysis?: boolean;
 }
 
@@ -29,6 +32,8 @@ export interface GenerateCourtDocResult {
   lawRefs: Array<{ citation: string; title: string }>;
   signatureBlock: string;
   dbRecord: unknown;
+  governorRoleKey?: string;
+  governorDisplayName?: string;
 }
 
 function resolveTemplateId(raw: string): string {
@@ -46,6 +51,38 @@ export async function generateCourtDocument(input: GenerateCourtDocInput): Promi
     throw new Error(`Unknown court document template: ${input.templateId} (resolved: ${resolvedId}). Available: ${listTemplates().map(t => t.id).join(", ")}`);
   }
 
+  let governorRoleKey: string | undefined;
+  let governorDisplayName: string | undefined;
+  let governorId: number | undefined;
+  let governorHeader = "";
+  let governorSignature = "";
+  let governorAuthorityCitation = "";
+
+  try {
+    let governor = null;
+    if (input.userId) {
+      governor = await getSessionGovernor(input.userId);
+    }
+    if (!governor) {
+      const roleKey = input.userRole ? normalizeRoleKey(input.userRole) : null;
+      governor = roleKey ? await getGovernorByRole(roleKey) : null;
+    }
+    if (!governor) {
+      governor = await getActiveGovernor();
+    }
+    if (governor) {
+      governorRoleKey = governor.roleKey;
+      governorDisplayName = governor.displayName;
+      governorId = governor.id;
+      governorHeader = governor.documentHeaderTemplate;
+      governorSignature = governor.signatureBlockTemplate;
+      governorAuthorityCitation = governor.authorityCitation ?? "";
+      logger.info({ governorRoleKey: governor.roleKey }, "Court doc generator: governor context injected");
+    }
+  } catch {
+    logger.warn("Court doc generator: governor lookup failed — continuing without");
+  }
+
   const vars: Record<string, string> = {
     issuedDate: new Date().toLocaleDateString(),
     issuedTime: new Date().toLocaleTimeString(),
@@ -54,8 +91,27 @@ export async function generateCourtDocument(input: GenerateCourtDocInput): Promi
   };
 
   const allPartyText = Object.entries(input.parties ?? {}).map(([k, v]) => `${k}: ${v}`).join(", ");
-  const content = template.buildContent({ ...vars, ...buildPartyVars(input.parties ?? {}) });
-  const signatureBlock = template.buildSignatureBlock(vars);
+  const rawContent = template.buildContent({ ...vars, ...buildPartyVars(input.parties ?? {}) });
+
+  function substituteGovernorTokens(template: string, v: Record<string, string>): string {
+    const signerName =
+      v["name"] ?? v["petitionerName"] ?? v["signerName"] ?? v["respondentName"] ?? "Authorized Signatory";
+    return template
+      .replace(/\[NAME\]/g, signerName)
+      .replace(/\[DATE\]/g, v["issuedDate"] ?? new Date().toLocaleDateString());
+  }
+
+  const resolvedGovernorHeader = governorHeader ? substituteGovernorTokens(governorHeader, vars) : "";
+  const resolvedGovernorSignature = governorSignature ? substituteGovernorTokens(governorSignature, vars) : "";
+
+  const authorityFooter = governorAuthorityCitation
+    ? `\n\nGOVERNING AUTHORITY\n${governorAuthorityCitation}`
+    : "";
+  const content = resolvedGovernorHeader
+    ? `${resolvedGovernorHeader}\n${rawContent}${authorityFooter}`
+    : `${rawContent}${authorityFooter}`;
+  const templateSignatureBlock = template.buildSignatureBlock(vars);
+  const signatureBlock = resolvedGovernorSignature || templateSignatureBlock;
 
   let intakeFlags: ReturnType<typeof runIntakeFilter> | null = null;
   let doctrinesApplied = [...template.defaultDoctrines];
@@ -125,6 +181,18 @@ export async function generateCourtDocument(input: GenerateCourtDocInput): Promi
 
   logger.info({ id: dbRecord.id, templateId: template.id, troSensitive, emergencyOrder }, "Court document generated");
 
+  if (governorId) {
+    await logGovernorActivation({
+      governorId,
+      roleKey: governorRoleKey!,
+      eventType: "generation",
+      documentId: dbRecord.id,
+      documentType: template.documentType,
+      actingUserId: input.userId,
+      actingUserEmail: input.userEmail,
+    });
+  }
+
   return {
     id: dbRecord.id,
     templateId: template.id,
@@ -139,6 +207,8 @@ export async function generateCourtDocument(input: GenerateCourtDocInput): Promi
     lawRefs,
     signatureBlock,
     dbRecord,
+    governorRoleKey,
+    governorDisplayName,
   };
 }
 

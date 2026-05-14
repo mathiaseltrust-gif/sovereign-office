@@ -40,6 +40,9 @@ router.post("/create", requireAuth, async (req, res, next) => {
       doctrineDatabase: req.body?.doctrineDatabase as string[] | undefined,
       lawDatabase: req.body?.lawDatabase as string[] | undefined,
       profilePhotoUrl: req.body?.profilePhotoUrl as string | undefined,
+      userRole: role,
+      userId: dbId,
+      userEmail: tokenUser.email,
     });
 
     logger.info({ tier: result.tier, documentType: req.body?.documentType }, "AI drafting engine result");

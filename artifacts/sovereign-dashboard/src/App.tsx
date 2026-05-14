@@ -61,6 +61,7 @@ const FamilyGovernancePage = lazy(() => import("@/pages/family-governance"));
 const OrgOverviewPage = lazy(() => import("@/pages/org"));
 const DraftsPage = lazy(() => import("@/pages/drafts"));
 const FilesPage = lazy(() => import("@/pages/documents"));
+const RoleGovernorsPage = lazy(() => import("@/pages/role-governors"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -366,6 +367,9 @@ function AppRouter() {
             )}
           />
         )}
+      </Route>
+      <Route path="/role-governors">
+        {() => <ProtectedRoute component={RoleGovernorsPage} />}
       </Route>
 
       <Route component={NotFound} />

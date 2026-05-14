@@ -1,12 +1,13 @@
 import { useState } from "react";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useAuth } from "@/components/auth-provider";
+import { canManageGovernors } from "@/lib/governor-access";
 
 type DocumentKind =
   | "court_document"
@@ -32,6 +33,8 @@ interface DraftResult {
   warnings?: string[];
   recommendations?: string[];
   disclaimer?: string;
+  governorRoleKey?: string;
+  governorDisplayName?: string;
 }
 
 const DOC_KINDS: { value: DocumentKind; label: string; desc: string }[] = [
@@ -54,13 +57,39 @@ const JURISDICTIONS: { value: Jurisdiction; label: string }[] = [
   { value: "federal", label: "Federal Court / Agency" },
 ];
 
+interface SessionGovernor {
+  id: number;
+  roleKey: string;
+  displayName: string;
+  postureStatement: string;
+  authorityCitation: string;
+}
+
 export default function DraftsPage() {
   const { toast } = useToast();
+  const { activeRole, sessionToken } = useAuth();
   const [docType, setDocType] = useState<DocumentKind>("court_document");
   const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("tribal");
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
   const [copied, setCopied] = useState(false);
+
+  const isSovereignAdmin = canManageGovernors(activeRole);
+
+  const { data: sessionGovData } = useQuery<{ governor: SessionGovernor | null }>({
+    queryKey: ["governors", "session"],
+    queryFn: async () => {
+      const r = await fetch("/api/governors/session", {
+        headers: { Authorization: `Bearer ${sessionToken ?? getCurrentBearerToken()}` },
+      });
+      if (!r.ok) return { governor: null };
+      return r.json();
+    },
+    enabled: isSovereignAdmin,
+    staleTime: 30_000,
+  });
+
+  const sessionGovernor = sessionGovData?.governor ?? null;
 
   const draftMutation = useMutation({
     mutationFn: async () => {
@@ -167,6 +196,17 @@ export default function DraftsPage() {
             />
           </div>
 
+          {sessionGovernor && (
+            <div className="rounded-md border border-amber-200 bg-amber-50/60 px-4 py-3 flex items-start gap-3">
+              <span className="text-amber-700 text-base mt-0.5">⚖</span>
+              <div>
+                <p className="text-xs font-semibold text-amber-800 uppercase tracking-widest mb-0.5">Active Governor</p>
+                <p className="text-sm font-medium text-amber-900">{sessionGovernor.displayName}</p>
+                <p className="text-xs text-amber-700 mt-0.5 line-clamp-2">{sessionGovernor.authorityCitation}</p>
+              </div>
+            </div>
+          )}
+
           <Button
             className="w-full"
             onClick={() => draftMutation.mutate()}
@@ -189,6 +229,11 @@ export default function DraftsPage() {
                   <div className="flex gap-2 mt-1 flex-wrap">
                     <Badge variant="outline" className="text-xs">{result.tier}</Badge>
                     <Badge variant="secondary" className="text-xs capitalize">{result.jurisdiction}</Badge>
+                    {result.governorDisplayName && (
+                      <Badge className="text-xs bg-amber-700 text-white hover:bg-amber-700">
+                        ⚖ {result.governorDisplayName}
+                      </Badge>
+                    )}
                   </div>
                 </div>
                 <Button variant="outline" size="sm" className="shrink-0" onClick={copyToClipboard}>

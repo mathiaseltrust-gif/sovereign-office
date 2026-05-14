@@ -22,3 +22,4 @@ export * from "./community-forum";
 export * from "./community-ai";
 export * from "./business-concepts";
 export * from "./gwe-letters";
+export * from "./role-governors";
