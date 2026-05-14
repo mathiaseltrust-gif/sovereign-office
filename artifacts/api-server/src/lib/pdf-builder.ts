@@ -95,6 +95,7 @@ export interface RecorderMetadata {
   landClassification?: string;
   documentType?: string;
   requiresNotary?: boolean;
+  filingNumber?: string;
 }
 
 export interface PdfBuildInput {
@@ -231,6 +232,16 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
       size: FONT_SMALL_SIZE,
       font: timesRoman,
     });
+  }
+
+  if (meta.filingNumber) {
+    const fnLabel = "Filing No.: ";
+    const fnText = meta.filingNumber;
+    const fnLabelW = timesBold.widthOfTextAtSize(fnLabel, FONT_SMALL_SIZE);
+    const fnTextW = timesRoman.widthOfTextAtSize(fnText, FONT_SMALL_SIZE);
+    const fnX = PAGE_W - MARGIN_RIGHT - fnLabelW - fnTextW;
+    page.drawText(fnLabel, { x: fnX, y: PAGE_H - 32, size: FONT_SMALL_SIZE, font: timesBold });
+    page.drawText(fnText, { x: fnX + fnLabelW, y: PAGE_H - 32, size: FONT_SMALL_SIZE, font: timesRoman });
   }
 
   page.drawLine({

@@ -60,6 +60,7 @@ const ElderAdvisoryPage = lazy(() => import("@/pages/elder-advisory"));
 const FamilyGovernancePage = lazy(() => import("@/pages/family-governance"));
 const OrgOverviewPage = lazy(() => import("@/pages/org"));
 const DraftsPage = lazy(() => import("@/pages/drafts"));
+const FilesPage = lazy(() => import("@/pages/documents"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -217,6 +218,9 @@ function AppRouter() {
       </Route>
       <Route path="/documents">
         {() => <ProtectedRoute component={CourtDocumentsPage} />}
+      </Route>
+      <Route path="/files">
+        {() => <ProtectedRoute component={FilesPage} />}
       </Route>
       <Route path="/search">
         {() => <ProtectedRoute component={SearchPage} />}

@@ -102,6 +102,7 @@ function getCoreNav(role: Role): NavSection["items"] {
     { href: "/family-governance", label: "Family Governance" },
     { href: "/drafts", label: "AI Document Drafts" },
     { href: "/instruments", label: "Trust Instruments" },
+    { href: "/files", label: "Files" },
     { href: "/filings", label: "Filings" },
     { href: "/nfr", label: "Notice of Federal Review" },
     { href: "/welfare", label: "Welfare Instruments" },

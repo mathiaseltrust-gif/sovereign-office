@@ -212,6 +212,56 @@ router.get("/:id/filings", async (req, res, next) => {
   }
 });
 
+router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const existing = await db.select().from(trustInstrumentsTable).where(eq(trustInstrumentsTable.id, id)).limit(1);
+    if (!existing[0]) {
+      res.status(404).json({ error: "Instrument not found" });
+      return;
+    }
+    if (existing[0].status === "filed" || existing[0].status === "submitted") {
+      res.status(400).json({ error: "Cannot edit an instrument that has already been filed or submitted to the recorder." });
+      return;
+    }
+
+    const body = req.body as {
+      title?: string;
+      content?: string;
+      trusteeNotes?: string;
+      recorderMetadata?: Record<string, unknown>;
+      partiesJson?: Record<string, string>;
+      landJson?: Record<string, unknown>;
+      provisionsJson?: string[];
+    };
+
+    const updatedMeta = body.recorderMetadata
+      ? { ...(existing[0].recorderMetadata as object ?? {}), ...body.recorderMetadata }
+      : undefined;
+
+    const [updated] = await db
+      .update(trustInstrumentsTable)
+      .set({
+        ...(body.title !== undefined ? { title: body.title } : {}),
+        ...(body.content !== undefined ? { content: body.content } : {}),
+        ...(body.trusteeNotes !== undefined ? { trusteeNotes: body.trusteeNotes } : {}),
+        ...(updatedMeta ? { recorderMetadata: updatedMeta } : {}),
+        ...(body.partiesJson !== undefined ? { partiesJson: body.partiesJson as object } : {}),
+        ...(body.landJson !== undefined ? { landJson: body.landJson as object } : {}),
+        ...(body.provisionsJson !== undefined ? { provisionsJson: body.provisionsJson as unknown as object } : {}),
+        updatedAt: new Date(),
+        pdfBuffer: null,
+        status: "draft",
+      })
+      .where(eq(trustInstrumentsTable.id, id))
+      .returning();
+
+    res.json({ instrument: updated, message: "Instrument updated. PDF has been cleared — regenerate when ready." });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => {
   try {
     const body = req.body as Partial<InstrumentOptions> & {
