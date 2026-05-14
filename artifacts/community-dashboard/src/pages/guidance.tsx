@@ -17,7 +17,13 @@ interface GuidanceResult {
   answer: string;
   citations: string[];
   disclaimer: string;
-  roleContext?: { roleKey: string; displayName: string };
+  roleContext?: {
+    roleKey: string;
+    displayName: string;
+    delegatedScopes?: string[];
+    businessRoles?: Array<{ title: string; role: string; structure: string | null }>;
+    hasDelegations?: boolean;
+  };
 }
 
 const ROLE_COLORS: Record<string, string> = {
@@ -135,12 +141,23 @@ export default function Guidance() {
                 Guidance
               </CardTitle>
               {result.roleContext && (
-                <span
-                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${ROLE_COLORS[result.roleContext.roleKey] ?? ROLE_COLORS.member}`}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5" />
-                  {result.roleContext.displayName}
-                </span>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <span
+                    className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${ROLE_COLORS[result.roleContext.roleKey] ?? ROLE_COLORS.member}`}
+                  >
+                    <ShieldCheck className="h-3.5 w-3.5" />
+                    {result.roleContext.displayName}
+                  </span>
+                  {result.roleContext.businessRoles?.map((b, i) => (
+                    <span
+                      key={i}
+                      className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full border bg-violet-900 text-violet-100 border-violet-700"
+                      title={b.structure ?? undefined}
+                    >
+                      {b.role} · {b.title}
+                    </span>
+                  ))}
+                </div>
               )}
             </div>
           </CardHeader>

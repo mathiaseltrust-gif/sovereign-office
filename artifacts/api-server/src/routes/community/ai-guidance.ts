@@ -1,8 +1,14 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
-import { aiGuidanceRecordsTable, usersTable } from "@workspace/db";
-import { eq, desc } from "drizzle-orm";
+import {
+  aiGuidanceRecordsTable,
+  usersTable,
+  delegationsTable,
+  businessBoardMembersTable,
+  businessConceptsTable,
+} from "@workspace/db";
+import { eq, desc, and, isNull, or, gt } from "drizzle-orm";
 import { callAzureOpenAI, getAzureOpenAIClient } from "../../lib/azure-openai";
 import { ensureLawDbSeeded, listAllFederalLaw, listAllTribalLaw, listAllDoctrines } from "../../sovereign/law-db";
 import {
@@ -240,6 +246,122 @@ function buildFallbackResponse(
   return { ...match, disclaimer };
 }
 
+// ─── Delegation & business context fetcher ───────────────────────────────────
+
+const SCOPE_LABELS: Record<string, string> = {
+  welfare_actions: "Welfare Actions — authority to execute welfare instruments and actions on behalf of the Sovereign Office",
+  trust_filings: "Trust Filings — authority to file and manage trust instruments under the Federal Trust Responsibility",
+  family_governance: "Family Governance — authority over family lineage decisions and family governance matters",
+  lineage_review: "Lineage Review — authority to review and approve lineage documentation and enrollment",
+  elder_advisory: "Elder Advisory — cultural and advisory authority recognized by the Elder Council",
+  court_review: "Court & NFR Review — authority to review and act on court documents and Notices of Federal Review",
+  full_authority: "Full Authority — full delegated sovereign authority as granted by the Chief Justice & Trustee",
+};
+
+interface DelegationContext {
+  delegations: Array<{ scopeLabels: string[]; delegatorName: string; reason: string | null; expiresAt: Date | null }>;
+  businessMemberships: Array<{ businessTitle: string; structure: string | null; memberRole: string; protections: string[] }>;
+}
+
+async function fetchDelegationContext(userId: number): Promise<DelegationContext> {
+  const now = new Date();
+  try {
+    // Fetch active delegations received by this user
+    const delegationRows = await db
+      .select({
+        delegation: delegationsTable,
+        delegator: { id: usersTable.id, name: usersTable.name },
+      })
+      .from(delegationsTable)
+      .leftJoin(usersTable, eq(delegationsTable.delegatorId, usersTable.id))
+      .where(
+        and(
+          eq(delegationsTable.delegateeId, userId),
+          isNull(delegationsTable.revokedAt),
+          or(isNull(delegationsTable.expiresAt), gt(delegationsTable.expiresAt, now)),
+        ),
+      );
+
+    const delegations = delegationRows.map((r) => ({
+      scopeLabels: (Array.isArray(r.delegation.scopes) ? r.delegation.scopes as string[] : []).map(
+        (s) => SCOPE_LABELS[s] ?? s,
+      ),
+      delegatorName: r.delegator?.name ?? "Sovereign Office",
+      reason: r.delegation.reason,
+      expiresAt: r.delegation.expiresAt,
+    }));
+
+    // Fetch business board memberships for this user
+    const boardRows = await db
+      .select({
+        member: businessBoardMembersTable,
+        concept: {
+          title: businessConceptsTable.title,
+          structure: businessConceptsTable.structure,
+          protections: businessConceptsTable.protections,
+        },
+      })
+      .from(businessBoardMembersTable)
+      .leftJoin(businessConceptsTable, eq(businessBoardMembersTable.conceptId, businessConceptsTable.id))
+      .where(eq(businessBoardMembersTable.directoryMemberId, userId));
+
+    const businessMemberships = boardRows.map((r) => ({
+      businessTitle: r.concept?.title ?? "Unnamed Entity",
+      structure: r.concept?.structure ?? null,
+      memberRole: r.member.memberRole,
+      protections: (Array.isArray(r.concept?.protections) ? r.concept.protections as string[] : []),
+    }));
+
+    return { delegations, businessMemberships };
+  } catch (err) {
+    logger.warn({ err: (err as Error).message }, "Failed to fetch delegation context — proceeding without it");
+    return { delegations: [], businessMemberships: [] };
+  }
+}
+
+function buildDelegationContextBlock(ctx: DelegationContext): string {
+  const lines: string[] = [];
+
+  if (ctx.delegations.length > 0) {
+    lines.push("DELEGATED AUTHORITY (active grants received by this user):");
+    for (const d of ctx.delegations) {
+      lines.push(`  Granted by: ${d.delegatorName}${d.reason ? ` — Reason: ${d.reason}` : ""}`);
+      for (const label of d.scopeLabels) {
+        lines.push(`    • ${label}`);
+      }
+      if (d.expiresAt) {
+        lines.push(`    Expires: ${d.expiresAt.toISOString().slice(0, 10)}`);
+      }
+    }
+    lines.push("");
+  }
+
+  if (ctx.businessMemberships.length > 0) {
+    lines.push("BUSINESS & PARTNERSHIP ASSOCIATIONS:");
+    for (const b of ctx.businessMemberships) {
+      const structureStr = b.structure ? ` (${b.structure})` : "";
+      lines.push(`  • ${b.businessTitle}${structureStr} — Role: ${b.memberRole}`);
+      if (b.protections.length > 0) {
+        lines.push(`    Sovereign Protections: ${b.protections.join("; ")}`);
+      }
+    }
+    lines.push("");
+  }
+
+  if (lines.length === 0) return "";
+
+  return [
+    "═══════════════════════════════════════════════",
+    "DELEGATION & PARTNERSHIP CONTEXT",
+    "═══════════════════════════════════════════════",
+    "",
+    ...lines,
+    "INSTRUCTION: Factor the above delegated authority and business roles into your response. This user may act within the scope of their delegated authority. When their question relates to a business entity they serve, speak with awareness of their role and the entity's sovereign protections. Do not treat them as a general member in those domains.",
+    "═══════════════════════════════════════════════",
+    "",
+  ].join("\n");
+}
+
 // ─── Router ───────────────────────────────────────────────────────────────────
 
 const router = Router();
@@ -268,7 +390,14 @@ router.post("/guidance", requireAuth, async (req, res, next) => {
     const roleKey = normalizeRoleKey(userRole);
     const governor = await getGovernorByRole(roleKey);
 
-    logger.info({ userId, userRole, roleKey, governorId: governor?.id }, "AI guidance request");
+    // Fetch active delegations and business memberships for this user
+    const delegationCtx = userId ? await fetchDelegationContext(userId) : { delegations: [], businessMemberships: [] };
+    const hasDelegations = delegationCtx.delegations.length > 0 || delegationCtx.businessMemberships.length > 0;
+
+    logger.info(
+      { userId, userRole, roleKey, governorId: governor?.id, delegations: delegationCtx.delegations.length, businesses: delegationCtx.businessMemberships.length },
+      "AI guidance request",
+    );
 
     let answer = "";
     let citations: string[] = [];
@@ -285,6 +414,7 @@ router.post("/guidance", requireAuth, async (req, res, next) => {
         const [federal, tribal, doctrines] = await Promise.all([listAllFederalLaw(), listAllTribalLaw(), listAllDoctrines()]);
 
         const lawContext = buildLawContext(federal, tribal, doctrines, roleKey);
+        const delegationBlock = buildDelegationContextBlock(delegationCtx);
         const systemPrompt = buildRoleAwareSystemPrompt(governor, roleKey);
 
         const questionLabel =
@@ -298,7 +428,7 @@ router.post("/guidance", requireAuth, async (req, res, next) => {
                   ? "ELDER INQUIRY"
                   : "MEMBER QUESTION";
 
-        const userPrompt = `${questionLabel}: ${question}${context ? `\nADDITIONAL CONTEXT: ${context}` : ""}\n\nRELEVANT LAW:\n${lawContext}`;
+        const userPrompt = `${questionLabel}: ${question}${context ? `\nADDITIONAL CONTEXT: ${context}` : ""}${delegationBlock ? `\n\n${delegationBlock}` : ""}\n\nRELEVANT LAW:\n${lawContext}`;
 
         const result = await callAzureOpenAI(systemPrompt, userPrompt, { maxTokens: 2000, temperature: 0.2 });
         const parsed = JSON.parse(result.content) as { answer: string; citations: string[]; disclaimer: string };
@@ -339,6 +469,13 @@ router.post("/guidance", requireAuth, async (req, res, next) => {
       roleContext: {
         roleKey,
         displayName: governor?.displayName ?? (userRole === "member" ? "Tribal Member" : userRole),
+        delegatedScopes: delegationCtx.delegations.flatMap((d) => d.scopeLabels),
+        businessRoles: delegationCtx.businessMemberships.map((b) => ({
+          title: b.businessTitle,
+          role: b.memberRole,
+          structure: b.structure,
+        })),
+        hasDelegations,
       },
     });
   } catch (err) {
