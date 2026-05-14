@@ -51,9 +51,14 @@ interface PipelineRecord {
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
-function formatStampDate(d: Date): string {
+function formatStampDate(d: Date): { month: string; daySpaced: string; year: string } {
   const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  return `${months[d.getMonth()]} ${String(d.getDate()).padStart(2, "0")} ${d.getFullYear()}`;
+  const day = String(d.getDate()).padStart(2, "0");
+  return {
+    month: months[d.getMonth()],
+    daySpaced: day.split("").join(" "), // "20" → "2 0"  (dater-style spacing)
+    year: String(d.getFullYear()),
+  };
 }
 
 const RISK_COLOR: Record<string, string> = {
@@ -74,35 +79,37 @@ const MATTER_LABELS: Record<string, string> = {
   general:             "General Matter",
 };
 
-// ── Official Stamp (exact match to physical stamp) ─────────────────────────────
-function OfficialStamp({ date }: { date: string }) {
+// ── Official Stamp — exact match to physical stamp ────────────────────────────
+// Blue border, blue text, red date with dater-style spaced digits
+function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } }) {
   return (
     <div
-      className="inline-block text-center select-none"
+      className="select-none"
       style={{
-        border: "2.5px solid #1a3a6e",
-        borderRadius: "2px",
-        padding: "6px 14px 8px",
-        minWidth: "190px",
+        border: "2px solid #1a3a6e",
+        padding: "6px 16px 8px",
+        minWidth: "215px",
+        textAlign: "center",
         background: "#fff",
-        fontFamily: "'Times New Roman', serif",
+        fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
+        lineHeight: 1,
       }}
     >
-      <div style={{ fontSize: "8px", letterSpacing: "1.2px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.3 }}>
-        By Order of the
+      <div style={{ fontSize: "7pt", fontWeight: 600, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "2px" }}>
+        BY ORDER OF THE
       </div>
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.4, marginBottom: "4px" }}>
-        Mathias El Tribe Supreme Court
+      <div style={{ fontSize: "7.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+        MATHIAS EL TRIBE SUPREME COURT
       </div>
-      <div style={{ fontSize: "26px", fontWeight: 900, letterSpacing: "2px", color: "#111", lineHeight: 1.1, fontFamily: "monospace", margin: "2px 0 4px" }}>
-        {date}
+      <div style={{ fontSize: "24pt", fontWeight: 900, color: "#c0392b", letterSpacing: "3px", fontFamily: "'Courier New', monospace", margin: "2px 0 6px", lineHeight: 1.1 }}>
+        {date.month}&nbsp;{date.daySpaced}&nbsp;{date.year}
       </div>
-      <div style={{ width: "80%", borderTop: "1px solid #1a3a6e", margin: "4px auto" }} />
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 600, textTransform: "uppercase", lineHeight: 1.4 }}>
-        Office of the
+      <div style={{ width: "65%", borderTop: "0.75px solid #1a3a6e", margin: "4px auto 5px" }} />
+      <div style={{ fontSize: "7pt", fontWeight: 600, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "2px" }}>
+        OFFICE OF THE
       </div>
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.4 }}>
-        Chief Justice &amp; Trustee
+      <div style={{ fontSize: "7pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+        CHIEF JUSTICE &amp; TRUSTEE
       </div>
     </div>
   );
@@ -135,45 +142,79 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         boxSizing: "border-box",
       }}
     >
-      {/* ── LETTERHEAD ── */}
-      <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "20px" }}>
-        <img
-          src={`${BASE}tribal-seal.png`}
-          alt="Mathias El Tribe"
-          style={{ width: "60px", height: "60px", objectFit: "contain" }}
-        />
-        <div style={{ flex: 1, textAlign: "center", padding: "0 16px" }}>
-          <div style={{ fontSize: "9pt", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 700, color: "#8B0000" }}>
-            Mathias El Tribe
-          </div>
-          <div style={{ fontSize: "8pt", letterSpacing: "2px", textTransform: "uppercase", color: "#555", marginBottom: "2px" }}>
-            Sovereign Office — Supreme Court
-          </div>
-          <div style={{ fontSize: "7pt", color: "#777" }}>
-            Office of the Chief Justice &amp; Trustee — In Sovereign Trustee Capacity
-          </div>
+      {/* ── LETTERHEAD BOX — matches real court document format ── */}
+      <div style={{
+        border: "2px solid #000",
+        padding: "14px 24px 12px",
+        textAlign: "center",
+        marginBottom: "18px",
+        fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
+      }}>
+        <div style={{ fontSize: "13pt", fontWeight: 900, letterSpacing: "0.5px", textTransform: "uppercase", lineHeight: 1.25 }}>
+          MATHIAS EL TRIBE SUPREME COURT
         </div>
-        <OfficialStamp date={stampDate} />
+        <div style={{ fontSize: "9pt", fontStyle: "italic", margin: "3px 0 4px", color: "#222" }}>
+          &ldquo;WHATEVER WE DO, IT HAS TO MAKE SENSE.&rdquo;
+        </div>
+        <div style={{ fontSize: "8.5pt", color: "#333", lineHeight: 1.6 }}>
+          mmccaster@MathiasElTribe.org
+        </div>
+        <div style={{ fontSize: "8.5pt", color: "#333", marginBottom: "8px" }}>
+          www.mathiaseltribe.org/supreme-court
+        </div>
+        <div style={{ borderTop: "1px solid #666", width: "80%", margin: "0 auto 8px" }} />
+        <div style={{ fontSize: "10pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", lineHeight: 1.4 }}>
+          MATHIAS EL TRIBE SUPREME COURT
+        </div>
+        <div style={{ fontSize: "9pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
+          OFFICE OF THE CHIEF JUSTICE &amp; TRUSTEE
+        </div>
       </div>
 
-      <hr style={{ borderTop: "2.5px solid #000", marginBottom: "8px" }} />
-      <hr style={{ borderTop: "1px solid #000", marginBottom: "20px" }} />
+      {/* ── CASE INFO (left) + STAMP (right) ── */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", gap: "20px" }}>
+        <div style={{ flex: 1, fontFamily: "'Times New Roman', Georgia, serif" }}>
+          <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: "2px" }}>
+            Case No. {record.fileNumber}
+          </div>
+          <div style={{ fontSize: "9pt", color: "#333", fontStyle: "italic", marginBottom: "10px" }}>
+            ({MATTER_LABELS[record.matterType] ?? record.matterType})
+          </div>
+          <div style={{ fontSize: "9.5pt", fontWeight: 600, marginBottom: "2px" }}>
+            IN RE: {record.templateTitle}
+          </div>
+          <div style={{ fontSize: "9pt", color: "#444", fontStyle: "italic", lineHeight: 1.5 }}>
+            Pursuant to Treaty Authority, Tribal Constitution, Federal Indian Law, and Sovereign Jurisdiction
+          </div>
+          {(record.intakeResult?.troRecommended || record.intakeResult?.redFlag) && (
+            <div style={{ marginTop: "8px", display: "inline-block", border: `1.5px solid ${riskColor}`, padding: "3px 12px", fontSize: "8pt", fontWeight: 700, color: riskColor, letterSpacing: "0.8px", textTransform: "uppercase" }}>
+              {record.intakeResult.troRecommended ? "⚑ TRO RECOMMENDED — Immediate Action Required" : "⚑ Red Flag — Sovereign Response Required"}
+            </div>
+          )}
+        </div>
+        <div style={{ flexShrink: 0 }}>
+          <OfficialStamp date={stampDate} />
+        </div>
+      </div>
 
-      {/* ── DOCUMENT TITLE ── */}
-      <div style={{ textAlign: "center", marginBottom: "20px" }}>
-        <div style={{ fontSize: "13pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "1.5px", color: "#8B0000", marginBottom: "6px" }}>
+      {/* ── CENTERED COURT SEAL (B&W stencil position, between header and body) ── */}
+      <div style={{ textAlign: "center", margin: "20px 0 16px" }}>
+        <img
+          src={`${BASE}supreme-court-seal.png`}
+          alt="Mathias El Tribe Supreme Court Seal"
+          style={{ width: "130px", height: "130px", objectFit: "contain" }}
+        />
+      </div>
+
+      {/* ── DECREE TITLE (bold, uppercase, left-aligned — matches real doc format) ── */}
+      <div style={{ marginBottom: "18px" }}>
+        <div style={{ fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px", fontFamily: "'Times New Roman', Georgia, serif" }}>
           {record.templateTitle}
         </div>
-        <div style={{ fontSize: "9pt", color: "#333", letterSpacing: "1px" }}>
-          Case File No.: <strong>{record.fileNumber}</strong> &nbsp;|&nbsp;
-          Classification: <strong>{MATTER_LABELS[record.matterType] ?? record.matterType}</strong> &nbsp;|&nbsp;
+        <div style={{ fontSize: "8.5pt", color: "#444" }}>
           Risk Level: <strong style={{ color: riskColor }}>{record.riskLevel.toUpperCase()}</strong>
+          &nbsp;&nbsp;·&nbsp;&nbsp;Official Seal Applied: <strong>{record.sealApplied ? "YES" : "PENDING"}</strong>
         </div>
-        {(record.intakeResult?.troRecommended || record.intakeResult?.redFlag) && (
-          <div style={{ marginTop: "8px", display: "inline-block", border: `2px solid ${riskColor}`, padding: "4px 14px", fontSize: "8.5pt", fontWeight: 700, color: riskColor, letterSpacing: "1px", textTransform: "uppercase" }}>
-            {record.intakeResult.troRecommended ? "⚑ TRO Recommended — Immediate Action Required" : "⚑ Red Flag — Sovereign Response Required"}
-          </div>
-        )}
       </div>
 
       <hr style={{ borderTop: "1px solid #000", marginBottom: "16px" }} />
