@@ -1,0 +1,178 @@
+Requesting a Cloud Shell.Succeeded. 
+Connecting terminal...
+
+Welcome to Azure Cloud Shell
+
+Type "az" to use Azure CLI
+Type "help" to learn about Cloud Shell
+
+Your Cloud Shell session will be ephemeral so no files or system changes will persist beyond your current session.
+chief [ ~ ]$ az vm list --output table
+Name                 ResourceGroup       Location    Zones
+-------------------  ------------------  ----------  -------
+sovereign-office-vm  TRIBAL-FIREWALL-RG  westus2     1
+chief [ ~ ]$ az vm list-ip-addresses --resource-group YOUR_RG --name YOUR_VM_NAME --output table
+
+chief [ ~ ]$ az vm run-command invoke \
+  --resource-group YOUR_RG \
+  --name YOUR_VM_NAME \
+  --command-id RunShellScript \
+  --scripts "find / -name 'docker-compose.prod.yml' 2>/dev/null; echo '---'; ls /home/azureuser/"
+(ResourceGroupNotFound) Resource group 'YOUR_RG' could not be found.
+Code: ResourceGroupNotFound
+Message: Resource group 'YOUR_RG' could not be found.
+chief [ ~ ]$ az vm list-ip-addresses \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm \
+  --output table
+``
+VirtualMachine       PublicIPAddresses    PrivateIPAddresses
+-------------------  -------------------  --------------------
+sovereign-office-vm  20.83.210.26         10.0.0.4
+chief [ ~ ]$ az vm run-command invoke \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm \
+  --command-id RunShellScript \
+  --scripts "find / -name 'docker-compose.prod.yml' 2>/dev/null; echo '---'; ls /home/azureuser/"
+``
+(OperationNotAllowed) The operation requires the VM to be running (or set to run).
+Code: OperationNotAllowed
+Message: The operation requires the VM to be running (or set to run).
+chief [ ~ ]$ az vm start \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm
+chief [ ~ ]$ az vm run-command invoke \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm \
+  --command-id RunShellScript \
+  --scripts "find / -name 'docker-compose.prod.yml' 2>/dev/null; echo '---'; ls /home/azureuser/"
+``
+{
+  "value": [
+    {
+      "code": "ProvisioningState/succeeded",
+      "displayStatus": "Provisioning succeeded",
+      "level": "Info",
+      "message": "Enable succeeded: \n[stdout]\n/opt/sovereign-office/docker-compose.prod.yml\n---\n\n[stderr]\n"
+    }
+  ]
+}
+chief [ ~ ]$ az vm run-command invoke \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm \
+  --command-id RunShellScript \
+  --scripts "
+    DEPLOY_DIR=\$(dirname \$(find / -name 'docker-compose.prod.yml' 2>/dev/null | head -1))
+    cd \$DEPLOY_DIR
+    grep -q 'REDIS_CONNECTION_STRING' .env || echo 'REDIS_CONNECTION_STRING=rediss://:xC6UOcHytHKBiEyLIDSgKnLTBj9TLNfhVAzCaDwq1B8=@sovereign-chat-memory.redis.cache.windows.net:6380' >> .env
+    grep -q 'REDIS_CONNECTION_STRING' docker-compose.prod.yml && echo 'Already set' || echo 'Add manually'
+``" echo 'Done. .env contains:' && grep REDIS .env
+[Warning] This output may compromise security by showing the following secrets: value, message. Learn more at: https://go.microsoft.com/fwlink/?linkid=2258669
+{
+  "value": [
+    {
+      "code": "ProvisioningState/succeeded",
+      "displayStatus": "Provisioning succeeded",
+      "level": "Info",
+      "message": "Enable succeeded: \n[stdout]\nAdd manually\nDone. .env contains:\nREDIS_CONNECTION_STRING=rediss://:xC6UOcHytHKBiEyLIDSgKnLTBj9TLNfhVAzCaDwq1B8=@sovereign-chat-memory.redis.cache.windows.net:6380\n\n[stderr]\n"
+    }
+  ]
+}
+chief [ ~ ]$ ssh-keygen -t rsa -b 4096 -f ~/clouddrive/sovereign-deploy-key -N ""
+Generating public/private rsa key pair.
+Saving key "/home/chief/clouddrive/sovereign-deploy-key" failed: No such file or directory
+chief [ ~ ]$ mkdir -p ~/clouddrive
+``
+chief [ ~ ]$ ssh-keygen -t rsa -b 4096 -f ~/clouddrive/sovereign-deploy-key -N ""
+Generating public/private rsa key pair.
+Your identification has been saved in /home/chief/clouddrive/sovereign-deploy-key
+Your public key has been saved in /home/chief/clouddrive/sovereign-deploy-key.pub
+The key fingerprint is:
+SHA256:Um5XFou18EXTrv0BAcDbLx3MEvLudwNxTTWJAQIrB0Q chief@SandboxHost-639143649881456290
+The key's randomart image is:
++---[RSA 4096]----+
+|    oE .oooo=o*o+|
+|      . .o.* B o+|
+|     . o. * X .o.|
+|      oo . * * .o|
+|      . S o + =o |
+|       o . o +...|
+|          . . . o|
+|           . . o.|
+|            . . .|
++----[SHA256]-----+
+chief [ ~ ]$ cat ~/clouddrive/sovereign-deploy-key
+``
+-----BEGIN OPENSSH PRIVATE KEY-----
+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
+UGBw==
+-----END OPENSSH PRIVATE KEY-----
+chief [ ~ ]$ az vm user update \
+  --resource-group TRIBAL-FIREWALL-RG \
+  --name sovereign-office-vm \
+  --username azureuser \
+  --ssh-key-value "$(cat ~/clouddrive/sovereign-deploy-key.pub)"
+{
+  "autoUpgradeMinorVersion": true,
+  "id": "/subscriptions/5838e8d3-014b-40f7-8480-db939c878f84/resourceGroups/TRIBAL-FIREWALL-RG/providers/Microsoft.Compute/virtualMachines/sovereign-office-vm/extensions/enablevmAccess",
+  "location": "westus2",
+  "name": "enablevmAccess",
+  "provisioningState": "Succeeded",
+  "publisher": "Microsoft.OSTCExtensions",
+  "resourceGroup": "TRIBAL-FIREWALL-RG",
+  "settings": {},
+  "type": "Microsoft.Compute/virtualMachines/extensions",
+  "typeHandlerVersion": "1.5",
+  "typePropertiesType": "VMAccessForLinux"
+}
+chief [ ~ ]$ git commit --allow-empty -m "final deploy"
+git push origin main
+fatal: not a git repository (or any of the parent directories): .git
+fatal: not a git repository (or any of the parent directories): .git
+chief [ ~ ]$ 
