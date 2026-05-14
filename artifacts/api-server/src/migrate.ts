@@ -4,7 +4,8 @@
  * schema that might be missing from older production databases.
  * Safe to run repeatedly — IF NOT EXISTS makes every statement idempotent.
  */
-import pg from "pg";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { sql } from "drizzle-orm";
 
 const databaseUrl = process.env.DATABASE_URL;
 if (!databaseUrl) {
@@ -12,43 +13,41 @@ if (!databaseUrl) {
   process.exit(1);
 }
 
-const client = new pg.Client({ connectionString: databaseUrl });
+const db = drizzle(databaseUrl);
+
+const migrations = [
+  // family_lineage — columns added after initial deploy
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10)`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS pending_review BOOLEAN DEFAULT false`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS added_by_member_id INTEGER`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS supporting_document_name VARCHAR(500)`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS name_variants JSONB DEFAULT '[]'`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS protection_level VARCHAR(50) DEFAULT 'pending'`,
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS membership_status VARCHAR(50) DEFAULT 'pending'`,
+
+  // users — additional profile fields
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(500)`,
+  `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url TEXT`,
+];
 
 async function runMigrations() {
-  await client.connect();
-  console.log("[migrate] Connected. Applying schema migrations...");
+  console.log("[migrate] Connecting to database...");
 
-  const migrations: string[] = [
-    // family_lineage — columns added after initial deploy
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10)`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS pending_review BOOLEAN DEFAULT false`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS added_by_member_id INTEGER`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS supporting_document_name VARCHAR(500)`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS name_variants JSONB DEFAULT '[]'`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS protection_level VARCHAR(50) DEFAULT 'pending'`,
-    `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS membership_status VARCHAR(50) DEFAULT 'pending'`,
-
-    // users — additional profile fields
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(500)`,
-    `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url TEXT`,
-  ];
-
-  for (const sql of migrations) {
+  for (const statement of migrations) {
+    const col = statement.match(/ADD COLUMN IF NOT EXISTS (\w+)/)?.[1] ?? statement.slice(0, 60);
     try {
-      await client.query(sql);
-      const col = sql.match(/ADD COLUMN IF NOT EXISTS (\w+)/)?.[1] ?? sql;
+      await db.execute(sql.raw(statement));
       console.log(`[migrate]   ✓ ${col}`);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      console.warn(`[migrate]   ⚠ skipped (${msg})`);
+      console.warn(`[migrate]   ⚠ ${col} skipped: ${msg}`);
     }
   }
 
   console.log("[migrate] All migrations applied.");
-  await client.end();
   process.exit(0);
 }
 
