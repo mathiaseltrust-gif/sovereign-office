@@ -51,6 +51,7 @@ import businessAnalyzeRouter from "./business/analyze";
 import businessConceptsRouter from "./business/concepts";
 import storageRouter from "./storage";
 import governorsRouter from "./governors/index";
+import sovereignPipelineRouter from "./intake/pipeline";
 
 const router: IRouter = Router();
 
@@ -107,5 +108,6 @@ router.use("/business/analyze", businessAnalyzeRouter);
 router.use("/business/concepts", businessConceptsRouter);
 router.use(storageRouter);
 router.use("/governors", governorsRouter);
+router.use("/sovereign/pipeline", sovereignPipelineRouter);
 
 export default router;

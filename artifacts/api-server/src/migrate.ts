@@ -31,6 +31,30 @@ const migrations = [
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name VARCHAR(500)`,
   `ALTER TABLE users ADD COLUMN IF NOT EXISTS profile_photo_url TEXT`,
+
+  // sovereign_pipeline_records — new table for the 6-engine pipeline
+  `CREATE TABLE IF NOT EXISTS sovereign_pipeline_records (
+    id SERIAL PRIMARY KEY,
+    file_number VARCHAR(32) NOT NULL UNIQUE,
+    submitted_by INTEGER,
+    input_text TEXT NOT NULL,
+    matter_type VARCHAR(64) NOT NULL DEFAULT 'general',
+    risk_level VARCHAR(32) NOT NULL DEFAULT 'low',
+    intake_result JSONB,
+    doctrine_overlay JSONB,
+    analyst_approved BOOLEAN,
+    analyst_notes TEXT,
+    template_key VARCHAR(64),
+    template_title VARCHAR(255),
+    generated_summary TEXT,
+    status VARCHAR(32) NOT NULL DEFAULT 'intake',
+    print_count INTEGER NOT NULL DEFAULT 0,
+    last_printed_at TIMESTAMP,
+    seal_applied BOOLEAN NOT NULL DEFAULT false,
+    print_log JSONB NOT NULL DEFAULT '[]',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
 ];
 
 async function runMigrations() {
