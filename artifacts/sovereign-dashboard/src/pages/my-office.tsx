@@ -416,19 +416,84 @@ export default function MyOfficePage() {
     enabled: canAccess && (selectedId !== null || records.length > 0),
   });
 
+  // ── Print-window generator ────────────────────────────────────────────────
+  function printDocument(mode: "esign" | "color") {
+    const docEl = document.getElementById("official-document");
+    if (!docEl) { alert("Document not found — select a record first."); return; }
+
+    // Clone + make all image srcs absolute so the popup window can load them
+    const clone = docEl.cloneNode(true) as HTMLElement;
+    clone.querySelectorAll("img").forEach(img => {
+      const src = img.getAttribute("src") ?? "";
+      if (!src.startsWith("http") && !src.startsWith("data:")) {
+        img.setAttribute("src", src.startsWith("/")
+          ? `${window.location.origin}${src}`
+          : `${window.location.origin}${import.meta.env.BASE_URL}${src.replace(/^\.?\/?/, "")}`
+        );
+      }
+    });
+
+    const isEsign = mode === "esign";
+    const ts = new Date();
+    const isoTs = ts.toISOString();
+    const humanTs = ts.toLocaleString("en-US", { timeZoneName: "short" });
+
+    const bottomBlock = isEsign
+      ? `<div style="margin:24px 0 0;border:1.5px solid #1a3a6e;padding:12px 16px;text-align:center;font-family:'Courier New',monospace;font-size:8.5pt;color:#1a3a6e;background:#f4f6fb;">
+           <div style="font-weight:700;letter-spacing:1.5px;font-size:8pt;margin-bottom:4px;">&#10022; ELECTRONICALLY SIGNED, SEALED &amp; FILED &#10022;</div>
+           <div style="font-size:7.5pt;color:#555;">MATHIAS EL TRIBE SUPREME COURT &#8212; SOVEREIGN DOCUMENT MANAGEMENT SYSTEM</div>
+           <div style="margin-top:6px;font-size:7.5pt;color:#333;">Digital Timestamp: ${isoTs}</div>
+           <div style="font-size:7.5pt;color:#555;">${humanTs} &#8212; Record Engine v1.0 &#8212; Sovereign Pipeline</div>
+         </div>`
+      : `<div style="margin:32px 0 0;font-family:'Times New Roman',serif;">
+           <div style="margin-bottom:36px;font-size:9.5pt;color:#222;">
+             I hereby affix my hand and seal to this sovereign instrument this _______ day of _____________, _______.
+           </div>
+           <div style="display:flex;justify-content:space-between;gap:40px;margin-bottom:16px;">
+             <div style="flex:1;border-top:1px solid #000;padding-top:5px;font-size:8pt;color:#444;text-align:center;">
+               Signature of Chief Justice &amp; Trustee
+             </div>
+             <div style="width:140px;border-top:1px solid #000;padding-top:5px;font-size:8pt;color:#444;text-align:center;">Date</div>
+           </div>
+           <div style="font-size:8pt;color:#555;font-style:italic;text-align:center;margin-top:8px;">
+             ORIGINAL &#8212; Personally Signed &#8212; Not Electronically Filed
+           </div>
+         </div>`;
+
+    const fullHtml = `<!DOCTYPE html><html lang="en"><head>
+      <meta charset="utf-8">
+      <title>Sovereign Document &#8212; ${isEsign ? "ePrint / eSign &amp; File" : "Print &amp; Sign (Color)"}</title>
+      <style>
+        * { box-sizing: border-box; }
+        body { background: white; margin: 0; padding: 0; }
+        ${isEsign ? "img { filter: grayscale(100%) contrast(1.12) !important; }" : ""}
+        @page { size: 8.5in 11in; margin: 0; }
+        @media print { body { margin: 0; } }
+      </style>
+    </head><body>
+      ${clone.outerHTML}
+      ${bottomBlock}
+      <script>window.onload=function(){setTimeout(function(){window.print();},700);};<\/script>
+    </body></html>`;
+
+    const w = window.open("", "_blank", "width=980,height=800");
+    if (w) { w.document.open(); w.document.write(fullHtml); w.document.close(); }
+    else { alert("Pop-up blocked — please allow pop-ups for this site to open the print window."); }
+  }
+
   const printSeal = useMutation({
-    mutationFn: async (id: number) => {
+    mutationFn: async ({ id, mode }: { id: number; mode: "esign" | "color" }) => {
       const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/pipeline/${id}/print`, {
         method: "POST",
         headers: { Authorization: `Bearer ${token}` },
       });
       if (!r.ok) throw new Error("Print failed");
-      return r.json();
+      return { ...(await r.json()), mode };
     },
     onSuccess: (data) => {
-      toast({ title: `Sealed & Printed — ${data.fileNumber}`, description: `Print event #${data.printCount} logged.` });
-      setTimeout(() => window.print(), 400);
+      toast({ title: `Sealed — ${data.fileNumber}`, description: `Print event #${data.printCount} logged. Opening print window…` });
+      setTimeout(() => printDocument(data.mode as "esign" | "color"), 300);
     },
     onError: (err: Error) => {
       toast({ title: "Print failed", description: err.message, variant: "destructive" });
@@ -544,19 +609,30 @@ export default function MyOfficePage() {
           </p>
         </div>
         {selected && (
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             {selected.intakeResult?.troRecommended && (
               <Badge variant="destructive" className="text-xs gap-1">
                 <AlertTriangle className="h-3 w-3" /> TRO Eligible
               </Badge>
             )}
             <Button
-              onClick={() => printSeal.mutate(selected.id)}
+              onClick={() => printSeal.mutate({ id: selected.id, mode: "esign" })}
               disabled={printSeal.isPending}
-              className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white"
+              className="gap-2 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
+              title="B&W stencil seal + electronic timestamp — files automatically"
             >
               <Printer className="h-4 w-4" />
-              {printSeal.isPending ? "Sealing…" : "Seal & Print"}
+              {printSeal.isPending ? "Sealing…" : "ePrint, eSign & File"}
+            </Button>
+            <Button
+              onClick={() => printSeal.mutate({ id: selected.id, mode: "color" })}
+              disabled={printSeal.isPending}
+              variant="outline"
+              className="gap-2 border-[#8B0000] text-[#8B0000] hover:bg-[#8B0000]/5"
+              title="Full color — blank signature line for personal signing"
+            >
+              <Printer className="h-4 w-4" />
+              Print & Sign
             </Button>
           </div>
         )}
@@ -847,16 +923,6 @@ export default function MyOfficePage() {
         </div>
       </div>
 
-      {/* ── Print styles ── */}
-      <style>{`
-        @media print {
-          body > * { display: none !important; }
-          [data-testid="page-my-office"] { display: block !important; }
-          [data-testid="page-my-office"] > *:not(.flex-1) { display: none !important; }
-          #official-document { display: block !important; border: none !important; box-shadow: none !important; }
-          .rounded-lg.border { border: none !important; box-shadow: none !important; }
-        }
-      `}</style>
     </div>
   );
 }
