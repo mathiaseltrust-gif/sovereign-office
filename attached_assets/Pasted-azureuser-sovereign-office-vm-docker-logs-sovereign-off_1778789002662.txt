@@ -1,0 +1,52 @@
+azureuser@sovereign-office-vm:~$ docker logs sovereign-office-api-1 --tail=50
+
+[seed] Seeding McCaster / Chief Mathias El family tree...
+
+[seed] Failed: _DrizzleQueryError: Failed query: insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, default) returning "id"
+params: Mathew,McCaster,Mathew Jacob McCaster,2012,male,SSMEL03,Relationship: child,[],[],[],["mccaster-lineage"],member_self,-1,false,false,pending,pending,[],true,003
+    at NodePgPreparedQuery.queryWithCache (file:///app/dist/seed.mjs:11691:15)
+    at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+    at async file:///app/dist/seed.mjs:11924:22
+    at async findOrCreate (file:///app/dist/seed.mjs:12647:17)
+    at async main (file:///app/dist/seed.mjs:12660:25) {
+  query: 'insert into "family_lineage" ("id", "user_id", "first_name", "last_name", "full_name", "birth_year", "death_year", "gender", "tribal_nation", "tribal_enrollment_number", "notes", "parent_ids", "children_ids", "spouse_ids", "lineage_tags", "source_type", "generational_position", "is_deceased", "is_ancestor", "icwa_eligible", "welfare_eligible", "trust_beneficiary", "linked_profile_user_id", "photo_filename", "created_at", "updated_at", "protection_level", "membership_status", "name_variants", "entra_object_id", "pending_review", "added_by_member_id", "supporting_document_name", "tribal_id_number", "photo_url") values (default, default, $1, $2, $3, $4, default, $5, default, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, default, default, default, default, default, default, default, $16, $17, $18, default, $19, default, default, $20, default) returning "id"',
+  params: [
+    'Mathew',                'McCaster',
+    'Mathew Jacob McCaster', 2012,
+    'male',                  'SSMEL03',
+    'Relationship: child',   '[]',
+    '[]',                    '[]',
+    '["mccaster-lineage"]',  'member_self',
+    -1,                      false,
+    false,                   'pending',
+    'pending',               '[]',
+    true,                    '003'
+  ],
+  cause: error: column "tribal_id_number" of relation "family_lineage" does not exist
+      at file:///app/dist/seed.mjs:4290:15
+      at process.processTicksAndRejections (node:internal/process/task_queues:103:5)
+      at async file:///app/dist/seed.mjs:11931:18
+      at async NodePgPreparedQuery.queryWithCache (file:///app/dist/seed.mjs:11689:16)
+      at async file:///app/dist/seed.mjs:11924:22
+      at async findOrCreate (file:///app/dist/seed.mjs:12647:17)
+      at async main (file:///app/dist/seed.mjs:12660:25) {
+    length: 144,
+    severity: 'ERROR',
+    code: '42703',
+    detail: undefined,
+    hint: undefined,
+    position: '585',
+    internalPosition: undefined,
+    internalQuery: undefined,
+    where: undefined,
+    schema: undefined,
+    table: undefined,
+    column: undefined,
+    dataType: undefined,
+    constraint: undefined,
+    file: 'parse_target.c',
+    line: '1068',
+    routine: 'checkInsertTargets'
+  }
+}
+azureuser@sovereign-office-vm:~$ 

@@ -9,8 +9,7 @@
 #        - <git-sha>  — immutable, pinned to this exact commit
 #        - latest     — floating tag always pointing at the newest build
 #   3. SSHs into the Azure VM and performs a rolling restart:
-#        pulls the new images, then restarts each service one at a time
-#        so the system is never fully down.
+#        runs DB schema migrations, pulls new images, restarts each service.
 #
 # Required GitHub repository secrets (Settings → Secrets and variables → Actions):
 #
@@ -21,11 +20,7 @@
 #   DEPLOY_HOST       Public IP of the Azure VM  e.g. 20.83.210.26
 #   DEPLOY_USER       SSH login user on the VM   e.g. azureuser
 #   DEPLOY_SSH_KEY    Full PEM-encoded private key matching an authorised_key on the VM
-#   DEPLOY_PATH       Absolute path on the VM    e.g. /home/azureuser/sovereign-office
-#
-# Optional GitHub repository variables (Settings → Variables → Actions):
-#
-#   VITE_API_URL      Public URL of the API  e.g. http://20.83.210.26:8080
+#   DEPLOY_PATH       Absolute path on the VM    e.g. /opt/sovereign-office
 # ============================================================================
 
 name: Build & Deploy
@@ -134,7 +129,6 @@ jobs:
     name: Rolling restart on Azure VM
     runs-on: ubuntu-latest
     needs: build-and-push
-    environment: production
 
     steps:
       - name: Deploy via SSH
@@ -143,9 +137,32 @@ jobs:
           host: ${{ secrets.DEPLOY_HOST }}
           username: ${{ secrets.DEPLOY_USER }}
           key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
           script: |
             set -euo pipefail
             cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Running DB schema migrations"
+            PG=$(docker ps --format '{{.Names}}' | grep postgres | head -1 || true)
+            if [ -n "$PG" ]; then
+              docker exec "$PG" psql -U sovereign -d sovereign_office -c "
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10);
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT;
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255);
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS pending_review BOOLEAN DEFAULT false;
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS added_by_member_id INTEGER;
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS supporting_document_name VARCHAR(500);
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS name_variants JSONB DEFAULT '[]';
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS protection_level VARCHAR(50) DEFAULT 'pending';
+                ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS membership_status VARCHAR(50) DEFAULT 'pending';
+                SELECT 'Schema migration complete';
+              "
+              echo "    DB migration done."
+            else
+              echo "    No local postgres container found — skipping migration (external DB assumed up to date)."
+            fi
 
             echo "==> Logging in to ACR"
             echo "${{ secrets.ACR_PASSWORD }}" | \
@@ -158,7 +175,7 @@ jobs:
 
             echo "==> Rolling restart — api"
             docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api
-            echo "    Waiting for api health check..."
+            echo "    Waiting for api to become healthy..."
             timeout 90 bash -c \
               'until docker compose -f docker-compose.prod.yml ps api | grep -q "healthy"; do sleep 3; done'
 
