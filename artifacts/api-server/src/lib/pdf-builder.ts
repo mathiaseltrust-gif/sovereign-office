@@ -832,15 +832,23 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   // Profile photo area (above SSMEL, below seal)
   if (input.profilePhotoUrl) {
     try {
-      const { default: fetch } = await import("node-fetch");
-      const resp = await (fetch as Function)(input.profilePhotoUrl);
-      const buf = await resp.arrayBuffer();
-      const photoImg = await pdfDoc.embedPng(new Uint8Array(buf)).catch(() => pdfDoc.embedJpg(new Uint8Array(buf)));
-      const phW = 50; const phH = 55;
-      const phX = 8 + (LOGO_PANEL_W - phW) / 2;
-      const phY = 42;
-      page.drawRectangle({ x: phX - 1, y: phY - 1, width: phW + 2, height: phH + 2, color: rgb(0.9, 0.82, 0.4) });
-      page.drawImage(photoImg, { x: phX, y: phY, width: phW, height: phH });
+      let photoBytes: Uint8Array | null = null;
+      if (input.profilePhotoUrl.startsWith("data:")) {
+        const base64 = input.profilePhotoUrl.split(",")[1];
+        if (base64) photoBytes = new Uint8Array(Buffer.from(base64, "base64"));
+      } else {
+        const resp = await fetch(input.profilePhotoUrl);
+        const buf = await resp.arrayBuffer();
+        photoBytes = new Uint8Array(buf);
+      }
+      if (photoBytes) {
+        const photoImg = await pdfDoc.embedPng(photoBytes).catch(() => pdfDoc.embedJpg(photoBytes!));
+        const phW = 50; const phH = 55;
+        const phX = 8 + (LOGO_PANEL_W - phW) / 2;
+        const phY = 42;
+        page.drawRectangle({ x: phX - 1, y: phY - 1, width: phW + 2, height: phH + 2, color: rgb(0.9, 0.82, 0.4) });
+        page.drawImage(photoImg, { x: phX, y: phY, width: phW, height: phH });
+      }
     } catch { /* no photo, skip */ }
   } else {
     // Photo placeholder

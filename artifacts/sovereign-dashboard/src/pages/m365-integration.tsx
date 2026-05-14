@@ -107,12 +107,11 @@ const POWER_AUTOMATE_STEPS = [
 ];
 
 export default function M365IntegrationPage() {
-  const { user, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [status, setStatus] = useState<M365Status | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (authLoading) return;
     if (!user) { setLoading(false); return; }
     fetch(`${API_BASE}/m365/status`, {
       headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
@@ -124,7 +123,7 @@ export default function M365IntegrationPage() {
       .then(setStatus)
       .catch(() => setStatus(null))
       .finally(() => setLoading(false));
-  }, [user, authLoading]);
+  }, [user]);
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
