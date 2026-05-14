@@ -15,8 +15,8 @@ import {
   getGovernorByRole,
   normalizeRoleKey,
   buildGovernorSystemPromptPrefix,
-  type RoleGovernor,
 } from "../../sovereign/role-governor";
+import type { RoleGovernor } from "@workspace/db";
 import { logger } from "../../lib/logger";
 
 // ─── Role-aware system prompt builder ────────────────────────────────────────
