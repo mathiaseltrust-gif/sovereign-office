@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Scale, Send, Clock, ChevronDown, ChevronUp, AlertTriangle } from "lucide-react";
+import { Scale, Send, Clock, ChevronDown, ChevronUp, AlertTriangle, ShieldCheck } from "lucide-react";
 import {
   useGetAiGuidance,
   useListAiGuidanceHistory,
@@ -17,7 +17,17 @@ interface GuidanceResult {
   answer: string;
   citations: string[];
   disclaimer: string;
+  roleContext?: { roleKey: string; displayName: string };
 }
+
+const ROLE_COLORS: Record<string, string> = {
+  chief_justice: "bg-amber-900 text-amber-100 border-amber-700",
+  trustee: "bg-blue-900 text-blue-100 border-blue-700",
+  officer: "bg-slate-700 text-slate-100 border-slate-500",
+  elder: "bg-emerald-900 text-emerald-100 border-emerald-700",
+  member: "bg-muted text-muted-foreground border-border",
+  guest: "bg-muted text-muted-foreground border-border",
+};
 
 export default function Guidance() {
   const [question, setQuestion] = useState("");
@@ -119,10 +129,20 @@ export default function Guidance() {
       {result && !getGuidance.isPending && (
         <Card className="border-primary/30 bg-primary/5 animate-in fade-in duration-400" data-testid="guidance-result">
           <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-base text-primary">
-              <Scale className="h-5 w-5" />
-              Guidance
-            </CardTitle>
+            <div className="flex items-center justify-between flex-wrap gap-2">
+              <CardTitle className="flex items-center gap-2 text-base text-primary">
+                <Scale className="h-5 w-5" />
+                Guidance
+              </CardTitle>
+              {result.roleContext && (
+                <span
+                  className={`inline-flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1 rounded-full border ${ROLE_COLORS[result.roleContext.roleKey] ?? ROLE_COLORS.member}`}
+                >
+                  <ShieldCheck className="h-3.5 w-3.5" />
+                  {result.roleContext.displayName}
+                </span>
+              )}
+            </div>
           </CardHeader>
           <CardContent className="space-y-5">
             <p className="text-foreground leading-relaxed whitespace-pre-wrap" data-testid="guidance-answer">
