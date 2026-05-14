@@ -3,10 +3,8 @@ import { join } from "node:path";
 import { PDFDocument, StandardFonts, rgb, type PDFFont, type PDFPage, type PDFImage } from "pdf-lib";
 import { logger } from "./logger";
 
-// -- Tribal seal loader ------------------------------------------------------
-// The B&W State of Mathias El seal is embedded in all printed documents.
-// Lazy-loaded once and cached; falls back gracefully if the file is missing.
-let _sealBytes: Uint8Array | null | undefined = undefined; // undefined = not yet tried
+// -- Tribal seal loader (B&W — for formal/recorder documents) ----------------
+let _sealBytes: Uint8Array | null | undefined = undefined;
 
 function getSealBytes(): Uint8Array | null {
   if (_sealBytes !== undefined) return _sealBytes;
@@ -23,6 +21,32 @@ function getSealBytes(): Uint8Array | null {
   logger.warn("seal-bw.png not found - PDFs will render without the tribal seal");
   _sealBytes = null;
   return null;
+}
+
+// -- Tribal seal loader (full-color — for Tribal ID cards) -------------------
+let _colorSealBytes: Uint8Array | null | undefined = undefined;
+
+function getColorSealBytes(): Uint8Array | null {
+  if (_colorSealBytes !== undefined) return _colorSealBytes;
+  const candidates = [
+    join(__dirname, "..", "src", "assets", "tribal-seal-color.png"),
+    join(process.cwd(), "src", "assets", "tribal-seal-color.png"),
+  ];
+  for (const p of candidates) {
+    try {
+      _colorSealBytes = new Uint8Array(readFileSync(p));
+      return _colorSealBytes;
+    } catch { /* try next */ }
+  }
+  logger.warn("tribal-seal-color.png not found — falling back to B&W seal");
+  _colorSealBytes = getSealBytes(); // graceful fallback
+  return _colorSealBytes;
+}
+
+async function embedColorSeal(pdfDoc: PDFDocument): Promise<PDFImage | null> {
+  const bytes = getColorSealBytes();
+  if (!bytes) return null;
+  try { return await pdfDoc.embedPng(bytes); } catch { return null; }
 }
 
 async function embedSeal(pdfDoc: PDFDocument): Promise<PDFImage | null> {
@@ -758,6 +782,8 @@ export interface TribalIdPdfInput {
   expirationDate: string;
   profilePhotoUrl?: string;
   verificationUrl: string;
+  tribalEnrollmentNumber?: string;
+  tribalIdNumber?: string;
 }
 
 export interface TribalIdPdfResult {
@@ -774,106 +800,144 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Background - ivory
-  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.98, 0.97, 0.93) });
+  // Background — deep navy so the full-color tribal seal reads true
+  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.08, 0.11, 0.22) });
 
-  // Top banner
-  page.drawRectangle({ x: 0, y: height - 58, width, height: 58, color: rgb(0.12, 0.17, 0.35) });
+  // Subtle inner card area (lighter navy stripe)
+  page.drawRectangle({ x: 8, y: 8, width: width - 16, height: height - 16,
+    borderColor: rgb(0.6, 0.5, 0.2), borderWidth: 0.8, color: rgb(0.10, 0.14, 0.28) });
 
-  // Seal in top banner
-  const seal = await embedSeal(pdfDoc);
+  // -- Logo panel (left 130pt wide) -----------------------------------------
+  const LOGO_PANEL_W = 130;
+  page.drawRectangle({ x: 8, y: 8, width: LOGO_PANEL_W, height: height - 16, color: rgb(0.06, 0.09, 0.18) });
+
+  // Full-color tribal seal — centered in logo panel, fills most of it
+  const seal = await embedColorSeal(pdfDoc);
   if (seal) {
-    const sealDim = 44;
-    page.drawImage(seal, { x: 14, y: height - 54, width: sealDim, height: sealDim });
+    const sealSize = 100;
+    const sealX = 8 + (LOGO_PANEL_W - sealSize) / 2;
+    const sealY = (height - sealSize) / 2 + 10;
+    page.drawImage(seal, { x: sealX, y: sealY, width: sealSize, height: sealSize });
   }
 
-  page.drawText("MATHIAS EL TRIBE", { x: 68, y: height - 24, size: 11, font: helveticaBold, color: rgb(1, 1, 1) });
-  page.drawText("Sovereign Identity Document  |  Office of the Chief Justice & Trustee", { x: 68, y: height - 40, size: 7, font: helvetica, color: rgb(0.85, 0.85, 0.85) });
+  page.drawText("MATHIAS EL", { x: 8 + (LOGO_PANEL_W - helveticaBold.widthOfTextAtSize("MATHIAS EL", 7)) / 2, y: height - 32, size: 7, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
+  page.drawText("TRIBE", { x: 8 + (LOGO_PANEL_W - helveticaBold.widthOfTextAtSize("TRIBE", 7)) / 2, y: height - 42, size: 7, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
 
-  const idNum = `ID-${String(input.userId).padStart(6, "0")}`;
-  page.drawText(idNum, { x: width - 90, y: height - 24, size: 10, font: helveticaBold, color: rgb(1, 1, 1) });
-  page.drawText(`Exp: ${input.expirationDate}`, { x: width - 90, y: height - 38, size: 7, font: helvetica, color: rgb(0.8, 0.8, 0.8) });
+  // SSMEL enrollment number at bottom of logo panel
+  const ssmEl = input.tribalEnrollmentNumber ?? `SSMEL${String(input.userId).padStart(2, "0")}`;
+  const ssmElW = helveticaBold.widthOfTextAtSize(ssmEl, 8);
+  page.drawText(ssmEl, { x: 8 + (LOGO_PANEL_W - ssmElW) / 2, y: 22, size: 8, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
+  page.drawText("ENROLLMENT NO.", { x: 8 + (LOGO_PANEL_W - helvetica.widthOfTextAtSize("ENROLLMENT NO.", 5.5)) / 2, y: 14, size: 5.5, font: helvetica, color: rgb(0.65, 0.60, 0.40) });
 
-  // Left column - identity fields
-  let y = height - 80;
-  const lx = 20;
-  const LABEL_COLOR = rgb(0.45, 0.45, 0.45);
-  const VALUE_COLOR = rgb(0.05, 0.05, 0.05);
-  const LINE_H = 22;
+  // Profile photo area (above SSMEL, below seal)
+  if (input.profilePhotoUrl) {
+    try {
+      const { default: fetch } = await import("node-fetch");
+      const resp = await (fetch as Function)(input.profilePhotoUrl);
+      const buf = await resp.arrayBuffer();
+      const photoImg = await pdfDoc.embedPng(new Uint8Array(buf)).catch(() => pdfDoc.embedJpg(new Uint8Array(buf)));
+      const phW = 50; const phH = 55;
+      const phX = 8 + (LOGO_PANEL_W - phW) / 2;
+      const phY = 42;
+      page.drawRectangle({ x: phX - 1, y: phY - 1, width: phW + 2, height: phH + 2, color: rgb(0.9, 0.82, 0.4) });
+      page.drawImage(photoImg, { x: phX, y: phY, width: phW, height: phH });
+    } catch { /* no photo, skip */ }
+  } else {
+    // Photo placeholder
+    const phW = 50; const phH = 55;
+    const phX = 8 + (LOGO_PANEL_W - phW) / 2;
+    const phY = 42;
+    page.drawRectangle({ x: phX, y: phY, width: phW, height: phH, borderColor: rgb(0.5, 0.45, 0.25), borderWidth: 0.6, color: rgb(0.12, 0.16, 0.30) });
+    page.drawText("PHOTO", { x: phX + (phW - helvetica.widthOfTextAtSize("PHOTO", 6)) / 2, y: phY + phH / 2 - 3, size: 6, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  }
 
-  function drawField(label: string, value: string, bold = false) {
+  // -- Right main content area ----------------------------------------------
+  const cx = LOGO_PANEL_W + 20;
+  const cw = width - cx - 14;
+  const GOLD = rgb(0.9, 0.82, 0.4);
+  const WHITE = rgb(1, 1, 1);
+  const MUTED = rgb(0.65, 0.65, 0.75);
+  const LINE_H = 20;
+
+  // Header strip
+  page.drawText("SOVEREIGN IDENTITY DOCUMENT", { x: cx, y: height - 30, size: 7.5, font: helveticaBold, color: GOLD });
+  page.drawText("Office of the Chief Justice & Trustee  |  Mathias El Tribe", { x: cx, y: height - 42, size: 6, font: helvetica, color: MUTED });
+
+  // Tribal ID Number badge
+  const idDisplay = input.tribalIdNumber ? `NO. ${input.tribalIdNumber}` : `ID-${String(input.userId).padStart(6, "0")}`;
+  const idW = helveticaBold.widthOfTextAtSize(idDisplay, 14);
+  const idX = width - idW - 18;
+  page.drawText(idDisplay, { x: idX, y: height - 28, size: 14, font: helveticaBold, color: GOLD });
+  page.drawText(`Exp: ${input.expirationDate}`, { x: idX, y: height - 41, size: 6, font: helvetica, color: MUTED });
+
+  page.drawLine({ start: { x: cx, y: height - 48 }, end: { x: width - 14, y: height - 48 }, thickness: 0.5, color: rgb(0.6, 0.5, 0.2) });
+
+  // Identity fields
+  let fy = height - 66;
+  function drawIdField(label: string, value: string, size = 9.5, bold = false) {
     if (!value) return;
-    page.drawText(label.toUpperCase(), { x: lx, y, size: 6.5, font: helvetica, color: LABEL_COLOR });
-    y -= 11;
-    page.drawText(value.substring(0, 46), { x: lx, y, size: bold ? 11 : 9.5, font: bold ? timesBold : timesRoman, color: VALUE_COLOR });
-    y -= LINE_H;
+    page.drawText(label.toUpperCase(), { x: cx, y: fy, size: 5.5, font: helvetica, color: MUTED });
+    fy -= 10;
+    page.drawText(value.substring(0, 52), { x: cx, y: fy, size, font: bold ? timesBold : timesRoman, color: bold ? WHITE : rgb(0.9, 0.9, 0.95) });
+    fy -= LINE_H;
   }
 
-  drawField("Legal Name", input.legalName, true);
-  if (input.tribalName) drawField("Tribal Name", input.tribalName, false);
-  if (input.title) drawField("Title", input.title, false);
-  drawField("Family Group", input.familyGroup || "On file with the Office", false);
-  drawField("Role", input.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), false);
-  drawField("Membership Status", input.membershipStatus, false);
-  drawField("Protection Level", `${input.protectionLevel.toUpperCase()} Protection`, false);
+  drawIdField("Legal Name", input.legalName, 12, true);
+  if (input.tribalName) drawIdField("Tribal Name", input.tribalName, 9.5, false);
+  if (input.title) drawIdField("Title / Office", input.title, 9, false);
+  drawIdField("Membership Status", input.membershipStatus, 9, false);
+  drawIdField("Role", input.role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase()), 9, false);
 
-  if (input.isElder) {
-    const elderLabel = input.elderStatus ? `${input.elderStatus.charAt(0).toUpperCase() + input.elderStatus.slice(1)} Elder` : "Elder";
-    page.drawRectangle({ x: lx, y: y - 4, width: 90, height: 15, color: rgb(0.95, 0.85, 0.2) });
-    page.drawText(`* ${elderLabel}`, { x: lx + 4, y: y - 1, size: 8, font: helveticaBold, color: rgb(0.2, 0.1, 0) });
-    y -= 22;
-  }
+  // Protection level badge
+  const plColors: Record<string, [number,number,number]> = {
+    critical: [0.8, 0.1, 0.1], elevated: [0.8, 0.5, 0.1], standard: [0.1, 0.5, 0.2],
+  };
+  const [pr, pg, pb] = plColors[input.protectionLevel] ?? [0.1, 0.5, 0.2];
+  const plLabel = `${input.protectionLevel.toUpperCase()} PROTECTION`;
+  const plW = helveticaBold.widthOfTextAtSize(plLabel, 6.5) + 10;
+  page.drawRectangle({ x: cx, y: fy - 4, width: plW, height: 14, color: rgb(pr, pg, pb) });
+  page.drawText(plLabel, { x: cx + 5, y: fy - 1, size: 6.5, font: helveticaBold, color: rgb(1,1,1) });
 
-  // Divider
-  page.drawLine({ start: { x: width / 2 - 20, y: 10 }, end: { x: width / 2 - 20, y: height - 68 }, thickness: 0.5, color: rgb(0.7, 0.7, 0.7) });
+  // -- Right sub-column (lineage + QR) --------------------------------------
+  const rx2 = cx + cw / 2 + 4;
+  let ry = height - 66;
 
-  // Right column - affiliations + QR
-  const rx = width / 2 - 8;
-  let ry = height - 80;
-
-  page.drawText("LINEAGE SUMMARY", { x: rx, y: ry, size: 6.5, font: helvetica, color: LABEL_COLOR });
-  ry -= 11;
-  const linWords = input.lineageSummary.substring(0, 100);
-  page.drawText(linWords, { x: rx, y: ry, size: 8, font: timesRoman, color: VALUE_COLOR, maxWidth: 180, lineHeight: 12 });
-  ry -= (Math.ceil(linWords.length / 28) * 12) + 8;
+  page.drawText("LINEAGE SUMMARY", { x: rx2, y: ry, size: 5.5, font: helvetica, color: MUTED });
+  ry -= 10;
+  const linWords = input.lineageSummary.substring(0, 120);
+  page.drawText(linWords, { x: rx2, y: ry, size: 7.5, font: timesRoman, color: rgb(0.85, 0.85, 0.92), maxWidth: cw / 2 - 10, lineHeight: 11 });
+  ry -= Math.ceil(linWords.length / 22) * 11 + 8;
 
   if (input.orgAffiliations.length > 0) {
-    page.drawText("AFFILIATIONS", { x: rx, y: ry, size: 6.5, font: helvetica, color: LABEL_COLOR });
-    ry -= 11;
-    for (const aff of input.orgAffiliations.slice(0, 5)) {
-      page.drawText(`* ${aff.substring(0, 38)}`, { x: rx, y: ry, size: 7.5, font: timesRoman, color: VALUE_COLOR });
-      ry -= 11;
+    page.drawText("AFFILIATIONS", { x: rx2, y: ry, size: 5.5, font: helvetica, color: MUTED });
+    ry -= 10;
+    for (const aff of input.orgAffiliations.slice(0, 4)) {
+      page.drawText(`• ${aff.substring(0, 32)}`, { x: rx2, y: ry, size: 7, font: timesRoman, color: rgb(0.85, 0.85, 0.92) });
+      ry -= 10;
     }
-    ry -= 4;
   }
 
-  if (input.identityTags.length > 0) {
-    page.drawText("IDENTITY TAGS", { x: rx, y: ry, size: 6.5, font: helvetica, color: LABEL_COLOR });
-    ry -= 11;
-    page.drawText(input.identityTags.slice(0, 5).join("  |  ").substring(0, 55), { x: rx, y: ry, size: 7, font: timesRoman, color: VALUE_COLOR });
-    ry -= 14;
-  }
-
-  // QR placeholder box
-  const qrSize = 60;
-  const qrX = width - qrSize - 18;
-  const qrY = 22;
-  page.drawRectangle({ x: qrX, y: qrY, width: qrSize, height: qrSize, borderColor: rgb(0.3, 0.3, 0.3), borderWidth: 0.8, color: rgb(1, 1, 1) });
-
+  // QR code
+  const qrSize = 62;
+  const qrX = width - qrSize - 14;
+  const qrY = 24;
+  page.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, color: rgb(1,1,1) });
   try {
     const QRCode = (await import("qrcode")).default;
-    const qrBuf = await QRCode.toBuffer(input.verificationUrl, { type: "png", width: 120, margin: 1 });
+    const qrBuf = await QRCode.toBuffer(input.verificationUrl, { type: "png", width: 130, margin: 1 });
     const qrImg = await pdfDoc.embedPng(new Uint8Array(qrBuf));
-    page.drawImage(qrImg, { x: qrX + 2, y: qrY + 2, width: qrSize - 4, height: qrSize - 4 });
+    page.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
   } catch {
-    page.drawText("VERIFY", { x: qrX + 10, y: qrY + qrSize / 2 - 4, size: 7, font: helveticaBold, color: rgb(0.3, 0.3, 0.3) });
+    page.drawText("VERIFY", { x: qrX + 12, y: qrY + qrSize / 2 - 4, size: 7, font: helveticaBold, color: rgb(0.3,0.3,0.3) });
   }
-
-  page.drawText("scan to verify", { x: qrX + 4, y: qrY - 10, size: 5.5, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+  page.drawText("scan to verify", { x: qrX + 4, y: qrY - 10, size: 5.5, font: helvetica, color: MUTED });
 
   // Bottom bar
-  page.drawRectangle({ x: 0, y: 0, width, height: 16, color: rgb(0.12, 0.17, 0.35) });
-  page.drawText("Issued under inherent sovereign authority of the Mathias El Tribe  |  Federal Trust Responsibility applies  |  Worcester v. Georgia (1832)", { x: 12, y: 4, size: 5, font: helvetica, color: rgb(0.8, 0.8, 0.8) });
+  page.drawRectangle({ x: 8, y: 8, width: width - 16, height: 14, color: rgb(0.04, 0.06, 0.14) });
+  page.drawText(
+    "Issued under inherent sovereign authority of the Mathias El Tribe  |  Federal Trust Responsibility applies  |  Worcester v. Georgia, 31 U.S. 515 (1832)",
+    { x: LOGO_PANEL_W + 16, y: 12, size: 4.8, font: helvetica, color: rgb(0.55, 0.55, 0.65) }
+  );
 
   const pdfBytes = await pdfDoc.save();
   return { bytes: new Uint8Array(pdfBytes), generatedAt: new Date().toISOString() };

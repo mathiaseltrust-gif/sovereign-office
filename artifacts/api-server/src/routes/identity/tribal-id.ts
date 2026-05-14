@@ -1,8 +1,14 @@
 import { Router } from "express";
+import multer from "multer";
 import { requireAuth } from "../../auth/entra-guard";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
 import { buildTribalIdPdf, buildVerificationLetterPdf } from "../../lib/pdf-builder";
 import { logger } from "../../lib/logger";
+import { db } from "@workspace/db";
+import { familyLineageTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
 const router = Router();
 
@@ -32,6 +38,8 @@ router.post("/tribal-id/generate", requireAuth, async (req, res, next) => {
       expirationDate: expirationDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
       profilePhotoUrl: gateway.profilePhoto ?? (req.body?.profilePhotoUrl as string | undefined),
       verificationUrl: `${process.env.APP_URL ?? "https://sovereign.mathiasel.tribe"}/api/identity/verify/${gateway.identity.userId}`,
+      tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber ?? undefined,
+      tribalIdNumber: gateway.identity.tribalIdNumber ?? undefined,
     });
 
     logger.info({ userId: dbId }, "Tribal ID PDF generated");
@@ -67,6 +75,8 @@ router.get("/tribal-id/:userId", requireAuth, async (req, res, next) => {
       expirationDate: expirationDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
       profilePhotoUrl: gateway.profilePhoto ?? undefined,
       verificationUrl: `${process.env.APP_URL ?? "https://sovereign.mathiasel.tribe"}/api/identity/verify/${gateway.identity.userId}`,
+      tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber ?? undefined,
+      tribalIdNumber: gateway.identity.tribalIdNumber ?? undefined,
     });
 
     res.set({
@@ -123,6 +133,25 @@ router.post("/verification-letter/generate", requireAuth, async (req, res, next)
       "Content-Length": result.bytes.length,
     });
     res.send(Buffer.from(result.bytes));
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/photo", requireAuth, upload.single("photo"), async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId;
+    if (!dbId || !req.file) {
+      res.status(400).json({ error: "No file provided or user not resolved" });
+      return;
+    }
+    const mimeType = req.file.mimetype.includes("png") ? "image/png" : "image/jpeg";
+    const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
+    await db.update(familyLineageTable)
+      .set({ photoUrl: dataUrl, updatedAt: new Date() })
+      .where(eq(familyLineageTable.linkedProfileUserId, dbId));
+    logger.info({ dbId }, "Profile photo updated");
+    res.json({ success: true });
   } catch (err) {
     next(err);
   }

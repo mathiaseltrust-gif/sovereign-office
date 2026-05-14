@@ -42,6 +42,8 @@ export interface SovereignIdentityGatewayPayload {
     courtCaption: string;
     role: string;
     identityTags: string[];
+    tribalEnrollmentNumber: string | null;
+    tribalIdNumber: string | null;
   };
   lineageSummary: string;
   ancestorChain: string[];
@@ -193,6 +195,7 @@ export async function resolveSovereignIdentityGateway(
         tribalName: "", title: "", familyGroup: "",
         displayName: tokenUser.name, courtCaption: tokenUser.name,
         role, identityTags: [],
+        tribalEnrollmentNumber: null, tribalIdNumber: null,
       },
       lineageSummary: "No lineage records on file.",
       ancestorChain: [], tribalNations: [],
@@ -209,11 +212,17 @@ export async function resolveSovereignIdentityGateway(
   }
 
   try {
-    const [[user], [profile], narrative, lineageRows] = await Promise.all([
+    const [[user], [profile], narrative, lineageRows, [linkedNode]] = await Promise.all([
       db.select().from(usersTable).where(eq(usersTable.id, dbId)).limit(1),
       db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1),
       db.select().from(identityNarrativesTable).where(eq(identityNarrativesTable.userId, dbId)).limit(1).then((r) => r[0] ?? null),
       db.select().from(familyLineageTable).where(eq(familyLineageTable.userId, dbId)),
+      db.select({
+        tribalEnrollmentNumber: familyLineageTable.tribalEnrollmentNumber,
+        tribalIdNumber: familyLineageTable.tribalIdNumber,
+        photoUrl: familyLineageTable.photoUrl,
+        photoFilename: familyLineageTable.photoFilename,
+      }).from(familyLineageTable).where(eq(familyLineageTable.linkedProfileUserId, dbId)).limit(1),
     ]);
 
     const legalName = profile?.legalName ?? user?.name ?? tokenUser.name;
@@ -273,6 +282,8 @@ export async function resolveSovereignIdentityGateway(
         userId: dbId, email: user?.email ?? tokenUser.email, name: user?.name ?? tokenUser.name,
         legalName, preferredName, tribalName, title, familyGroup,
         displayName, courtCaption, role: dbRole, identityTags,
+        tribalEnrollmentNumber: linkedNode?.tribalEnrollmentNumber ?? null,
+        tribalIdNumber: linkedNode?.tribalIdNumber ?? null,
       },
       lineageSummary: lineageParts.join(" ") || "No lineage on record.",
       ancestorChain, tribalNations, membershipVerified, entraVerified, lineageVerified,
@@ -284,7 +295,7 @@ export async function resolveSovereignIdentityGateway(
         ...((narrative?.benefitEligibility as Record<string, boolean>) ?? {}),
       },
       orgAffiliations, elderStatus, isElder, elderAuthorities,
-      profilePhoto: (profile as any)?.profilePhoto ?? null,
+      profilePhoto: linkedNode?.photoUrl ?? (profile as any)?.profilePhoto ?? null,
       visibilityRules,
       generationalPosition, generationalDepth,
       icwaEligible, welfareEligible, trustInheritance,
@@ -294,7 +305,7 @@ export async function resolveSovereignIdentityGateway(
     const authorities = computeDelegatedAuthorities(role, { hasLineage: false, hasChildren: false, icwaEligible: false, lineageVerified: false, membershipVerified: false });
     const { isElder, elderStatus, elderAuthorities } = resolveElderStatus([], 0);
     return {
-      identity: { userId: dbId, email: tokenUser.email, name: tokenUser.name, legalName: tokenUser.name, preferredName: tokenUser.name, tribalName: "", title: "", familyGroup: "", displayName: tokenUser.name, courtCaption: tokenUser.name, role, identityTags: [] },
+      identity: { userId: dbId, email: tokenUser.email, name: tokenUser.name, legalName: tokenUser.name, preferredName: tokenUser.name, tribalName: "", title: "", familyGroup: "", displayName: tokenUser.name, courtCaption: tokenUser.name, role, identityTags: [], tribalEnrollmentNumber: null, tribalIdNumber: null },
       lineageSummary: "Identity gateway error — contact system administrator.",
       ancestorChain: [], tribalNations: [], membershipVerified: false, entraVerified: false, lineageVerified: false,
       delegatedAuthorities: authorities, protectionLevel: "standard",
