@@ -77,10 +77,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
       {/* Mobile header */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-card sticky top-0 z-30 shadow-sm">
-        <div className="flex items-center gap-2.5">
-          <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full" />
-          <span className="font-bold text-base leading-tight">Mathias El Tribe</span>
-        </div>
+        <Link href="/">
+          <div className="flex items-center gap-2.5 cursor-pointer">
+            <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full" />
+            <span className="font-bold text-base leading-tight">Mathias El Tribe</span>
+          </div>
+        </Link>
         <div className="flex items-center gap-1">
           <Button
             variant="ghost"
@@ -109,13 +111,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
             onClick={() => setMobileMenuOpen(false)}
           />
           <div className="md:hidden fixed top-0 left-0 h-full w-72 bg-card border-r z-50 flex flex-col shadow-xl animate-in slide-in-from-left duration-200">
-            <div className="p-4 border-b flex items-center gap-2.5">
-              <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
-              <div>
-                <p className="font-bold text-base leading-none">Mathias El Tribe</p>
-                <p className="text-xs text-muted-foreground mt-0.5">Community Center</p>
+            <Link href="/" onClick={() => setMobileMenuOpen(false)}>
+              <div className="p-4 border-b flex items-center gap-2.5 cursor-pointer hover:bg-muted/30 transition-colors">
+                <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
+                <div>
+                  <p className="font-bold text-base leading-none">Mathias El Tribe</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Community Center</p>
+                </div>
               </div>
-            </div>
+            </Link>
             <div className="flex-1 overflow-auto p-3">
               <NavLinks onNavigate={() => setMobileMenuOpen(false)} />
             </div>
@@ -136,13 +140,15 @@ export function Layout({ children }: { children: React.ReactNode }) {
       {/* Desktop sidebar */}
       <aside className="hidden md:flex w-60 flex-col border-r bg-card h-screen sticky top-0">
         <div className="p-4 border-b">
-          <div className="flex items-center gap-2.5">
-            <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0" />
-            <div className="min-w-0">
-              <p className="font-bold text-sm leading-tight truncate">Mathias El Tribe</p>
-              <p className="text-xs text-muted-foreground mt-0.5 truncate">Community Center</p>
+          <Link href="/">
+            <div className="flex items-center gap-2.5 cursor-pointer group">
+              <img src={`${import.meta.env.BASE_URL}tribal-seal.png`} alt="Mathias El Tribe Seal" className="h-9 w-9 object-contain rounded-full shrink-0 group-hover:opacity-80 transition-opacity" />
+              <div className="min-w-0">
+                <p className="font-bold text-sm leading-tight truncate group-hover:text-primary transition-colors">Mathias El Tribe</p>
+                <p className="text-xs text-muted-foreground mt-0.5 truncate">Community Center</p>
+              </div>
             </div>
-          </div>
+          </Link>
           {sessionUser && (
             <div className="mt-3 flex items-center gap-2 bg-muted/50 rounded-lg px-2.5 py-2">
               <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center shrink-0">

@@ -14,11 +14,119 @@ import {
   Info
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Separator } from "@/components/ui/separator";
+
+const SEAL_URL = `${import.meta.env.BASE_URL}tribal-seal.png`;
+
+// ─── Tribal ID Card ────────────────────────────────────────────────────────────
+
+function TribalIdCard({ member }: { member: {
+  fullName?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  membershipStatus?: string | null;
+  tribalNation?: string | null;
+  tribalEnrollmentNumber?: string | null;
+  birthYear?: number | null;
+  icwaEligible?: boolean | null;
+  trustBeneficiary?: boolean | null;
+  isAncestor?: boolean | null;
+  photoFilename?: string | null;
+} }) {
+  const memberSince = member.birthYear ? `${member.birthYear}` : "—";
+  const idNumber = member.tribalEnrollmentNumber || "—";
+  const initials = `${member.firstName?.charAt(0) ?? ""}${member.lastName?.charAt(0) ?? ""}`;
+
+  return (
+    <Card className="overflow-hidden border-2 border-primary/30 shadow-lg">
+      {/* Card header — red band matching seal colors */}
+      <div className="bg-[#8B0000] px-5 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <img src={SEAL_URL} alt="Mathias El Tribe Seal" className="h-12 w-12 object-contain drop-shadow-md" />
+          <div>
+            <p className="text-yellow-300 font-bold text-xs tracking-widest uppercase">Mathias El Tribe</p>
+            <p className="text-yellow-100/80 text-[10px] tracking-wider uppercase">Official Membership Card</p>
+          </div>
+        </div>
+        <div className="text-right">
+          <p className="text-yellow-300/70 text-[9px] uppercase tracking-widest">Sovereign Office</p>
+          <p className="text-yellow-300/70 text-[9px] uppercase tracking-widest">Chief Justice & Trustee</p>
+        </div>
+      </div>
+
+      {/* Card body */}
+      <CardContent className="p-5 bg-gradient-to-br from-card to-muted/30">
+        <div className="flex gap-5 items-start">
+          {/* Photo */}
+          <Avatar className="h-20 w-20 border-2 border-primary/40 shadow shrink-0 rounded-md">
+            <AvatarImage src={`/assets/${member.photoFilename || ""}`} className="object-cover" />
+            <AvatarFallback className="text-2xl font-bold text-primary bg-primary/10 rounded-md">
+              {initials}
+            </AvatarFallback>
+          </Avatar>
+
+          {/* Info */}
+          <div className="flex-1 min-w-0 space-y-2">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Full Legal Name</p>
+              <p className="font-bold text-lg leading-tight text-foreground">{member.fullName ?? "—"}</p>
+            </div>
+            <div className="grid grid-cols-2 gap-x-4 gap-y-2 text-xs">
+              <div>
+                <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Member ID</p>
+                <p className="font-mono font-semibold text-foreground">{idNumber}</p>
+              </div>
+              <div>
+                <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Birth Year</p>
+                <p className="font-semibold text-foreground">{memberSince}</p>
+              </div>
+              <div>
+                <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Tribal Nation</p>
+                <p className="font-semibold text-foreground">{member.tribalNation ?? "Mathias El Tribe"}</p>
+              </div>
+              <div>
+                <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Status</p>
+                <p className="font-semibold text-foreground">{member.membershipStatus ?? "—"}</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Privileges row */}
+        <div className="mt-4 pt-3 border-t border-primary/10 flex flex-wrap gap-1.5">
+          {member.icwaEligible && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300 border border-blue-200 dark:border-blue-800">
+              ICWA Eligible
+            </span>
+          )}
+          {member.trustBeneficiary && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300 border border-green-200 dark:border-green-800">
+              Trust Beneficiary
+            </span>
+          )}
+          {member.isAncestor && (
+            <span className="text-[9px] font-bold uppercase tracking-wider px-2 py-0.5 rounded bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+              Ancestor
+            </span>
+          )}
+        </div>
+
+        {/* Card footer bar */}
+        <div className="mt-4 pt-3 border-t border-primary/10 flex items-center justify-between">
+          <p className="text-[9px] text-muted-foreground uppercase tracking-widest">
+            Issued under inherent sovereign authority
+          </p>
+          <img src={SEAL_URL} alt="" className="h-6 w-6 object-contain opacity-30" />
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+// ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MemberDetail() {
   const params = useParams();
@@ -79,7 +187,24 @@ export default function MemberDetail() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Main Profile Card */}
         <Card className="lg:col-span-2 overflow-hidden border-primary/20">
-          <div className="h-32 bg-gradient-to-r from-primary/80 to-primary/40"></div>
+          {/* Banner with seal watermark */}
+          <div className="h-32 bg-gradient-to-r from-[#8B0000]/80 to-primary/40 relative overflow-hidden flex items-center px-6 gap-4">
+            <img
+              src={SEAL_URL}
+              alt=""
+              className="absolute right-4 top-1/2 -translate-y-1/2 h-28 w-28 object-contain opacity-15 pointer-events-none select-none"
+            />
+            <img
+              src={SEAL_URL}
+              alt="Mathias El Tribe"
+              className="h-12 w-12 object-contain drop-shadow-md shrink-0"
+            />
+            <div>
+              <p className="text-yellow-200 font-bold text-xs tracking-widest uppercase">Mathias El Tribe</p>
+              <p className="text-yellow-100/70 text-[10px] tracking-wider uppercase">Member Profile</p>
+            </div>
+          </div>
+
           <CardContent className="p-6 pt-0 relative">
             <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-12 mb-6">
               <Avatar className="h-24 w-24 border-4 border-card shadow-lg bg-card">
@@ -154,8 +279,12 @@ export default function MemberDetail() {
           </CardContent>
         </Card>
 
-        {/* Family Connections sidebar */}
+        {/* Right column */}
         <div className="space-y-6">
+          {/* Tribal ID Card */}
+          <TribalIdCard member={member} />
+
+          {/* Family Connections */}
           <Card>
             <CardHeader className="bg-muted/30 border-b pb-4">
               <CardTitle className="flex items-center gap-2 text-lg">
@@ -163,7 +292,6 @@ export default function MemberDetail() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-0">
-              {/* Parents */}
               {member.parents && member.parents.length > 0 && (
                 <div className="p-4 border-b">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parents</h4>
@@ -186,7 +314,6 @@ export default function MemberDetail() {
                 </div>
               )}
 
-              {/* Spouses */}
               {member.spouses && member.spouses.length > 0 && (
                 <div className="p-4 border-b">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Spouses</h4>
@@ -209,7 +336,6 @@ export default function MemberDetail() {
                 </div>
               )}
 
-              {/* Children */}
               {member.children && member.children.length > 0 && (
                 <div className="p-4">
                   <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Children</h4>
@@ -240,7 +366,7 @@ export default function MemberDetail() {
             </CardContent>
           </Card>
 
-          {/* Tags / Metadata */}
+          {/* Lineage Tags */}
           {member.lineageTags && member.lineageTags.length > 0 && (
             <Card>
               <CardHeader className="bg-muted/30 border-b pb-4">
