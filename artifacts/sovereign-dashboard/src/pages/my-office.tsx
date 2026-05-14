@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, Shield, AlertTriangle, BookOpen, ChevronRight, Archive } from "lucide-react";
+import { Printer, Shield, AlertTriangle, BookOpen, ChevronRight, Archive, Lock, Key, Eye, EyeOff, ShieldCheck, ShieldAlert, UserCheck, Trash2 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
 const API  = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -373,6 +373,17 @@ export default function MyOfficePage() {
 
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
+  // ── Vault form state ──
+  const [vaultName, setVaultName] = useState("");
+  const [vaultNotes, setVaultNotes] = useState("");
+  const [vaultInstructions, setVaultInstructions] = useState("");
+  const [vaultPasscode, setVaultPasscode] = useState("");
+  const [vaultPasscode2, setVaultPasscode2] = useState("");
+  const [showPasscode, setShowPasscode] = useState(false);
+  const [activateCode, setActivateCode] = useState("");
+  const [activateName, setActivateName] = useState("");
+  const [showActivate, setShowActivate] = useState(false);
+
   const { data: records = [], isLoading } = useQuery<PipelineRecord[]>({
     queryKey: ["my-office-records"],
     queryFn: async () => {
@@ -420,6 +431,87 @@ export default function MyOfficePage() {
     onError: (err: Error) => {
       toast({ title: "Print failed", description: err.message, variant: "destructive" });
     },
+  });
+
+  // ── Vault queries & mutations ─────────────────────────────────────────────
+  interface VaultStatus {
+    id: number;
+    delegateName: string;
+    delegateNotes: string | null;
+    instructions: string | null;
+    isConfigured: boolean;
+    isActivated: boolean;
+    activatedAt: string | null;
+    createdAt: string;
+    updatedAt: string;
+  }
+
+  const { data: vaultStatus, isLoading: vaultLoading, refetch: refetchVault } = useQuery<VaultStatus | null>({
+    queryKey: ["succession-vault"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`${API}/api/sovereign/succession/status`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (r.status === 404 || r.status === 204) return null;
+      if (!r.ok) return null;
+      return r.json();
+    },
+    enabled: canAccess,
+  });
+
+  const createVault = useMutation({
+    mutationFn: async (payload: { delegateName: string; delegateNotes?: string; passcode: string; instructions?: string }) => {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`${API}/api/sovereign/succession`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Failed to configure vault"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Pre-Delegation Vault Configured", description: "Succession provisions are now in place." });
+      setVaultPasscode(""); setVaultPasscode2(""); refetchVault();
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const revokeVault = useMutation({
+    mutationFn: async () => {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`${API}/api/sovereign/succession`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Failed to revoke vault");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Vault Revoked", description: "Pre-delegation provisions have been cleared." });
+      setVaultName(""); setVaultNotes(""); setVaultInstructions("");
+      refetchVault();
+    },
+    onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
+  });
+
+  const activateVault = useMutation({
+    mutationFn: async (payload: { passcode: string; activatedByEntry: string }) => {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`${API}/api/sovereign/succession/activate`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Activation failed"); }
+      return r.json();
+    },
+    onSuccess: (data) => {
+      toast({ title: "Succession Activated", description: data.message ?? "Authority provisions are now in effect.", duration: 8000 });
+      setActivateCode(""); setActivateName(""); refetchVault();
+    },
+    onError: (err: Error) => toast({ title: "Activation Failed", description: err.message, variant: "destructive" }),
   });
 
   if (!canAccess) {
@@ -538,6 +630,218 @@ export default function MyOfficePage() {
               <OfficialDocument record={selected} />
             </div>
           )}
+        </div>
+      </div>
+
+      {/* ── Pre-Delegation Vault ─────────────────────────────────────────────── */}
+      <div className="mt-8 border-t pt-6 print:hidden space-y-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
+          <h2 className="text-base font-serif font-semibold">Pre-Delegation Vault</h2>
+          <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Private Safety Mechanism</Badge>
+          {vaultStatus?.isActivated && (
+            <Badge className="bg-amber-600 text-white text-[10px] uppercase tracking-wider">Succession Active</Badge>
+          )}
+          {vaultStatus && !vaultStatus.isActivated && (
+            <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">Vault Secured</Badge>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground max-w-2xl">
+          Pre-designate a trusted successor and set a private passcode. This is a private safety mechanism,
+          completely separate from all regular delegation systems. If you become unable to function in your role,
+          the designated trustee enters the passcode to activate authority succession.
+        </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-2">
+          {/* ── Setup (trustee / Chief Justice only) ── */}
+          {activeRole === "trustee" && (
+            <Card className="border-[#1C2B4B]/20">
+              <CardHeader className="pb-2">
+                <div className="flex items-center justify-between gap-2">
+                  <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
+                    <UserCheck className="h-4 w-4" /> Succession Provision
+                  </CardTitle>
+                  {vaultStatus && !vaultStatus.isActivated && (
+                    <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100 gap-1">
+                      <ShieldCheck className="h-3 w-3" /> Configured
+                    </Badge>
+                  )}
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {vaultLoading ? (
+                  <div className="h-16 bg-muted/40 rounded animate-pulse" />
+                ) : vaultStatus?.isActivated ? (
+                  <div className="flex items-start gap-2 text-amber-700 text-sm">
+                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                    <span>Succession has been activated. The designated trustee is now carrying authority.</span>
+                  </div>
+                ) : vaultStatus ? (
+                  <div className="space-y-3">
+                    <div className="text-sm space-y-1">
+                      <div className="font-medium text-foreground">{vaultStatus.delegateName}</div>
+                      {vaultStatus.delegateNotes && (
+                        <div className="text-xs text-muted-foreground">{vaultStatus.delegateNotes}</div>
+                      )}
+                      {vaultStatus.instructions && (
+                        <div className="mt-2 text-xs text-muted-foreground italic border-l-2 border-muted pl-2">
+                          {vaultStatus.instructions}
+                        </div>
+                      )}
+                      <div className="text-[10px] text-muted-foreground/70 mt-2">
+                        Configured {new Date(vaultStatus.createdAt).toLocaleDateString()}
+                      </div>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/5"
+                      onClick={() => revokeVault.mutate()}
+                      disabled={revokeVault.isPending}
+                    >
+                      <Trash2 className="h-3 w-3" />
+                      {revokeVault.isPending ? "Revoking…" : "Revoke Provision"}
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div>
+                      <Label className="text-xs">Designated Trustee Name</Label>
+                      <Input className="mt-1 text-sm" value={vaultName} onChange={e => setVaultName(e.target.value)} placeholder="Full name of your designated successor" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Notes about this person</Label>
+                      <Input className="mt-1 text-sm" value={vaultNotes} onChange={e => setVaultNotes(e.target.value)} placeholder="Their role, relationship, or contact information" />
+                    </div>
+                    <div>
+                      <Label className="text-xs">Instructions upon activation</Label>
+                      <textarea
+                        className="mt-1 w-full text-sm border rounded-md p-2 min-h-[72px] bg-background resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                        value={vaultInstructions}
+                        onChange={e => setVaultInstructions(e.target.value)}
+                        placeholder="What should happen if this vault is activated? What should they prioritize?"
+                      />
+                    </div>
+                    <div>
+                      <Label className="text-xs">
+                        Private Passcode <span className="text-muted-foreground">(min. 8 characters)</span>
+                      </Label>
+                      <div className="relative mt-1">
+                        <Input
+                          type={showPasscode ? "text" : "password"}
+                          className="text-sm pr-9"
+                          value={vaultPasscode}
+                          onChange={e => setVaultPasscode(e.target.value)}
+                          placeholder="Create a private passcode"
+                        />
+                        <button
+                          type="button"
+                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
+                          onClick={() => setShowPasscode(v => !v)}
+                        >
+                          {showPasscode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </button>
+                      </div>
+                    </div>
+                    <div>
+                      <Label className="text-xs">Confirm Passcode</Label>
+                      <Input
+                        type="password"
+                        className="mt-1 text-sm"
+                        value={vaultPasscode2}
+                        onChange={e => setVaultPasscode2(e.target.value)}
+                        placeholder="Re-enter passcode to confirm"
+                      />
+                    </div>
+                    {vaultPasscode && vaultPasscode2 && vaultPasscode !== vaultPasscode2 && (
+                      <p className="text-xs text-destructive">Passcodes do not match.</p>
+                    )}
+                    <Button
+                      className="w-full gap-2 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
+                      disabled={
+                        createVault.isPending ||
+                        !vaultName.trim() ||
+                        !vaultPasscode.trim() ||
+                        vaultPasscode !== vaultPasscode2 ||
+                        vaultPasscode.length < 8
+                      }
+                      onClick={() => createVault.mutate({
+                        delegateName: vaultName,
+                        delegateNotes: vaultNotes || undefined,
+                        passcode: vaultPasscode,
+                        instructions: vaultInstructions || undefined,
+                      })}
+                    >
+                      <Key className="h-4 w-4" />
+                      {createVault.isPending ? "Securing…" : "Secure the Vault"}
+                    </Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* ── Emergency Activation (any officer with the passcode) ── */}
+          <Card className="border-amber-500/30">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
+                <ShieldAlert className="h-4 w-4 text-amber-600" /> Emergency Succession Activation
+              </CardTitle>
+              <p className="text-xs text-muted-foreground">
+                For use only when the Chief Justice cannot function in their role.
+                Enter the private passcode to activate the pre-designated succession provision.
+              </p>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {vaultStatus?.isActivated ? (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-amber-700 font-medium text-sm">
+                    <ShieldCheck className="h-4 w-4 shrink-0" />
+                    Succession is active as of{" "}
+                    {vaultStatus.activatedAt ? new Date(vaultStatus.activatedAt).toLocaleString() : "recently"}.
+                  </div>
+                  {vaultStatus.instructions && (
+                    <p className="text-xs text-muted-foreground border-l-2 border-amber-300 pl-2">
+                      {vaultStatus.instructions}
+                    </p>
+                  )}
+                </div>
+              ) : !showActivate ? (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                  onClick={() => setShowActivate(true)}
+                >
+                  <Key className="h-3 w-3" /> Enter Activation Passcode
+                </Button>
+              ) : (
+                <div className="space-y-3">
+                  <div>
+                    <Label className="text-xs">Your Name <span className="text-muted-foreground">(recorded in log)</span></Label>
+                    <Input className="mt-1 text-sm" value={activateName} onChange={e => setActivateName(e.target.value)} placeholder="Your full name" />
+                  </div>
+                  <div>
+                    <Label className="text-xs">Vault Passcode</Label>
+                    <Input type="password" className="mt-1 text-sm" value={activateCode} onChange={e => setActivateCode(e.target.value)} placeholder="Enter the private passcode" />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+                      disabled={activateVault.isPending || !activateCode.trim() || !activateName.trim()}
+                      onClick={() => activateVault.mutate({ passcode: activateCode, activatedByEntry: activateName })}
+                    >
+                      <ShieldAlert className="h-4 w-4" />
+                      {activateVault.isPending ? "Activating…" : "Activate Succession"}
+                    </Button>
+                    <Button variant="ghost" size="sm" onClick={() => { setShowActivate(false); setActivateCode(""); setActivateName(""); }}>
+                      Cancel
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
         </div>
       </div>
 

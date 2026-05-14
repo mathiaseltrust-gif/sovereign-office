@@ -192,7 +192,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="p-5 border-b flex flex-col items-center text-center">
           <Link href={roleLandingPath(activeRole)} className="block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <img
-              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+              src={`${import.meta.env.BASE_URL}supreme-court-seal.png`}
               alt="Go to home — Office of the Chief Justice and Trustee"
               className="w-20 h-20 object-contain mb-3 drop-shadow-md hover:opacity-80 transition-opacity cursor-pointer"
             />

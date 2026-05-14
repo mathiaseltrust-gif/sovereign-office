@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { DelegationPanel } from "@/components/DelegationPanel";
+import { Link } from "wouter";
 
 interface ProfileData {
   user: Record<string, any>;
@@ -164,6 +165,38 @@ export default function ProfilePage() {
           Unified identity used across welfare instruments, trust filings, ICWA notices, TRO declarations, and court captions.
         </p>
       </div>
+
+      {/* ── Official Seal — Authority Activation Card ── */}
+      {user?.roles?.includes("trustee") && (
+        <div className="relative overflow-hidden rounded-xl border-2 border-[#1C2B4B] bg-gradient-to-r from-[#1C2B4B] to-[#2a3d6e] text-white p-5 flex items-center gap-5 shadow-lg">
+          <img
+            src={`${import.meta.env.BASE_URL}supreme-court-seal.png`}
+            alt="Official Seal — Chief Justice"
+            className="w-16 h-16 object-contain drop-shadow-xl shrink-0"
+          />
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <Badge className="bg-green-500 hover:bg-green-500 text-white text-[10px] uppercase tracking-widest px-2 py-0.5">
+                ● Authority Active
+              </Badge>
+            </div>
+            <h2 className="font-serif text-base font-bold leading-tight">Office of the Chief Justice and Trustee</h2>
+            <p className="text-xs text-blue-200 mt-0.5">Mathias El Tribe Supreme Court · Sovereign Office</p>
+            <p className="text-xs text-blue-100/75 mt-1.5 leading-relaxed">
+              Your official seal is active. All sovereign documents, decrees, and pipeline instruments carry your authority upon issuance.
+            </p>
+          </div>
+          <div className="shrink-0 flex flex-col items-end gap-2 self-start">
+            <Link
+              href="/my-office"
+              className="inline-flex items-center gap-1.5 bg-white/15 hover:bg-white/25 transition-colors text-white text-xs font-semibold px-3 py-1.5 rounded-md whitespace-nowrap"
+            >
+              My Office →
+            </Link>
+            <span className="text-[10px] text-blue-300/50 uppercase tracking-widest">Official Seal — Active</span>
+          </div>
+        </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Left: Identity Names */}
