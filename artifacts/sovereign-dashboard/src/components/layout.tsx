@@ -108,6 +108,7 @@ function getCoreNav(role: Role): NavSection["items"] {
     { href: "/nfr", label: "Notice of Federal Review" },
     { href: "/welfare", label: "Welfare Instruments" },
     { href: "/gwe-letter", label: "GWE Letters" },
+    { href: "/official-documents", label: "Official Documents", highlight: true },
     { href: "/documents", label: "Court Documents" },
     { href: "/classify", label: "Classification" },
     { href: "/complaints", label: "Complaints" },

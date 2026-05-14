@@ -43,6 +43,7 @@ const SupremeCourtPage = lazy(() => import("@/pages/supreme-court"));
 const TribalTrustPage = lazy(() => import("@/pages/tribal-trust"));
 const CharitableTrustPage = lazy(() => import("@/pages/charitable-trust"));
 const NiacPage = lazy(() => import("@/pages/niac"));
+const OfficialDocumentsPage = lazy(() => import("@/pages/official-documents"));
 const IeePage = lazy(() => import("@/pages/iee"));
 const AdminStubPage = lazy(() => import("@/pages/admin-stub"));
 const TribalIdPage = lazy(() => import("@/pages/tribal-id"));
@@ -219,6 +220,9 @@ function AppRouter() {
       </Route>
       <Route path="/documents">
         {() => <ProtectedRoute component={CourtDocumentsPage} />}
+      </Route>
+      <Route path="/official-documents">
+        {() => <ProtectedRoute component={OfficialDocumentsPage} />}
       </Route>
       <Route path="/files">
         {() => <ProtectedRoute component={FilesPage} />}
