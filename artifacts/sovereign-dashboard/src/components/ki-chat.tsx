@@ -917,20 +917,38 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
       style={{ background: CARD_BG, border: CARD_BORDER }}
     >
       {/* ── Header ── */}
-      <div className="flex items-center justify-between px-4 py-3" style={HEADER_BG}>
-        <div className="flex items-center gap-2.5">
-          <div
-            className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
-            style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "1px solid rgba(255,255,255,0.15)" }}
-          >
-            <Feather className="w-4 h-4 text-amber-300" />
+      <div
+        className="flex items-center justify-between px-4 py-3"
+        style={{ background: "linear-gradient(135deg, #1a0a02 0%, #0f0603 100%)", borderBottom: "1px solid rgba(180,100,40,0.18)" }}
+      >
+        <div className="flex items-center gap-3">
+          {/* COMPANION logo */}
+          <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
+            <img
+              src="/sovereign-dashboard/companion-logo.png"
+              alt="COMPANION"
+              className="w-9 h-9 object-contain"
+              style={{ filter: "drop-shadow(0 0 6px rgba(180,90,30,0.45))" }}
+            />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-none">COMPANION</p>
-            <p className="text-[9px] tracking-[0.2em] text-white/45 uppercase mt-0.5">
-              Your Indigenous Companion · {knowledgeEntries.length} memories
+            {/* COMPANION wordmark — copper/bronze, wide tracking */}
+            <p
+              className="leading-none font-light"
+              style={{
+                fontSize: "13px",
+                letterSpacing: "0.28em",
+                background: "linear-gradient(90deg, #c47a3a 0%, #e8a060 45%, #b86828 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              COMPANION
             </p>
-            <p className="text-[9px] text-amber-300/55 italic mt-0.5">"What ever we do. it has to make sense"</p>
+            <p className="text-[9px] tracking-[0.16em] mt-0.5" style={{ color: "rgba(180,100,40,0.5)" }}>
+              Indigenous Intelligence · {knowledgeEntries.length} memories
+            </p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full text-amber-300/80 font-semibold" style={{ background: "rgba(180,120,10,0.2)", border: "1px solid rgba(180,120,10,0.25)" }}>
