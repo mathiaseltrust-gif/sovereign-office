@@ -176,14 +176,14 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
     >
       {/* ── LETTERHEAD — court-style, no border box ── */}
       <div style={{ marginBottom: "20px" }}>
-        {/* Two-column: seal left, text right */}
+        {/* Three-column: seal left — text center — seal right */}
         <div style={{ display: "flex", alignItems: "center", gap: "18px", marginBottom: "10px" }}>
           <img
-            src={`${BASE}court-seal-bw.png`}
-            alt="Mathias El Tribe Supreme Court Seal"
-            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0, opacity: 0.9 }}
+            src={`${BASE}supreme-court-seal-color.png`}
+            alt="The Mathias El Tribe Supreme Court"
+            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0 }}
           />
-          <div style={{ flex: 1 }}>
+          <div style={{ flex: 1, textAlign: "center" }}>
             <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.6px", lineHeight: 1.2, color: "#000" }}>
               Mathias El Tribe Supreme Court
             </div>
@@ -194,6 +194,11 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
               mmccaster@MathiasElTribe.org&nbsp;&nbsp;·&nbsp;&nbsp;www.mathiaseltribe.org/supreme-court
             </div>
           </div>
+          <img
+            src={`${BASE}chief-justice-seal.png`}
+            alt="Office of the Chief Justice and Trustee — Chief Mathias El"
+            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0 }}
+          />
         </div>
         {/* Double rule */}
         <div style={{ borderTop: "2px solid #1a3a6e", marginBottom: "2px" }} />
@@ -228,20 +233,6 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         <div style={{ flexShrink: 0 }}>
           <OfficialStamp date={stampDate} />
         </div>
-      </div>
-
-      {/* ── CENTERED SEALS — color for Print & Sign; CSS grayscale applied for ePrint/eSign ── */}
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "32px", margin: "20px 0 16px" }}>
-        <img
-          src={`${BASE}supreme-court-seal-color.png`}
-          alt="The Mathias El Tribe Supreme Court"
-          style={{ width: "120px", height: "120px", objectFit: "contain" }}
-        />
-        <img
-          src={`${BASE}chief-justice-seal.png`}
-          alt="Office of the Chief Justice and Trustee — Chief Mathias El"
-          style={{ width: "120px", height: "120px", objectFit: "contain" }}
-        />
       </div>
 
       {/* ── DECREE TITLE (bold, uppercase, left-aligned — matches real doc format) ── */}

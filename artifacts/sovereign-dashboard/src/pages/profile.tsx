@@ -422,6 +422,27 @@ export default function ProfilePage() {
         </p>
       </div>
 
+      {/* ── Tribal Court Seals — top of office (trustee only) ── */}
+      {isChief && (
+        <div className="flex items-center justify-center gap-8 pb-5 mb-2 border-b border-border">
+          <img
+            src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`}
+            alt="The Mathias El Tribe Supreme Court"
+            className="w-28 h-28 object-contain drop-shadow-md"
+          />
+          <div className="text-center">
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">Mathias El Tribe</p>
+            <h2 className="font-serif text-lg font-bold text-primary leading-tight">Supreme Court</h2>
+            <p className="text-[10px] text-muted-foreground mt-0.5">Office of the Chief Justice &amp; Trustee</p>
+          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
+            alt="Chief Mathias El — Office of the Chief Justice and Trustee"
+            className="w-28 h-28 object-contain drop-shadow-md"
+          />
+        </div>
+      )}
+
       {/* ── Smoke check ── */}
       <SmokeCheckBar />
 
