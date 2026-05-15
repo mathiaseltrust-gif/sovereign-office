@@ -272,6 +272,7 @@ router.post("/manual", requireAuth, async (req, res, next) => {
       parentIds?: number[];
       spouseIds?: number[];
       generationalPosition?: number;
+      lineageTags?: string[];
     };
 
     if (!body.fullName) {
@@ -300,7 +301,7 @@ router.post("/manual", requireAuth, async (req, res, next) => {
         parentIds: body.parentIds ?? [],
         childrenIds: [],
         spouseIds: body.spouseIds ?? [],
-        lineageTags: [],
+        lineageTags: body.lineageTags ?? [],
       })
       .returning();
 

@@ -36,11 +36,21 @@ interface MemberRight {
 }
 interface IdentityMarker { type: string; label: string; value: string; legalSignificance: string; }
 interface LandStatusMarker { type: string; label: string; value: string; jurisdictionNote: string; }
+interface InheritedRight extends MemberRight {
+  sourceAncestorId: number;
+  sourceAncestorName: string;
+  generationalDepth: number;
+  inheritanceTribalNation: string;
+  inheritancePath: string;
+}
 interface RightsProfile {
   rights: MemberRight[];
   identityMarkers: IdentityMarker[];
   landStatusMarkers: LandStatusMarker[];
   protectionSummary: string;
+  inheritedRights: InheritedRight[];
+  inheritanceSummary: string;
+  ancestorTribalNations: Array<{ name: string; ancestorId: number; ancestorName: string; generation: number }>;
 }
 
 const CATEGORY_COLORS: Record<string, string> = {
@@ -56,6 +66,7 @@ const CATEGORY_COLORS: Record<string, string> = {
 function ProtectionsPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [showInherited, setShowInherited] = useState(false);
 
   const { data, isLoading } = useQuery<RightsProfile>({
     queryKey: ["identity-rights"],
@@ -195,6 +206,76 @@ function ProtectionsPanel() {
               {showAll ? "Show fewer" : `Show all ${data.rights.length} protections`}
               <ChevronDown className={`h-3 w-3 transition-transform ${showAll ? "rotate-180" : ""}`} />
             </button>
+          )}
+        </div>
+
+        {/* ── Inherited through lineage ── */}
+        <div>
+          <button
+            onClick={() => setShowInherited(s => !s)}
+            className="w-full flex items-center justify-between group"
+          >
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+              <Scale className="h-3 w-3" /> Inherited Through Lineage
+              {data.inheritedRights?.length > 0 && (
+                <Badge className="bg-rose-600 hover:bg-rose-600 text-white text-[9px] py-0 ml-1">{data.inheritedRights.length}</Badge>
+              )}
+            </p>
+            <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showInherited ? "rotate-180" : ""}`} />
+          </button>
+
+          <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
+            {data.inheritanceSummary ?? "Add tribal nation and treaty affiliation data to ancestor records in the Family Tree to activate inherited protections."}
+          </p>
+
+          {showInherited && data.inheritedRights?.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              {/* Ancestor nations summary */}
+              {data.ancestorTribalNations?.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {data.ancestorTribalNations.map((n, i) => (
+                    <div key={i} className="flex items-center gap-1 rounded-full bg-rose-50 border border-rose-200 px-2 py-0.5">
+                      <span className="text-[9px] font-bold text-rose-700 uppercase tracking-widest">{n.name}</span>
+                      <span className="text-[9px] text-rose-500">· {n.ancestorName}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {data.inheritedRights.map((right) => {
+                const isOpen = expanded === right.id;
+                const catColor = CATEGORY_COLORS[right.category] ?? "text-rose-700 bg-rose-50 border-rose-200";
+                return (
+                  <div key={right.id} className="rounded-lg border border-rose-100 overflow-hidden bg-rose-50/30">
+                    <button
+                      onClick={() => setExpanded(isOpen ? null : right.id)}
+                      className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-rose-50/60 transition-colors text-left"
+                    >
+                      <div className={`text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-widest font-bold shrink-0 ${catColor}`}>
+                        treaty
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <span className="text-xs font-medium text-foreground leading-snug block">{right.name}</span>
+                        <span className="text-[9px] text-muted-foreground">
+                          via {right.sourceAncestorName} · {right.inheritancePath} · {right.inheritanceTribalNation}
+                        </span>
+                      </div>
+                      <Badge className="bg-green-600 hover:bg-green-600 text-white text-[9px] py-0 shrink-0">active</Badge>
+                      <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                    </button>
+                    {isOpen && (
+                      <div className="px-3 pb-3 space-y-2 border-t border-rose-100 bg-rose-50/20">
+                        <p className="text-[10px] text-muted-foreground mt-2 font-mono">{right.citation}</p>
+                        <p className="text-xs text-foreground leading-relaxed">{right.plainLanguage}</p>
+                        <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2 mt-2">
+                          <ShieldAlert className="h-3.5 w-3.5 text-orange-600 shrink-0 mt-0.5" />
+                          <p className="text-[10px] text-orange-800 leading-snug"><strong>Watch for: </strong>{right.watchFor}</p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
           )}
         </div>
 

@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
-import { computeMemberRights } from "../../sovereign/rights-engine";
+import { computeMemberRights, computeInheritedRights } from "../../sovereign/rights-engine";
 import { db } from "@workspace/db";
 import { profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
@@ -17,9 +17,10 @@ router.get("/rights", requireAuth, async (req, res, next) => {
       roles: req.user!.roles ?? [],
     };
 
-    const [gateway, profileRows] = await Promise.all([
+    const [gateway, profileRows, inheritedResult] = await Promise.all([
       resolveSovereignIdentityGateway(dbId, tokenUser),
       db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1),
+      computeInheritedRights(dbId),
     ]);
 
     const profile = profileRows[0] ?? null;
@@ -54,7 +55,12 @@ router.get("/rights", requireAuth, async (req, res, next) => {
       } : null,
     });
 
-    res.json(rightsProfile);
+    res.json({
+      ...rightsProfile,
+      inheritedRights: inheritedResult.inheritedRights,
+      ancestorTribalNations: inheritedResult.ancestorTribalNations,
+      inheritanceSummary: inheritedResult.inheritanceSummary,
+    });
   } catch (err) {
     next(err);
   }

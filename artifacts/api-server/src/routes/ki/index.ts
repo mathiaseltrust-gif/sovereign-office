@@ -100,39 +100,48 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     const governor = await getGovernorByRole(roleKey).catch(() => null);
     if (governor) governorPrefix = buildGovernorSystemPromptPrefix(governor);
 
-    // Compute this member's specific rights profile
-    const { computeMemberRights } = await import("../../sovereign/rights-engine");
+    // Compute this member's specific rights profile + inherited lineage rights
+    const { computeMemberRights, computeInheritedRights } = await import("../../sovereign/rights-engine");
     const profile = profileRows[0] ?? null;
-    const rightsProfile = computeMemberRights({
-      protectionLevel: gateway.protectionLevel,
-      icwaEligible: gateway.icwaEligible,
-      trustInheritance: gateway.trustInheritance,
-      welfareEligible: gateway.welfareEligible,
-      membershipVerified: gateway.membershipVerified,
-      lineageVerified: gateway.lineageVerified,
-      benefitEligibility: gateway.benefitEligibility,
-      identity: {
-        legalName: gateway.identity.legalName,
-        tribalName: gateway.identity.tribalName,
-        courtCaption: gateway.identity.courtCaption,
-        tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber,
-        tribalIdNumber: gateway.identity.tribalIdNumber,
-        identityTags: gateway.identity.identityTags,
-        role: gateway.identity.role,
-        title: gateway.identity.title,
-      },
-      lineageSummary: gateway.lineageSummary,
-      ancestorChain: gateway.ancestorChain,
-      tribalNations: gateway.tribalNations,
-      elderStatus: gateway.elderStatus,
-      isElder: gateway.isElder,
-      profile: profile ? {
-        apn: (profile as any).apn ?? null,
-        landStatus: (profile as any).landStatus ?? null,
-        hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
-      } : null,
-    });
-    rightsContext = "\n\n" + rightsProfile.rightsSummaryForKaya;
+    const [rightsProfile, inheritedResult] = await Promise.all([
+      Promise.resolve(computeMemberRights({
+        protectionLevel: gateway.protectionLevel,
+        icwaEligible: gateway.icwaEligible,
+        trustInheritance: gateway.trustInheritance,
+        welfareEligible: gateway.welfareEligible,
+        membershipVerified: gateway.membershipVerified,
+        lineageVerified: gateway.lineageVerified,
+        benefitEligibility: gateway.benefitEligibility,
+        identity: {
+          legalName: gateway.identity.legalName,
+          tribalName: gateway.identity.tribalName,
+          courtCaption: gateway.identity.courtCaption,
+          tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber,
+          tribalIdNumber: gateway.identity.tribalIdNumber,
+          identityTags: gateway.identity.identityTags,
+          role: gateway.identity.role,
+          title: gateway.identity.title,
+        },
+        lineageSummary: gateway.lineageSummary,
+        ancestorChain: gateway.ancestorChain,
+        tribalNations: gateway.tribalNations,
+        elderStatus: gateway.elderStatus,
+        isElder: gateway.isElder,
+        profile: profile ? {
+          apn: (profile as any).apn ?? null,
+          landStatus: (profile as any).landStatus ?? null,
+          hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
+        } : null,
+      })),
+      computeInheritedRights(userId),
+    ]);
+
+    const inheritedSummary = inheritedResult.inheritedRights.length > 0
+      ? `\n\nINHERITED LINEAGE RIGHTS (${inheritedResult.inheritedRights.length} total):\n` +
+        inheritedResult.inheritedRights.map(r => `• ${r.name} — inherited from ${r.sourceAncestorName} (${r.inheritancePath})\n  Citation: ${r.citation}`).join("\n")
+      : "";
+
+    rightsContext = "\n\n" + rightsProfile.rightsSummaryForKaya + inheritedSummary;
   } catch {
     const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
     if (profile) {

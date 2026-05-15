@@ -7,6 +7,9 @@
  * The member should know what they hold — not just that something applies.
  */
 
+import { db, familyLineageTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
 export interface MemberRight {
   id: string;
   name: string;
@@ -403,6 +406,262 @@ export function computeMemberRights(input: RightsInputProfile): MemberRightsProf
   const rightsSummaryForKaya = `MEMBER RIGHTS & PROTECTIONS PROFILE:\n\nActive Rights:\n${activeRights}\n\nApplicable Protections:\n${applicableRights}${landMarkers}${idMarkers}\n\n${protectionSummary}`;
 
   return { rights, identityMarkers, landStatusMarkers, protectionSummary, rightsSummaryForKaya };
+}
+
+// ── Lineage-inherited rights system ──────────────────────────────────────────
+
+export interface InheritedRight extends MemberRight {
+  sourceAncestorId: number;
+  sourceAncestorName: string;
+  generationalDepth: number;
+  inheritanceTribalNation: string;
+  inheritancePath: string;
+}
+
+// Maps normalized tribal nation key → treaties that affected that nation
+const NATION_TREATY_MAP: Record<string, Array<{
+  id: string;
+  citation: string;
+  plainLanguage: string;
+  watchFor: string;
+}>> = {
+  choctaw: [{
+    id: "dancing_rabbit_creek",
+    citation: "Treaty of Dancing Rabbit Creek, Sept. 27, 1830, 7 Stat. 333; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your ancestors were parties to the Dancing Rabbit Creek Treaty — the first major removal treaty under the Indian Removal Act of 1830. The treaty guaranteed citizenship rights and land protections to Choctaw who chose to remain. Treaty rights run with the bloodline and do not expire. The Supremacy Clause makes this treaty the supreme law of the land — no state law overrides it, and no agency memo can extinguish it.",
+    watchFor: "Agencies may claim the treaty is 'historical' or 'no longer operative.' Under the Constitution's Supremacy Clause, treaties remain supreme law of the land. Congress has not explicitly abrogated Dancing Rabbit Creek — any agency that claims otherwise is making a legal argument, not stating settled law. Push back and demand the statutory citation.",
+  }],
+  chickasaw: [{
+    id: "pontotoc_creek",
+    citation: "Treaty of Pontotoc Creek, Oct. 20, 1832, 7 Stat. 381; Treaty of Doaksville, Jan. 17, 1837, 11 Stat. 573; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your Chickasaw ancestry carries treaty standing under the Treaty of Pontotoc Creek (1832) and Treaty of Doaksville (1837). These treaties established Chickasaw sovereign rights, land protections, and the federal government's trust obligations to Chickasaw descendants. These obligations flow through your bloodline — Chickasaw treaty standing is inherited, not assigned.",
+    watchFor: "Agencies may require current Chickasaw Nation enrollment to recognize these protections. Treaty standing is broader than enrollment records — the federal trust responsibility runs to Chickasaw descendants as a matter of treaty law, not administrative eligibility.",
+  }],
+  cherokee: [{
+    id: "new_echota",
+    citation: "Treaty of New Echota, Dec. 29, 1835, 7 Stat. 478; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your Cherokee ancestry carries treaty rights under the Treaty of New Echota. Cherokee treaty protections include sovereign land rights, rights to self-governance, and the federal trust obligations that run through your bloodline. These rights exist in law regardless of current enrollment status.",
+    watchFor: "Cherokee treaty rights are frequently challenged on blood quantum and enrollment. Your inherited treaty standing exists independently of enrollment records. The Canons of Construction require ambiguities to resolve in your favor.",
+  }],
+  creek: [{
+    id: "creek_treaty",
+    citation: "Treaty of Indian Springs, Jan. 8, 1821, 7 Stat. 215; McGirt v. Oklahoma, 591 U.S. 894 (2020)",
+    plainLanguage: "Your Creek/Muscogee ancestry carries treaty-based land and sovereignty rights. The U.S. Supreme Court in McGirt v. Oklahoma (2020) confirmed that Creek treaty lands remain Indian country — a direct vindication of treaty rights that your bloodline inherits. Federal trust obligations to Creek descendants are enforceable.",
+    watchFor: "Post-McGirt, some agencies and state governments are resisting the scope of Muscogee sovereignty. Your inherited treaty standing is grounded in a 2020 Supreme Court decision, not historical argument alone.",
+  }],
+  muscogee: [{
+    id: "creek_treaty",
+    citation: "Treaty of Indian Springs, Jan. 8, 1821, 7 Stat. 215; McGirt v. Oklahoma, 591 U.S. 894 (2020)",
+    plainLanguage: "Your Muscogee (Creek) ancestry carries treaty-reinforced rights confirmed by McGirt v. Oklahoma (2020). The Supreme Court held that Muscogee treaty lands remain Indian country. These rights flow through your bloodline as direct inheritance.",
+    watchFor: "Post-McGirt, some agencies continue to resist. Your inherited treaty standing is grounded in the most recent Supreme Court pronouncement on the subject.",
+  }],
+  seminole: [{
+    id: "seminole_treaty",
+    citation: "Treaty of Moultrie Creek, Sept. 18, 1823, 7 Stat. 224; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your Seminole ancestry carries treaty standing under the Treaty of Moultrie Creek. Seminole treaty protections include sovereign territorial rights, federal trust obligations, and protections that flow from the United States' treaty commitments to the Seminole Nation and its descendants.",
+    watchFor: "Seminole treaty rights carry unique weight given the three Seminole Wars and the nation's documented resistance to removal. The federal government's treaty obligations to Seminole descendants are robust — claim them fully.",
+  }],
+  shawnee: [{
+    id: "shawnee_treaty",
+    citation: "Treaty of Cape Girardeau, 1793; Fort Harmar Treaty, 1789; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your Shawnee ancestry carries treaty-based sovereign rights recognized in multiple early treaties. Shawnee treaty protections include land rights and the federal trust responsibility that flows to treaty-nation descendants.",
+    watchFor: "Shawnee treaty rights may be contested on grounds of enrollment or band affiliation. Treaty standing extends beyond administrative enrollment.",
+  }],
+  potawatomi: [{
+    id: "potawatomi_treaty",
+    citation: "Treaty of Chicago, 1833, 7 Stat. 431; U.S. Const. Art. VI, cl. 2",
+    plainLanguage: "Your Potawatomi ancestry carries treaty standing under treaties including the Treaty of Chicago (1833). Federal trust obligations to Potawatomi descendants flow from these treaty commitments.",
+    watchFor: "Potawatomi treaty rights are administered by multiple federally recognized bands. Your inherited treaty standing may extend to more than one band's protections.",
+  }],
+};
+
+// Maps lineage tag → right definition (for tagged ancestors in family tree)
+const TAG_RIGHTS_MAP: Record<string, Pick<MemberRight, "name" | "citation" | "plainLanguage" | "watchFor">> = {
+  "dancing-rabbit-creek": {
+    name: "Dancing Rabbit Creek Treaty Standing (1830)",
+    citation: "Treaty of Dancing Rabbit Creek, Sept. 27, 1830, 7 Stat. 333",
+    plainLanguage: "This ancestor was directly affected by or party to the Dancing Rabbit Creek Treaty — the foundational Choctaw removal-era treaty. Their treaty standing transfers to all blood descendants. You inherit this treaty protection as a matter of constitutional supremacy.",
+    watchFor: "Treaty rights run with the bloodline unconditionally. Any denial of Indian status must account for this treaty standing, which exists in federal constitutional law, not administrative convenience.",
+  },
+  "choctaw-removal": {
+    name: "Choctaw Removal Era Land & Citizenship Rights",
+    citation: "Indian Removal Act, 4 Stat. 411 (1830); Treaty of Dancing Rabbit Creek, 7 Stat. 333; 25 U.S.C. § 177",
+    plainLanguage: "This ancestor lived through and was subject to the Choctaw removal era. Removal-era Choctaw were guaranteed citizenship rights, land protections, and retained rights under federal treaties. These protections are inherited by blood descendants.",
+    watchFor: "Records from the removal era are often incomplete or scattered. Incomplete records do not negate your rights — community recognition and oral tradition are accepted forms of evidence in Indian law proceedings.",
+  },
+  "ira-allottee": {
+    name: "IRA Allotment Rights — Inherited Land Status",
+    citation: "Indian Reorganization Act, 25 U.S.C. §§ 5101–5144 (1934); General Allotment Act, 25 U.S.C. § 331",
+    plainLanguage: "This ancestor held an Indian allotment under federal land policy. Allotment rights and trust status may have passed to heirs. Any allotment land remaining in the family is subject to federal supervision under the Non-Intercourse Act — state courts and county governments have no jurisdiction to transfer it without BIA approval.",
+    watchFor: "Allotted lands are frequently lost through fractionated heirship, incomplete probate, or invalid state-law transfers. If family land has been taken or lost, look for defective transfer proceedings that may be challengeable.",
+  },
+  "dawes-roll": {
+    name: "Dawes Roll Standing — Five Civilized Tribes",
+    citation: "Curtis Act of 1898; Dawes Act, 25 U.S.C. § 331; Dawes Commission records",
+    plainLanguage: "This ancestor appears on or is eligible for the Dawes Rolls — the federal census of the Five Civilized Tribes prepared 1898–1914. Dawes Roll status is a significant evidentiary anchor for Indian status, tribal membership, and allotment land rights. Your blood descent from a Dawes Roll ancestor is a strong legal foundation for your own Indian status.",
+    watchFor: "Omission from the Dawes Rolls does not negate Indian status — many members refused enrollment or were incorrectly classified. The Dawes Rolls are evidence, not the exclusive definition of Indian status.",
+  },
+  "freedmen-roll": {
+    name: "Freedmen Roll — Post-Civil War Treaty Rights",
+    citation: "Cherokee Freedmen Treaty of 1866, 14 Stat. 799; Seminole Freedmen Treaty of 1866; Creek Freedmen Treaty of 1866",
+    plainLanguage: "This ancestor appears on or is eligible for the Freedmen Rolls established by the post-Civil War treaties between the Five Civilized Tribes and the United States. Freedmen treaty rights are federally recognized and establish citizenship rights within the respective tribal nations — rights that flow to descendants.",
+    watchFor: "Tribal nations have sometimes excluded Freedmen from citizenship and benefits. The post-Civil War treaties established these rights as binding federal treaty obligations that the tribes cannot unilaterally revoke. Federal courts have consistently upheld Freedmen treaty rights.",
+  },
+  "removal-survivor": {
+    name: "Indian Removal Survivor Lineage — Preserved Rights",
+    citation: "Indian Removal Act of 1830, 4 Stat. 411; Removal-era treaty rights; 25 U.S.C. § 177",
+    plainLanguage: "This ancestor survived the Indian Removal period — one of the most legally significant events in federal Indian law. Removal-era treaties preserved specific rights for those who relocated and those who remained. These rights flow to all blood descendants and have never been extinguished.",
+    watchFor: "Removal-era records are scattered and often incomplete. Courts have recognized Indian status and treaty rights based on oral tradition, community recognition, and partial documentation. Incomplete records are not a legal barrier to claiming your rights.",
+  },
+  "non-intercourse-act": {
+    name: "Non-Intercourse Act Standing — Land Transaction Protection",
+    citation: "25 U.S.C. § 177 (Trade and Intercourse Act of 1790); Passamaquoddy Tribe v. Morton, 528 F.2d 370 (1st Cir. 1975)",
+    plainLanguage: "This ancestor's land transactions were subject to the Non-Intercourse Act. Any land that passed without federal approval during this ancestor's lifetime may be voidable under federal law. This protection extends to all descendants with a claim to that ancestral land.",
+    watchFor: "Land that was transferred without BIA approval — through tax sales, quiet title actions, or informal sales — may be recoverable under the Non-Intercourse Act, regardless of how much time has passed.",
+  },
+};
+
+function _normalizeNationKey(nation: string): string {
+  return nation.toLowerCase()
+    .replace(/\b(nation|tribe|people|band|group|of|the|confederated|united)\b/g, "")
+    .replace(/[^a-z]/g, " ")
+    .trim()
+    .split(/\s+/)[0] ?? "";
+}
+
+function _generationLabel(position: number): string {
+  if (position <= 0) return "current generation";
+  if (position === 1) return "parent";
+  if (position === 2) return "grandparent";
+  if (position === 3) return "great-grandparent";
+  const greats = Array(position - 2).fill("great").join("-");
+  return `${greats}-grandparent`;
+}
+
+export async function computeInheritedRights(userId: number): Promise<{
+  inheritedRights: InheritedRight[];
+  ancestorTribalNations: Array<{ name: string; ancestorId: number; ancestorName: string; generation: number }>;
+  inheritanceSummary: string;
+}> {
+  const ancestors = await db
+    .select({
+      id: familyLineageTable.id,
+      fullName: familyLineageTable.fullName,
+      tribalNation: familyLineageTable.tribalNation,
+      lineageTags: familyLineageTable.lineageTags,
+      generationalPosition: familyLineageTable.generationalPosition,
+      icwaEligible: familyLineageTable.icwaEligible,
+      trustBeneficiary: familyLineageTable.trustBeneficiary,
+    })
+    .from(familyLineageTable)
+    .where(eq(familyLineageTable.userId, userId));
+
+  const inheritedRights: InheritedRight[] = [];
+  const seenIds = new Set<string>();
+  const ancestorTribalNations: Array<{ name: string; ancestorId: number; ancestorName: string; generation: number }> = [];
+
+  for (const ancestor of ancestors) {
+    const gen = ancestor.generationalPosition ?? 0;
+    const genLabel = _generationLabel(gen);
+
+    // ── Nation → treaty rights ──────────────────────────────────────────────
+    if (ancestor.tribalNation) {
+      const key = _normalizeNationKey(ancestor.tribalNation);
+      const treaties = NATION_TREATY_MAP[key] ?? [];
+      if (treaties.length > 0) {
+        ancestorTribalNations.push({ name: ancestor.tribalNation, ancestorId: ancestor.id, ancestorName: ancestor.fullName, generation: gen });
+      }
+      for (const treaty of treaties) {
+        const dedupeKey = `nation_${treaty.id}`;
+        if (seenIds.has(dedupeKey)) continue;
+        seenIds.add(dedupeKey);
+        const nationName = ancestor.tribalNation;
+        inheritedRights.push({
+          id: `inherited_${treaty.id}_${ancestor.id}`,
+          name: `${nationName} Treaty Rights — inherited from ${ancestor.fullName}`,
+          category: "treaty",
+          citation: treaty.citation,
+          plainLanguage: treaty.plainLanguage,
+          watchFor: treaty.watchFor,
+          status: "active",
+          sourceAncestorId: ancestor.id,
+          sourceAncestorName: ancestor.fullName,
+          generationalDepth: gen,
+          inheritanceTribalNation: nationName,
+          inheritancePath: genLabel,
+        });
+      }
+    }
+
+    // ── Lineage tags → rights ───────────────────────────────────────────────
+    const tags = Array.isArray(ancestor.lineageTags) ? (ancestor.lineageTags as string[]) : [];
+    for (const tag of tags) {
+      const tagDef = TAG_RIGHTS_MAP[tag.toLowerCase().trim()];
+      if (!tagDef) continue;
+      const dedupeKey = `tag_${tag}`;
+      if (seenIds.has(dedupeKey)) continue;
+      seenIds.add(dedupeKey);
+      inheritedRights.push({
+        id: `inherited_tag_${tag}_${ancestor.id}`,
+        name: tagDef.name,
+        category: "treaty",
+        citation: tagDef.citation,
+        plainLanguage: tagDef.plainLanguage,
+        watchFor: tagDef.watchFor,
+        status: "active",
+        sourceAncestorId: ancestor.id,
+        sourceAncestorName: ancestor.fullName,
+        generationalDepth: gen,
+        inheritanceTribalNation: ancestor.tribalNation ?? "Documented ancestor",
+        inheritancePath: genLabel,
+      });
+    }
+
+    // ── ICWA — ancestor confirmation ────────────────────────────────────────
+    if (ancestor.icwaEligible && !seenIds.has("inherited_icwa_lineage")) {
+      seenIds.add("inherited_icwa_lineage");
+      inheritedRights.push({
+        id: `inherited_icwa_lineage_${ancestor.id}`,
+        name: "ICWA Eligibility — Confirmed Through Lineage",
+        category: "icwa",
+        citation: "25 U.S.C. §§ 1901–1963; Brackeen v. Haaland, 599 U.S. 255 (2023)",
+        plainLanguage: `Your ICWA eligibility is confirmed through ${ancestor.fullName} (${genLabel}). All Indian Child Welfare Act protections apply to you and your children — including tribal court jurisdiction preference, active efforts requirements, and the right to intervene in any state court child welfare proceeding.`,
+        watchFor: "State agencies frequently fail to make the ICWA inquiry. Always assert ICWA at the first court appearance and demand the agency demonstrate they provided required 10-day notice to the tribe.",
+        status: "active",
+        sourceAncestorId: ancestor.id,
+        sourceAncestorName: ancestor.fullName,
+        generationalDepth: gen,
+        inheritanceTribalNation: ancestor.tribalNation ?? "Documented ancestor",
+        inheritancePath: genLabel,
+      });
+    }
+
+    // ── Trust beneficiary — ancestor confirmation ───────────────────────────
+    if (ancestor.trustBeneficiary && !seenIds.has("inherited_trust_lineage")) {
+      seenIds.add("inherited_trust_lineage");
+      inheritedRights.push({
+        id: `inherited_trust_lineage_${ancestor.id}`,
+        name: "Trust Land Beneficiary — Inherited Standing",
+        category: "trust",
+        citation: "25 U.S.C. §§ 5108–5110; Indian Land Consolidation Act, 25 U.S.C. § 2201",
+        plainLanguage: `Your trust land beneficiary status flows from ${ancestor.fullName} (${genLabel}). Trust land held for your family line cannot be taxed by the state, cannot be transferred without federal approval, and is subject to BIA supervision. If any family land has been lost without proper federal process, it may be recoverable.`,
+        watchFor: "Tax sales, quiet title actions, and county-recorded transfers are the most common ways trust land is lost. None of these are valid against trust land without BIA approval.",
+        status: "active",
+        sourceAncestorId: ancestor.id,
+        sourceAncestorName: ancestor.fullName,
+        generationalDepth: gen,
+        inheritanceTribalNation: ancestor.tribalNation ?? "Documented ancestor",
+        inheritancePath: genLabel,
+      });
+    }
+  }
+
+  const uniqueNations = [...new Set(ancestorTribalNations.map(n => n.name))];
+  const inheritanceSummary = inheritedRights.length === 0
+    ? "No specific treaty or ancestral rights have been mapped yet. Add tribal nation and treaty affiliation data to ancestor records in the Family Tree to activate inherited protections."
+    : `You inherit ${inheritedRights.length} additional protection${inheritedRights.length !== 1 ? "s" : ""} through your bloodline${uniqueNations.length > 0 ? ` — tracing through ${uniqueNations.join(", ")} ancestry` : ""}. These rights are as active and enforceable as any protection you hold in your own name.`;
+
+  return { inheritedRights, ancestorTribalNations, inheritanceSummary };
 }
 
 // ── Document-level identity/status extraction schema ─────────────────────────

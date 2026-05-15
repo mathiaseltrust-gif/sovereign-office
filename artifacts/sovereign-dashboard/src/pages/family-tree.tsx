@@ -2091,7 +2091,7 @@ function CsvUploadTab({ onSuccess }: { onSuccess: () => void }) {
 }
 
 function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?: LineageData; isLoading: boolean; onSuccess: () => void }) {
-  const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" });
+  const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0", lineageTags: [] as string[] });
   const [editId, setEditId] = useState<number | null>(null);
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
 
@@ -2109,6 +2109,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
         notes: form.notes || undefined,
         contactEmail: form.contactEmail || undefined,
         generationalPosition: parseInt(form.generationalPosition, 10) || 0,
+        lineageTags: form.lineageTags.length > 0 ? form.lineageTags : undefined,
       };
 
       if (editId !== null) {
@@ -2130,7 +2131,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
       }
     },
     onSuccess: () => {
-      setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" });
+      setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0", lineageTags: [] });
       setEditId(null);
       onSuccess();
     },
@@ -2150,7 +2151,17 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
       notes: person.notes ?? "",
       contactEmail: person.contactEmail ?? "",
       generationalPosition: person.generationalPosition?.toString() ?? "0",
+      lineageTags: Array.isArray(person.lineageTags) ? (person.lineageTags as string[]) : [],
     });
+  }
+
+  function toggleTag(tag: string) {
+    setForm(prev => ({
+      ...prev,
+      lineageTags: prev.lineageTags.includes(tag)
+        ? prev.lineageTags.filter(t => t !== tag)
+        : [...prev.lineageTags, tag],
+    }));
   }
 
   const fld = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm((prev) => ({ ...prev, [field]: e.target.value }));
@@ -2216,6 +2227,42 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
               <p className="text-xs text-muted-foreground mt-1">Used to verify access and membership for living members</p>
             </div>
             <div className="md:col-span-3">
+              <Label>Treaty & Lineage Affiliations</Label>
+              <p className="text-xs text-muted-foreground mb-2 mt-0.5">Select all historical treaty affiliations and lineage markers that apply to this ancestor. These activate inherited rights for their descendants.</p>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { tag: "dancing-rabbit-creek", label: "Dancing Rabbit Creek (1830)", desc: "Choctaw" },
+                  { tag: "choctaw-removal", label: "Choctaw Removal Era", desc: "1830s" },
+                  { tag: "ira-allottee", label: "IRA Allottee", desc: "1934" },
+                  { tag: "dawes-roll", label: "Dawes Roll", desc: "Five Civilized Tribes" },
+                  { tag: "freedmen-roll", label: "Freedmen Roll", desc: "Post-Civil War" },
+                  { tag: "removal-survivor", label: "Removal Survivor", desc: "Indian Removal Act" },
+                  { tag: "non-intercourse-act", label: "Non-Intercourse Act", desc: "Land protection" },
+                ].map(({ tag, label, desc }) => {
+                  const active = form.lineageTags.includes(tag);
+                  return (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => toggleTag(tag)}
+                      className={`flex items-center gap-1.5 rounded-full border px-3 py-1 text-xs font-medium transition-colors ${
+                        active
+                          ? "bg-rose-600 border-rose-600 text-white"
+                          : "bg-background border-border text-muted-foreground hover:border-rose-400 hover:text-rose-700"
+                      }`}
+                    >
+                      {active && <span className="text-[10px]">✓</span>}
+                      {label}
+                      <span className={`text-[10px] ${active ? "text-rose-100" : "text-muted-foreground"}`}>{desc}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              {form.lineageTags.length > 0 && (
+                <p className="text-[10px] text-rose-700 mt-1.5">{form.lineageTags.length} affiliation{form.lineageTags.length !== 1 ? "s" : ""} selected — these will activate inherited rights for all blood descendants.</p>
+              )}
+            </div>
+            <div className="md:col-span-3">
               <Label>Notes</Label>
               <Textarea className="mt-1" value={form.notes} onChange={fld("notes")} placeholder="Role, relationships, place of origin, any relevant history…" rows={3} />
             </div>
@@ -2225,7 +2272,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
               {saveMutation.isPending ? "Saving…" : editId !== null ? "Update Ancestor" : "Add Ancestor"}
             </Button>
             {editId !== null && (
-              <Button variant="outline" onClick={() => { setEditId(null); setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" }); }}>
+              <Button variant="outline" onClick={() => { setEditId(null); setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0", lineageTags: [] }); }}>
                 Cancel Edit
               </Button>
             )}
