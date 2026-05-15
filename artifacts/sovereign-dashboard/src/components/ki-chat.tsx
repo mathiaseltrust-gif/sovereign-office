@@ -942,14 +942,29 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             />
           </div>
           <div>
-            {/* COMPANION wordmark — image asset */}
-            <img
-              src="/sovereign-dashboard/companion-wordmark.png"
-              alt="COMPANION"
-              style={{ height: "22px", width: "auto", display: "block", filter: "drop-shadow(0 0 3px rgba(220,140,50,0.35))" }}
-            />
-            <p className="text-[9px] tracking-[0.16em] mt-1" style={{ color: "rgba(255,200,140,0.55)" }}>
-              "Indigenous Intelligence" · {knowledgeEntries.length} memories
+            {/* COMPANION wordmark — Cinzel font, copper, distinctive A */}
+            <div
+              style={{
+                fontFamily: "'Cinzel', serif",
+                fontSize: "15px",
+                fontWeight: 700,
+                letterSpacing: "0.22em",
+                background: "linear-gradient(180deg, #E8B86D 0%, #C8860A 50%, #A0640A 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+                textShadow: "none",
+                lineHeight: 1,
+                filter: "drop-shadow(0 1px 3px rgba(180,100,10,0.5))",
+              }}
+            >
+              COMPANION
+            </div>
+            <p className="text-[9px] tracking-[0.12em] mt-1" style={{ color: "rgba(255,200,140,0.65)" }}>
+              Indigenous Intelligence Systems · {knowledgeEntries.length} memories
+            </p>
+            <p className="text-[8px] tracking-[0.06em] mt-0.5 italic" style={{ color: "rgba(255,180,100,0.4)" }}>
+              "Whatever we do, it has to make sense."
             </p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
