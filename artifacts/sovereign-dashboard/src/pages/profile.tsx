@@ -19,7 +19,7 @@ import {
   ClipboardList, Search, Users, Building2, Gavel, Layers,
   Printer, Workflow, ChevronRight, ChevronDown, AlertTriangle, Wifi,
   User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck, MapPin,
-  Key, UserCheck, ShieldAlert, Trash2, Clock,
+  Key, UserCheck, ShieldAlert, Trash2, Clock, Edit2, Feather, Save,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -993,6 +993,8 @@ export default function ProfilePage() {
   const [identityOpen, setIdentityOpen] = useState(true);
   const [vaultSectionOpen, setVaultSectionOpen] = useState(false);
   const [successionOpen, setSuccessionOpen] = useState(false);
+  const [statementEditing, setStatementEditing] = useState(false);
+  const [statementSaving, setStatementSaving] = useState(false);
   const [printingId, setPrintingId] = useState<number | null>(null);
 
   // ── Succession planning form state ──
@@ -1044,6 +1046,8 @@ export default function ProfilePage() {
     legalDescription: "",
     bio: "",
     preferredJurisdiction: "",
+    chiefStatement: "",
+    chiefStatementRef: "",
   });
   const [landStatus, setLandStatus] = useState("");
   const [hasRecordedInstrument, setHasRecordedInstrument] = useState(false);
@@ -1087,6 +1091,8 @@ export default function ProfilePage() {
             apn: p.apn ?? "",
             legalDescription: p.legalDescription ?? "",
             bio: p.bio ?? "",
+            chiefStatement: p.chiefStatement ?? "",
+            chiefStatementRef: p.chiefStatementRef ?? "",
             preferredJurisdiction: p.preferredJurisdiction ?? "",
           });
           setLandStatus(p.landStatus ?? "");
@@ -1589,6 +1595,134 @@ export default function ProfilePage() {
 
       {/* ── Quick Actions — chief only ── */}
       {isChief && <ChiefQuickLinks />}
+
+      {/* ── Chief's Statement — personal declaration, chief only ── */}
+      {isChief && (
+        <Card className="border-amber-700/30 bg-gradient-to-br from-amber-950/20 via-background to-background overflow-hidden">
+          <CardHeader className="pb-3">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <Feather className="h-4 w-4 text-amber-600 shrink-0" />
+                <div>
+                  <CardTitle className="text-xs uppercase tracking-widest text-amber-700">Chief's Statement</CardTitle>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Your personal declaration — visible on your profile</p>
+                </div>
+              </div>
+              {!statementEditing ? (
+                <Button
+                  size="sm"
+                  variant="ghost"
+                  onClick={() => setStatementEditing(true)}
+                  className="h-7 text-xs gap-1.5 text-amber-700 hover:text-amber-600 hover:bg-amber-900/20 shrink-0"
+                >
+                  <Edit2 className="h-3 w-3" />
+                  {fields.chiefStatement ? "Edit" : "Write"}
+                </Button>
+              ) : (
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => setStatementEditing(false)}
+                    className="h-7 text-xs text-muted-foreground"
+                    disabled={statementSaving}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={async () => {
+                      setStatementSaving(true);
+                      try {
+                        const r = await fetch("/api/user/profile", {
+                          method: "PUT",
+                          headers: {
+                            Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+                            "Content-Type": "application/json",
+                          },
+                          body: JSON.stringify({
+                            chiefStatement: fields.chiefStatement,
+                            chiefStatementRef: fields.chiefStatementRef,
+                          }),
+                        });
+                        if (r.ok) {
+                          toast({ title: "Statement saved", description: "Your declaration has been recorded." });
+                          setStatementEditing(false);
+                        } else {
+                          toast({ title: "Could not save", variant: "destructive" });
+                        }
+                      } finally {
+                        setStatementSaving(false);
+                      }
+                    }}
+                    className="h-7 text-xs gap-1.5 bg-amber-700 hover:bg-amber-600 text-white"
+                    disabled={statementSaving}
+                  >
+                    {statementSaving ? <Loader2 className="h-3 w-3 animate-spin" /> : <Save className="h-3 w-3" />}
+                    Save
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {statementEditing ? (
+              <>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">Your statement</Label>
+                  <Textarea
+                    value={fields.chiefStatement}
+                    onChange={e => setFields(f => ({ ...f, chiefStatement: e.target.value }))}
+                    placeholder={`Being Chief is not an appointment — it is an arrival. A remembering. A necessity. It is a spiritual designation: a destination reached through the weight of preparation and the fire of realization that you stand for your people against opposing nations. This is a calling. The preparation is intense, because this role is not for the weak...`}
+                    rows={8}
+                    className="text-sm leading-relaxed resize-none"
+                  />
+                </div>
+                <div>
+                  <Label className="text-xs text-muted-foreground mb-1.5 block">
+                    Reference / Learn more <span className="text-muted-foreground/50">(optional — e.g. "Find out more through the SDU" or a link)</span>
+                  </Label>
+                  <Input
+                    value={fields.chiefStatementRef}
+                    onChange={e => setFields(f => ({ ...f, chiefStatementRef: e.target.value }))}
+                    placeholder="e.g. For more information, contact the Sovereign Development Unit (SDU)"
+                    className="text-sm"
+                  />
+                </div>
+              </>
+            ) : fields.chiefStatement ? (
+              <div className="space-y-3">
+                <blockquote className="border-l-2 border-amber-700/50 pl-4 space-y-1">
+                  {fields.chiefStatement.split("\n").filter(Boolean).map((para, i) => (
+                    <p key={i} className="text-sm leading-relaxed text-foreground/90 font-serif italic">
+                      {para}
+                    </p>
+                  ))}
+                </blockquote>
+                {fields.chiefStatementRef && (
+                  <p className="text-xs text-amber-700/80 pl-4 border-l-2 border-amber-700/20">
+                    {fields.chiefStatementRef}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <div className="py-4 text-center">
+                <Feather className="h-8 w-8 text-amber-700/20 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No statement written yet.</p>
+                <p className="text-xs text-muted-foreground/70 mt-0.5">Write your declaration — what being Chief means to you, in your own words.</p>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() => setStatementEditing(true)}
+                  className="mt-3 gap-1.5 text-xs border-amber-700/30 text-amber-700 hover:bg-amber-900/10"
+                >
+                  <Edit2 className="h-3 w-3" /> Write my statement
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ── Succession Planning — office holders only, collapsible ── */}
       {isOfficeHolder && (
