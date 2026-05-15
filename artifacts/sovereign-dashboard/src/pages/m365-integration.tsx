@@ -1,263 +1,307 @@
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useState, useEffect, useCallback } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
-  CheckCircle2, XCircle, ChevronDown, ChevronRight,
-  Cloud, FileText, Zap, ShieldCheck, Settings, Copy,
+  CheckCircle2, XCircle, ChevronDown, ChevronUp,
+  ExternalLink, Link2, Link2Off, Loader2,
 } from "lucide-react";
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "")}/api`;
+const BASE_PATH = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 interface M365Status {
   serviceKeyConfigured: boolean;
   azureConfigured: boolean;
   entraConfigured: boolean;
   azureClientReady: boolean;
-  endpoints: Record<string, string>;
-  authentication: { method: string; headerName: string; note: string };
 }
 
-// ── Small connection indicator ───────────────────────────────────────────────
-function ServiceRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
-  return (
-    <div className="flex items-center gap-3 py-2.5 border-b border-border last:border-0">
-      {ok
-        ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
-        : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
-      <div className="flex-1 min-w-0">
-        <p className="text-sm font-medium">{label}</p>
-        {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
-      </div>
-      <Badge
-        variant={ok ? "default" : "secondary"}
-        className={`text-[9px] uppercase tracking-wider shrink-0 ${ok ? "bg-green-700 text-white" : ""}`}
-      >
-        {ok ? "Active" : "Not configured"}
-      </Badge>
-    </div>
-  );
-}
+// ── Microsoft 365 app tiles ──────────────────────────────────────────────────
+const M365_APPS = [
+  {
+    id: "sharepoint",
+    label: "SharePoint",
+    sublabel: "Document library",
+    href: "https://www.office.com/launch/sharepoint",
+    color: "#038387",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#038387" />
+        <circle cx="12" cy="16" r="7" fill="white" fillOpacity=".9" />
+        <circle cx="20" cy="16" r="7" fill="white" fillOpacity=".5" />
+        <circle cx="16" cy="16" r="5" fill="white" fillOpacity=".85" />
+      </svg>
+    ),
+  },
+  {
+    id: "word",
+    label: "Word",
+    sublabel: "Document drafting",
+    href: "https://www.office.com/launch/word",
+    color: "#185ABD",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#185ABD" />
+        <text x="7" y="23" fill="white" fontSize="17" fontWeight="bold" fontFamily="Arial">W</text>
+      </svg>
+    ),
+  },
+  {
+    id: "outlook",
+    label: "Outlook",
+    sublabel: "Tribal email",
+    href: "https://outlook.office.com",
+    color: "#0078D4",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#0078D4" />
+        <text x="7" y="23" fill="white" fontSize="17" fontWeight="bold" fontFamily="Arial">O</text>
+      </svg>
+    ),
+  },
+  {
+    id: "teams",
+    label: "Teams",
+    sublabel: "Meetings & chat",
+    href: "https://teams.microsoft.com",
+    color: "#6264A7",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#6264A7" />
+        <text x="7" y="23" fill="white" fontSize="17" fontWeight="bold" fontFamily="Arial">T</text>
+      </svg>
+    ),
+  },
+  {
+    id: "onedrive",
+    label: "OneDrive",
+    sublabel: "Secure file storage",
+    href: "https://onedrive.live.com",
+    color: "#0078D4",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#0078D4" />
+        <path d="M7 20 Q10 13 17 15 Q19 10 25 13 Q28 14 27 20Z" fill="white" fillOpacity=".9" />
+      </svg>
+    ),
+  },
+  {
+    id: "office",
+    label: "Office Home",
+    sublabel: "All apps",
+    href: "https://www.office.com",
+    color: "#D83B01",
+    icon: (
+      <svg viewBox="0 0 32 32" fill="none" className="w-7 h-7">
+        <rect x="2" y="2" width="28" height="28" rx="5" fill="#D83B01" />
+        <text x="7" y="23" fill="white" fontSize="17" fontWeight="bold" fontFamily="Arial">M</text>
+      </svg>
+    ),
+  },
+];
 
-// ── Admin-only: copyable endpoint block ─────────────────────────────────────
-function EndpointRow({ label, value }: { label: string; value: string }) {
-  const { toast } = useToast();
+// ── App Tile ─────────────────────────────────────────────────────────────────
+function AppTile({ app }: { app: typeof M365_APPS[0] }) {
   return (
-    <div className="mb-3">
-      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">{label}</p>
-      <div className="flex items-center gap-2">
-        <code className="flex-1 text-[10px] bg-muted rounded px-2.5 py-1.5 font-mono break-all text-muted-foreground">
-          {value}
-        </code>
-        <Button
-          size="sm"
-          variant="outline"
-          className="shrink-0 h-7 w-7 p-0"
-          onClick={() => { navigator.clipboard.writeText(value); toast({ title: "Copied", description: label }); }}
-          title="Copy"
-        >
-          <Copy className="h-3 w-3" />
-        </Button>
+    <a
+      href={app.href}
+      target="_blank"
+      rel="noopener noreferrer"
+      className="group flex flex-col items-center gap-2 p-4 rounded-xl border border-border bg-card hover:border-primary/40 hover:bg-accent/30 transition-all cursor-pointer"
+    >
+      {app.icon}
+      <div className="text-center">
+        <p className="text-sm font-semibold leading-tight">{app.label}</p>
+        <p className="text-[10px] text-muted-foreground">{app.sublabel}</p>
       </div>
-    </div>
+      <ExternalLink className="h-3 w-3 text-muted-foreground/40 group-hover:text-muted-foreground transition-colors" />
+    </a>
   );
 }
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function M365IntegrationPage() {
-  const { user, activeRole } = useAuth();
-  const [status, setStatus] = useState<M365Status | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [adminOpen, setAdminOpen] = useState(false);
+  const { user, mode } = useAuth();
+  const { toast } = useToast();
 
-  const isAdmin = ["sovereign_admin", "trustee"].includes(activeRole);
+  const [status, setStatus] = useState<M365Status | null>(null);
+  const [statusOpen, setStatusOpen] = useState(false);
+  const [linking, setLinking] = useState(false);
+
+  const isMicrosoftLinked = mode === "microsoft";
+  const activeCount = status
+    ? [status.serviceKeyConfigured, status.azureConfigured, status.entraConfigured, status.azureClientReady].filter(Boolean).length
+    : null;
 
   useEffect(() => {
-    if (!user) { setLoading(false); return; }
+    if (!user) return;
     fetch(`${API_BASE}/m365/status`, {
       headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
     })
-      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() as Promise<M365Status>; })
-      .then(setStatus)
-      .catch(() => setStatus(null))
-      .finally(() => setLoading(false));
+      .then(r => r.ok ? r.json() as Promise<M365Status> : null)
+      .then(d => setStatus(d))
+      .catch(() => {});
   }, [user]);
 
-  const allConnected = !!(status?.serviceKeyConfigured && status?.azureConfigured && status?.entraConfigured && status?.azureClientReady);
+  const handleLinkMicrosoft = useCallback(async () => {
+    setLinking(true);
+    try {
+      const callbackUrl = `${window.location.origin}${BASE_PATH}/microsoft/callback`.replace(/([^:])\/\/+/g, "$1/");
+      const res = await fetch(`${API_BASE}/auth/microsoft/login?redirectUri=${encodeURIComponent(callbackUrl)}`);
+      if (!res.ok) throw new Error("unavailable");
+      const { url } = await res.json() as { url: string };
+      const popup = window.open(url, "msauth", "width=520,height=640,left=200,top=100");
+
+      const onMsg = (ev: MessageEvent) => {
+        if (ev.origin !== window.location.origin) return;
+        if (ev.data?.type === "OAUTH_SUCCESS") {
+          window.location.reload();
+        } else if (ev.data?.type === "OAUTH_ERROR") {
+          toast({ title: "Sign-in failed", description: ev.data.error, variant: "destructive" });
+        }
+        window.removeEventListener("message", onMsg);
+        setLinking(false);
+      };
+      window.addEventListener("message", onMsg);
+
+      const poll = setInterval(() => {
+        if (popup?.closed) { clearInterval(poll); setLinking(false); window.removeEventListener("message", onMsg); }
+      }, 800);
+    } catch {
+      toast({ title: "Microsoft sign-in unavailable", description: "Azure Entra ID may not be configured yet.", variant: "destructive" });
+      setLinking(false);
+    }
+  }, [toast]);
 
   return (
-    <div className="max-w-2xl mx-auto space-y-5" data-testid="page-m365">
+    <div className="max-w-2xl mx-auto space-y-5 pb-10" data-testid="page-m365">
 
-      {/* ── Header ── */}
+      {/* ── Header row ── */}
       <div className="flex items-center gap-3">
-        <div className="w-10 h-10 rounded-lg bg-[#0078d4]/10 flex items-center justify-center shrink-0">
-          <Cloud className="h-5 w-5 text-[#0078d4]" />
+        <div className="w-9 h-9 rounded-lg bg-[#0078d4]/10 flex items-center justify-center shrink-0">
+          {/* Microsoft logo mark */}
+          <svg width="18" height="18" viewBox="0 0 21 21" fill="none">
+            <rect x="1" y="1" width="9" height="9" fill="#F25022" />
+            <rect x="11" y="1" width="9" height="9" fill="#7FBA00" />
+            <rect x="1" y="11" width="9" height="9" fill="#00A4EF" />
+            <rect x="11" y="11" width="9" height="9" fill="#FFB900" />
+          </svg>
         </div>
-        <div>
-          <h1 className="text-xl font-serif font-bold leading-tight">Microsoft 365</h1>
-          <p className="text-xs text-muted-foreground">Sovereign document integration &amp; AI services</p>
+        <div className="flex-1 min-w-0">
+          <h1 className="text-lg font-serif font-bold leading-tight">Microsoft 365</h1>
+          <p className="text-xs text-muted-foreground">Sovereign workspace</p>
         </div>
-        {!loading && (
-          <Badge
-            className={`ml-auto shrink-0 text-xs px-2.5 py-1 ${allConnected ? "bg-green-700 text-white" : "bg-muted text-muted-foreground"}`}
+
+        {/* Account connection badge */}
+        {isMicrosoftLinked ? (
+          <div className="flex items-center gap-1.5 text-xs text-green-700 font-medium bg-green-50 border border-green-200 rounded-full px-3 py-1 shrink-0">
+            <Link2 className="h-3 w-3" />
+            Account linked
+          </div>
+        ) : (
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 shrink-0"
+            onClick={handleLinkMicrosoft}
+            disabled={linking}
           >
-            {allConnected ? "Connected" : "Partial setup"}
-          </Badge>
+            {linking ? <Loader2 className="h-3 w-3 animate-spin" /> : <Link2Off className="h-3 w-3" />}
+            {linking ? "Opening…" : "Link Microsoft account"}
+          </Button>
         )}
       </div>
 
-      {/* ── What this does ── */}
-      <Card className="border-[#0078d4]/20">
-        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div className="flex items-start gap-2.5">
-            <FileText className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold">Document Intake</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Files uploaded to SharePoint are automatically analyzed and classified by the Sovereign AI.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <Zap className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold">AI Drafting</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Legal draft responses are generated using the sovereign AI engine and returned to your Word library.</p>
-            </div>
-          </div>
-          <div className="flex items-start gap-2.5">
-            <ShieldCheck className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
-            <div>
-              <p className="text-sm font-semibold">Sovereign Sign-In</p>
-              <p className="text-xs text-muted-foreground mt-0.5">Members sign in with their Microsoft account through Azure Entra ID for secure access.</p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Connection status ── */}
-      <Card>
-        <CardHeader className="pb-1">
-          <CardTitle className="text-sm font-semibold">Connection Status</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-0">
-          {loading ? (
-            <div className="space-y-2 py-2">
-              {[...Array(4)].map((_, i) => (
-                <div key={i} className="h-9 bg-muted/50 rounded animate-pulse" />
-              ))}
-            </div>
-          ) : status ? (
-            <>
-              <ServiceRow
-                ok={status.serviceKeyConfigured}
-                label="M365 Service Key"
-                detail="Authenticates Power Automate flows to the Sovereign API"
-              />
-              <ServiceRow
-                ok={status.azureConfigured}
-                label="Azure OpenAI"
-                detail="Powers document analysis, fact extraction, and AI drafting"
-              />
-              <ServiceRow
-                ok={status.entraConfigured}
-                label="Azure Entra ID"
-                detail="Enables Microsoft account sign-in for tribal members"
-              />
-              <ServiceRow
-                ok={status.azureClientReady}
-                label="AI Engine"
-                detail="End-to-end sovereign AI processing pipeline ready"
-              />
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground py-4 text-center">
-              Could not reach the API — check that the server is running.
+      {/* ── Microsoft account banner (non-Microsoft users) ── */}
+      {!isMicrosoftLinked && (
+        <div className="flex items-start gap-3 rounded-lg border border-[#0078d4]/30 bg-[#0078d4]/5 px-4 py-3">
+          <Link2Off className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-[#0078d4]">Link your Microsoft account</p>
+            <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+              Members with an organisational Microsoft account can sign in directly with Microsoft SSO —
+              linking it here connects your Sovereign session to your Microsoft workspace.
             </p>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* ── How to use (user-facing guidance) ── */}
-      <Card>
-        <CardHeader className="pb-1">
-          <CardTitle className="text-sm font-semibold">How It Works</CardTitle>
-        </CardHeader>
-        <CardContent className="pt-2 space-y-3">
-          {[
-            { num: 1, title: "Upload a document to SharePoint", body: "Any court document, correspondence, or case file saved to your connected SharePoint library is automatically picked up." },
-            { num: 2, title: "AI intake runs automatically", body: "The Sovereign AI analyzes the document, extracts facts, identifies parties, assesses urgency, and determines applicable legal doctrines." },
-            { num: 3, title: "A drafted response appears in Word", body: "A legal draft response — formatted for sovereign court use — is returned to your SharePoint library as a Word document, ready for review." },
-            { num: 4, title: "Sign in with your Microsoft account", body: "Team members with @mathiaseltribe.org accounts sign in using Microsoft SSO — no separate password required." },
-          ].map(s => (
-            <div key={s.num} className="flex gap-3 items-start">
-              <div className="w-6 h-6 rounded-full bg-[#0078d4]/10 text-[#0078d4] text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
-                {s.num}
-              </div>
-              <div>
-                <p className="text-sm font-medium">{s.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{s.body}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* ── Admin-only technical panel ── */}
-      {isAdmin && status && (
-        <div className="border rounded-lg overflow-hidden">
-          <button
-            onClick={() => setAdminOpen(v => !v)}
-            className="flex items-center gap-2 w-full px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+          </div>
+          <Button
+            size="sm"
+            className="h-8 text-xs shrink-0 bg-[#0078d4] hover:bg-[#006cbf] text-white gap-1.5"
+            onClick={handleLinkMicrosoft}
+            disabled={linking}
           >
-            <Settings className="h-4 w-4 text-muted-foreground shrink-0" />
-            <span className="text-sm font-medium">Technical Configuration</span>
-            <Badge variant="outline" className="text-[9px] uppercase tracking-wider ml-1">Admin</Badge>
-            {adminOpen
-              ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
-              : <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
-          </button>
-
-          {adminOpen && (
-            <div className="border-t px-4 py-4 space-y-4">
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Power Automate Endpoints</p>
-                <EndpointRow label="Webhook (fact extraction + drafting)" value={status.endpoints?.webhook ?? ""} />
-                <EndpointRow label="Fact extraction only" value={status.endpoints?.factExtraction ?? ""} />
-                <EndpointRow label="Drafting engine" value={status.endpoints?.drafts ?? ""} />
-                <EndpointRow label="Identity gateway" value={status.endpoints?.identityGateway ?? ""} />
-              </div>
-
-              <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2.5">
-                <p className="text-xs font-semibold text-amber-800 mb-1">Authentication</p>
-                <p className="text-xs text-amber-700 leading-relaxed">
-                  Add header <code className="font-mono bg-amber-100 px-1 rounded text-[10px]">X-Api-Key</code> to every Power Automate HTTP action.
-                  The value is the <strong>M365_SERVICE_KEY</strong> (or <strong>SERVICE_KEY</strong>) secret configured in Replit environment variables.
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Power Automate Flow</p>
-                <div className="space-y-1.5">
-                  {[
-                    "Trigger: SharePoint — When a file is created in library",
-                    "Action: SharePoint — Get file content",
-                    "Action: HTTP POST → /api/m365/webhook  (X-Api-Key header required)",
-                    "Action: Parse JSON — extract facts and draftText from response",
-                    "Action: Word — Create document from draftText",
-                    "Action: SharePoint — Update file with metadata (caseType, urgencyLevel, parties)",
-                  ].map((step, i) => (
-                    <div key={i} className="flex gap-2.5 items-start text-xs text-muted-foreground">
-                      <span className="font-mono text-[9px] bg-muted rounded px-1.5 py-0.5 shrink-0 mt-0.5 font-bold">{i + 1}</span>
-                      <span>{step}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-          )}
+            {linking ? <Loader2 className="h-3 w-3 animate-spin" /> : null}
+            {linking ? "Opening…" : "Sign in with Microsoft"}
+          </Button>
         </div>
       )}
+
+      {/* ── App launchpad ── */}
+      <div>
+        <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-3">Quick Access</p>
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-3">
+          {M365_APPS.map(app => <AppTile key={app.id} app={app} />)}
+        </div>
+      </div>
+
+      {/* ── Compact service status strip ── */}
+      <div className="border rounded-lg overflow-hidden">
+        <button
+          onClick={() => setStatusOpen(v => !v)}
+          className="flex items-center gap-2 w-full px-4 py-2.5 text-left hover:bg-muted/30 transition-colors"
+        >
+          {/* Dot indicators */}
+          <div className="flex gap-1 items-center">
+            {status ? (
+              [status.serviceKeyConfigured, status.azureConfigured, status.entraConfigured, status.azureClientReady].map((ok, i) => (
+                <span
+                  key={i}
+                  className={`w-2 h-2 rounded-full ${ok ? "bg-green-500" : "bg-muted-foreground/30"}`}
+                  title={["Service Key", "Azure OpenAI", "Entra ID", "AI Engine"][i]}
+                />
+              ))
+            ) : (
+              [...Array(4)].map((_, i) => (
+                <span key={i} className="w-2 h-2 rounded-full bg-muted-foreground/20 animate-pulse" />
+              ))
+            )}
+          </div>
+          <span className="text-xs text-muted-foreground">
+            {activeCount !== null ? `${activeCount} of 4 backend services active` : "Checking services…"}
+          </span>
+          {statusOpen
+            ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground ml-auto" />
+            : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground ml-auto" />}
+        </button>
+
+        {statusOpen && status && (
+          <div className="border-t divide-y divide-border">
+            {[
+              { ok: status.serviceKeyConfigured, label: "M365 Service Key", desc: "Authenticates Power Automate flows" },
+              { ok: status.azureConfigured, label: "Azure OpenAI", desc: "AI document analysis and drafting" },
+              { ok: status.entraConfigured, label: "Azure Entra ID", desc: "Microsoft account sign-in (SSO)" },
+              { ok: status.azureClientReady, label: "AI Engine", desc: "End-to-end sovereign AI pipeline" },
+            ].map(row => (
+              <div key={row.label} className="flex items-center gap-3 px-4 py-2.5">
+                {row.ok
+                  ? <CheckCircle2 className="h-3.5 w-3.5 text-green-600 shrink-0" />
+                  : <XCircle className="h-3.5 w-3.5 text-muted-foreground/50 shrink-0" />}
+                <div className="flex-1 min-w-0">
+                  <p className="text-xs font-medium">{row.label}</p>
+                  <p className="text-[10px] text-muted-foreground">{row.desc}</p>
+                </div>
+                <Badge
+                  variant={row.ok ? "default" : "secondary"}
+                  className={`text-[9px] uppercase tracking-wider shrink-0 ${row.ok ? "bg-green-700 text-white" : ""}`}
+                >
+                  {row.ok ? "Active" : "Not configured"}
+                </Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
