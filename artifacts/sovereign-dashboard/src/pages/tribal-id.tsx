@@ -221,7 +221,7 @@ export default function TribalIdPage() {
           <img
             src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
             alt="Office of the Chief Justice & Trustee"
-            className="w-14 h-14 object-contain flex-shrink-0"
+            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
           />
 
           {/* Center title */}
@@ -241,26 +241,26 @@ export default function TribalIdPage() {
           <img
             src={`${import.meta.env.BASE_URL}tribal-seal.png`}
             alt="Tribal Seal"
-            className="w-14 h-14 object-contain flex-shrink-0"
+            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
           />
         </div>
 
         {/* ── CARD BODY ── diamond + photo + fields */}
-        <div className="relative flex" style={{ minHeight: 210, overflow: "hidden" }}>
+        <div className="relative flex" style={{ minHeight: 230, overflow: "hidden", background: "#0A0400" }}>
 
-          {/* Diamond decorative shape */}
+          {/* Diamond — edge-to-edge, red fill, thick olive border (matches template) */}
           <div
             className="absolute pointer-events-none"
             style={{
-              width: 240,
-              height: 240,
-              background: "linear-gradient(145deg, #2A4A08, #3A6010)",
+              width: 900,
+              height: 900,
+              background: "#BB0000",
+              border: "10px solid #4A7A10",
               transform: "rotate(45deg)",
-              left: -40,
+              left: "50%",
               top: "50%",
-              marginTop: -120,
-              opacity: 0.8,
-              border: "1.5px solid rgba(90,150,20,0.35)",
+              marginLeft: -450,
+              marginTop: -450,
             }}
           />
 
