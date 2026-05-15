@@ -97,6 +97,7 @@ Your role is to greet each member when they arrive — acknowledging their journ
         userId, name, role,
         facts: [], intakeCount: 0, documentCount: 0, awakeningLevel: 1,
         lastSeenAt: now, lastGreetedAt: now, recentTopics: [], riskHistory: [],
+        featureUsage: {},
       };
       await saveProfileMemory(userId, initial);
     }
