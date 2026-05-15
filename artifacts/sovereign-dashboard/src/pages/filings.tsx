@@ -20,14 +20,17 @@ export function FilingsListPage() {
 
   return (
     <div data-testid="page-filings">
-      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+      <div className="mb-6 flex items-start justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground">Trust Filings</h1>
           <p className="text-muted-foreground mt-1">Recorder submissions and their status</p>
         </div>
-        <Link href="/instruments">
-          <Button size="sm">+ New Instrument Filing</Button>
-        </Link>
+        <div className="flex flex-col items-end gap-1">
+          <Link href="/instruments">
+            <Button size="sm">Go to Trust Instruments →</Button>
+          </Link>
+          <p className="text-[10px] text-muted-foreground">Create a trust instrument first, then file it from the instrument detail page.</p>
+        </div>
       </div>
       {isLoading ? (
         <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
