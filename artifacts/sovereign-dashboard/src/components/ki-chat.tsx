@@ -71,6 +71,7 @@ interface ActionItem {
   label: string;
   priority: ActionPriority;
   rationale: string;
+  lawCitations: string[];
   triggeredBy: string[];
   status: string;
   detectedAt: string;
@@ -333,10 +334,25 @@ function ActionQueuePanel({ intel }: { intel: IntelPicture }) {
                   </button>
                   {isItemExpanded && (
                     <div
-                      className="mx-3 mb-2 rounded px-2.5 py-2"
+                      className="mx-3 mb-2 rounded px-2.5 py-2.5 space-y-2"
                       style={{ background: cfg.bg, border: `1px solid ${cfg.border}` }}
                     >
                       <p className="text-[11px] text-white/70 leading-relaxed">{item.rationale}</p>
+                      {item.lawCitations && item.lawCitations.length > 0 && (
+                        <div className="pt-1.5 border-t" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+                          <p className="text-[9px] uppercase tracking-[0.15em] font-bold mb-1" style={{ color: cfg.color, opacity: 0.7 }}>
+                            Legal Authority
+                          </p>
+                          <ul className="space-y-0.5">
+                            {item.lawCitations.map((cite, i) => (
+                              <li key={i} className="text-[10px] text-white/45 leading-snug flex items-start gap-1">
+                                <span style={{ color: cfg.color, opacity: 0.5 }} className="mt-0.5 shrink-0">§</span>
+                                <span>{cite}</span>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
