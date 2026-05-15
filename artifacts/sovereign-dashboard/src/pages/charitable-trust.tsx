@@ -8,6 +8,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
 import { getCurrentBearerToken } from "@/components/auth-provider";
+import { Heart, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 
 const PROGRAMS = [
   {
@@ -297,6 +298,180 @@ Office of the Chief Justice and Trustee`;
   );
 }
 
+const PRESET_AMOUNTS = [25, 50, 100, 250, 500];
+
+function DonatePanel() {
+  const [selectedAmount, setSelectedAmount] = useState<number | null>(50);
+  const [customAmount, setCustomAmount] = useState("");
+  const [recurring, setRecurring] = useState(false);
+  const [donorName, setDonorName] = useState("");
+  const [donorEmail, setDonorEmail] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [success] = useState(() => new URLSearchParams(window.location.search).get("donated") === "true");
+
+  const donateMutation = useMutation({
+    mutationFn: async () => {
+      const raw = selectedAmount ?? parseFloat(customAmount);
+      if (!raw || raw < 1) throw new Error("Please enter a valid amount (minimum $1).");
+      const amountCents = Math.round(raw * 100);
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch("/api/donate/checkout", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ amountCents, recurring, donorName: donorName || undefined, donorEmail: donorEmail || undefined }),
+      });
+      const data = await r.json() as { url?: string; error?: string };
+      if (!r.ok || !data.url) throw new Error(data.error ?? "Could not start checkout");
+      return data.url;
+    },
+    onSuccess: (url) => { window.location.href = url; },
+    onError: (err: Error) => setError(err.message),
+  });
+
+  const effectiveAmount = selectedAmount ?? (parseFloat(customAmount) || null);
+
+  if (success) {
+    return (
+      <Card className="border-green-300 bg-green-50/60 mt-6">
+        <CardContent className="pt-6 pb-6 text-center space-y-3">
+          <CheckCircle2 className="w-10 h-10 text-green-600 mx-auto" />
+          <p className="text-lg font-semibold text-green-900">Thank you for your generosity.</p>
+          <p className="text-sm text-green-700">Your contribution to the Mathias El Tribe Charitable Trust has been received. A tax receipt will be sent to your email. Your donation is deductible under 26 U.S.C. § 170.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card className="border-amber-300 mt-6" style={{ background: "linear-gradient(135deg, rgba(120,60,0,0.04) 0%, rgba(200,150,30,0.06) 100%)" }}>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <Heart className="w-4 h-4 text-rose-600" />
+            <CardTitle className="text-sm uppercase tracking-widest">Make a Charitable Donation</CardTitle>
+          </div>
+          <Badge className="bg-green-700 text-white text-xs">Tax-Deductible · 26 U.S.C. § 170</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          Support enrolled members through education, health, housing, cultural preservation, and elder care. Every contribution goes directly to the programs above.
+        </p>
+      </CardHeader>
+      <CardContent className="space-y-4">
+
+        {/* Preset amounts */}
+        <div>
+          <p className="text-xs font-medium text-muted-foreground mb-2">Select amount</p>
+          <div className="flex flex-wrap gap-2">
+            {PRESET_AMOUNTS.map(amt => (
+              <button
+                key={amt}
+                onClick={() => { setSelectedAmount(amt); setCustomAmount(""); }}
+                className="px-4 py-2 rounded-lg text-sm font-semibold border transition-all"
+                style={
+                  selectedAmount === amt
+                    ? { background: "linear-gradient(135deg, #6B0000, #9B1A1A)", color: "white", borderColor: "#9B1A1A" }
+                    : { background: "transparent", borderColor: "#d1a050", color: "#7a5010" }
+                }
+              >
+                ${amt}
+              </button>
+            ))}
+            <div className="relative">
+              <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground">$</span>
+              <input
+                type="number"
+                min="1"
+                step="1"
+                placeholder="Other"
+                value={customAmount}
+                onChange={e => { setCustomAmount(e.target.value); setSelectedAmount(null); }}
+                className="pl-6 pr-3 py-2 rounded-lg border text-sm w-24 focus:outline-none focus:ring-2 focus:ring-amber-400"
+                style={{ borderColor: !selectedAmount && customAmount ? "#9B1A1A" : "#d1a050" }}
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Recurring toggle */}
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setRecurring(r => !r)}
+            className="flex items-center gap-2 text-sm"
+          >
+            <div
+              className="w-9 h-5 rounded-full transition-colors relative"
+              style={{ background: recurring ? "#9B1A1A" : "#d1d5db" }}
+            >
+              <div
+                className="w-4 h-4 bg-white rounded-full absolute top-0.5 transition-all shadow-sm"
+                style={{ left: recurring ? "18px" : "2px" }}
+              />
+            </div>
+            <span className="text-sm text-muted-foreground">
+              {recurring
+                ? <><RefreshCw className="w-3 h-3 inline mr-1 text-amber-700" />Monthly recurring donation</>
+                : "One-time donation"}
+            </span>
+          </button>
+        </div>
+
+        {/* Optional donor info */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Name (optional)</label>
+            <input
+              type="text"
+              value={donorName}
+              onChange={e => setDonorName(e.target.value)}
+              placeholder="Anonymous"
+              className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{ borderColor: "#e2c898" }}
+            />
+          </div>
+          <div>
+            <label className="text-xs text-muted-foreground block mb-1">Email for receipt (optional)</label>
+            <input
+              type="email"
+              value={donorEmail}
+              onChange={e => setDonorEmail(e.target.value)}
+              placeholder="your@email.com"
+              className="w-full px-3 py-2 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-amber-400"
+              style={{ borderColor: "#e2c898" }}
+            />
+          </div>
+        </div>
+
+        {error && <p className="text-xs text-destructive">{error}</p>}
+
+        {/* Donate button */}
+        <div className="flex items-center gap-4 flex-wrap pt-1">
+          <Button
+            onClick={() => { setError(null); donateMutation.mutate(); }}
+            disabled={donateMutation.isPending || !effectiveAmount}
+            className="text-white font-semibold px-8 py-2.5"
+            style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "none" }}
+          >
+            {donateMutation.isPending
+              ? <><Loader2 className="w-4 h-4 animate-spin mr-2" />Preparing checkout…</>
+              : <><Heart className="w-4 h-4 mr-2" />Donate {effectiveAmount ? `$${effectiveAmount}` : ""}
+                {recurring ? " / month" : ""}</>}
+          </Button>
+          <p className="text-xs text-muted-foreground">
+            Secure checkout · All major cards accepted · Receipts issued automatically
+          </p>
+        </div>
+
+        <p className="text-xs text-muted-foreground border-t pt-3">
+          The Mathias El Tribe Charitable Trust is exempt from federal income tax under IRC § 501(c)(3). Contributions are deductible under § 170. No goods or services are provided in exchange for your donation.
+        </p>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function CharitableTrustPage() {
   return (
     <div data-testid="page-charitable-trust">
@@ -435,6 +610,9 @@ export default function CharitableTrustPage() {
           <WhatNextPanel compact />
         </div>
       </div>
+
+      {/* ── Donation Section ── */}
+      <DonatePanel />
     </div>
   );
 }

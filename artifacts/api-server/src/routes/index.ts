@@ -60,6 +60,7 @@ import ancestralMemoriesRouter from "./ancestral-memories/index";
 import journalRouter from "./journal/index";
 import agentRouter from "./agent/index";
 import kiRouter from "./ki/index";
+import donateRouter from "./donate";
 
 const router: IRouter = Router();
 
@@ -125,5 +126,6 @@ router.use("/ancestral-memories", ancestralMemoriesRouter);
 router.use("/journal", journalRouter);
 router.use("/agent", agentRouter);
 router.use("/kaya", kiRouter);
+router.use("/donate", donateRouter);
 
 export default router;

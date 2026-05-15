@@ -21,6 +21,35 @@ const communityDashboardDist = path.resolve(__dirname, "../../../artifacts/commu
 const app: Express = express();
 
 app.use(compression());
+
+// Stripe webhook — must be registered BEFORE express.json() to receive raw body
+app.post(
+  "/api/stripe/webhook",
+  express.raw({ type: "application/json" }),
+  async (req: Request, res: Response) => {
+    const sig = req.headers["stripe-signature"];
+    if (!sig) {
+      res.status(400).json({ error: "Missing stripe-signature header" });
+      return;
+    }
+    try {
+      const { getUncachableStripeClient } = await import("./stripeClient");
+      const stripe = await getUncachableStripeClient();
+      const event = stripe.webhooks.constructEvent(
+        req.body as Buffer,
+        Array.isArray(sig) ? sig[0] : sig,
+        process.env.STRIPE_WEBHOOK_SECRET ?? ""
+      );
+      logger.info({ type: event.type }, "Stripe webhook received");
+      res.json({ received: true });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Webhook error";
+      logger.warn({ err }, "Stripe webhook error");
+      res.status(400).json({ error: msg });
+    }
+  }
+);
+
 app.use(
   pinoHttp({
     logger,
