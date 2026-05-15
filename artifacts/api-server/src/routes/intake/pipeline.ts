@@ -11,7 +11,7 @@
  */
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { sovereignPipelineTable } from "@workspace/db";
+import { sovereignPipelineTable, usersTable, profilesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { runIntakeFilter } from "../../sovereign/intake-filter";
@@ -284,7 +284,37 @@ router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) =
       res.status(404).json({ error: "Record not found." });
       return;
     }
-    res.json(record);
+
+    // Enrich with submitter identity from users + profiles
+    let submittedByName: string | null = null;
+    let submittedByTitle: string | null = null;
+    let submittedByRole: string | null = null;
+    let submittedByEmail: string | null = null;
+
+    if (record.submittedBy) {
+      const [user] = await db
+        .select({ name: usersTable.name, email: usersTable.email, role: usersTable.role })
+        .from(usersTable)
+        .where(eq(usersTable.id, record.submittedBy))
+        .limit(1);
+      if (user) {
+        submittedByName = user.name ?? null;
+        submittedByRole = user.role ?? null;
+        submittedByEmail = user.email ?? null;
+      }
+
+      const [prof] = await db
+        .select({ legalName: profilesTable.legalName, title: profilesTable.title })
+        .from(profilesTable)
+        .where(eq(profilesTable.userId, record.submittedBy))
+        .limit(1);
+      if (prof) {
+        if (prof.legalName) submittedByName = prof.legalName;
+        if (prof.title) submittedByTitle = prof.title;
+      }
+    }
+
+    res.json({ ...record, submittedByName, submittedByTitle, submittedByRole, submittedByEmail });
   } catch (err) {
     next(err);
   }

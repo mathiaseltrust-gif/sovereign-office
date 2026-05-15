@@ -52,6 +52,10 @@ interface PipelineRecord {
     allDoctrines: string[];
   };
   printLog: Array<{ printedAt: string; event: string }>;
+  submittedByName?: string | null;
+  submittedByTitle?: string | null;
+  submittedByRole?: string | null;
+  submittedByEmail?: string | null;
 }
 
 interface VaultStatus {
@@ -209,8 +213,15 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
       <!-- CASE CAPTION + STAMP -->
       <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:16px;">
         <div style="flex:1;min-width:0;font-family:'Times New Roman',Georgia,serif;">
-          <div style="font-size:10pt;font-weight:700;margin-bottom:2px;">Case No. ${esc(record.fileNumber)}</div>
-          <div style="font-size:9pt;color:#333;font-style:italic;margin-bottom:7px;">(${matterLabel})</div>
+          <div style="display:flex;align-items:baseline;gap:18px;margin-bottom:3px;">
+            <div style="font-size:10.5pt;font-weight:900;letter-spacing:0.2px;">Doc. No.&nbsp;<span style="font-family:'Courier New',monospace;font-size:10pt;">${esc(record.fileNumber)}</span></div>
+            <div style="font-size:8pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.6px;border:1px solid #1a3a6e;padding:1px 6px;">Type of Filing: ${matterLabel}</div>
+          </div>
+          ${record.submittedByName
+            ? `<div style="font-size:8.5pt;color:#333;margin-bottom:5px;">
+                 <span style="font-weight:700;">Member:</span> ${esc(record.submittedByName)}${record.submittedByTitle ? ` &nbsp;&middot;&nbsp; <span style="font-style:italic;">${esc(record.submittedByTitle)}</span>` : ""}${record.submittedByEmail ? ` &nbsp;&middot;&nbsp; ${esc(record.submittedByEmail)}` : ""}
+               </div>`
+            : ""}
           <div style="font-size:9.5pt;font-weight:600;margin-bottom:2px;">IN RE: ${esc(record.templateTitle)}</div>
           <div style="font-size:9pt;color:#444;font-style:italic;line-height:1.5;">Pursuant to Treaty Authority, Tribal Constitution, Federal Indian Law, and Sovereign Jurisdiction</div>
           ${(record.intakeResult?.troRecommended || record.intakeResult?.redFlag)
