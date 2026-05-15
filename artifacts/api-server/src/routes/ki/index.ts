@@ -83,6 +83,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   let lineageSummary = "";
   let governorPrefix = "";
   let rightsContext = "";
+  let landContext = "";
 
   try {
     const [gateway, profileRows] = await Promise.all([
@@ -131,6 +132,11 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
           apn: (profile as any).apn ?? null,
           landStatus: (profile as any).landStatus ?? null,
           hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
+          tribalLandCode: (profile as any).tribalLandCode ?? null,
+          docNumbers: (profile as any).docNumbers ?? null,
+          landRestrictionBasis: (profile as any).landRestrictionBasis ?? null,
+          landClassification: (profile as any).landClassification ?? null,
+          selfExecuting: (profile as any).selfExecuting ?? false,
         } : null,
       })),
       computeInheritedRights(userId),
@@ -142,6 +148,25 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       : "";
 
     rightsContext = "\n\n" + rightsProfile.rightsSummaryForKaya + inheritedSummary;
+
+    // Build land parcel context for COMPANION
+    if (profile) {
+      const p = profile as any;
+      const landParts: string[] = [];
+      if (p.apn) landParts.push(`• APN: ${p.apn}`);
+      if (p.mailingAddress) landParts.push(`• Address: ${p.mailingAddress}`);
+      if (p.tribalLandCode) landParts.push(`• Tribal Land Code: ${p.tribalLandCode}`);
+      if (p.legalDescription) landParts.push(`• Legal Description: ${p.legalDescription}`);
+      if (p.landClassification) landParts.push(`• Classification: ${p.landClassification}`);
+      if (p.landStatus) landParts.push(`• Land Status: ${p.landStatus.replace(/_/g, " ").replace(/\b\w/g, (c: string) => c.toUpperCase())}`);
+      if (p.docNumbers && p.docNumbers.length > 0) landParts.push(`• Recorded Documents: ${(p.docNumbers as string[]).map((d: string) => `Doc. ${d}`).join(", ")}`);
+      if (p.landRestrictionBasis && p.landRestrictionBasis.length > 0) landParts.push(`• Restriction Basis:\n  ${(p.landRestrictionBasis as string[]).join("\n  ")}`);
+      if (p.selfExecuting) landParts.push(`• Self-Executing: Yes — declared inherent, perpetual, and self-executing by the Final Non-Interference & Protective Order. Anti-alienation, non-foreclosure, and non-encumbrance protections apply automatically by operation of law.`);
+      if (p.hasRecordedInstrument) landParts.push(`• Recorded Instrument: On file`);
+      if (landParts.length > 0) {
+        landContext = "\n\nLAND RECORD — Mathias El Tribe:\n" + landParts.join("\n");
+      }
+    }
   } catch {
     const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
     if (profile) {
@@ -221,7 +246,7 @@ THE MEMBER:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
-${rightsContext}
+${rightsContext}${landContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${knowledgeContext}${diaryPatternNote}${diaryContext}
 

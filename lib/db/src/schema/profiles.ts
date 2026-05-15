@@ -28,6 +28,11 @@ export const profilesTable = pgTable("profiles", {
   legalDescription: text("legal_description"),
   hasRecordedInstrument: boolean("has_recorded_instrument").notNull().default(false),
   signatureUrl: text("signature_url"),
+  tribalLandCode: text("tribal_land_code"),
+  docNumbers: jsonb("doc_numbers").default([]).$type<string[]>(),
+  landRestrictionBasis: jsonb("land_restriction_basis").default([]).$type<string[]>(),
+  landClassification: text("land_classification"),
+  selfExecuting: boolean("self_executing").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

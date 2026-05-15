@@ -52,6 +52,11 @@ router.get("/rights", requireAuth, async (req, res, next) => {
         apn: (profile as any).apn ?? null,
         landStatus: (profile as any).landStatus ?? null,
         hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
+        tribalLandCode: (profile as any).tribalLandCode ?? null,
+        docNumbers: (profile as any).docNumbers ?? null,
+        landRestrictionBasis: (profile as any).landRestrictionBasis ?? null,
+        landClassification: (profile as any).landClassification ?? null,
+        selfExecuting: (profile as any).selfExecuting ?? false,
       } : null,
     });
 

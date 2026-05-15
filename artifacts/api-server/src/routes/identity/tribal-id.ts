@@ -186,6 +186,52 @@ router.post("/signature", requireAuth, upload.single("signature"), async (req, r
   }
 });
 
+router.get("/land", requireAuth, async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId ?? 0;
+    const rows = await db.select({
+      apn: profilesTable.apn,
+      mailingAddress: profilesTable.mailingAddress,
+      landStatus: profilesTable.landStatus,
+      legalDescription: profilesTable.legalDescription,
+      hasRecordedInstrument: profilesTable.hasRecordedInstrument,
+      tribalLandCode: (profilesTable as any).tribalLandCode,
+      docNumbers: (profilesTable as any).docNumbers,
+      landRestrictionBasis: (profilesTable as any).landRestrictionBasis,
+      landClassification: (profilesTable as any).landClassification,
+      selfExecuting: (profilesTable as any).selfExecuting,
+    }).from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
+    res.json(rows[0] ?? {});
+  } catch (err) { next(err); }
+});
+
+router.put("/land", requireAuth, async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId ?? 0;
+    const { apn, mailingAddress, landStatus, legalDescription, hasRecordedInstrument,
+            tribalLandCode, docNumbers, landRestrictionBasis, landClassification, selfExecuting } = req.body;
+    const existing = await db.select({ id: profilesTable.id }).from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
+    const payload: Record<string, unknown> = { updatedAt: new Date() };
+    if (apn !== undefined) payload.apn = apn;
+    if (mailingAddress !== undefined) payload.mailingAddress = mailingAddress;
+    if (landStatus !== undefined) payload.landStatus = landStatus;
+    if (legalDescription !== undefined) payload.legalDescription = legalDescription;
+    if (hasRecordedInstrument !== undefined) payload.hasRecordedInstrument = hasRecordedInstrument;
+    if (tribalLandCode !== undefined) (payload as any).tribalLandCode = tribalLandCode;
+    if (docNumbers !== undefined) (payload as any).docNumbers = docNumbers;
+    if (landRestrictionBasis !== undefined) (payload as any).landRestrictionBasis = landRestrictionBasis;
+    if (landClassification !== undefined) (payload as any).landClassification = landClassification;
+    if (selfExecuting !== undefined) (payload as any).selfExecuting = selfExecuting;
+    if (existing.length > 0) {
+      await db.update(profilesTable).set(payload as any).where(eq(profilesTable.userId, dbId));
+    } else {
+      await db.insert(profilesTable).values({ userId: dbId, ...payload } as any);
+    }
+    logger.info({ dbId }, "Land record updated");
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 router.get("/verify/:userId", async (req, res) => {
   const userId = req.params.userId;
   res.json({

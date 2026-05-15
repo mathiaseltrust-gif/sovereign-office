@@ -28,7 +28,7 @@ export interface IdentityMarker {
 }
 
 export interface LandStatusMarker {
-  type: "trust" | "allotment" | "indian_country" | "reservation" | "restricted_fee" | "fee" | "apn" | "bia_ltro";
+  type: "trust" | "allotment" | "indian_country" | "reservation" | "restricted_fee" | "fee" | "apn" | "bia_ltro" | "tribal_code" | "doc_record" | "classification" | "self_executing_status";
   label: string;
   value: string;
   jurisdictionNote: string;
@@ -239,6 +239,11 @@ export interface RightsInputProfile {
     apn?: string | null;
     landStatus?: string | null;
     hasRecordedInstrument?: boolean;
+    tribalLandCode?: string | null;
+    docNumbers?: string[] | null;
+    landRestrictionBasis?: string[] | null;
+    landClassification?: string | null;
+    selfExecuting?: boolean;
   } | null;
 }
 
@@ -379,6 +384,42 @@ export function computeMemberRights(input: RightsInputProfile): MemberRightsProf
       label: "Ancestral Land Rights",
       value: "Verified via lineage",
       jurisdictionNote: "Ancestral land rights flow from lineage and tribal membership. These rights are recognized under federal Indian law and the tribe's sovereign authority.",
+    });
+  }
+
+  if (input.profile?.tribalLandCode) {
+    landStatusMarkers.push({
+      type: "tribal_code",
+      label: "Tribal Land Code",
+      value: input.profile.tribalLandCode,
+      jurisdictionNote: "Tribal land code uniquely identifies this parcel within the Mathias El Tribe land registry. Used in all sovereign instruments, court filings, and LTRO recordings.",
+    });
+  }
+
+  if (input.profile?.landClassification) {
+    landStatusMarkers.push({
+      type: "classification",
+      label: "Land Classification",
+      value: input.profile.landClassification,
+      jurisdictionNote: "Land held as tribal housing or general welfare land is subject to tribal governance authority and protected from forced alienation, levy, or encumbrance under tribal ordinance and applicable federal law.",
+    });
+  }
+
+  if (input.profile?.docNumbers && input.profile.docNumbers.length > 0) {
+    landStatusMarkers.push({
+      type: "doc_record",
+      label: "Recorded Documents",
+      value: input.profile.docNumbers.map(d => `Doc. ${d}`).join(", "),
+      jurisdictionNote: "County-recorded instruments establish the chain of title. Tribal instruments should also be cross-filed with BIA LTRO for full federal recognition of any Indian land status.",
+    });
+  }
+
+  if (input.profile?.selfExecuting) {
+    landStatusMarkers.push({
+      type: "self_executing_status",
+      label: "Self-Executing Protections",
+      value: "Yes — Inherent & Perpetual",
+      jurisdictionNote: "Protections declared self-executing in the Final Non-Interference & Protective Order. Anti-alienation, non-foreclosure, and non-encumbrance provisions apply automatically by operation of law — no state permission required.",
     });
   }
 
