@@ -5,9 +5,14 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, Shield, AlertTriangle, BookOpen, ChevronRight, ChevronDown, Archive, Lock, Key, Eye, EyeOff, ShieldCheck, ShieldAlert, UserCheck, Trash2 } from "lucide-react";
+import {
+  Printer, Shield, AlertTriangle, ChevronRight, ChevronDown,
+  Lock, Key, Eye, EyeOff, ShieldCheck, ShieldAlert, UserCheck,
+  Trash2, FileText, Clock, CheckCircle2, BookOpen,
+} from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
 const API  = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -49,17 +54,19 @@ interface PipelineRecord {
   printLog: Array<{ printedAt: string; event: string }>;
 }
 
-// ── Helpers ────────────────────────────────────────────────────────────────────
-
-function formatStampDate(d: Date): { month: string; daySpaced: string; year: string } {
-  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
-  const day = String(d.getDate()).padStart(2, "0");
-  return {
-    month: months[d.getMonth()],
-    daySpaced: day.split("").join(" "), // "20" → "2 0"  (dater-style spacing)
-    year: String(d.getFullYear()),
-  };
+interface VaultStatus {
+  id: number;
+  delegateName: string;
+  delegateNotes: string | null;
+  instructions: string | null;
+  isConfigured: boolean;
+  isActivated: boolean;
+  activatedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
 }
+
+// ── Constants ──────────────────────────────────────────────────────────────────
 
 const RISK_COLOR: Record<string, string> = {
   low:       "#2d6a1e",
@@ -79,368 +86,411 @@ const MATTER_LABELS: Record<string, string> = {
   general:             "General Matter",
 };
 
-// ── Official Stamp — MaxMark 2160 Heavy Duty Pre-Inked Date Stamp ─────────────
-// Physical specs: 2-5/16" × 1-5/8" imprint = 222px × 156px at 96 dpi
-// Font: Compressed bold sans-serif (Arial Narrow 900) for text bands;
-//       Impact (ultra-condensed) for the date band — matches the physical stamp face
-// Ink: Blue (#1a3a6e) for all text/border; Red (#8B0000) for date band
-// date = null means the stamp has not yet been applied — date wheel shows blank
-function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } | null }) {
-  const textFont = "'Arial Narrow', 'Arial', Helvetica, sans-serif";
-  const dateFont = "Impact, 'Arial Narrow', Arial, sans-serif";
-  const ink      = "#1a3a6e";
-  const dateInk  = "#8B0000";
+// ── Helpers ────────────────────────────────────────────────────────────────────
 
-  return (
-    <div
-      className="select-none"
-      style={{
-        border: `2px solid ${ink}`,
-        width: "222px",
-        height: "156px",
-        padding: "0 10px",
-        textAlign: "center",
-        background: "#fff",
-        boxSizing: "border-box" as const,
-        display: "flex",
-        flexDirection: "column" as const,
-        alignItems: "center",
-        justifyContent: "space-evenly",
-      }}
-    >
-      {/* Band 1 — BY ORDER OF THE */}
-      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "2px", lineHeight: 1 }}>
-        BY ORDER OF THE
-      </div>
-
-      {/* Band 2 — COURT NAME */}
-      <div style={{ fontFamily: textFont, fontSize: "7.5pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "0.8px", lineHeight: 1.15 }}>
-        MATHIAS EL TRIBE SUPREME COURT
-      </div>
-
-      {/* Band 3 — DATE (dater wheel — ultra-condensed, red; blank slots if not yet stamped) */}
-      {date ? (
-        <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: dateInk, letterSpacing: "4px", lineHeight: 1, display: "flex", alignItems: "center", gap: "4px" }}>
-          <span>{date.month}</span>
-          <span style={{ letterSpacing: "6px" }}>{date.daySpaced}</span>
-          <span>{date.year}</span>
-        </div>
-      ) : (
-        <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: "#bbb", letterSpacing: "6px", lineHeight: 1 }}>
-          — — —
-        </div>
-      )}
-
-      {/* Divider */}
-      <div style={{ width: "72%", borderTop: `1px solid ${ink}` }} />
-
-      {/* Band 4 — OFFICE OF THE */}
-      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "2px", lineHeight: 1 }}>
-        OFFICE OF THE
-      </div>
-
-      {/* Band 5 — CHIEF JUSTICE & TRUSTEE */}
-      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "1.5px", lineHeight: 1 }}>
-        CHIEF JUSTICE &amp; TRUSTEE
-      </div>
-    </div>
-  );
+function formatStampDate(d: Date): { month: string; daySpaced: string; year: string } {
+  const months = ["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+  const day = String(d.getDate()).padStart(2, "0");
+  return { month: months[d.getMonth()], daySpaced: day.split("").join(" "), year: String(d.getFullYear()) };
 }
 
-// ── Full Official Document ─────────────────────────────────────────────────────
-function OfficialDocument({ record }: { record: PipelineRecord }) {
-  // Stamp date = the moment the seal was applied (lastPrintedAt).
-  // If the document has never been stamped, pass null — the dater wheel shows blank.
-  const stampDate = record.lastPrintedAt ? formatStampDate(new Date(record.lastPrintedAt)) : null;
-  const riskColor = RISK_COLOR[record.riskLevel] ?? "#8B0000";
+function esc(s: string | undefined | null): string {
+  if (!s) return "";
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+}
+
+// ── Print document builder — generates complete HTML from record object ─────────
+function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string {
+  const origin  = window.location.origin;
+  const base    = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
+  const courtSeal = `${origin}${base}court-seal-bw.png`;
+  const chiefSeal = `${origin}${base}chief-justice-seal-bw.png`;
+
+  const riskColor   = RISK_COLOR[record.riskLevel] ?? "#8B0000";
+  const matterLabel = esc(MATTER_LABELS[record.matterType] ?? record.matterType);
   const allDoctrines = record.doctrineOverlay?.allDoctrines ?? [];
   const violations   = record.intakeResult?.violations ?? [];
   const federalLaw   = record.doctrineOverlay?.federalLaw ?? [];
   const guardrails   = record.doctrineOverlay?.guardrails ?? [];
+  const stampDate    = record.lastPrintedAt ? formatStampDate(new Date(record.lastPrintedAt)) : null;
+  const now          = new Date();
+  const isoTs        = now.toISOString();
+  const humanTs      = now.toLocaleString("en-US", { timeZoneName: "short" });
 
-  return (
-    <div
-      id="official-document"
-      style={{
-        background: "#fff",
-        color: "#000",
-        fontFamily: "'Times New Roman', Georgia, serif",
-        fontSize: "11pt",
-        lineHeight: "1.65",
-        padding: "0.85in 1in 0.85in",
-        maxWidth: "8.5in",
-        margin: "0 auto",
-        position: "relative",
-        boxSizing: "border-box",
-      }}
-    >
-      {/* ── LETTERHEAD — court-style, no border box ── */}
-      <div style={{ marginBottom: "20px" }}>
-        {/* Three-column: seal left — text center — seal right */}
-        <div style={{ display: "flex", alignItems: "center", gap: "18px", marginBottom: "10px" }}>
-          <img
-            src={`${BASE}court-seal-bw.png`}
-            alt="The Mathias El Tribe Supreme Court"
-            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0, opacity: 0.9 }}
-          />
-          <div style={{ flex: 1, textAlign: "center" }}>
-            <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.6px", lineHeight: 1.2, color: "#000" }}>
-              Mathias El Tribe Supreme Court
-            </div>
-            <div style={{ fontFamily: "'Times New Roman', Georgia, serif", fontSize: "9pt", fontStyle: "italic", color: "#444", margin: "3px 0 4px" }}>
-              &ldquo;Whatever we do, it has to make sense.&rdquo;
-            </div>
-            <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "8pt", color: "#555" }}>
-              mmccaster@MathiasElTribe.org&nbsp;&nbsp;·&nbsp;&nbsp;www.mathiaseltribe.org/supreme-court
-            </div>
+  // ── Rubber stamp (150px × 105px — print-appropriate ~1.5"×1.1") ──
+  const stamp = `
+    <div style="border:2px solid #1a3a6e;width:150px;height:105px;padding:0 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:2px;line-height:1;">BY ORDER OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;line-height:1.1;">MATHIAS EL TRIBE SUPREME COURT</div>
+      ${stampDate
+        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:17pt;font-weight:900;color:#8B0000;letter-spacing:3px;line-height:1;">${esc(stampDate.month)} ${esc(stampDate.daySpaced)} ${esc(stampDate.year)}</div>`
+        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:17pt;font-weight:900;color:#bbb;letter-spacing:4px;line-height:1;">— — —</div>`}
+      <div style="width:70%;border-top:1px solid #1a3a6e;"></div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:2px;line-height:1;">OFFICE OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:1.5px;line-height:1;">CHIEF JUSTICE &amp; TRUSTEE</div>
+    </div>`;
+
+  // ── Signature block ──
+  const sigBlock = mode === "esign"
+    ? `<div style="margin:20px 0 0;border:1.5px solid #1a3a6e;padding:10px 14px;text-align:center;font-family:'Courier New',monospace;font-size:8pt;color:#1a3a6e;background:#f4f6fb;">
+         <div style="font-weight:700;letter-spacing:1.5px;font-size:7.5pt;margin-bottom:4px;">&#10022; ELECTRONICALLY SIGNED, SEALED &amp; FILED &#10022;</div>
+         <div style="font-size:7pt;color:#555;">MATHIAS EL TRIBE SUPREME COURT &#8212; SOVEREIGN DOCUMENT MANAGEMENT SYSTEM</div>
+         <div style="margin-top:5px;font-size:7pt;color:#333;">Digital Timestamp: ${isoTs}</div>
+         <div style="font-size:7pt;color:#555;">${humanTs} &#8212; Record Engine v1.0 &#8212; Sovereign Pipeline</div>
+       </div>`
+    : `<div style="margin:14px 0 0;font-family:'Times New Roman',serif;">
+         <div style="margin-bottom:26px;font-size:9pt;color:#222;">
+           I hereby affix my hand and seal to this sovereign instrument this _______ day of _________________________, _______.
+         </div>
+         <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:18px;">
+           <div style="flex:1;min-width:0;">
+             <div style="border-top:1px solid #000;padding-top:4px;">
+               <div style="font-size:8.5pt;font-weight:700;color:#000;">Chief Mathias El</div>
+               <div style="font-size:7.5pt;color:#555;margin-top:1px;">Chief Justice &amp; Trustee · Mathias El Tribe Supreme Court</div>
+             </div>
+           </div>
+           <div style="width:110px;flex-shrink:0;">
+             <div style="border-top:1px solid #000;padding-top:4px;font-size:8pt;color:#555;text-align:center;">Date</div>
+           </div>
+         </div>
+         <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:8px;">
+           <div style="flex:1;min-width:0;">
+             <div style="border-top:1px solid #aaa;padding-top:4px;font-size:8pt;color:#888;">Officer / Witness of Record</div>
+           </div>
+           <div style="width:110px;flex-shrink:0;">
+             <div style="border-top:1px solid #aaa;padding-top:4px;font-size:8pt;color:#888;text-align:center;">Date</div>
+           </div>
+         </div>
+         <div style="font-size:7.5pt;color:#999;font-style:italic;text-align:center;margin-top:10px;">
+           ORIGINAL &#8212; Personally Signed &#8212; Not Electronically Filed
+         </div>
+       </div>`;
+
+  // ── Seal impressions at bottom ──
+  const sealBlock = record.sealApplied
+    ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;">
+         <img src="${courtSeal}" style="width:56px;height:56px;object-fit:contain;opacity:0.85;" alt="METS Court" />
+         <img src="${chiefSeal}" style="width:56px;height:56px;object-fit:contain;opacity:0.72;" alt="Chief Justice" />
+       </div>
+       <div style="text-align:center;font-size:6.5pt;color:#666;margin-top:3px;letter-spacing:0.5px;">Official Seal — Mathias El Tribe Supreme Court</div>`
+    : `<div style="width:130px;height:56px;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:8pt;margin:18px auto 0;">&#8853; SEAL PENDING</div>`;
+
+  const grayscaleStyle = mode === "esign" ? "img { filter: grayscale(100%) contrast(1.1) !important; }" : "";
+
+  return `<!DOCTYPE html><html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Sovereign Document &#8212; ${esc(record.fileNumber)}</title>
+    <style>
+      * { box-sizing: border-box; }
+      body { background: #fff; margin: 0; padding: 0; }
+      ${grayscaleStyle}
+      @page { size: 8.5in 11in; margin: 0; }
+    </style>
+  </head><body>
+    <div style="background:#fff;color:#000;font-family:'Times New Roman',Georgia,serif;font-size:11pt;line-height:1.65;padding:0.75in 1in 1.25in;max-width:8.5in;margin:0 auto;position:relative;min-height:11in;box-sizing:border-box;">
+
+      <!-- LETTERHEAD -->
+      <div style="margin-bottom:16px;">
+        <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
+          <img src="${courtSeal}" alt="Mathias El Tribe Supreme Court" style="width:72px;height:72px;object-fit:contain;flex-shrink:0;opacity:0.88;" />
+          <div style="flex:1;text-align:center;">
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:13.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;line-height:1.2;color:#000;">Mathias El Tribe Supreme Court</div>
+            <div style="font-family:'Times New Roman',Georgia,serif;font-size:9pt;font-style:italic;color:#444;margin:3px 0 3px;">&ldquo;Whatever we do, it has to make sense.&rdquo;</div>
+            <div style="font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#555;">mmccaster@MathiasElTribe.org &nbsp;&middot;&nbsp; www.mathiaseltribe.org/supreme-court</div>
           </div>
-          <img
-            src={`${BASE}chief-justice-seal-bw.png`}
-            alt="Office of the Chief Justice and Trustee — Chief Mathias El"
-            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0 }}
-          />
+          <img src="${chiefSeal}" alt="Office of the Chief Justice and Trustee" style="width:72px;height:72px;object-fit:contain;flex-shrink:0;opacity:0.72;" />
         </div>
-        {/* Double rule */}
-        <div style={{ borderTop: "2px solid #1a3a6e", marginBottom: "2px" }} />
-        <div style={{ borderTop: "0.5px solid #1a3a6e", marginBottom: "5px" }} />
-        {/* Office designation — right-aligned */}
-        <div style={{ textAlign: "right", fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "#1a3a6e" }}>
-          Office of the Chief Justice &amp; Trustee
+        <div style="border-top:2.5px solid #1a3a6e;margin-bottom:2px;"></div>
+        <div style="border-top:0.5px solid #1a3a6e;margin-bottom:4px;"></div>
+        <div style="text-align:right;font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;color:#1a3a6e;">Office of the Chief Justice &amp; Trustee</div>
+      </div>
+
+      <!-- CASE CAPTION + STAMP -->
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:12px;gap:16px;">
+        <div style="flex:1;min-width:0;font-family:'Times New Roman',Georgia,serif;">
+          <div style="font-size:10pt;font-weight:700;margin-bottom:2px;">Case No. ${esc(record.fileNumber)}</div>
+          <div style="font-size:9pt;color:#333;font-style:italic;margin-bottom:7px;">(${matterLabel})</div>
+          <div style="font-size:9.5pt;font-weight:600;margin-bottom:2px;">IN RE: ${esc(record.templateTitle)}</div>
+          <div style="font-size:9pt;color:#444;font-style:italic;line-height:1.5;">Pursuant to Treaty Authority, Tribal Constitution, Federal Indian Law, and Sovereign Jurisdiction</div>
+          ${(record.intakeResult?.troRecommended || record.intakeResult?.redFlag)
+            ? `<div style="margin-top:8px;display:inline-block;border:1.5px solid ${riskColor};padding:3px 10px;font-size:7.5pt;font-weight:700;color:${riskColor};letter-spacing:0.8px;text-transform:uppercase;">&#9876; ${record.intakeResult.troRecommended ? "TRO RECOMMENDED &#8212; Immediate Action Required" : "Red Flag &#8212; Sovereign Response Required"}</div>`
+            : ""}
+        </div>
+        <div style="flex-shrink:0;">${stamp}</div>
+      </div>
+
+      <!-- DOCUMENT TITLE -->
+      <div style="margin-bottom:14px;">
+        <div style="font-size:13pt;font-weight:900;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px;font-family:'Times New Roman',Georgia,serif;">${esc(record.templateTitle)}</div>
+        <div style="font-size:8pt;color:#444;">Risk Level: <strong style="color:${riskColor};">${record.riskLevel.toUpperCase()}</strong> &nbsp;&middot;&nbsp; Official Seal: <strong>${record.sealApplied ? "AFFIXED" : "PENDING"}</strong></div>
+      </div>
+
+      <hr style="border-top:1px solid #000;margin-bottom:13px;" />
+
+      <!-- I. TRIGGERING MATTER -->
+      <div style="margin-bottom:15px;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">I. TRIGGERING MATTER &#8212; INCOMING COMMUNICATION</div>
+        <div style="font-size:9.5pt;background:#f8f8f8;border:1px solid #ddd;padding:9px 13px;font-style:italic;line-height:1.7;">${esc(record.inputText)}</div>
+      </div>
+
+      <!-- II. SOVEREIGN POSTURE -->
+      <div style="margin-bottom:15px;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">II. SOVEREIGN POSTURE DETERMINATION</div>
+        <div style="font-size:9.5pt;font-weight:700;color:${riskColor};margin-bottom:7px;">${esc(record.intakeResult?.canonicalPosture ?? "Sovereign enforcement posture engaged.")}</div>
+        ${violations.length > 0
+          ? `<div style="font-size:8pt;font-weight:700;margin-bottom:3px;">Violations Detected:</div>${violations.map((v, i) => `<div style="font-size:9pt;padding-left:14px;margin-bottom:2px;">${i+1}. ${esc(v)}</div>`).join("")}`
+          : ""}
+      </div>
+
+      <!-- III. DOCTRINES -->
+      <div style="margin-bottom:15px;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">III. DOCTRINES ENGAGED</div>
+        ${allDoctrines.map(d => `<div style="font-size:9pt;padding-left:14px;margin-bottom:2px;">&bull; ${esc(d)}</div>`).join("") || `<div style="font-size:9pt;color:#888;padding-left:14px;font-style:italic;">No specific doctrines enumerated.</div>`}
+      </div>
+
+      <!-- IV. FEDERAL LAW -->
+      ${federalLaw.length > 0
+        ? `<div style="margin-bottom:15px;">
+             <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">IV. FEDERAL LAW APPLIED</div>
+             ${federalLaw.map(l => `<div style="font-size:9pt;padding-left:14px;margin-bottom:2px;">&bull; ${esc(l)}</div>`).join("")}
+           </div>`
+        : ""}
+
+      <!-- V. ANALYST REVIEW -->
+      <div style="margin-bottom:15px;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">V. ANALYST REVIEW</div>
+        <div style="font-size:9pt;font-style:italic;padding-left:14px;">${esc(record.analystNotes ?? "Auto-approved by Sovereign AI Analyst.")}</div>
+      </div>
+
+      <!-- VI. DECREE -->
+      <div style="margin-bottom:18px;border:1.5px solid #8B0000;padding:12px 14px;background:#fff8f8;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#8B0000;margin-bottom:6px;">VI. DECREE &amp; ORDER</div>
+        <div style="font-size:9.5pt;margin-bottom:8px;font-weight:700;">TEMPLATE ENGAGED: ${esc(record.templateTitle)}</div>
+        <div style="font-size:9pt;margin-bottom:8px;">${esc(record.doctrineOverlay?.recommendation ?? "Sovereign enforcement response required. Serve on all relevant parties.")}</div>
+        ${guardrails.length > 0
+          ? `<div style="font-size:8pt;font-weight:700;margin-bottom:3px;">Sovereignty Guardrails:</div>${guardrails.map(g => `<div style="font-size:9pt;padding-left:12px;margin-bottom:2px;">&#8861; ${esc(g)}</div>`).join("")}`
+          : ""}
+      </div>
+
+      <!-- VII. FILE LOG -->
+      <div style="margin-bottom:18px;">
+        <div style="font-size:8pt;font-weight:700;text-transform:uppercase;letter-spacing:1.5px;color:#1a3a6e;margin-bottom:5px;">VII. RECORD ENGINE &#8212; FILE LOG</div>
+        <div style="font-size:9pt;line-height:1.8;">
+          File Number Assigned: <strong>${esc(record.fileNumber)}</strong><br/>
+          Status: <strong>${esc(record.status?.replace(/_/g, " ").toUpperCase())}</strong><br/>
+          Record Created: ${new Date(record.createdAt).toLocaleString()}<br/>
+          ${record.lastPrintedAt ? `Last Sealed &amp; Printed: ${new Date(record.lastPrintedAt).toLocaleString()}<br/>` : ""}
+          Print Count: <strong>${record.printCount}</strong><br/>
+          Official Seal Applied: <strong>${record.sealApplied ? "YES &#8212; SEAL AFFIXED" : "PENDING"}</strong>
         </div>
       </div>
 
-      {/* ── CASE INFO (left) + STAMP (right) ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px", gap: "20px" }}>
-        <div style={{ flex: 1, fontFamily: "'Times New Roman', Georgia, serif" }}>
-          <div style={{ fontSize: "10pt", fontWeight: 700, marginBottom: "2px" }}>
-            Case No. {record.fileNumber}
-          </div>
-          <div style={{ fontSize: "9pt", color: "#333", fontStyle: "italic", marginBottom: "10px" }}>
-            ({MATTER_LABELS[record.matterType] ?? record.matterType})
-          </div>
-          <div style={{ fontSize: "9.5pt", fontWeight: 600, marginBottom: "2px" }}>
-            IN RE: {record.templateTitle}
-          </div>
-          <div style={{ fontSize: "9pt", color: "#444", fontStyle: "italic", lineHeight: 1.5 }}>
-            Pursuant to Treaty Authority, Tribal Constitution, Federal Indian Law, and Sovereign Jurisdiction
-          </div>
-          {(record.intakeResult?.troRecommended || record.intakeResult?.redFlag) && (
-            <div style={{ marginTop: "8px", display: "inline-block", border: `1.5px solid ${riskColor}`, padding: "3px 12px", fontSize: "8pt", fontWeight: 700, color: riskColor, letterSpacing: "0.8px", textTransform: "uppercase" }}>
-              {record.intakeResult.troRecommended ? "⚑ TRO RECOMMENDED — Immediate Action Required" : "⚑ Red Flag — Sovereign Response Required"}
-            </div>
-          )}
-        </div>
-        <div style={{ flexShrink: 0 }}>
-          <OfficialStamp date={stampDate} />
-        </div>
-      </div>
+      <hr style="border-top:1.5px solid #000;margin-bottom:16px;" />
 
-      {/* ── DECREE TITLE (bold, uppercase, left-aligned — matches real doc format) ── */}
-      <div style={{ marginBottom: "18px" }}>
-        <div style={{ fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "4px", fontFamily: "'Times New Roman', Georgia, serif" }}>
-          {record.templateTitle}
-        </div>
-        <div style={{ fontSize: "8.5pt", color: "#444" }}>
-          Risk Level: <strong style={{ color: riskColor }}>{record.riskLevel.toUpperCase()}</strong>
-          &nbsp;&nbsp;·&nbsp;&nbsp;Official Seal Applied: <strong>{record.sealApplied ? "YES" : "PENDING"}</strong>
-        </div>
-      </div>
+      <!-- SIGNATURE BLOCK -->
+      ${sigBlock}
 
-      <hr style={{ borderTop: "1px solid #000", marginBottom: "16px" }} />
+      <!-- BOTTOM SEALS -->
+      ${sealBlock}
 
-      {/* ── TRIGGERING MATTER ── */}
-      <div style={{ marginBottom: "18px" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-          I. TRIGGERING MATTER — INCOMING COMMUNICATION
+      <!-- PAGE FOOTER -->
+      <div style="position:absolute;bottom:0.45in;left:1in;right:1in;border-top:0.75px solid #bbb;padding-top:5px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div style="font-size:6.5pt;color:#777;letter-spacing:0.3px;">File No. ${esc(record.fileNumber)} &nbsp;&middot;&nbsp; CONFIDENTIAL SOVEREIGN INSTRUMENT</div>
+          <div style="font-size:6.5pt;color:#777;font-weight:700;">Page 1 of 1</div>
+          <div style="font-size:6.5pt;color:#777;">Mathias El Tribe Supreme Court</div>
         </div>
-        <div style={{ fontSize: "9.5pt", background: "#f8f8f8", border: "1px solid #ccc", padding: "10px 14px", fontStyle: "italic", lineHeight: 1.7 }}>
-          {record.inputText}
-        </div>
-      </div>
-
-      {/* ── SOVEREIGN POSTURE ── */}
-      <div style={{ marginBottom: "18px" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-          II. SOVEREIGN POSTURE DETERMINATION (INTAKE ENGINE)
-        </div>
-        <div style={{ fontSize: "9.5pt", fontWeight: 700, color: riskColor, marginBottom: "8px" }}>
-          {record.intakeResult?.canonicalPosture ?? "Sovereign enforcement posture engaged."}
-        </div>
-        {violations.length > 0 && (
-          <>
-            <div style={{ fontSize: "8.5pt", fontWeight: 700, marginBottom: "4px" }}>Violations Detected:</div>
-            {violations.map((v, i) => (
-              <div key={i} style={{ fontSize: "9pt", paddingLeft: "16px", marginBottom: "3px" }}>
-                {i + 1}. {v}
-              </div>
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* ── DOCTRINES ENGAGED ── */}
-      <div style={{ marginBottom: "18px" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-          III. DOCTRINES ENGAGED (DOCTRINE ENGINE)
-        </div>
-        {allDoctrines.length > 0 && allDoctrines.map((d, i) => (
-          <div key={i} style={{ fontSize: "9pt", paddingLeft: "16px", marginBottom: "3px" }}>• {d}</div>
-        ))}
-      </div>
-
-      {/* ── FEDERAL LAW APPLIED ── */}
-      {federalLaw.length > 0 && (
-        <div style={{ marginBottom: "18px" }}>
-          <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-            IV. FEDERAL LAW APPLIED
-          </div>
-          {federalLaw.map((l, i) => (
-            <div key={i} style={{ fontSize: "9pt", paddingLeft: "16px", marginBottom: "3px" }}>• {l}</div>
-          ))}
-        </div>
-      )}
-
-      {/* ── ANALYST REVIEW ── */}
-      <div style={{ marginBottom: "18px" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-          V. ANALYST REVIEW (AI SOVEREIGN ANALYST)
-        </div>
-        <div style={{ fontSize: "9pt", fontStyle: "italic", paddingLeft: "16px" }}>
-          {record.analystNotes ?? "Auto-approved by Sovereign AI Analyst."}
-        </div>
-      </div>
-
-      {/* ── DECREE / ORDERED ── */}
-      <div style={{ marginBottom: "22px", border: "1.5px solid #8B0000", padding: "14px 16px", background: "#fff8f8" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#8B0000", marginBottom: "8px" }}>
-          VI. DECREE &amp; ORDER
-        </div>
-        <div style={{ fontSize: "9.5pt", marginBottom: "10px", fontWeight: 700 }}>
-          TEMPLATE ENGAGED: {record.templateTitle}
-        </div>
-        <div style={{ fontSize: "9pt", marginBottom: "10px" }}>
-          {record.doctrineOverlay?.recommendation ?? "Sovereign enforcement response required. Serve on all relevant parties."}
-        </div>
-        {guardrails.length > 0 && (
-          <>
-            <div style={{ fontSize: "8.5pt", fontWeight: 700, marginBottom: "4px" }}>Sovereignty Guardrails:</div>
-            {guardrails.map((g, i) => (
-              <div key={i} style={{ fontSize: "9pt", paddingLeft: "14px", marginBottom: "2px" }}>⊛ {g}</div>
-            ))}
-          </>
-        )}
-      </div>
-
-      {/* ── RECORD ENGINE LOG ── */}
-      <div style={{ marginBottom: "22px" }}>
-        <div style={{ fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1.5px", color: "#1a3a6e", marginBottom: "6px" }}>
-          VII. RECORD ENGINE — FILE LOG
-        </div>
-        <div style={{ fontSize: "9pt" }}>
-          File Number Assigned: <strong>{record.fileNumber}</strong><br />
-          Status: <strong>{record.status?.replace("_", " ").toUpperCase()}</strong><br />
-          Record Created: {new Date(record.createdAt).toLocaleString()}<br />
-          {record.lastPrintedAt && <>Last Sealed &amp; Printed: {new Date(record.lastPrintedAt).toLocaleString()}<br /></>}
-          Print Count: <strong>{record.printCount}</strong><br />
-          Official Seal Applied: <strong>{record.sealApplied ? "YES — SEAL AFFIXED" : "PENDING"}</strong>
-        </div>
-      </div>
-
-      <hr style={{ borderTop: "1.5px solid #000", marginBottom: "20px" }} />
-
-      {/* ── SIGNATURE BLOCK ── */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", marginBottom: "24px" }}>
-        <div>
-          <div style={{ fontSize: "9pt", marginBottom: "30px" }}>Issued under the sovereign authority of the</div>
-          <div style={{ borderTop: "1px solid #000", paddingTop: "4px", minWidth: "240px" }}>
-            <div style={{ fontSize: "9pt", fontWeight: 700 }}>Chief Mathias El</div>
-            <div style={{ fontSize: "8pt", color: "#444" }}>Chief Justice &amp; Trustee</div>
-            <div style={{ fontSize: "8pt", color: "#444" }}>Mathias El Tribe Supreme Court</div>
-            <div style={{ fontSize: "8pt", color: "#444" }}>Office of the Sovereign Trustee</div>
-          </div>
-        </div>
-
-        {/* Official Seals — two rectangular impressions aligned with self-inking stamp style */}
-        <div style={{ textAlign: "center" }}>
-          {record.sealApplied ? (
-            <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
-              <img
-                src={`${BASE}court-seal-bw.png`}
-                alt="Mathias El Tribe Supreme Court"
-                style={{ width: "78px", height: "78px", objectFit: "contain", opacity: 0.9 }}
-              />
-              <img
-                src={`${BASE}chief-justice-seal-bw.png`}
-                alt="Office of the Chief Justice and Trustee"
-                style={{ width: "78px", height: "78px", objectFit: "contain" }}
-              />
-            </div>
-          ) : (
-            <div style={{
-              width: "166px", height: "78px",
-              border: "2px dashed #aaa", display: "flex", alignItems: "center",
-              justifyContent: "center", color: "#aaa", fontSize: "9px", textAlign: "center"
-            }}>
-              <div>⊕&nbsp; SEAL PENDING</div>
-            </div>
-          )}
-          <div style={{ fontSize: "7pt", color: "#555", marginTop: "4px", letterSpacing: "0.5px" }}>
-            Official Seal — Mathias El Tribe Supreme Court
-          </div>
-        </div>
-      </div>
-
-      {/* ── FOOTER ── */}
-      <hr style={{ borderTop: "1px solid #888", marginBottom: "8px" }} />
-      <div style={{ textAlign: "center", fontSize: "7pt", color: "#666", letterSpacing: "0.5px" }}>
-        This document is a sovereign instrument of the Mathias El Tribe Supreme Court. It is self-executing and requires no external validation.
-        All rights reserved under tribal, treaty, and constitutional law. File Ref: {record.fileNumber}
       </div>
     </div>
-  );
+    <script>window.onload=function(){var imgs=document.querySelectorAll('img');var done=0;var total=imgs.length;function tryPrint(){done++;if(done>=total)setTimeout(function(){window.print();},280);}if(total===0){setTimeout(function(){window.print();},400);return;}imgs.forEach(function(i){if(i.complete){tryPrint();}else{i.onload=i.onerror=tryPrint;}});setTimeout(function(){window.print();},2800);};<\/script>
+  </body></html>`;
 }
 
-// ── Record Sidebar Item ────────────────────────────────────────────────────────
-function RecordItem({ rec, selected, onClick }: {
-  rec: PipelineRecord;
-  selected: boolean;
-  onClick: () => void;
-}) {
+// ── Record list item ───────────────────────────────────────────────────────────
+function RecordItem({ rec, selected, onClick }: { rec: PipelineRecord; selected: boolean; onClick: () => void }) {
+  const riskColor = RISK_COLOR[rec.riskLevel] ?? "#8B0000";
   return (
     <button
       onClick={onClick}
-      className={`w-full text-left px-3 py-3 rounded-lg border transition-all ${
-        selected
-          ? "border-[#8B0000] bg-[#8B0000]/5"
-          : "border-transparent hover:bg-muted/50"
+      className={`w-full text-left px-3 py-2.5 rounded-lg border transition-all ${
+        selected ? "border-[#1C2B4B] bg-[#1C2B4B]/5" : "border-transparent hover:bg-muted/50"
       }`}
     >
-      <div className="flex items-center justify-between gap-2 mb-1">
-        <span className="font-mono text-xs font-bold">{rec.fileNumber}</span>
+      <div className="flex items-center justify-between gap-2 mb-0.5">
+        <span className="font-mono text-[10px] font-bold text-muted-foreground">{rec.fileNumber}</span>
         {rec.sealApplied && (
-          <span className="text-[9px] font-bold text-green-700 dark:text-green-400 bg-green-100 dark:bg-green-900/30 px-1.5 py-0.5 rounded-full border border-green-300 dark:border-green-700">
-            SEALED
+          <span className="text-[8px] font-bold text-green-700 bg-green-100 px-1 py-0.5 rounded border border-green-200">SEALED</span>
+        )}
+      </div>
+      <div className="text-xs font-medium leading-snug line-clamp-2 mb-1">{rec.templateTitle ?? MATTER_LABELS[rec.matterType]}</div>
+      <div className="flex items-center gap-1.5">
+        <span
+          className="text-[8px] font-semibold px-1.5 py-0.5 rounded-full border"
+          style={{ color: riskColor, borderColor: riskColor + "55", background: riskColor + "11" }}
+        >
+          {rec.riskLevel}
+        </span>
+        <span className="text-[8px] text-muted-foreground">{new Date(rec.createdAt).toLocaleDateString()}</span>
+      </div>
+    </button>
+  );
+}
+
+// ── Record summary card — shown on screen (NOT a full document render) ─────────
+function RecordSummaryCard({
+  record, onPrint, isPrinting,
+}: { record: PipelineRecord; onPrint: (mode: "esign" | "color") => void; isPrinting: boolean }) {
+  const [doctrinesOpen, setDoctrinesOpen] = useState(false);
+  const [logOpen, setLogOpen] = useState(false);
+
+  const riskColor   = RISK_COLOR[record.riskLevel] ?? "#8B0000";
+  const allDoctrines = record.doctrineOverlay?.allDoctrines ?? [];
+  const violations   = record.intakeResult?.violations ?? [];
+
+  return (
+    <div className="space-y-4 p-5">
+
+      {/* ── Title row ── */}
+      <div className="flex items-start gap-3">
+        <FileText className="h-5 w-5 text-[#1C2B4B] shrink-0 mt-0.5" />
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2 flex-wrap mb-0.5">
+            <span className="font-mono text-xs font-bold text-muted-foreground">{record.fileNumber}</span>
+            {record.sealApplied && (
+              <Badge className="bg-green-700 text-white text-[9px] px-1.5 py-0">Sealed</Badge>
+            )}
+            {record.intakeResult?.troRecommended && (
+              <Badge variant="destructive" className="text-[9px] gap-0.5 px-1.5 py-0">
+                <AlertTriangle className="h-2.5 w-2.5" /> TRO
+              </Badge>
+            )}
+          </div>
+          <h3 className="font-serif text-base font-bold leading-snug">{record.templateTitle}</h3>
+          <p className="text-xs text-muted-foreground mt-0.5">{MATTER_LABELS[record.matterType] ?? record.matterType}</p>
+        </div>
+      </div>
+
+      {/* ── Status / risk / date strip ── */}
+      <div className="flex items-center gap-2 flex-wrap text-xs">
+        <span
+          className="font-semibold px-2 py-0.5 rounded-full border"
+          style={{ color: riskColor, borderColor: riskColor + "55", background: riskColor + "0d" }}
+        >
+          {record.riskLevel} risk
+        </span>
+        <Badge variant="secondary" className="text-[10px] capitalize">{record.status?.replace(/_/g, " ")}</Badge>
+        <span className="text-muted-foreground flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {new Date(record.createdAt).toLocaleDateString("en-US", { year: "numeric", month: "short", day: "numeric" })}
+        </span>
+        {record.printCount > 0 && (
+          <span className="text-muted-foreground">· Printed {record.printCount}×</span>
+        )}
+        {record.analystApproved && (
+          <span className="flex items-center gap-1 text-green-700">
+            <CheckCircle2 className="h-3 w-3" /> Analyst approved
           </span>
         )}
       </div>
-      <div className="text-[10px] text-muted-foreground leading-tight line-clamp-2">
-        {rec.templateTitle ?? MATTER_LABELS[rec.matterType]}
+
+      {/* ── Canonical posture ── */}
+      {record.intakeResult?.canonicalPosture && (
+        <div className="rounded-md border px-3 py-2.5 bg-muted/30">
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Sovereign Posture</p>
+          <p className="text-sm font-semibold" style={{ color: riskColor }}>{record.intakeResult.canonicalPosture}</p>
+        </div>
+      )}
+
+      {/* ── Violations ── */}
+      {violations.length > 0 && (
+        <div>
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1.5">Violations Detected</p>
+          <div className="space-y-1">
+            {violations.map((v, i) => (
+              <div key={i} className="flex items-start gap-1.5 text-xs">
+                <span className="shrink-0 mt-0.5" style={{ color: riskColor }}>▸</span>
+                <span>{v}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* ── Decree ── */}
+      {record.doctrineOverlay?.recommendation && (
+        <div className="border-l-4 pl-3 py-1" style={{ borderColor: "#8B0000" }}>
+          <p className="text-[9px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">Decree / Order</p>
+          <p className="text-sm leading-relaxed">{record.doctrineOverlay.recommendation}</p>
+        </div>
+      )}
+
+      {/* ── Doctrines (collapsible) ── */}
+      {allDoctrines.length > 0 && (
+        <div>
+          <button
+            onClick={() => setDoctrinesOpen(v => !v)}
+            className="flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+          >
+            {doctrinesOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+            Doctrines Engaged ({allDoctrines.length})
+          </button>
+          {doctrinesOpen && (
+            <div className="mt-2 space-y-1 pl-1">
+              {allDoctrines.map((d, i) => (
+                <div key={i} className="text-xs text-muted-foreground">• {d}</div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Record log (collapsible) ── */}
+      <div>
+        <button
+          onClick={() => setLogOpen(v => !v)}
+          className="flex items-center gap-1 text-[9px] font-semibold text-muted-foreground uppercase tracking-widest hover:text-foreground transition-colors"
+        >
+          {logOpen ? <ChevronDown className="h-3 w-3" /> : <ChevronRight className="h-3 w-3" />}
+          File Log
+        </button>
+        {logOpen && (
+          <div className="mt-2 grid grid-cols-2 gap-x-4 gap-y-1 text-xs text-muted-foreground pl-1">
+            <div>Template: <span className="text-foreground">{record.templateKey}</span></div>
+            <div>Seal: <span className={record.sealApplied ? "text-green-700 font-medium" : "text-orange-600"}>{record.sealApplied ? "Affixed" : "Pending"}</span></div>
+            <div>Print count: <span className="text-foreground">{record.printCount}</span></div>
+            {record.lastPrintedAt && (
+              <div className="col-span-2">Last printed: <span className="text-foreground">{new Date(record.lastPrintedAt).toLocaleString()}</span></div>
+            )}
+          </div>
+        )}
       </div>
-      <div className="flex items-center gap-1 mt-1.5 flex-wrap">
-        <span className={`text-[9px] font-semibold px-1.5 py-0.5 rounded-full border ${
-          rec.riskLevel === "critical" || rec.riskLevel === "emergency"
-            ? "text-red-700 border-red-300 bg-red-50 dark:bg-red-900/20 dark:text-red-400"
-            : rec.riskLevel === "elevated"
-            ? "text-orange-700 border-orange-300 bg-orange-50 dark:bg-orange-900/20 dark:text-orange-400"
-            : "text-muted-foreground border-muted"
-        }`}>
-          {rec.riskLevel}
-        </span>
-        <span className="text-[9px] text-muted-foreground">
-          {new Date(rec.createdAt).toLocaleDateString()}
-        </span>
+
+      {/* ── Print actions ── */}
+      <div className="border-t pt-4 flex gap-2 flex-wrap">
+        <Button
+          size="sm"
+          onClick={() => onPrint("esign")}
+          disabled={isPrinting}
+          className="gap-1.5 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          {isPrinting ? "Preparing…" : "ePrint, eSign & File"}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => onPrint("color")}
+          disabled={isPrinting}
+          className="gap-1.5 border-[#8B0000] text-[#8B0000] hover:bg-[#8B0000]/5"
+        >
+          <Printer className="h-3.5 w-3.5" />
+          Print & Sign
+        </Button>
+        <p className="text-[9px] text-muted-foreground self-center">
+          ePrint/eSign auto-files &amp; applies timestamp. Print &amp; Sign produces a blank signature version.
+        </p>
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -464,12 +514,12 @@ export default function MyOfficePage() {
   const [activateName, setActivateName] = useState("");
   const [showActivate, setShowActivate] = useState(false);
 
+  // ── Queries ──
   const { data: records = [], isLoading } = useQuery<PipelineRecord[]>({
     queryKey: ["my-office-records"],
     queryFn: async () => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/pipeline`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
       if (!r.ok) throw new Error("Failed to load records");
       return r.json();
@@ -478,132 +528,60 @@ export default function MyOfficePage() {
     enabled: canAccess,
   });
 
+  const activeId = selectedId ?? records[0]?.id ?? null;
+
   const { data: selected, isLoading: loadingSelected } = useQuery<PipelineRecord>({
-    queryKey: ["my-office-record", selectedId ?? records[0]?.id],
+    queryKey: ["my-office-record", activeId],
     queryFn: async () => {
-      const id = selectedId ?? records[0]?.id;
-      if (!id) throw new Error("No record");
-      const token = getCurrentBearerToken();
-      const r = await fetch(`${API}/api/sovereign/pipeline/${id}`, {
-        headers: { Authorization: `Bearer ${token}` },
+      const r = await fetch(`${API}/api/sovereign/pipeline/${activeId}`, {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
       if (!r.ok) throw new Error("Failed to load record");
       return r.json();
     },
     staleTime: 30_000,
-    enabled: canAccess && (selectedId !== null || records.length > 0),
+    enabled: canAccess && activeId !== null,
   });
 
-  // ── Print-window generator ────────────────────────────────────────────────
-  function printDocument(mode: "esign" | "color") {
-    const docEl = document.getElementById("official-document");
-    if (!docEl) { alert("Document not found — select a record first."); return; }
-
-    // Clone + make all image srcs absolute so the popup window can load them
-    const clone = docEl.cloneNode(true) as HTMLElement;
-    clone.querySelectorAll("img").forEach(img => {
-      const src = img.getAttribute("src") ?? "";
-      if (!src.startsWith("http") && !src.startsWith("data:")) {
-        img.setAttribute("src", src.startsWith("/")
-          ? `${window.location.origin}${src}`
-          : `${window.location.origin}${import.meta.env.BASE_URL}${src.replace(/^\.?\/?/, "")}`
-        );
-      }
-    });
-
-    const isEsign = mode === "esign";
-    const ts = new Date();
-    const isoTs = ts.toISOString();
-    const humanTs = ts.toLocaleString("en-US", { timeZoneName: "short" });
-
-    const bottomBlock = isEsign
-      ? `<div style="margin:24px 0 0;border:1.5px solid #1a3a6e;padding:12px 16px;text-align:center;font-family:'Courier New',monospace;font-size:8.5pt;color:#1a3a6e;background:#f4f6fb;">
-           <div style="font-weight:700;letter-spacing:1.5px;font-size:8pt;margin-bottom:4px;">&#10022; ELECTRONICALLY SIGNED, SEALED &amp; FILED &#10022;</div>
-           <div style="font-size:7.5pt;color:#555;">MATHIAS EL TRIBE SUPREME COURT &#8212; SOVEREIGN DOCUMENT MANAGEMENT SYSTEM</div>
-           <div style="margin-top:6px;font-size:7.5pt;color:#333;">Digital Timestamp: ${isoTs}</div>
-           <div style="font-size:7.5pt;color:#555;">${humanTs} &#8212; Record Engine v1.0 &#8212; Sovereign Pipeline</div>
-         </div>`
-      : `<div style="margin:32px 0 0;font-family:'Times New Roman',serif;">
-           <div style="margin-bottom:36px;font-size:9.5pt;color:#222;">
-             I hereby affix my hand and seal to this sovereign instrument this _______ day of _____________, _______.
-           </div>
-           <div style="display:flex;justify-content:space-between;gap:40px;margin-bottom:16px;">
-             <div style="flex:1;border-top:1px solid #000;padding-top:5px;font-size:8pt;color:#444;text-align:center;">
-               Signature of Chief Justice &amp; Trustee
-             </div>
-             <div style="width:140px;border-top:1px solid #000;padding-top:5px;font-size:8pt;color:#444;text-align:center;">Date</div>
-           </div>
-           <div style="font-size:8pt;color:#555;font-style:italic;text-align:center;margin-top:8px;">
-             ORIGINAL &#8212; Personally Signed &#8212; Not Electronically Filed
-           </div>
-         </div>`;
-
-    const fullHtml = `<!DOCTYPE html><html lang="en"><head>
-      <meta charset="utf-8">
-      <title>Sovereign Document &#8212; ${isEsign ? "ePrint / eSign &amp; File" : "Print &amp; Sign (Color)"}</title>
-      <style>
-        * { box-sizing: border-box; }
-        body { background: white; margin: 0; padding: 0; }
-        ${isEsign ? "img { filter: grayscale(100%) contrast(1.12) !important; }" : ""}
-        @page { size: 8.5in 11in; margin: 0; }
-        @media print { body { margin: 0; } }
-      </style>
-    </head><body>
-      ${clone.outerHTML}
-      ${bottomBlock}
-      <script>window.onload=function(){var imgs=document.querySelectorAll('img');var done=0;var total=imgs.length;function tryPrint(){done++;if(done>=total)setTimeout(function(){window.print();},250);}if(total===0){setTimeout(function(){window.print();},400);return;}imgs.forEach(function(i){if(i.complete){tryPrint();}else{i.onload=i.onerror=tryPrint;}});setTimeout(function(){window.print();},2500);};<\/script>
-    </body></html>`;
-
-    // Blob URL approach — more reliable than document.write in modern browsers
-    const blob = new Blob([fullHtml], { type: "text/html; charset=utf-8" });
-    const blobUrl = URL.createObjectURL(blob);
-    const w = window.open(blobUrl, "_blank", "width=980,height=800");
-    if (w) {
-      setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
-    } else {
-      URL.revokeObjectURL(blobUrl);
-      alert("Pop-up blocked — please allow pop-ups for this site to open the print window.");
-    }
-  }
-
+  // ── Print ──
   const printSeal = useMutation({
     mutationFn: async ({ id, mode }: { id: number; mode: "esign" | "color" }) => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/pipeline/${id}/print`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
       if (!r.ok) throw new Error("Print failed");
       return { ...(await r.json()), mode };
     },
     onSuccess: (data) => {
       toast({ title: `Sealed — ${data.fileNumber}`, description: `Print event #${data.printCount} logged. Opening print window…` });
-      setTimeout(() => printDocument(data.mode as "esign" | "color"), 300);
+      // Re-fetch the record to get the updated lastPrintedAt, then print
+      setTimeout(() => {
+        if (selected) {
+          const updatedRecord = { ...selected, lastPrintedAt: new Date().toISOString(), printCount: (selected.printCount ?? 0) + 1 };
+          const html = buildPrintHtml(updatedRecord, data.mode as "esign" | "color");
+          const blob = new Blob([html], { type: "text/html; charset=utf-8" });
+          const blobUrl = URL.createObjectURL(blob);
+          const w = window.open(blobUrl, "_blank", "width=1000,height=820");
+          if (w) setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+          else { URL.revokeObjectURL(blobUrl); alert("Pop-up blocked — please allow pop-ups for this site."); }
+        }
+      }, 200);
     },
-    onError: (err: Error) => {
-      toast({ title: "Print failed", description: err.message, variant: "destructive" });
-    },
+    onError: (err: Error) => toast({ title: "Print failed", description: err.message, variant: "destructive" }),
   });
 
-  // ── Vault queries & mutations ─────────────────────────────────────────────
-  interface VaultStatus {
-    id: number;
-    delegateName: string;
-    delegateNotes: string | null;
-    instructions: string | null;
-    isConfigured: boolean;
-    isActivated: boolean;
-    activatedAt: string | null;
-    createdAt: string;
-    updatedAt: string;
+  function handlePrint(mode: "esign" | "color") {
+    if (!selected) return;
+    printSeal.mutate({ id: selected.id, mode });
   }
 
+  // ── Vault queries ──
   const { data: vaultStatus, isLoading: vaultLoading, refetch: refetchVault } = useQuery<VaultStatus | null>({
     queryKey: ["succession-vault"],
     queryFn: async () => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/succession/status`, {
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
       if (r.status === 404 || r.status === 204) return null;
       if (!r.ok) return null;
@@ -614,17 +592,16 @@ export default function MyOfficePage() {
 
   const createVault = useMutation({
     mutationFn: async (payload: { delegateName: string; delegateNotes?: string; passcode: string; instructions?: string }) => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/succession`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
-      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Failed to configure vault"); }
+      if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Failed to configure"); }
       return r.json();
     },
     onSuccess: () => {
-      toast({ title: "Pre-Delegation Vault Configured", description: "Succession provisions are now in place." });
+      toast({ title: "Succession Provision Secured", description: "Your designated trustee and passcode are in place." });
       setVaultPasscode(""); setVaultPasscode2(""); refetchVault();
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
@@ -632,28 +609,25 @@ export default function MyOfficePage() {
 
   const revokeVault = useMutation({
     mutationFn: async () => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/succession`, {
         method: "DELETE",
-        headers: { Authorization: `Bearer ${token}` },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
       });
-      if (!r.ok) throw new Error("Failed to revoke vault");
+      if (!r.ok) throw new Error("Failed to revoke");
       return r.json();
     },
     onSuccess: () => {
-      toast({ title: "Vault Revoked", description: "Pre-delegation provisions have been cleared." });
-      setVaultName(""); setVaultNotes(""); setVaultInstructions("");
-      refetchVault();
+      toast({ title: "Provision Revoked", description: "Succession provisions have been cleared." });
+      setVaultName(""); setVaultNotes(""); setVaultInstructions(""); refetchVault();
     },
     onError: (err: Error) => toast({ title: "Error", description: err.message, variant: "destructive" }),
   });
 
   const activateVault = useMutation({
     mutationFn: async (payload: { passcode: string; activatedByEntry: string }) => {
-      const token = getCurrentBearerToken();
       const r = await fetch(`${API}/api/sovereign/succession/activate`, {
         method: "POST",
-        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}`, "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
       if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.error ?? "Activation failed"); }
@@ -666,121 +640,78 @@ export default function MyOfficePage() {
     onError: (err: Error) => toast({ title: "Activation Failed", description: err.message, variant: "destructive" }),
   });
 
+  // ── No access ──
   if (!canAccess) {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
         <Shield className="h-12 w-12 text-muted-foreground" />
         <h2 className="text-xl font-semibold">My Office — Chief Office Only</h2>
         <p className="text-muted-foreground text-sm max-w-sm">
-          Access to the Sovereign Office document vault is restricted to the Chief Justice and authorized officers.
+          Access to the Sovereign Office is restricted to the Chief Justice and authorized officers.
         </p>
       </div>
     );
   }
 
-  const activeRecord = selected ?? (records.length > 0 ? undefined : null);
-
   return (
-    <div className="flex flex-col h-full" data-testid="page-my-office">
+    <div className="flex flex-col gap-6" data-testid="page-my-office">
 
-      {/* ── Tribal Court Seals — top of office ── */}
-      <div className="flex items-center justify-center gap-8 pb-5 mb-5 border-b border-border">
+      {/* ── Office header ── */}
+      <div className="flex items-center gap-5 pb-5 border-b border-border">
         <img
           src={`${BASE}supreme-court-seal-color.png`}
-          alt="The Mathias El Tribe Supreme Court"
-          className="w-28 h-28 object-contain drop-shadow-md"
+          alt="Mathias El Tribe Supreme Court"
+          style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+          className="drop-shadow"
         />
-        <div className="text-center">
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">Mathias El Tribe</p>
-          <h2 className="font-serif text-lg font-bold text-primary leading-tight">Supreme Court</h2>
-          <p className="text-[10px] text-muted-foreground mt-0.5">Office of the Chief Justice &amp; Trustee</p>
+        <div className="flex-1 min-w-0">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">Mathias El Tribe</p>
+          <h1 className="font-serif text-xl font-bold text-foreground leading-tight">My Office</h1>
+          <p className="text-xs text-muted-foreground">Office of the Chief Justice &amp; Trustee — Sovereign Pipeline Records</p>
         </div>
         <img
           src={`${BASE}chief-justice-seal.png`}
           alt="Chief Mathias El — Office of the Chief Justice and Trustee"
-          className="w-28 h-28 object-contain drop-shadow-md"
+          style={{ width: 72, height: 72, objectFit: "contain", flexShrink: 0 }}
+          className="drop-shadow"
         />
       </div>
 
-      {/* ── Header bar ── */}
-      <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
-        <div>
-          <h1 className="text-2xl font-serif font-bold flex items-center gap-2">
-            <Archive className="h-6 w-6 text-[#8B0000]" />
-            My Office — Sovereign Document Vault
-          </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Sealed pipeline documents issued by the Mathias El Tribe Supreme Court
-          </p>
-        </div>
-        {selected && (
-          <div className="flex items-center gap-2 flex-wrap">
-            {selected.intakeResult?.troRecommended && (
-              <Badge variant="destructive" className="text-xs gap-1">
-                <AlertTriangle className="h-3 w-3" /> TRO Eligible
-              </Badge>
-            )}
-            <Button
-              onClick={() => printSeal.mutate({ id: selected.id, mode: "esign" })}
-              disabled={printSeal.isPending}
-              className="gap-2 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
-              title="B&W stencil seal + electronic timestamp — files automatically"
-            >
-              <Printer className="h-4 w-4" />
-              {printSeal.isPending ? "Sealing…" : "ePrint, eSign & File"}
-            </Button>
-            <Button
-              onClick={() => printSeal.mutate({ id: selected.id, mode: "color" })}
-              disabled={printSeal.isPending}
-              variant="outline"
-              className="gap-2 border-[#8B0000] text-[#8B0000] hover:bg-[#8B0000]/5"
-              title="Full color — blank signature line for personal signing"
-            >
-              <Printer className="h-4 w-4" />
-              Print & Sign
-            </Button>
-          </div>
-        )}
-      </div>
+      {/* ── Main — two columns ── */}
+      <div className="flex gap-4 min-h-0">
 
-      <div className="flex gap-5 flex-1 min-h-0">
         {/* ── Sidebar — record list ── */}
-        <div className="w-56 shrink-0">
-          <div className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">
-            Pipeline Records
-          </div>
+        <div className="w-52 shrink-0 flex flex-col gap-2">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground px-1 mb-1">Pipeline Records</p>
 
           {isLoading ? (
             <div className="space-y-2">
-              {[...Array(3)].map((_, i) => (
-                <div key={i} className="h-16 bg-muted/40 rounded-lg animate-pulse" />
-              ))}
+              {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-16" />)}
             </div>
           ) : records.length === 0 ? (
             <div className="text-xs text-muted-foreground py-8 text-center px-2">
-              No pipeline records yet.<br />Run the Sovereign Pipeline to generate documents.
+              No pipeline records yet.<br />Run the Sovereign Pipeline to generate sealed documents.
             </div>
           ) : (
-            <div className="space-y-1">
+            <div className="space-y-0.5">
               {records.map(rec => (
                 <RecordItem
                   key={rec.id}
                   rec={rec}
-                  selected={(selectedId ?? records[0]?.id) === rec.id}
+                  selected={activeId === rec.id}
                   onClick={() => setSelectedId(rec.id)}
                 />
               ))}
             </div>
           )}
 
-          {/* Engine legend */}
-          <div className="mt-6 pt-4 border-t space-y-1.5">
+          <div className="mt-auto pt-4 border-t space-y-1.5">
             {[
               { icon: Shield,   label: "6-Engine Pipeline" },
               { icon: BookOpen, label: "Template Applied" },
-              { icon: Archive,  label: "Record Sealed" },
+              { icon: Shield,   label: "Record Sealed" },
             ].map(({ icon: Icon, label }) => (
-              <div key={label} className="flex items-center gap-2 text-[10px] text-muted-foreground">
+              <div key={label} className="flex items-center gap-2 text-[9px] text-muted-foreground">
                 <Icon className="h-3 w-3 shrink-0" />
                 {label}
               </div>
@@ -788,255 +719,227 @@ export default function MyOfficePage() {
           </div>
         </div>
 
-        {/* ── Main — document view ── */}
+        {/* ── Main — record summary card ── */}
         <div className="flex-1 min-w-0">
-          {!selected && !isLoading && records.length === 0 && (
-            <Card className="flex flex-col items-center justify-center h-64 text-center p-8">
-              <Archive className="h-10 w-10 text-muted-foreground mb-3" />
-              <p className="text-muted-foreground text-sm">No sealed documents yet.</p>
+          {!selected && !loadingSelected && records.length === 0 && (
+            <Card className="flex flex-col items-center justify-center h-56 text-center p-8">
+              <FileText className="h-9 w-9 text-muted-foreground mb-3" />
+              <p className="text-sm text-muted-foreground">No sealed documents yet.</p>
               <p className="text-xs text-muted-foreground mt-1">
-                Run the Sovereign Pipeline to generate and seal documents here.
+                Run the Sovereign Pipeline to generate and seal documents.
               </p>
             </Card>
           )}
 
           {loadingSelected && (
-            <div className="animate-pulse space-y-4">
-              <div className="h-24 bg-muted/40 rounded" />
-              <div className="h-48 bg-muted/40 rounded" />
-              <div className="h-32 bg-muted/40 rounded" />
-            </div>
+            <Card>
+              <CardContent className="p-5 space-y-3">
+                <Skeleton className="h-5 w-1/2" />
+                <Skeleton className="h-4 w-1/3" />
+                <Skeleton className="h-16" />
+                <Skeleton className="h-10" />
+              </CardContent>
+            </Card>
           )}
 
           {selected && !loadingSelected && (
-            <div className="rounded-lg border border-gray-300 shadow-lg overflow-hidden print:border-none print:shadow-none">
-              <OfficialDocument record={selected} />
-            </div>
+            <Card className="border-border">
+              <RecordSummaryCard
+                record={selected}
+                onPrint={handlePrint}
+                isPrinting={printSeal.isPending}
+              />
+            </Card>
           )}
         </div>
       </div>
 
-      {/* ── Pre-Delegation Vault ─────────────────────────────────────────────── */}
-      <div className="mt-8 border-t print:hidden">
+      {/* ── Succession Planning (formerly Pre-Delegation Vault) ── */}
+      <div className="border-t">
         <button
           onClick={() => setVaultOpen(v => !v)}
           className="flex items-center gap-3 w-full text-left py-4 hover:opacity-80 transition-opacity"
         >
-          <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
-          <h2 className="text-base font-serif font-semibold">Pre-Delegation Vault</h2>
-          <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Private Safety Mechanism</Badge>
+          <Lock className="h-4 w-4 text-muted-foreground shrink-0" />
+          <h2 className="text-sm font-semibold">Succession Planning</h2>
+          <Badge variant="outline" className="text-[9px] uppercase tracking-wider">Private Safety Mechanism</Badge>
           {vaultStatus?.isActivated && (
-            <Badge className="bg-amber-600 text-white text-[10px] uppercase tracking-wider">Succession Active</Badge>
+            <Badge className="bg-amber-600 text-white text-[9px] uppercase tracking-wider">Succession Active</Badge>
           )}
           {vaultStatus && !vaultStatus.isActivated && (
-            <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">Vault Secured</Badge>
+            <Badge variant="secondary" className="text-[9px] text-green-700 bg-green-100 border-green-200">Secured</Badge>
           )}
           <ChevronDown className={`h-4 w-4 text-muted-foreground ml-auto transition-transform duration-200 ${vaultOpen ? "rotate-180" : ""}`} />
         </button>
 
         {vaultOpen && (
-        <div className="space-y-4 pb-6">
-        <p className="text-sm text-muted-foreground max-w-2xl">
-          Pre-designate a trusted successor and set a private passcode. This is a private safety mechanism,
-          completely separate from all regular delegation systems. If you become unable to function in your role,
-          the designated trustee enters the passcode to activate authority succession.
-        </p>
+          <div className="space-y-4 pb-6">
+            <p className="text-sm text-muted-foreground max-w-2xl">
+              Pre-designate a trusted successor and set a private passcode. This is completely separate from
+              all regular delegation systems. If you become unable to function in your role, the designated
+              trustee enters the passcode to activate authority succession.
+            </p>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 mt-2">
-          {/* ── Setup (trustee / Chief Justice only) ── */}
-          {activeRole === "trustee" && (
-            <Card className="border-[#1C2B4B]/20">
-              <CardHeader className="pb-2">
-                <div className="flex items-center justify-between gap-2">
-                  <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
-                    <UserCheck className="h-4 w-4" /> Succession Provision
-                  </CardTitle>
-                  {vaultStatus && !vaultStatus.isActivated && (
-                    <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100 gap-1">
-                      <ShieldCheck className="h-3 w-3" /> Configured
-                    </Badge>
-                  )}
-                </div>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                {vaultLoading ? (
-                  <div className="h-16 bg-muted/40 rounded animate-pulse" />
-                ) : vaultStatus?.isActivated ? (
-                  <div className="flex items-start gap-2 text-amber-700 text-sm">
-                    <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
-                    <span>Succession has been activated. The designated trustee is now carrying authority.</span>
-                  </div>
-                ) : vaultStatus ? (
-                  <div className="space-y-3">
-                    <div className="text-sm space-y-1">
-                      <div className="font-medium text-foreground">{vaultStatus.delegateName}</div>
-                      {vaultStatus.delegateNotes && (
-                        <div className="text-xs text-muted-foreground">{vaultStatus.delegateNotes}</div>
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mt-2">
+              {/* ── Setup (trustee only) ── */}
+              {activeRole === "trustee" && (
+                <Card className="border-[#1C2B4B]/20">
+                  <CardHeader className="pb-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
+                        <UserCheck className="h-3.5 w-3.5" /> Succession Provision
+                      </CardTitle>
+                      {vaultStatus && !vaultStatus.isActivated && (
+                        <Badge variant="secondary" className="text-[9px] text-green-700 bg-green-100 gap-1">
+                          <ShieldCheck className="h-3 w-3" /> Configured
+                        </Badge>
                       )}
-                      {vaultStatus.instructions && (
-                        <div className="mt-2 text-xs text-muted-foreground italic border-l-2 border-muted pl-2">
-                          {vaultStatus.instructions}
+                    </div>
+                  </CardHeader>
+                  <CardContent className="space-y-3">
+                    {vaultLoading ? (
+                      <Skeleton className="h-16" />
+                    ) : vaultStatus?.isActivated ? (
+                      <div className="flex items-start gap-2 text-amber-700 text-sm">
+                        <ShieldAlert className="h-4 w-4 shrink-0 mt-0.5" />
+                        <span>Succession has been activated. The designated trustee is now carrying authority.</span>
+                      </div>
+                    ) : vaultStatus ? (
+                      <div className="space-y-3">
+                        <div className="text-sm space-y-1">
+                          <div className="font-medium">{vaultStatus.delegateName}</div>
+                          {vaultStatus.delegateNotes && <div className="text-xs text-muted-foreground">{vaultStatus.delegateNotes}</div>}
+                          {vaultStatus.instructions && (
+                            <div className="text-xs text-muted-foreground italic border-l-2 border-muted pl-2 mt-1">{vaultStatus.instructions}</div>
+                          )}
+                          <div className="text-[9px] text-muted-foreground/70 mt-2">Configured {new Date(vaultStatus.createdAt).toLocaleDateString()}</div>
                         </div>
-                      )}
-                      <div className="text-[10px] text-muted-foreground/70 mt-2">
-                        Configured {new Date(vaultStatus.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="gap-2 text-destructive border-destructive/40 hover:bg-destructive/5"
-                      onClick={() => revokeVault.mutate()}
-                      disabled={revokeVault.isPending}
-                    >
-                      <Trash2 className="h-3 w-3" />
-                      {revokeVault.isPending ? "Revoking…" : "Revoke Provision"}
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    <div>
-                      <Label className="text-xs">Designated Trustee Name</Label>
-                      <Input className="mt-1 text-sm" value={vaultName} onChange={e => setVaultName(e.target.value)} placeholder="Full name of your designated successor" />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Notes about this person</Label>
-                      <Input className="mt-1 text-sm" value={vaultNotes} onChange={e => setVaultNotes(e.target.value)} placeholder="Their role, relationship, or contact information" />
-                    </div>
-                    <div>
-                      <Label className="text-xs">Instructions upon activation</Label>
-                      <textarea
-                        className="mt-1 w-full text-sm border rounded-md p-2 min-h-[72px] bg-background resize-none focus:outline-none focus:ring-1 focus:ring-ring"
-                        value={vaultInstructions}
-                        onChange={e => setVaultInstructions(e.target.value)}
-                        placeholder="What should happen if this vault is activated? What should they prioritize?"
-                      />
-                    </div>
-                    <div>
-                      <Label className="text-xs">
-                        Private Passcode <span className="text-muted-foreground">(min. 8 characters)</span>
-                      </Label>
-                      <div className="relative mt-1">
-                        <Input
-                          type={showPasscode ? "text" : "password"}
-                          className="text-sm pr-9"
-                          value={vaultPasscode}
-                          onChange={e => setVaultPasscode(e.target.value)}
-                          placeholder="Create a private passcode"
-                        />
-                        <button
-                          type="button"
-                          className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground"
-                          onClick={() => setShowPasscode(v => !v)}
+                        <Button
+                          variant="outline" size="sm"
+                          className="gap-1.5 text-destructive border-destructive/40 hover:bg-destructive/5"
+                          onClick={() => revokeVault.mutate()}
+                          disabled={revokeVault.isPending}
                         >
-                          {showPasscode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </button>
+                          <Trash2 className="h-3 w-3" />
+                          {revokeVault.isPending ? "Revoking…" : "Revoke Provision"}
+                        </Button>
+                      </div>
+                    ) : (
+                      <div className="space-y-3">
+                        <div>
+                          <Label className="text-xs">Designated Trustee Name</Label>
+                          <Input className="mt-1 text-sm" value={vaultName} onChange={e => setVaultName(e.target.value)} placeholder="Full name of your designated successor" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Notes about this person</Label>
+                          <Input className="mt-1 text-sm" value={vaultNotes} onChange={e => setVaultNotes(e.target.value)} placeholder="Role, relationship, or contact info" />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Instructions upon activation</Label>
+                          <textarea
+                            className="mt-1 w-full text-sm border rounded-md p-2 min-h-[64px] bg-background resize-none focus:outline-none focus:ring-1 focus:ring-ring"
+                            value={vaultInstructions}
+                            onChange={e => setVaultInstructions(e.target.value)}
+                            placeholder="What should happen if this succession is activated?"
+                          />
+                        </div>
+                        <div>
+                          <Label className="text-xs">Private Passcode <span className="text-muted-foreground">(min. 8 chars)</span></Label>
+                          <div className="relative mt-1">
+                            <Input
+                              type={showPasscode ? "text" : "password"}
+                              className="text-sm pr-9"
+                              value={vaultPasscode}
+                              onChange={e => setVaultPasscode(e.target.value)}
+                              placeholder="Create a private passcode"
+                            />
+                            <button type="button" className="absolute right-2.5 top-2.5 text-muted-foreground hover:text-foreground" onClick={() => setShowPasscode(v => !v)}>
+                              {showPasscode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </div>
+                        <div>
+                          <Label className="text-xs">Confirm Passcode</Label>
+                          <Input type="password" className="mt-1 text-sm" value={vaultPasscode2} onChange={e => setVaultPasscode2(e.target.value)} placeholder="Re-enter to confirm" />
+                        </div>
+                        {vaultPasscode && vaultPasscode2 && vaultPasscode !== vaultPasscode2 && (
+                          <p className="text-xs text-destructive">Passcodes do not match.</p>
+                        )}
+                        <Button
+                          className="w-full gap-2 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
+                          disabled={createVault.isPending || !vaultName.trim() || !vaultPasscode.trim() || vaultPasscode !== vaultPasscode2 || vaultPasscode.length < 8}
+                          onClick={() => createVault.mutate({ delegateName: vaultName, delegateNotes: vaultNotes || undefined, passcode: vaultPasscode, instructions: vaultInstructions || undefined })}
+                        >
+                          <Key className="h-4 w-4" />
+                          {createVault.isPending ? "Securing…" : "Secure Succession Provision"}
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              )}
+
+              {/* ── Emergency Activation ── */}
+              <Card className="border-amber-500/30">
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
+                    <ShieldAlert className="h-3.5 w-3.5 text-amber-600" /> Emergency Succession Activation
+                  </CardTitle>
+                  <p className="text-[10px] text-muted-foreground">
+                    For use only when the Chief Justice cannot function in their role.
+                  </p>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  {vaultStatus?.isActivated ? (
+                    <div className="space-y-2">
+                      <div className="flex items-center gap-2 text-amber-700 font-medium text-sm">
+                        <ShieldCheck className="h-4 w-4 shrink-0" />
+                        Succession active as of{" "}
+                        {vaultStatus.activatedAt ? new Date(vaultStatus.activatedAt).toLocaleString() : "recently"}.
+                      </div>
+                      {vaultStatus.instructions && (
+                        <p className="text-xs text-muted-foreground border-l-2 border-amber-300 pl-2">{vaultStatus.instructions}</p>
+                      )}
+                    </div>
+                  ) : !showActivate ? (
+                    <Button
+                      variant="outline" size="sm"
+                      className="gap-1.5 border-amber-500/40 text-amber-700 hover:bg-amber-50"
+                      onClick={() => setShowActivate(true)}
+                    >
+                      <Key className="h-3 w-3" /> Enter Activation Passcode
+                    </Button>
+                  ) : (
+                    <div className="space-y-3">
+                      <div>
+                        <Label className="text-xs">Your Name <span className="text-muted-foreground">(recorded in log)</span></Label>
+                        <Input className="mt-1 text-sm" value={activateName} onChange={e => setActivateName(e.target.value)} placeholder="Your full name" />
+                      </div>
+                      <div>
+                        <Label className="text-xs">Vault Passcode</Label>
+                        <Input type="password" className="mt-1 text-sm" value={activateCode} onChange={e => setActivateCode(e.target.value)} placeholder="Enter the private passcode" />
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
+                          disabled={activateVault.isPending || !activateCode.trim() || !activateName.trim()}
+                          onClick={() => activateVault.mutate({ passcode: activateCode, activatedByEntry: activateName })}
+                        >
+                          <ShieldAlert className="h-4 w-4" />
+                          {activateVault.isPending ? "Activating…" : "Activate Succession"}
+                        </Button>
+                        <Button variant="ghost" size="sm" onClick={() => { setShowActivate(false); setActivateCode(""); setActivateName(""); }}>
+                          Cancel
+                        </Button>
                       </div>
                     </div>
-                    <div>
-                      <Label className="text-xs">Confirm Passcode</Label>
-                      <Input
-                        type="password"
-                        className="mt-1 text-sm"
-                        value={vaultPasscode2}
-                        onChange={e => setVaultPasscode2(e.target.value)}
-                        placeholder="Re-enter passcode to confirm"
-                      />
-                    </div>
-                    {vaultPasscode && vaultPasscode2 && vaultPasscode !== vaultPasscode2 && (
-                      <p className="text-xs text-destructive">Passcodes do not match.</p>
-                    )}
-                    <Button
-                      className="w-full gap-2 bg-[#1C2B4B] hover:bg-[#0f1b30] text-white"
-                      disabled={
-                        createVault.isPending ||
-                        !vaultName.trim() ||
-                        !vaultPasscode.trim() ||
-                        vaultPasscode !== vaultPasscode2 ||
-                        vaultPasscode.length < 8
-                      }
-                      onClick={() => createVault.mutate({
-                        delegateName: vaultName,
-                        delegateNotes: vaultNotes || undefined,
-                        passcode: vaultPasscode,
-                        instructions: vaultInstructions || undefined,
-                      })}
-                    >
-                      <Key className="h-4 w-4" />
-                      {createVault.isPending ? "Securing…" : "Secure the Vault"}
-                    </Button>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* ── Emergency Activation (any officer with the passcode) ── */}
-          <Card className="border-amber-500/30">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
-                <ShieldAlert className="h-4 w-4 text-amber-600" /> Emergency Succession Activation
-              </CardTitle>
-              <p className="text-xs text-muted-foreground">
-                For use only when the Chief Justice cannot function in their role.
-                Enter the private passcode to activate the pre-designated succession provision.
-              </p>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {vaultStatus?.isActivated ? (
-                <div className="space-y-2">
-                  <div className="flex items-center gap-2 text-amber-700 font-medium text-sm">
-                    <ShieldCheck className="h-4 w-4 shrink-0" />
-                    Succession is active as of{" "}
-                    {vaultStatus.activatedAt ? new Date(vaultStatus.activatedAt).toLocaleString() : "recently"}.
-                  </div>
-                  {vaultStatus.instructions && (
-                    <p className="text-xs text-muted-foreground border-l-2 border-amber-300 pl-2">
-                      {vaultStatus.instructions}
-                    </p>
                   )}
-                </div>
-              ) : !showActivate ? (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="gap-2 border-amber-500/40 text-amber-700 hover:bg-amber-50"
-                  onClick={() => setShowActivate(true)}
-                >
-                  <Key className="h-3 w-3" /> Enter Activation Passcode
-                </Button>
-              ) : (
-                <div className="space-y-3">
-                  <div>
-                    <Label className="text-xs">Your Name <span className="text-muted-foreground">(recorded in log)</span></Label>
-                    <Input className="mt-1 text-sm" value={activateName} onChange={e => setActivateName(e.target.value)} placeholder="Your full name" />
-                  </div>
-                  <div>
-                    <Label className="text-xs">Vault Passcode</Label>
-                    <Input type="password" className="mt-1 text-sm" value={activateCode} onChange={e => setActivateCode(e.target.value)} placeholder="Enter the private passcode" />
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <Button
-                      className="gap-2 bg-amber-600 hover:bg-amber-700 text-white"
-                      disabled={activateVault.isPending || !activateCode.trim() || !activateName.trim()}
-                      onClick={() => activateVault.mutate({ passcode: activateCode, activatedByEntry: activateName })}
-                    >
-                      <ShieldAlert className="h-4 w-4" />
-                      {activateVault.isPending ? "Activating…" : "Activate Succession"}
-                    </Button>
-                    <Button variant="ghost" size="sm" onClick={() => { setShowActivate(false); setActivateCode(""); setActivateName(""); }}>
-                      Cancel
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
-        </div>
+                </CardContent>
+              </Card>
+            </div>
+          </div>
         )}
       </div>
-
     </div>
   );
 }
