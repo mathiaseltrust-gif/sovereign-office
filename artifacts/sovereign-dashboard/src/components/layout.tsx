@@ -15,7 +15,7 @@ import { useState } from "react";
 
 const POSITION_TITLES: Partial<Record<Role, string>> = {
   trustee:          "Chief Justice & Trustee",
-  sovereign_admin:  "Sovereign Administrator",
+  sovereign_admin:  "Tribal Administrator",
   officer:          "Duty Officer",
   elder:            "Tribal Elder",
   medical_provider: "Medical Provider",
@@ -46,7 +46,7 @@ function getTrusteeNav(): NavSectionDef[] {
       defaultOpen: true,
       items: [
         { href: "/my-office",           label: "My Office",           highlight: true, icon: Archive },
-        { href: "/sovereign-pipeline",  label: "Sovereign Pipeline",  highlight: true, icon: Zap },
+        { href: "/sovereign-pipeline",  label: "Intake Pipeline",  highlight: true, icon: Zap },
         { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
         { href: "/documents",           label: "Court Documents",     icon: Gavel },
       ],

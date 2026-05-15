@@ -217,11 +217,11 @@ export default function TribalIdPage() {
           className="relative flex items-center justify-between px-4 py-3"
           style={{ background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
-          {/* Left seal — Office of the Chief Justice & Trustee */}
+          {/* Left seal — Office of the Chief Justice & Trustee (slightly smaller than tribal seal) */}
           <img
             src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
             alt="Office of the Chief Justice & Trustee"
-            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
+            style={{ width: 48, height: 48, objectFit: "contain", flexShrink: 0 }}
           />
 
           {/* Center title */}
@@ -344,7 +344,7 @@ export default function TribalIdPage() {
               style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
             >
               <p className="text-[7.5px] text-white/35 leading-snug max-w-[55%]">
-                Issued under inherent sovereign authority · Worcester v. Georgia (1832)
+                By inherent right · Descendants of the Treaty of Dancing Rabbit Creek (1830)
               </p>
               <div className="flex gap-4 flex-shrink-0">
                 {data.issueDate && (

@@ -443,9 +443,9 @@ export default function SovereignPipelinePage() {
     return (
       <div className="flex flex-col items-center justify-center py-24 gap-4 text-center">
         <Shield className="h-12 w-12 text-muted-foreground" />
-        <h2 className="text-xl font-semibold">Sovereign Pipeline — Chief Office Only</h2>
+        <h2 className="text-xl font-semibold">Intake Pipeline — Chief Office Only</h2>
         <p className="text-muted-foreground max-w-sm text-sm">
-          Access to the Sovereign Document Pipeline is restricted to the Chief Justice office and authorized officers.
+          Access to the Intake Pipeline is restricted to the Chief Justice office and authorized officers.
         </p>
       </div>
     );
@@ -461,7 +461,7 @@ export default function SovereignPipelinePage() {
         <div>
           <h1 className="text-2xl font-serif font-bold flex items-center gap-2">
             <Shield className="h-6 w-6 text-primary" />
-            Sovereign Document Pipeline
+            Intake Pipeline
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
             6-engine pipeline: Intake → Doctrine → Analyst → Template → Record → Seal &amp; Print
@@ -552,7 +552,7 @@ export default function SovereignPipelinePage() {
                   className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white"
                 >
                   <Shield className="h-4 w-4" />
-                  {isRunning ? "Running Pipeline…" : "Run Sovereign Pipeline"}
+                  {isRunning ? "Running Pipeline…" : "Run Intake Pipeline"}
                 </Button>
               </CardContent>
             </Card>

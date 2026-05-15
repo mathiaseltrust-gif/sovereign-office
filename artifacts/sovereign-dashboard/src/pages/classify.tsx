@@ -29,7 +29,7 @@ export default function ClassifyPage() {
     <div data-testid="page-classify">
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Text Classification</h1>
-        <p className="text-muted-foreground mt-1">Classify through the sovereign doctrine pipeline — generates NFR, task, and calendar event automatically</p>
+        <p className="text-muted-foreground mt-1">Classify through the doctrine intake pipeline — generates NFR, task, and calendar event automatically</p>
       </div>
 
       <Card className="mb-6">
