@@ -1,13 +1,13 @@
 import { useState } from "react";
 import { useListAdminUsers, useAdminAction, useAdminSetPassword, getListAdminUsersQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   Dialog,
   DialogContent,
@@ -153,6 +153,101 @@ function SetPasswordDialog({ open, onOpenChange, userName, userId }: SetPassword
   );
 }
 
+interface EditEmailDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  userName: string;
+  userId: number;
+  currentEmail: string;
+  onSuccess: () => void;
+}
+
+function EditEmailDialog({ open, onOpenChange, userName, userId, currentEmail, onSuccess }: EditEmailDialogProps) {
+  const [email, setEmail] = useState(currentEmail);
+  const { toast } = useToast();
+
+  const mutation = useMutation({
+    mutationFn: async (newEmail: string) => {
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+      const apiBase = base.replace(/\/sovereign-dashboard$/, "");
+      const res = await fetch(`${apiBase}/api/admin/users/${userId}/email`, {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+        },
+        body: JSON.stringify({ email: newEmail }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Failed to update email.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Email updated", description: `Login email for ${userName} has been updated.` });
+      onOpenChange(false);
+      onSuccess();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Failed to update email.";
+      toast({ title: "Error", description: message, variant: "destructive" });
+    },
+  });
+
+  const isValid = email.trim().length > 0 && email.includes("@") && email !== currentEmail;
+
+  const handleOpenChange = (v: boolean) => {
+    if (!v) setEmail(currentEmail);
+    onOpenChange(v);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Edit Login Email</DialogTitle>
+          <DialogDescription>
+            Update the login email for <strong>{userName}</strong>. This is the address they use to sign in.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="member-email">Email address</Label>
+            <Input
+              id="member-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="member@example.com"
+              data-testid="input-member-email"
+              autoComplete="email"
+              onKeyDown={(e) => { if (e.key === "Enter" && isValid) mutation.mutate(email.trim()); }}
+            />
+            {email.length > 0 && !email.includes("@") && (
+              <p className="text-xs text-destructive">Enter a valid email address.</p>
+            )}
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => mutation.mutate(email.trim())}
+            disabled={!isValid || mutation.isPending}
+            data-testid="button-confirm-edit-email"
+          >
+            {mutation.isPending ? "Saving…" : "Save Email"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminPage() {
   const { activeRole } = useAuth();
   const { data: users, isLoading } = useListAdminUsers();
@@ -161,6 +256,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const [roleOverrides, setRoleOverrides] = useState<Record<number, string>>({});
   const [passwordDialogUser, setPasswordDialogUser] = useState<{ id: number; name: string } | null>(null);
+  const [emailDialogUser, setEmailDialogUser] = useState<{ id: number; name: string; email: string } | null>(null);
 
   if (activeRole !== "sovereign_admin") {
     return (
@@ -207,7 +303,13 @@ export default function AdminPage() {
                 <div className="flex items-center justify-between flex-wrap gap-4">
                   <div>
                     <p className="font-semibold text-sm">{u.name}</p>
-                    <p className="text-xs text-muted-foreground">{u.email}</p>
+                    <button
+                      className="text-xs text-muted-foreground hover:text-foreground hover:underline transition-colors text-left"
+                      onClick={() => setEmailDialogUser({ id: u.id, name: u.name, email: u.email })}
+                      title="Click to edit email"
+                    >
+                      {u.email}
+                    </button>
                     <div className="flex items-center gap-2 mt-1">
                       <Badge variant="outline">{u.role}</Badge>
                       {u.entraRequired && <Badge variant="secondary">Entra Required</Badge>}
@@ -258,6 +360,14 @@ export default function AdminPage() {
                     <Button
                       size="sm"
                       variant="outline"
+                      data-testid={`button-edit-email-${u.id}`}
+                      onClick={() => setEmailDialogUser({ id: u.id, name: u.name, email: u.email })}
+                    >
+                      Edit Email
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
                       data-testid={`button-set-password-${u.id}`}
                       onClick={() => setPasswordDialogUser({ id: u.id, name: u.name })}
                     >
@@ -277,6 +387,20 @@ export default function AdminPage() {
           onOpenChange={(open) => { if (!open) setPasswordDialogUser(null); }}
           userId={passwordDialogUser.id}
           userName={passwordDialogUser.name}
+        />
+      )}
+
+      {emailDialogUser && (
+        <EditEmailDialog
+          open={!!emailDialogUser}
+          onOpenChange={(open) => { if (!open) setEmailDialogUser(null); }}
+          userId={emailDialogUser.id}
+          userName={emailDialogUser.name}
+          currentEmail={emailDialogUser.email}
+          onSuccess={() => {
+            setEmailDialogUser(null);
+            queryClient.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+          }}
         />
       )}
     </div>

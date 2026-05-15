@@ -263,6 +263,29 @@ router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, a
   }
 });
 
+router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+  try {
+    const userId = parseInt(req.params.userId);
+    const { email } = req.body as { email?: string };
+    if (!email || !email.includes("@")) {
+      res.status(400).json({ error: "A valid email address is required." });
+      return;
+    }
+    const updated = await db
+      .update(usersTable)
+      .set({ email: email.trim().toLowerCase(), updatedAt: new Date() })
+      .where(eq(usersTable.id, userId))
+      .returning();
+    if (!updated[0]) {
+      res.status(404).json({ error: "User not found." });
+      return;
+    }
+    res.json({ success: true, user: updated[0] });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/create-user", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
   try {
     const { email, name, role, entraId } = req.body as {
