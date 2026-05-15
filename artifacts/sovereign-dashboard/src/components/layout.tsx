@@ -4,7 +4,7 @@ import { canManageGovernors } from "@/lib/governor-access";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
 import {
-  Archive, Zap, ScrollText, Gavel, FolderOpen, FileText, Scale,
+  Archive, Zap, ScrollText, Gavel, FolderOpen, FileText, Scale, Wand2,
   Building2, AlertTriangle, Users, Heart, Mail, Star, TreePine,
   MessageSquare, Briefcase, BookOpen, Brain, Bot, Tag, CheckSquare,
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
@@ -59,6 +59,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/files",        label: "Files",                    icon: FolderOpen },
         { href: "/filings",      label: "Filings",                  icon: FileText },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
+        { href: "/instrument-wizard", label: "Template Wizard",      icon: Wand2 },
         { href: "/org",          label: "Organizations",            icon: Building2 },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
         { href: "/templates",    label: "Templates",                icon: FilePen },

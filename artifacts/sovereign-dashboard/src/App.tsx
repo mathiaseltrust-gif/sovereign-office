@@ -65,6 +65,7 @@ const OrgOverviewPage = lazy(() => import("@/pages/org"));
 const DraftsPage = lazy(() => import("@/pages/drafts"));
 const FilesPage = lazy(() => import("@/pages/documents"));
 const RoleGovernorsPage = lazy(() => import("@/pages/role-governors"));
+const InstrumentWizardPage = lazy(() => import("@/pages/instrument-wizard"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -169,6 +170,9 @@ function AppRouter() {
         {() => <ProtectedRoute component={DashboardRedirect} />}
       </Route>
 
+      <Route path="/instrument-wizard">
+        {() => <ProtectedRoute component={InstrumentWizardPage} />}
+      </Route>
       <Route path="/instruments">
         {() => <ProtectedRoute component={InstrumentsPage} />}
       </Route>
