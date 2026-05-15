@@ -16,6 +16,7 @@ import {
   CalendarDays, FileText, Shield, Archive, Bell, Scale,
   ClipboardList, Search, Users, Building2, Gavel, Layers,
   Printer, Workflow, ChevronRight, AlertTriangle, Wifi,
+  User, Upload, Camera,
 } from "lucide-react";
 
 /* ── types ── */
@@ -296,6 +297,11 @@ export default function ProfilePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
 
+  /* photo state */
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
+  const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
+  const photoInputRef = useRef<HTMLInputElement>(null);
+
   /* field state */
   const [fields, setFields] = useState({
     legalName: "",
@@ -347,6 +353,9 @@ export default function ProfilePage() {
             preferredJurisdiction: p.preferredJurisdiction ?? "",
           });
           setNotifPrefs((p.notificationPreferences as Record<string, boolean>) ?? {});
+          if ((d.identity as any)?.profilePhoto) {
+            setPhotoUrl((d.identity as any).profilePhoto);
+          }
         }
       } catch {
         toast({ title: "Error", description: "Could not load profile.", variant: "destructive" });
@@ -358,6 +367,39 @@ export default function ProfilePage() {
 
   const setField = (key: keyof typeof fields) => (val: string) =>
     setFields((prev) => ({ ...prev, [key]: val }));
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 8 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please choose a photo under 8 MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingPhoto(true);
+    try {
+      const formData = new FormData();
+      formData.append("photo", file);
+      const r = await fetch("/api/identity/photo", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: formData,
+      });
+      if (r.ok) {
+        const reader = new FileReader();
+        reader.onload = (ev) => setPhotoUrl(ev.target?.result as string);
+        reader.readAsDataURL(file);
+        toast({ title: "Photo saved", description: "Your profile photo has been updated in the database." });
+      } else {
+        const err = await r.json().catch(() => ({}));
+        toast({ title: "Upload failed", description: err.error ?? "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error uploading photo.", variant: "destructive" });
+    } finally {
+      setIsUploadingPhoto(false);
+      if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
 
   const handleSave = async () => {
     setIsSaving(true);
@@ -495,6 +537,78 @@ export default function ProfilePage() {
 
       {/* ── Chief quick links ── */}
       {isChief && <ChiefQuickLinks />}
+
+      {/* ── Profile Photo ── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
+            <Camera className="h-4 w-4 text-primary" />
+            Profile Photo
+          </CardTitle>
+          <p className="text-xs text-muted-foreground">
+            Stored in the database alongside your identity record. Used on your Tribal ID card and official documents.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-6">
+            {/* Photo preview */}
+            <div
+              className="relative w-24 h-24 rounded-full border-2 border-border overflow-hidden bg-muted flex items-center justify-center cursor-pointer group shrink-0"
+              onClick={() => photoInputRef.current?.click()}
+              title="Click to change photo"
+            >
+              {photoUrl ? (
+                <img
+                  src={photoUrl}
+                  alt="Profile"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <User className="h-10 w-10 text-muted-foreground" />
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center rounded-full">
+                {isUploadingPhoto
+                  ? <Loader2 className="h-5 w-5 text-white animate-spin" />
+                  : <Upload className="h-5 w-5 text-white" />
+                }
+              </div>
+            </div>
+
+            {/* Instructions + button */}
+            <div className="space-y-2">
+              <p className="text-sm text-foreground font-medium">
+                {photoUrl ? "Photo on file" : "No photo uploaded yet"}
+              </p>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Click the photo or the button below to upload. Accepted formats: JPG, PNG, WebP. Max 8 MB.
+              </p>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                disabled={isUploadingPhoto}
+                onClick={() => photoInputRef.current?.click()}
+                className="h-8 text-xs"
+              >
+                {isUploadingPhoto ? (
+                  <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                ) : (
+                  <><Upload className="h-3.5 w-3.5 mr-1.5" /> {photoUrl ? "Change Photo" : "Upload Photo"}</>
+                )}
+              </Button>
+            </div>
+          </div>
+
+          {/* Hidden file input */}
+          <input
+            ref={photoInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            className="hidden"
+            onChange={handlePhotoChange}
+          />
+        </CardContent>
+      </Card>
 
       {/* ── AI-guided intake form ── */}
       <Card>
