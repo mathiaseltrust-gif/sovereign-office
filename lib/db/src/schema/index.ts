@@ -29,3 +29,4 @@ export * from "./profile-vault";
 export * from "./ki-conversations";
 export * from "./ancestral-memories";
 export * from "./important-dates";
+export * from "./journal-entries";

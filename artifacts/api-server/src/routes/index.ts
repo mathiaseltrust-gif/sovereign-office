@@ -57,6 +57,7 @@ import sovereignPipelineRouter from "./intake/pipeline";
 import sovereignSuccessionRouter from "./sovereign/succession";
 import memoryRouter from "./memory/index";
 import ancestralMemoriesRouter from "./ancestral-memories/index";
+import journalRouter from "./journal/index";
 import agentRouter from "./agent/index";
 import kiRouter from "./ki/index";
 
@@ -121,6 +122,7 @@ router.use("/sovereign/pipeline", sovereignPipelineRouter);
 router.use("/sovereign/succession", sovereignSuccessionRouter);
 router.use("/memory", memoryRouter);
 router.use("/ancestral-memories", ancestralMemoriesRouter);
+router.use("/journal", journalRouter);
 router.use("/agent", agentRouter);
 router.use("/kaya", kiRouter);
 

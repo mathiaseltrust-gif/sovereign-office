@@ -67,6 +67,7 @@ const FilesPage = lazy(() => import("@/pages/documents"));
 const RoleGovernorsPage = lazy(() => import("@/pages/role-governors"));
 const InstrumentWizardPage = lazy(() => import("@/pages/instrument-wizard"));
 const AncestralMemoriesPage = lazy(() => import("@/pages/ancestral-memories"));
+const JournalPage = lazy(() => import("@/pages/journal"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -260,6 +261,9 @@ function AppRouter() {
       </Route>
       <Route path="/ancestral-memories">
         {() => <ProtectedRoute component={AncestralMemoriesPage} />}
+      </Route>
+      <Route path="/journal">
+        {() => <ProtectedRoute component={JournalPage} />}
       </Route>
       <Route path="/medical-notes">
         {() => <ProtectedRoute component={MedicalNotesPage} />}

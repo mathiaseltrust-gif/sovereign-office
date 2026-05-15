@@ -9,7 +9,7 @@ import {
   MessageSquare, Briefcase, BookOpen, Brain, Bot, Tag, CheckSquare,
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
-  Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked,
+  Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -77,6 +77,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/family-governance",  label: "Family Governance",     icon: Users },
         { href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
+        { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
         { href: "/complaints",           label: "Complaints",             icon: MessageSquare },
         { href: "/medical-notes",        label: "Medical Notes",          icon: Stethoscope },
         { href: "/business-canvas",      label: "Business Canvas",        icon: Briefcase },
@@ -117,6 +118,7 @@ function getOfficerNav(): NavSectionDef[] {
         { href: "/nfr",                label: "Notice of Federal Review", icon: AlertTriangle },
         { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank", icon: BookMarked },
+        { href: "/journal",              label: "Sovereign Journal",     icon: PenLine },
         { href: "/medical-notes",        label: "Medical Notes",         icon: Stethoscope },
         { href: "/business-canvas",      label: "Business Canvas",       icon: Briefcase },
       ],
@@ -150,6 +152,7 @@ function getMemberNav(): NavSectionDef[] {
         { href: "/family-governance", label: "Family Governance",    icon: Users },
         { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank", icon: BookMarked },
+        { href: "/journal",              label: "Sovereign Journal",     icon: PenLine },
         { href: "/complaints",           label: "Complaints",            icon: MessageSquare },
         { href: "/medical-notes",        label: "Medical Notes",         icon: Stethoscope },
         { href: "/business-canvas",      label: "Business Canvas",       icon: Briefcase },
@@ -170,6 +173,7 @@ function getElderNav(): NavSectionDef[] {
         { href: "/family-governance",  label: "Family Governance",    icon: Users },
         { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank", icon: BookMarked },
+        { href: "/journal",              label: "Sovereign Journal",     icon: PenLine },
         { href: "/membership",           label: "Membership Status",     icon: BadgeCheck },
         { href: "/welfare",              label: "Welfare Instruments",   icon: Heart },
         { href: "/medical-notes",        label: "Medical Notes",         icon: Stethoscope },
