@@ -265,7 +265,7 @@ router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, a
 
 router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
   try {
-    const userId = parseInt(req.params.userId);
+    const userId = parseInt(Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId);
     const { email } = req.body as { email?: string };
     if (!email || !email.includes("@")) {
       res.status(400).json({ error: "A valid email address is required." });
