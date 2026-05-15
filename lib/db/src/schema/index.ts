@@ -25,3 +25,4 @@ export * from "./gwe-letters";
 export * from "./role-governors";
 export * from "./sovereign-pipeline";
 export * from "./sovereign-succession";
+export * from "./profile-vault";

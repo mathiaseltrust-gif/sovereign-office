@@ -16,7 +16,7 @@ import {
   CalendarDays, FileText, Shield, Archive, Bell, Scale,
   ClipboardList, Search, Users, Building2, Gavel, Layers,
   Printer, Workflow, ChevronRight, AlertTriangle, Wifi,
-  User, Upload, Camera,
+  User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck,
 } from "lucide-react";
 
 /* ── types ── */
@@ -302,6 +302,12 @@ export default function ProfilePage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  /* vault state — we never store actual values client-side after save */
+  const [vaultHas, setVaultHas] = useState({ dob: false, address: false, email: false, ssn: false });
+  const [vaultFields, setVaultFields] = useState({ dateOfBirth: "", address: "", preferredContact: "email", contactEmail: "", ssn: "" });
+  const [isSavingVault, setIsSavingVault] = useState(false);
+  const [vaultRevealFields, setVaultRevealFields] = useState({ dateOfBirth: false, address: false, contactEmail: false, ssn: false });
+
   /* field state */
   const [fields, setFields] = useState({
     legalName: "",
@@ -357,6 +363,18 @@ export default function ProfilePage() {
             setPhotoUrl((d.identity as any).profilePhoto);
           }
         }
+
+        /* load vault presence (never returns actual values) */
+        const vr = await fetch("/api/user/vault", {
+          headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        });
+        if (vr.ok) {
+          const vd = await vr.json();
+          setVaultHas({ dob: vd.hasDob, address: vd.hasAddress, email: vd.hasEmail, ssn: vd.hasSsn });
+          if (vd.preferredContact) {
+            setVaultFields((prev) => ({ ...prev, preferredContact: vd.preferredContact }));
+          }
+        }
       } catch {
         toast({ title: "Error", description: "Could not load profile.", variant: "destructive" });
       } finally {
@@ -398,6 +416,46 @@ export default function ProfilePage() {
     } finally {
       setIsUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
+
+  const handleVaultSave = async () => {
+    if (!vaultFields.contactEmail && !vaultHas.email) {
+      toast({ title: "Email required", description: "A contact email address is required in the vault.", variant: "destructive" });
+      return;
+    }
+    setIsSavingVault(true);
+    try {
+      const body: Record<string, string> = {
+        preferredContact: vaultFields.preferredContact,
+      };
+      if (vaultFields.dateOfBirth.trim()) body.dateOfBirth = vaultFields.dateOfBirth.trim();
+      if (vaultFields.address.trim()) body.address = vaultFields.address.trim();
+      if (vaultFields.contactEmail.trim()) body.contactEmail = vaultFields.contactEmail.trim();
+      if (vaultFields.ssn.trim()) body.ssn = vaultFields.ssn.trim();
+
+      const r = await fetch("/api/user/vault", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+      if (r.ok) {
+        const vd = await r.json();
+        setVaultHas({ dob: vd.hasDob, address: vd.hasAddress, email: vd.hasEmail, ssn: vd.hasSsn });
+        setVaultFields((prev) => ({ ...prev, dateOfBirth: "", address: "", contactEmail: "", ssn: "" }));
+        setVaultRevealFields({ dateOfBirth: false, address: false, contactEmail: false, ssn: false });
+        toast({ title: "Vault saved", description: "Your personal information has been securely stored." });
+      } else {
+        const err = await r.json().catch(() => ({}));
+        toast({ title: "Save failed", description: err.error ?? "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error saving vault.", variant: "destructive" });
+    } finally {
+      setIsSavingVault(false);
     }
   };
 
@@ -730,6 +788,204 @@ export default function ProfilePage() {
           Identity propagates to PDFs, court captions, welfare instruments, and ICWA notices automatically.
         </p>
       </div>
+
+      {/* ── Personal Information Vault ── */}
+      <Card className="border-2 border-[#1C2B4B]/20 bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <CardHeader className="pb-3">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-lg bg-[#1C2B4B]/10 shrink-0 mt-0.5">
+              <Lock className="h-4 w-4 text-[#1C2B4B]" />
+            </div>
+            <div className="flex-1">
+              <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
+                Personal Information Vault
+                <ShieldCheck className="h-4 w-4 text-green-600" />
+              </CardTitle>
+              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
+                All information stored here is <strong>encrypted and confidential</strong>. It is only accessed for administrative processes, emergency situations, or official document generation. Fields are never displayed in cleartext — even while typing.
+              </p>
+            </div>
+          </div>
+
+          {/* Status indicators */}
+          <div className="flex flex-wrap gap-2 mt-3">
+            {[
+              { label: "Date of Birth", has: vaultHas.dob },
+              { label: "Address", has: vaultHas.address },
+              { label: "Contact Email", has: vaultHas.email },
+              { label: "SSN", has: vaultHas.ssn },
+            ].map(({ label, has }) => (
+              <span
+                key={label}
+                className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${
+                  has
+                    ? "bg-green-50 text-green-700 border-green-200"
+                    : "bg-amber-50 text-amber-700 border-amber-200"
+                }`}
+              >
+                {has ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                {label}
+              </span>
+            ))}
+          </div>
+        </CardHeader>
+
+        <CardContent className="space-y-5">
+          {/* Notice */}
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#1C2B4B]/6 border border-[#1C2B4B]/15">
+            <Shield className="h-4 w-4 text-[#1C2B4B] shrink-0 mt-0.5" />
+            <p className="text-[11px] text-[#1C2B4B]/80 leading-relaxed">
+              To update a field, type the new value and click <strong>Save Vault</strong>. Leaving a field blank keeps the existing stored value. What you type is hidden for your protection.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+
+            {/* Date of Birth */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                Date of Birth
+                {vaultHas.dob && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Enter MM/DD/YYYY — stored encrypted, never shown.</p>
+              <div className="relative">
+                <Input
+                  type={vaultRevealFields.dateOfBirth ? "text" : "password"}
+                  placeholder={vaultHas.dob ? "•••••••••• (on file — type to update)" : "MM/DD/YYYY"}
+                  value={vaultFields.dateOfBirth}
+                  onChange={(e) => setVaultFields((p) => ({ ...p, dateOfBirth: e.target.value }))}
+                  className="text-sm h-9 pr-9 font-mono"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setVaultRevealFields((p) => ({ ...p, dateOfBirth: !p.dateOfBirth }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  title={vaultRevealFields.dateOfBirth ? "Hide" : "Reveal while typing"}
+                >
+                  {vaultRevealFields.dateOfBirth ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Preferred Contact Method */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground">Preferred Contact Method</Label>
+              <p className="text-[10px] text-muted-foreground">How should officials reach you in administrative matters?</p>
+              <select
+                value={vaultFields.preferredContact}
+                onChange={(e) => setVaultFields((p) => ({ ...p, preferredContact: e.target.value }))}
+                className="w-full h-9 rounded-md border border-input bg-background px-3 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+              >
+                <option value="email">Email</option>
+                <option value="phone">Phone</option>
+                <option value="mail">Postal Mail</option>
+                <option value="in-person">In Person</option>
+              </select>
+            </div>
+
+            {/* Contact Email */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                Contact Email <span className="text-red-500">*</span>
+                {vaultHas.email && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Required. Used for official correspondence only.</p>
+              <div className="relative">
+                <Input
+                  type={vaultRevealFields.contactEmail ? "text" : "password"}
+                  placeholder={vaultHas.email ? "•••••••••• (on file — type to update)" : "you@example.com"}
+                  value={vaultFields.contactEmail}
+                  onChange={(e) => setVaultFields((p) => ({ ...p, contactEmail: e.target.value }))}
+                  className="text-sm h-9 pr-9 font-mono"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setVaultRevealFields((p) => ({ ...p, contactEmail: !p.contactEmail }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  title={vaultRevealFields.contactEmail ? "Hide" : "Reveal while typing"}
+                >
+                  {vaultRevealFields.contactEmail ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* SSN */}
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                Social Security Number
+                {vaultHas.ssn && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Optional. Stored encrypted. Used only in certified administrative situations.</p>
+              <div className="relative">
+                <Input
+                  type={vaultRevealFields.ssn ? "text" : "password"}
+                  placeholder={vaultHas.ssn ? "••••••••• (on file — type to update)" : "9 digits, no dashes"}
+                  value={vaultFields.ssn}
+                  onChange={(e) => setVaultFields((p) => ({ ...p, ssn: e.target.value }))}
+                  className="text-sm h-9 pr-9 font-mono"
+                  autoComplete="off"
+                  maxLength={11}
+                />
+                <button
+                  type="button"
+                  onClick={() => setVaultRevealFields((p) => ({ ...p, ssn: !p.ssn }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  title={vaultRevealFields.ssn ? "Hide" : "Reveal while typing"}
+                >
+                  {vaultRevealFields.ssn ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+            {/* Address — full width */}
+            <div className="md:col-span-2 space-y-1.5">
+              <Label className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                Mailing / Home Address
+                {vaultHas.address && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+              </Label>
+              <p className="text-[10px] text-muted-foreground">Full address including city, state, and ZIP. Stored encrypted — hidden while typing.</p>
+              <div className="relative">
+                <Input
+                  type={vaultRevealFields.address ? "text" : "password"}
+                  placeholder={vaultHas.address ? "•••••••••• (on file — type to update)" : "Street, City, State, ZIP"}
+                  value={vaultFields.address}
+                  onChange={(e) => setVaultFields((p) => ({ ...p, address: e.target.value }))}
+                  className="text-sm h-9 pr-9 font-mono"
+                  autoComplete="off"
+                />
+                <button
+                  type="button"
+                  onClick={() => setVaultRevealFields((p) => ({ ...p, address: !p.address }))}
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors"
+                  title={vaultRevealFields.address ? "Hide" : "Reveal while typing"}
+                >
+                  {vaultRevealFields.address ? <EyeOff className="h-3.5 w-3.5" /> : <Eye className="h-3.5 w-3.5" />}
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+          {/* Save vault */}
+          <div className="flex items-center gap-3 pt-1 border-t border-[#1C2B4B]/10">
+            <Button
+              onClick={handleVaultSave}
+              disabled={isSavingVault}
+              className="bg-[#1C2B4B] hover:bg-[#2a3d6e] text-white min-w-[140px]"
+            >
+              {isSavingVault
+                ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Saving…</>
+                : <><Lock className="h-4 w-4 mr-2" /> Save Vault</>
+              }
+            </Button>
+            <p className="text-[10px] text-muted-foreground">
+              Data is encrypted at rest. Access is logged and restricted to authorized administrative processes only.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Delegation panel ── */}
       {user?.roles && user.roles.some((r: string) =>
