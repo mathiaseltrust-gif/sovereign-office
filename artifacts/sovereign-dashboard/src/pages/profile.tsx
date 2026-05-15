@@ -24,6 +24,18 @@ import {
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
+const SIG_FONTS: { key: string; label: string }[] = [
+  { key: "Dancing Script", label: "Dancing Script" },
+  { key: "Great Vibes", label: "Great Vibes" },
+  { key: "Pinyon Script", label: "Pinyon Script" },
+  { key: "Alex Brush", label: "Alex Brush" },
+];
+
+const SIG_PRESETS = [
+  "/s/ Chief Mathias El",
+  "/s/ Mathew-Allen: McCaster",
+];
+
 /* ── Land Record Panel ── */
 interface LandRecord {
   apn?: string | null;
@@ -1007,6 +1019,11 @@ export default function ProfilePage() {
   const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
   const [isUploadingSig, setIsUploadingSig] = useState(false);
   const sigInputRef = useRef<HTMLInputElement>(null);
+  const [sigTab, setSigTab] = useState<"generate" | "upload">("generate");
+  const [sigName, setSigName] = useState(SIG_PRESETS[0]);
+  const [sigFont, setSigFont] = useState("Dancing Script");
+  const [sigGenerating, setSigGenerating] = useState(false);
+  const sigCanvasRef = useRef<HTMLCanvasElement>(null);
 
   /* vault state — we never store actual values client-side after save */
   const [vaultHas, setVaultHas] = useState({ dob: false, address: false, email: false, ssn: false });
@@ -1177,6 +1194,76 @@ export default function ProfilePage() {
       if (sigInputRef.current) sigInputRef.current.value = "";
     }
   };
+
+  /* ── Signature generator ── */
+  useEffect(() => {
+    if (document.getElementById("sig-gfonts")) return;
+    const link = document.createElement("link");
+    link.id = "sig-gfonts";
+    link.rel = "stylesheet";
+    link.href = "https://fonts.googleapis.com/css2?family=Dancing+Script:wght@700&family=Great+Vibes&family=Pinyon+Script&family=Alex+Brush&display=swap";
+    document.head.appendChild(link);
+  }, []);
+
+  const generateSig = useCallback(async (name: string, font: string) => {
+    if (!name.trim()) return;
+    setSigGenerating(true);
+    try {
+      await document.fonts.load(`bold 56px "${font}"`).catch(() => {});
+      const canvas = sigCanvasRef.current;
+      if (!canvas) return;
+      const CANVAS_W = 540; const CANVAS_H = 120;
+      canvas.width = CANVAS_W; canvas.height = CANVAS_H;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return;
+      ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+      ctx.font = `bold 54px "${font}", serif`;
+      ctx.fillStyle = "#1C2B4B";
+      ctx.textBaseline = "middle";
+      ctx.fillText(name, 14, 52);
+      const tw = Math.min(ctx.measureText(name).width, CANVAS_W - 14);
+      ctx.beginPath();
+      ctx.moveTo(14, 94);
+      ctx.lineTo(14 + tw, 94);
+      ctx.strokeStyle = "#1C2B4B";
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
+    } finally {
+      setSigGenerating(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => generateSig(sigName, sigFont), 800);
+    return () => clearTimeout(timer);
+  }, []);
+
+  const saveGeneratedSig = useCallback(async () => {
+    const canvas = sigCanvasRef.current;
+    if (!canvas) return;
+    setIsUploadingSig(true);
+    try {
+      const blob = await new Promise<Blob | null>(res => canvas.toBlob(res, "image/png"));
+      if (!blob) throw new Error("Canvas empty");
+      const formData = new FormData();
+      formData.append("signature", blob, "signature.png");
+      const r = await fetch(`${API}/api/identity/signature`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: formData,
+      });
+      if (r.ok) {
+        setSignatureUrl(canvas.toDataURL("image/png"));
+        toast({ title: "Signature saved", description: "Your digital signature is on file and will appear on printed sovereign documents." });
+      } else {
+        toast({ title: "Save failed", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error saving signature", variant: "destructive" });
+    } finally {
+      setIsUploadingSig(false);
+    }
+  }, [toast]);
 
   const handleVaultSave = async () => {
     if (!vaultFields.contactEmail && !vaultHas.email) {
@@ -1706,55 +1793,120 @@ export default function ProfilePage() {
 
           {/* ── Digital Signature ── */}
           <div className="mt-5 pt-5 border-t border-border">
-            <p className="text-xs font-semibold text-foreground mb-1">Digital Signature</p>
-            <p className="text-xs text-muted-foreground mb-3">
-              Upload a PNG of your handwritten signature (transparent background recommended). Applied to printed sovereign documents.
-            </p>
-            <div className="flex items-center gap-5">
-              <div
-                className="relative w-40 h-16 rounded border border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer group overflow-hidden shrink-0"
-                onClick={() => sigInputRef.current?.click()}
-                title="Click to upload signature"
-              >
-                {signatureUrl ? (
-                  <img src={signatureUrl} alt="Signature" className="max-w-full max-h-full object-contain p-1" />
-                ) : (
-                  <span className="text-[10px] text-muted-foreground italic">No signature on file</span>
-                )}
-                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  {isUploadingSig
-                    ? <Loader2 className="h-4 w-4 text-white animate-spin" />
-                    : <Upload className="h-4 w-4 text-white" />
-                  }
+            <p className="text-xs font-semibold text-foreground mb-0.5">Digital Signature</p>
+            <p className="text-[10px] text-muted-foreground mb-3">Generate a court-style signature from your name, or upload a handwritten one.</p>
+
+            {/* Tab toggle */}
+            <div className="flex gap-1 mb-4">
+              {(["generate", "upload"] as const).map(t => (
+                <button key={t} onClick={() => setSigTab(t)}
+                  className={`text-[10px] px-3 py-1 rounded-md font-semibold transition-colors capitalize ${sigTab === t ? "bg-primary text-primary-foreground" : "bg-muted text-muted-foreground hover:text-foreground"}`}>
+                  {t === "generate" ? "Generate" : "Upload Handwritten"}
+                </button>
+              ))}
+            </div>
+
+            {sigTab === "generate" && (
+              <div className="space-y-3">
+                {/* Preset formats */}
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Signature Format</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SIG_PRESETS.map(p => (
+                      <button key={p} onClick={() => { setSigName(p); generateSig(p, sigFont); }}
+                        className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-colors ${sigName === p ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}>
+                        {p}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Custom name */}
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Or Custom</p>
+                  <div className="flex gap-2">
+                    <Input className="text-xs h-8 font-mono flex-1" value={sigName}
+                      placeholder="/s/ Your Name"
+                      onChange={e => setSigName(e.target.value)} />
+                    <Button variant="outline" size="sm" className="h-8 text-xs shrink-0"
+                      onClick={() => generateSig(sigName, sigFont)}>Preview</Button>
+                  </div>
+                </div>
+
+                {/* Font style picker */}
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Style</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SIG_FONTS.map(f => (
+                      <button key={f.key} onClick={() => { setSigFont(f.key); generateSig(sigName, f.key); }}
+                        className={`text-sm px-3 py-0.5 rounded border transition-colors ${sigFont === f.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}
+                        style={{ fontFamily: `"${f.key}", serif` }}>
+                        {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Canvas preview */}
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Preview</p>
+                  <div className="relative rounded-lg border border-dashed border-border bg-white overflow-hidden" style={{ height: 120 }}>
+                    {sigGenerating && (
+                      <div className="absolute inset-0 flex items-center justify-center bg-white/70 z-10">
+                        <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                      </div>
+                    )}
+                    <canvas ref={sigCanvasRef} style={{ display: "block", width: "100%", height: "100%", objectFit: "contain" }} />
+                  </div>
+                </div>
+
+                {/* Authorization notice */}
+                <div className="rounded-lg border border-amber-200/70 bg-amber-50/50 px-3 py-2 text-[10px] text-amber-800 leading-relaxed">
+                  <strong>Authorization:</strong> By saving, you authorize this signature for use on sovereign documents where appropriate. This signature does not constitute a waiver of any rights, immunities, protections, or sovereign standing of the Mathias El Tribe or its members.
+                </div>
+
+                <Button size="sm" className="h-8 text-xs" onClick={saveGeneratedSig} disabled={isUploadingSig}>
+                  {isUploadingSig ? <Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> : null}
+                  Save as My Signature
+                </Button>
+              </div>
+            )}
+
+            {sigTab === "upload" && (
+              <div>
+                <p className="text-xs text-muted-foreground mb-3">Upload a PNG of your handwritten signature (transparent background recommended).</p>
+                <div className="flex items-center gap-5">
+                  <div className="relative w-40 h-16 rounded border border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer group overflow-hidden shrink-0"
+                    onClick={() => sigInputRef.current?.click()}>
+                    {signatureUrl
+                      ? <img src={signatureUrl} alt="Signature" className="max-w-full max-h-full object-contain p-1" />
+                      : <span className="text-[10px] text-muted-foreground italic">No signature on file</span>}
+                    <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                      {isUploadingSig ? <Loader2 className="h-4 w-4 text-white animate-spin" /> : <Upload className="h-4 w-4 text-white" />}
+                    </div>
+                  </div>
+                  <Button type="button" variant="outline" size="sm" disabled={isUploadingSig}
+                    onClick={() => sigInputRef.current?.click()} className="h-8 text-xs">
+                    {isUploadingSig
+                      ? <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                      : <><Upload className="h-3.5 w-3.5 mr-1.5" /> {signatureUrl ? "Replace" : "Upload Signature"}</>}
+                  </Button>
                 </div>
               </div>
-              <div className="space-y-2">
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  disabled={isUploadingSig}
-                  onClick={() => sigInputRef.current?.click()}
-                  className="h-8 text-xs"
-                >
-                  {isUploadingSig ? (
-                    <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Uploading…</>
-                  ) : (
-                    <><Upload className="h-3.5 w-3.5 mr-1.5" /> {signatureUrl ? "Replace Signature" : "Upload Signature"}</>
-                  )}
-                </Button>
-                {signatureUrl && (
-                  <p className="text-[10px] text-green-700">Signature on file — will appear on printed documents.</p>
-                )}
+            )}
+
+            {/* Current on file */}
+            {signatureUrl && (
+              <div className="mt-3 pt-3 border-t border-border">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">On File</p>
+                <div className="rounded border border-border bg-white p-2 w-fit">
+                  <img src={signatureUrl} alt="Current signature" className="max-h-12 max-w-[220px] object-contain" />
+                </div>
+                <p className="text-[10px] text-green-700 mt-1">Appears on printed sovereign documents.</p>
               </div>
-            </div>
-            <input
-              ref={sigInputRef}
-              type="file"
-              accept="image/png,image/jpeg,image/webp"
-              className="hidden"
-              onChange={handleSignatureChange}
-            />
+            )}
+
+            <input ref={sigInputRef} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={handleSignatureChange} />
           </div>
         </CardContent>
       </Card>

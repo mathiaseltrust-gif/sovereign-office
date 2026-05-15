@@ -33,6 +33,7 @@ export const profilesTable = pgTable("profiles", {
   landRestrictionBasis: jsonb("land_restriction_basis").default([]).$type<string[]>(),
   landClassification: text("land_classification"),
   selfExecuting: boolean("self_executing").notNull().default(false),
+  signatureConsent: boolean("signature_consent").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
