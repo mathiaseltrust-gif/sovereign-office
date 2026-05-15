@@ -106,6 +106,8 @@ export default function DraftsPage() {
 
   const sessionGovernor = sessionGovData?.governor ?? null;
 
+  const [draftPipelineRec, setDraftPipelineRec] = useState<{ fileNumber: string; riskLevel: string } | null>(null);
+
   const draftMutation = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/drafts/create", {
@@ -121,7 +123,22 @@ export default function DraftsPage() {
     },
     onSuccess: (data) => {
       setResult(data);
+      setDraftPipelineRec(null);
       toast({ title: "Draft generated", description: `${DOC_KINDS.find(d => d.value === docType)?.label} ready for review.` });
+      const pipelineText = [
+        `SOVEREIGN DRAFT LOGGED — ${DOC_KINDS.find(d => d.value === docType)?.label ?? docType}`,
+        `Jurisdiction: ${jurisdiction}`,
+        notes ? `\nContext:\n${notes}` : "",
+        `\nDraft content:\n${data.content?.substring(0, 1200) ?? ""}`,
+      ].join("\n").trim();
+      fetch("/api/sovereign/pipeline", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken()}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: pipelineText }),
+      })
+        .then(r => r.ok ? r.json() : null)
+        .then(rec => { if (rec?.fileNumber) setDraftPipelineRec({ fileNumber: rec.fileNumber, riskLevel: rec.riskLevel }); })
+        .catch(() => {});
     },
     onError: (err: Error) => toast({ title: "Draft failed", description: err.message, variant: "destructive" }),
   });
@@ -260,6 +277,15 @@ export default function DraftsPage() {
                     {result.governorDisplayName && (
                       <Badge className="text-xs bg-amber-700 text-white hover:bg-amber-700">
                         ⚖ {result.governorDisplayName}
+                      </Badge>
+                    )}
+                    {draftPipelineRec ? (
+                      <Badge className="text-xs bg-green-700 text-white hover:bg-green-700 gap-1">
+                        ⬡ Pipeline {draftPipelineRec.fileNumber}
+                      </Badge>
+                    ) : (
+                      <Badge variant="outline" className="text-xs text-muted-foreground gap-1 animate-pulse">
+                        ⬡ Logging to pipeline…
                       </Badge>
                     )}
                   </div>

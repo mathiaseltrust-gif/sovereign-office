@@ -447,6 +447,20 @@ export default function IntakeAiPage() {
     },
   });
 
+  const [pipelineRec, setPipelineRec] = useState<{ fileNumber: string; riskLevel: string } | null>(null);
+
+  function autoSubmitToPipeline(inputText: string) {
+    const token = getCurrentBearerToken() ?? "";
+    fetch("/api/sovereign/pipeline", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ text: inputText }),
+    })
+      .then(r => r.ok ? r.json() : null)
+      .then(rec => { if (rec?.fileNumber) setPipelineRec({ fileNumber: rec.fileNumber, riskLevel: rec.riskLevel }); })
+      .catch(() => {});
+  }
+
   const analyze = useMutation({
     mutationFn: async () => {
       const token = getCurrentBearerToken() ?? "";
@@ -468,7 +482,14 @@ export default function IntakeAiPage() {
       if (!r.ok) throw new Error("AI intake analysis failed");
       return r.json() as Promise<IntakeAgentReport>;
     },
-    onSuccess: (data) => { setReport(data); setUploadStatus(null); },
+    onSuccess: (data) => {
+      setReport(data);
+      setUploadStatus(null);
+      setPipelineRec(null);
+      if (["trustee", "officer", "sovereign_admin"].includes(activeRole) && text.trim()) {
+        autoSubmitToPipeline(text);
+      }
+    },
   });
 
   const isFullAccess = activeRole === "trustee" || activeRole === "sovereign_admin";
@@ -627,6 +648,19 @@ export default function IntakeAiPage() {
 
       {report && (
         <IntakeActionBar report={report} inputText={text} />
+      )}
+
+      {report && ["trustee", "officer", "sovereign_admin"].includes(activeRole) && (
+        <div className={`flex items-center gap-2.5 rounded-md border px-3 py-2 text-xs transition-all ${
+          pipelineRec
+            ? "border-green-300 bg-green-50 text-green-800"
+            : "border-muted bg-muted/30 text-muted-foreground animate-pulse"
+        }`}>
+          <Shield className={`h-3.5 w-3.5 shrink-0 ${pipelineRec ? "text-green-600" : "text-muted-foreground"}`} />
+          {pipelineRec
+            ? <>Pipeline record logged — <span className="font-mono font-bold">{pipelineRec.fileNumber}</span> · Risk: <span className="capitalize">{pipelineRec.riskLevel}</span></>
+            : "Submitting to Sovereign Pipeline…"}
+        </div>
       )}
 
       {report && (report.intakeFlags.redFlag || report.riskLevel === "elevated" || report.riskLevel === "critical" || report.riskLevel === "emergency") && (
