@@ -703,22 +703,10 @@ const INTAKE_QUESTIONS = [
     placeholder: "Full legal name",
   },
   {
-    key: "preferredName",
-    label: "Preferred Name",
-    question: "How would you like to be addressed within the dashboard — your preferred or display name?",
-    placeholder: "Preferred or display name",
-  },
-  {
     key: "tribalName",
     label: "Tribal / Ceremonial Name",
     question: "Do you have a tribal or ceremonial name you'd like on file with the court?",
     placeholder: "Tribal or ceremonial name",
-  },
-  {
-    key: "nickname",
-    label: "Nickname",
-    question: "Do you go by any informal name or nickname within the community?",
-    placeholder: "Informal name",
   },
   {
     key: "title",
@@ -733,16 +721,10 @@ const INTAKE_QUESTIONS = [
     placeholder: "Family or clan group",
   },
   {
-    key: "mailingAddress",
-    label: "Mailing Address",
-    question: "What is your mailing address? This will appear on official documents, trust instruments, and filings.",
-    placeholder: "Street, City, State, ZIP",
-  },
-  {
-    key: "apn",
-    label: "APN (Assessor's Parcel Number)",
-    question: "What is the Assessor's Parcel Number for your primary land? This is used in trust instruments, LEN confirmations, and land status filings.",
-    placeholder: "e.g. 123-456-789-000",
+    key: "preferredJurisdiction",
+    label: "Preferred Jurisdiction",
+    question: "Which tribal court district or jurisdiction do you primarily operate within?",
+    placeholder: "e.g. Tribal Court, District 1",
   },
   {
     key: "bio",
@@ -750,12 +732,6 @@ const INTAKE_QUESTIONS = [
     question: "Can you briefly describe your role and connection to the tribe? This personalizes your court documents and welfare filings.",
     placeholder: "Brief role or background",
     multiline: true,
-  },
-  {
-    key: "preferredJurisdiction",
-    label: "Preferred Jurisdiction",
-    question: "Which tribal court district or jurisdiction do you primarily operate within?",
-    placeholder: "e.g. Tribal Court, District 1",
   },
 ];
 
@@ -810,6 +786,7 @@ export default function ProfilePage() {
     familyGroup: "",
     mailingAddress: "",
     apn: "",
+    legalDescription: "",
     bio: "",
     preferredJurisdiction: "",
   });
@@ -853,6 +830,7 @@ export default function ProfilePage() {
             familyGroup: p.familyGroup ?? "",
             mailingAddress: p.mailingAddress ?? "",
             apn: p.apn ?? "",
+            legalDescription: p.legalDescription ?? "",
             bio: p.bio ?? "",
             preferredJurisdiction: p.preferredJurisdiction ?? "",
           });
@@ -1497,13 +1475,22 @@ export default function ProfilePage() {
         </CardContent>
       </Card>
 
-      {/* ── Auto-detected tags + resolved identity ── */}
-      {(autoTags.length > 0 || data?.identity) && (
+      {/* ── Resolved identity markers ── */}
+      {(autoTags.length > 0 || (data?.identity && (data.identity as any).courtCaption)) && (
         <Card>
-          <CardContent className="pt-4 space-y-3">
+          <CardContent className="pt-4 pb-3 space-y-2.5">
+            {(data?.identity as any)?.courtCaption && (
+              <div className="flex items-start gap-2 rounded-md border border-border bg-muted/30 px-3 py-2">
+                <Gavel className="h-3.5 w-3.5 text-primary shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Court Caption</p>
+                  <p className="text-xs font-mono text-foreground leading-snug">{(data?.identity as any)?.courtCaption}</p>
+                </div>
+              </div>
+            )}
             {autoTags.length > 0 && (
               <div>
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Detected from activity</p>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-1.5">Detected Affiliations</p>
                 <div className="flex flex-wrap gap-1.5">
                   {autoTags.map((tag, i) => (
                     <Badge
@@ -1521,22 +1508,6 @@ export default function ProfilePage() {
                 </div>
               </div>
             )}
-            {data?.identity && (
-              <div className="flex flex-wrap gap-3">
-                {(data.identity as any).displayName && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">Display</span>
-                    <Badge variant="secondary" className="text-xs">{(data.identity as any).displayName}</Badge>
-                  </div>
-                )}
-                {(data.identity as any).courtCaption && (
-                  <div className="flex items-center gap-1.5">
-                    <span className="text-xs text-muted-foreground">Caption</span>
-                    <Badge variant="outline" className="text-xs">{(data.identity as any).courtCaption}</Badge>
-                  </div>
-                )}
-              </div>
-            )}
           </CardContent>
         </Card>
       )}
@@ -1549,10 +1520,22 @@ export default function ProfilePage() {
             Land &amp; Property Status
           </CardTitle>
           <p className="text-xs text-muted-foreground mt-0.5">
-            Used in trust instruments, LEN confirmations, BIA land status filings, and recorded documents.
+            Used in trust instruments, LEN confirmations, BIA land status filings, document drafting, and discrepancy detection during document intake.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+
+          {/* ── Federal Trust Responsibility affirmation ── */}
+          <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
+            <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+            <div>
+              <p className="text-xs font-semibold text-foreground">Federal Indian Trust Responsibility</p>
+              <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+                All members are covered as American Indians under the Federal Indian Trust Responsibility (25 U.S.C. § 162a; Seminole Nation v. United States, 1942). SDU and other federal resources also affirm this protection. This status is inherent — it does not require land ownership.
+              </p>
+            </div>
+          </div>
+
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
               <Label className="text-xs font-semibold uppercase tracking-wider">Land Status</Label>
@@ -1583,17 +1566,22 @@ export default function ProfilePage() {
               <p className="text-[10px] text-muted-foreground">Auto-fills trust deeds, recorder filings, and property instruments.</p>
             </div>
           </div>
+
           <div className="space-y-1.5">
-            <Label htmlFor="mailing-address-field" className="text-xs font-semibold uppercase tracking-wider">Mailing Address</Label>
-            <Input
-              id="mailing-address-field"
-              value={fields.mailingAddress}
-              onChange={e => setFields(f => ({ ...f, mailingAddress: e.target.value }))}
-              placeholder="Street, City, State, ZIP"
-              className="text-sm"
+            <Label htmlFor="legal-description-field" className="text-xs font-semibold uppercase tracking-wider">Legal Description of Land</Label>
+            <Textarea
+              id="legal-description-field"
+              value={fields.legalDescription}
+              onChange={e => setFields(f => ({ ...f, legalDescription: e.target.value }))}
+              placeholder="e.g. Lot 7, Block 3, Townsite of Durant, as per plat recorded in Book 12, Page 48 of the County Clerk records…"
+              className="text-sm font-mono leading-relaxed"
+              rows={3}
             />
-            <p className="text-[10px] text-muted-foreground">Appears on court filings, trust instruments, and official correspondence.</p>
+            <p className="text-[10px] text-muted-foreground">
+              Exact legal description as it appears on the deed, allotment record, or BIA instrument. Auto-populates drafted documents and is used to detect discrepancies during document intake.
+            </p>
           </div>
+
           <label className="flex items-center gap-2.5 cursor-pointer">
             <input
               type="checkbox"
@@ -1603,7 +1591,7 @@ export default function ProfilePage() {
             />
             <div>
               <span className="text-sm font-medium">Recorded instrument on file</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Check if a deed, allotment, or trust document has been recorded with the county recorder or BIA.</p>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Check if a deed, allotment, or trust document has been recorded with the county recorder or BIA LTRO.</p>
             </div>
           </label>
         </CardContent>

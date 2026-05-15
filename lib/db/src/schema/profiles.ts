@@ -25,6 +25,7 @@ export const profilesTable = pgTable("profiles", {
   apn: text("apn"),
   mailingAddress: text("mailing_address"),
   landStatus: varchar("land_status", { length: 50 }),
+  legalDescription: text("legal_description"),
   hasRecordedInstrument: boolean("has_recorded_instrument").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

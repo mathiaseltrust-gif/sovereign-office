@@ -119,6 +119,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       apn,
       mailingAddress,
       landStatus,
+      legalDescription,
       hasRecordedInstrument,
     } = req.body as {
       bio?: string;
@@ -136,6 +137,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       apn?: string;
       mailingAddress?: string;
       landStatus?: string;
+      legalDescription?: string;
       hasRecordedInstrument?: boolean;
     };
 
@@ -157,6 +159,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       apn: apn ?? existing[0]?.apn,
       mailingAddress: mailingAddress ?? existing[0]?.mailingAddress,
       landStatus: landStatus ?? existing[0]?.landStatus,
+      legalDescription: legalDescription ?? existing[0]?.legalDescription,
       hasRecordedInstrument: hasRecordedInstrument ?? existing[0]?.hasRecordedInstrument ?? false,
       updatedAt: new Date(),
     };
