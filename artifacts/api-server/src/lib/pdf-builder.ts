@@ -1225,12 +1225,117 @@ export async function buildInstrumentRecorderPdf(
   });
 }
 
+// -- Member context — stamped onto every generated document ------------------
+
+export interface MemberContext {
+  userId: number;
+  legalName: string;
+  title?: string;
+  address?: string;
+  protectionLevel?: string;
+  trustLandProtected?: boolean;
+  docRef?: string;
+}
+
+/**
+ * Appends a "MEMBER ASSOCIATION" block to the first page of an existing PDF
+ * buffer. If the member has elevated/critical protection, a notice is added.
+ * This is called server-side after the main PDF is built so that every
+ * downloaded document is stamped with the associated member reference.
+ */
+async function stampMemberAssociation(buffer: Buffer, ctx: MemberContext): Promise<Buffer> {
+  try {
+    const pdfDoc = await PDFDocument.load(buffer);
+    const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
+    const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+
+    const pages = pdfDoc.getPages();
+    const lastPage = pages[pages.length - 1];
+    const { width } = lastPage.getSize();
+
+    const GRAY = rgb(0.45, 0.45, 0.45);
+    const DARK = rgb(0.15, 0.15, 0.15);
+    const RED  = rgb(0.55, 0.0, 0.0);
+
+    let y = MARGIN_BOTTOM + 28;
+
+    // Thin rule above association block
+    lastPage.drawLine({
+      start: { x: MARGIN_LEFT, y: y + 12 },
+      end: { x: width - MARGIN_RIGHT, y: y + 12 },
+      thickness: 0.4,
+      color: GRAY,
+    });
+
+    // Document reference line
+    const refParts: string[] = [];
+    if (ctx.docRef) refParts.push(`Doc Ref: ${ctx.docRef}`);
+    refParts.push(`Member: ${ctx.legalName}${ctx.title ? ` · ${ctx.title}` : ""} (U${String(ctx.userId).padStart(3, "0")})`);
+    if (ctx.protectionLevel) refParts.push(`Protection: ${ctx.protectionLevel.toUpperCase()}`);
+
+    lastPage.drawText(refParts.join("   |   "), {
+      x: MARGIN_LEFT,
+      y,
+      size: 6.5,
+      font: helveticaBold,
+      color: DARK,
+    });
+    y -= 10;
+
+    // Address line (from vault)
+    if (ctx.address) {
+      lastPage.drawText(`Address on file: ${ctx.address}`, {
+        x: MARGIN_LEFT,
+        y,
+        size: 6,
+        font: helvetica,
+        color: GRAY,
+      });
+      y -= 10;
+    }
+
+    // Protected status notice
+    const isProtected = ctx.trustLandProtected ||
+      ctx.protectionLevel === "elevated" ||
+      ctx.protectionLevel === "critical";
+
+    if (isProtected) {
+      const notice =
+        "PROTECTED STATUS: This document is associated with a member under federal trust land or restricted-land protection " +
+        "(25 U.S.C. § 177; Worcester v. Georgia, 31 U.S. 515 (1832)). Unauthorized disclosure or use is prohibited.";
+      const noticeW = helveticaBold.widthOfTextAtSize("PROTECTED", 6);
+      void noticeW;
+      lastPage.drawText(notice, {
+        x: MARGIN_LEFT,
+        y,
+        size: 6,
+        font: helveticaBold,
+        color: RED,
+        maxWidth: width - MARGIN_LEFT - MARGIN_RIGHT,
+        lineHeight: 9,
+      });
+    }
+
+    const stamped = await pdfDoc.save();
+    return Buffer.from(stamped);
+  } catch {
+    // If stamping fails for any reason, return the original buffer unchanged
+    return buffer;
+  }
+}
+
 // -- Compatibility wrappers for /api/documents/* download endpoints -----------
 // These adapt HEAD's rich pdf-lib builders to the Buffer-returning API
-// expected by the documents router.
+// expected by the documents router. Pass an optional MemberContext to stamp
+// the document with member association info and protection notices.
 
-export async function buildNfrPdfBuffer(nfrId: number, content: string): Promise<Buffer> {
+export async function buildNfrPdfBuffer(
+  nfrId: number,
+  content: string,
+  memberContext?: MemberContext,
+): Promise<Buffer> {
   const result = await buildNfrRecorderPdf(nfrId, content);
+  if (memberContext) return stampMemberAssociation(result.buffer, memberContext);
   return result.buffer;
 }
 
@@ -1239,8 +1344,10 @@ export async function buildInstrumentPdfBuffer(
   content: string,
   jurisdiction: string,
   inputOverride?: Partial<PdfBuildInput>,
+  memberContext?: MemberContext,
 ): Promise<Buffer> {
   const result = await buildInstrumentRecorderPdf(instrumentId, content, jurisdiction, inputOverride);
+  if (memberContext) return stampMemberAssociation(result.buffer, memberContext);
   return result.buffer;
 }
 

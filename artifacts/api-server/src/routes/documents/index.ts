@@ -1,12 +1,70 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { nfrDocumentsTable, trustInstrumentsTable } from "@workspace/db";
+import {
+  nfrDocumentsTable,
+  trustInstrumentsTable,
+  profilesTable,
+  profileVaultTable,
+  familyLineageTable,
+} from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { buildNfrPdfBuffer, buildInstrumentPdfBuffer, type PdfBuildInput } from "../../lib/pdf-builder";
+import {
+  buildNfrPdfBuffer,
+  buildInstrumentPdfBuffer,
+  type PdfBuildInput,
+  type MemberContext,
+} from "../../lib/pdf-builder";
+import { buildDocRef } from "../../lib/doc-ref";
 import { logger } from "../../lib/logger";
 
 const router = Router();
+
+/** Resolve member context for stamping: profile name/title + vault address + protection level. */
+async function resolveMemberContext(
+  userId: number,
+  docType: string,
+  docId: number,
+): Promise<MemberContext> {
+  const [profile] = await db
+    .select()
+    .from(profilesTable)
+    .where(eq(profilesTable.userId, userId))
+    .limit(1);
+
+  const [vault] = await db
+    .select()
+    .from(profileVaultTable)
+    .where(eq(profileVaultTable.userId, userId))
+    .limit(1);
+
+  const [lineage] = await db
+    .select()
+    .from(familyLineageTable)
+    .where(eq(familyLineageTable.linkedProfileUserId, userId))
+    .limit(1);
+
+  const protectionLevel = (lineage as any)?.protectionLevel ?? "standard";
+  const trustLandProtected =
+    protectionLevel === "elevated" || protectionLevel === "critical";
+
+  const legalName =
+    profile?.legalName ??
+    profile?.tribalName ??
+    `Member #${userId}`;
+
+  const docRef = buildDocRef(docType, userId, docId);
+
+  return {
+    userId,
+    legalName,
+    title: profile?.title ?? undefined,
+    address: vault?.address ?? undefined,
+    protectionLevel,
+    trustLandProtected,
+    docRef,
+  };
+}
 
 router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
   try {
@@ -28,12 +86,27 @@ router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
     }
 
     const doc = results[0];
-    logger.info({ nfrId: id }, "Generating NFR PDF");
-    const pdfBuffer = await buildNfrPdfBuffer(id, doc.content);
+    const memberId = req.user!.dbId ?? 0;
+
+    logger.info({ nfrId: id, memberId }, "Generating NFR PDF");
+
+    const memberCtx = memberId
+      ? await resolveMemberContext(memberId, "NFR", id).catch(() => undefined)
+      : undefined;
+
+    const pdfBuffer = await buildNfrPdfBuffer(id, doc.content, memberCtx);
+
+    const filename = memberCtx?.docRef
+      ? `${memberCtx.docRef}.pdf`
+      : `nfr-document-${id}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="nfr-document-${id}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", pdfBuffer.length);
+    if (memberCtx?.docRef) {
+      res.setHeader("X-Document-Ref", memberCtx.docRef);
+      res.setHeader("X-Member-Id", String(memberId));
+    }
     res.send(pdfBuffer);
   } catch (err) {
     next(err);
@@ -59,6 +132,7 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
         provisionsJson: trustInstrumentsTable.provisionsJson,
         recorderMetadata: trustInstrumentsTable.recorderMetadata,
         trusteeNotes: trustInstrumentsTable.trusteeNotes,
+        userId: trustInstrumentsTable.userId,
       })
       .from(trustInstrumentsTable)
       .where(eq(trustInstrumentsTable.id, id))
@@ -70,7 +144,14 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
     }
 
     const inst = results[0];
-    logger.info({ instrumentId: id }, "Generating instrument PDF");
+    /* Use the instrument's owner if set; otherwise fall back to requesting user */
+    const memberId = inst.userId ?? req.user!.dbId ?? 0;
+
+    logger.info({ instrumentId: id, memberId }, "Generating instrument PDF");
+
+    const memberCtx = memberId
+      ? await resolveMemberContext(memberId, "INST", id).catch(() => undefined)
+      : undefined;
 
     const inputOverride: Partial<PdfBuildInput> = {
       title: inst.title,
@@ -81,11 +162,33 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
       recorderMetadata: (inst.recorderMetadata ?? {}) as PdfBuildInput["recorderMetadata"],
     };
 
-    const pdfBuffer = await buildInstrumentPdfBuffer(id, inst.content, inst.jurisdiction ?? "", inputOverride);
+    /* If member has an address on file, add it as the instrument's return address */
+    if (memberCtx?.address) {
+      inputOverride.recorderMetadata = {
+        ...((inst.recorderMetadata ?? {}) as PdfBuildInput["recorderMetadata"]),
+        returnAddress: `${memberCtx.legalName}\n${memberCtx.address}`,
+      };
+    }
+
+    const pdfBuffer = await buildInstrumentPdfBuffer(
+      id,
+      inst.content,
+      inst.jurisdiction ?? "",
+      inputOverride,
+      memberCtx,
+    );
+
+    const filename = memberCtx?.docRef
+      ? `${memberCtx.docRef}.pdf`
+      : `trust-instrument-${id}.pdf`;
 
     res.setHeader("Content-Type", "application/pdf");
-    res.setHeader("Content-Disposition", `attachment; filename="trust-instrument-${id}.pdf"`);
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", pdfBuffer.length);
+    if (memberCtx?.docRef) {
+      res.setHeader("X-Document-Ref", memberCtx.docRef);
+      res.setHeader("X-Member-Id", String(memberId));
+    }
     res.send(pdfBuffer);
   } catch (err) {
     next(err);
