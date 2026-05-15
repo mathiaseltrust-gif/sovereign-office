@@ -24,17 +24,26 @@ import {
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
-const SIG_FONTS: { key: string; label: string }[] = [
+const SIG_FONTS: { key: string; label: string; isSerifFormal?: boolean }[] = [
   { key: "Dancing Script", label: "Dancing Script" },
   { key: "Great Vibes", label: "Great Vibes" },
   { key: "Pinyon Script", label: "Pinyon Script" },
   { key: "Alex Brush", label: "Alex Brush" },
+  { key: "Times New Roman", label: "Times New Roman", isSerifFormal: true },
+];
+
+const SIG_COLORS: { key: string; label: string; hex: string }[] = [
+  { key: "black", label: "Black", hex: "#111111" },
+  { key: "blue",  label: "Blue",  hex: "#1a3a6e" },
+  { key: "grey",  label: "Grey",  hex: "#888888" },
 ];
 
 const SIG_PRESETS = [
-  "/s/ Chief Mathias El",
-  "/s/ Mathew-Allen: McCaster",
+  "Chief Mathias El",
+  "Mathew-Allen: McCaster",
 ];
+
+const stripSlashS = (name: string) => name.replace(/^\/s\/\s*/i, "").trim();
 
 /* ── Land Record Panel ── */
 interface LandRecord {
@@ -1024,6 +1033,7 @@ export default function ProfilePage() {
   const [sigTab, setSigTab] = useState<"generate" | "upload">("generate");
   const [sigName, setSigName] = useState(SIG_PRESETS[0]);
   const [sigFont, setSigFont] = useState("Dancing Script");
+  const [sigColor, setSigColor] = useState("black");
   const [sigGenerating, setSigGenerating] = useState(false);
   const sigCanvasRef = useRef<HTMLCanvasElement>(null);
 
@@ -1211,11 +1221,19 @@ export default function ProfilePage() {
     document.head.appendChild(link);
   }, []);
 
-  const generateSig = useCallback(async (name: string, font: string) => {
+  const generateSig = useCallback(async (name: string, font: string, color: string = "black") => {
     if (!name.trim()) return;
     setSigGenerating(true);
     try {
-      await document.fonts.load(`bold 56px "${font}"`).catch(() => {});
+      const isTNR = font === "Times New Roman";
+      const hex = SIG_COLORS.find(c => c.key === color)?.hex ?? "#111111";
+      const baseName = stripSlashS(name);
+      const displayName = isTNR ? `/s/  ${baseName}` : baseName;
+
+      if (!isTNR) {
+        await document.fonts.load(`bold 56px "${font}"`).catch(() => {});
+      }
+
       const canvas = sigCanvasRef.current;
       if (!canvas) return;
       const CANVAS_W = 540; const CANVAS_H = 120;
@@ -1223,25 +1241,39 @@ export default function ProfilePage() {
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
       ctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
-      ctx.font = `bold 54px "${font}", serif`;
-      ctx.fillStyle = "#1C2B4B";
-      ctx.textBaseline = "middle";
-      ctx.fillText(name, 14, 52);
-      const tw = Math.min(ctx.measureText(name).width, CANVAS_W - 14);
-      ctx.beginPath();
-      ctx.moveTo(14, 94);
-      ctx.lineTo(14 + tw, 94);
-      ctx.strokeStyle = "#1C2B4B";
-      ctx.lineWidth = 1.5;
-      ctx.stroke();
+
+      if (isTNR) {
+        // Formal printed style — render "/s/" in regular weight, name in bold italic
+        const slashPart = "/s/  ";
+        ctx.font = `400 28px "Times New Roman", serif`;
+        ctx.fillStyle = hex;
+        ctx.textBaseline = "middle";
+        const slashW = ctx.measureText(slashPart).width;
+        ctx.fillText(slashPart, 14, 52);
+        ctx.font = `bold italic 30px "Times New Roman", serif`;
+        ctx.fillStyle = hex;
+        ctx.fillText(baseName, 14 + slashW, 52);
+        const totalW = Math.min(slashW + ctx.measureText(baseName).width, CANVAS_W - 14);
+        ctx.beginPath(); ctx.moveTo(14, 82); ctx.lineTo(14 + totalW, 82);
+        ctx.strokeStyle = hex; ctx.lineWidth = 1; ctx.stroke();
+      } else {
+        ctx.font = `bold 54px "${font}", serif`;
+        ctx.fillStyle = hex;
+        ctx.textBaseline = "middle";
+        ctx.fillText(displayName, 14, 52);
+        const tw = Math.min(ctx.measureText(displayName).width, CANVAS_W - 14);
+        ctx.beginPath(); ctx.moveTo(14, 94); ctx.lineTo(14 + tw, 94);
+        ctx.strokeStyle = hex; ctx.lineWidth = 1.5; ctx.stroke();
+      }
     } finally {
       setSigGenerating(false);
     }
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => generateSig(sigName, sigFont), 800);
+    const timer = setTimeout(() => generateSig(sigName, sigFont, sigColor), 800);
     return () => clearTimeout(timer);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const saveGeneratedSig = useCallback(async () => {
@@ -1944,12 +1976,12 @@ export default function ProfilePage() {
               <div className="space-y-3">
                 {/* Preset formats */}
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Signature Format</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Signature Name</p>
                   <div className="flex flex-wrap gap-1.5">
                     {SIG_PRESETS.map(p => (
-                      <button key={p} onClick={() => { setSigName(p); generateSig(p, sigFont); }}
+                      <button key={p} onClick={() => { setSigName(p); generateSig(p, sigFont, sigColor); }}
                         className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-colors ${sigName === p ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}>
-                        {p}
+                        {sigFont === "Times New Roman" ? `/s/  ${p}` : p}
                       </button>
                     ))}
                   </div>
@@ -1957,14 +1989,19 @@ export default function ProfilePage() {
 
                 {/* Custom name */}
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Or Custom</p>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Or Custom Name</p>
                   <div className="flex gap-2">
                     <Input className="text-xs h-8 font-mono flex-1" value={sigName}
-                      placeholder="/s/ Your Name"
+                      placeholder="Your Name"
                       onChange={e => setSigName(e.target.value)} />
                     <Button variant="outline" size="sm" className="h-8 text-xs shrink-0"
-                      onClick={() => generateSig(sigName, sigFont)}>Preview</Button>
+                      onClick={() => generateSig(sigName, sigFont, sigColor)}>Preview</Button>
                   </div>
+                  {sigFont === "Times New Roman" && (
+                    <p className="text-[10px] text-muted-foreground mt-1 italic">
+                      /s/ prefix added automatically for Times New Roman
+                    </p>
+                  )}
                 </div>
 
                 {/* Font style picker */}
@@ -1972,10 +2009,35 @@ export default function ProfilePage() {
                   <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Style</p>
                   <div className="flex flex-wrap gap-1.5">
                     {SIG_FONTS.map(f => (
-                      <button key={f.key} onClick={() => { setSigFont(f.key); generateSig(sigName, f.key); }}
-                        className={`text-sm px-3 py-0.5 rounded border transition-colors ${sigFont === f.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}
-                        style={{ fontFamily: `"${f.key}", serif` }}>
+                      <button key={f.key} onClick={() => { setSigFont(f.key); generateSig(sigName, f.key, sigColor); }}
+                        className={`px-3 py-0.5 rounded border transition-colors ${sigFont === f.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}
+                        style={{
+                          fontFamily: f.isSerifFormal ? `"Times New Roman", serif` : `"${f.key}", serif`,
+                          fontSize: f.isSerifFormal ? "13px" : "15px",
+                          fontStyle: f.isSerifFormal ? "italic" : "normal",
+                        }}>
                         {f.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Color picker */}
+                <div>
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Color</p>
+                  <div className="flex gap-2">
+                    {SIG_COLORS.map(c => (
+                      <button
+                        key={c.key}
+                        onClick={() => { setSigColor(c.key); generateSig(sigName, sigFont, c.key); }}
+                        className="flex items-center gap-1.5 text-[10px] px-2.5 py-1 rounded border transition-colors"
+                        style={sigColor === c.key
+                          ? { borderColor: c.hex, background: `${c.hex}12`, color: c.hex, fontWeight: 700 }
+                          : { borderColor: "#e2e8f0", color: "#888" }}
+                        title={c.label}
+                      >
+                        <span className="w-3 h-3 rounded-full inline-block shrink-0" style={{ background: c.hex }} />
+                        {c.label}
                       </button>
                     ))}
                   </div>
