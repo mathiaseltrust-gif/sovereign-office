@@ -230,12 +230,17 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         </div>
       </div>
 
-      {/* ── CENTERED COURT SEAL — B&W stencil seal (82972cb3 provided image) ── */}
-      <div style={{ textAlign: "center", margin: "20px 0 16px" }}>
+      {/* ── CENTERED SEALS — color for Print & Sign; CSS grayscale applied for ePrint/eSign ── */}
+      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: "32px", margin: "20px 0 16px" }}>
         <img
-          src={`${BASE}court-seal-bw.png`}
-          alt="Mathias El Tribe Supreme Court Seal"
-          style={{ width: "130px", height: "130px", objectFit: "contain" }}
+          src={`${BASE}supreme-court-seal-color.png`}
+          alt="The Mathias El Tribe Supreme Court"
+          style={{ width: "120px", height: "120px", objectFit: "contain" }}
+        />
+        <img
+          src={`${BASE}chief-justice-seal.png`}
+          alt="Office of the Chief Justice and Trustee — Chief Mathias El"
+          style={{ width: "120px", height: "120px", objectFit: "contain" }}
         />
       </div>
 
@@ -671,6 +676,26 @@ export default function MyOfficePage() {
 
   return (
     <div className="flex flex-col h-full" data-testid="page-my-office">
+
+      {/* ── Tribal Court Seals — top of office ── */}
+      <div className="flex items-center justify-center gap-8 pb-5 mb-5 border-b border-border">
+        <img
+          src={`${BASE}supreme-court-seal-color.png`}
+          alt="The Mathias El Tribe Supreme Court"
+          className="w-28 h-28 object-contain drop-shadow-md"
+        />
+        <div className="text-center">
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-0.5">Mathias El Tribe</p>
+          <h2 className="font-serif text-lg font-bold text-primary leading-tight">Supreme Court</h2>
+          <p className="text-[10px] text-muted-foreground mt-0.5">Office of the Chief Justice &amp; Trustee</p>
+        </div>
+        <img
+          src={`${BASE}chief-justice-seal.png`}
+          alt="Chief Mathias El — Office of the Chief Justice and Trustee"
+          className="w-28 h-28 object-contain drop-shadow-md"
+        />
+      </div>
+
       {/* ── Header bar ── */}
       <div className="flex items-center justify-between gap-4 mb-5 flex-wrap">
         <div>
