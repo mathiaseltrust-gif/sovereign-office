@@ -67,6 +67,8 @@ function ProtectionsPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
   const [showInherited, setShowInherited] = useState(false);
+  const [showIdentityMarkers, setShowIdentityMarkers] = useState(false);
+  const [showLandMarkers, setShowLandMarkers] = useState(false);
 
   const { data, isLoading } = useQuery<RightsProfile>({
     queryKey: ["identity-rights"],
@@ -118,44 +120,76 @@ function ProtectionsPanel() {
       <CardContent className="px-4 pb-4 space-y-4">
 
         {/* ── Identity markers ── */}
-        {data.identityMarkers.length > 0 && (
-          <div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <UserCheck className="h-3 w-3" /> Identity Standing
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              {data.identityMarkers.map((m, i) => (
-                <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                  <div className="flex items-center justify-between gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
-                    <Badge variant="outline" className={`text-[9px] py-0 ${m.value === "Verified" || m.value === "CRITICAL" ? "border-green-300 text-green-700" : ""}`}>{m.value}</Badge>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-snug">{m.legalSignificance}</p>
+        {data.identityMarkers.length > 0 && (() => {
+          const allVerified = data.identityMarkers.every(m => m.value === "Verified" || m.value === "CRITICAL");
+          return (
+            <div>
+              <button
+                onClick={() => setShowIdentityMarkers(v => !v)}
+                className="w-full flex items-center justify-between hover:bg-muted/40 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+              >
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <UserCheck className="h-3 w-3" /> Identity Standing
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${allVerified ? "border-green-300 text-green-700 bg-green-50" : "border-amber-300 text-amber-700 bg-amber-50"}`}>
+                    {allVerified ? "Yes" : "No"} · {data.identityMarkers.length}
+                  </span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showIdentityMarkers ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+              {showIdentityMarkers && (
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 mt-2">
+                  {data.identityMarkers.map((m, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <div className="flex items-center justify-between gap-2 mb-0.5">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
+                        <Badge variant="outline" className={`text-[9px] py-0 ${m.value === "Verified" || m.value === "CRITICAL" ? "border-green-300 text-green-700" : ""}`}>{m.value}</Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-snug">{m.legalSignificance}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Land status markers ── */}
-        {data.landStatusMarkers.length > 0 && (
-          <div>
-            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-              <MapPin className="h-3 w-3" /> Land Status
-            </div>
-            <div className="space-y-2">
-              {data.landStatusMarkers.map((m, i) => (
-                <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
-                    <Badge variant="outline" className="text-[9px] py-0">{m.value}</Badge>
-                  </div>
-                  <p className="text-[10px] text-muted-foreground leading-snug">{m.jurisdictionNote}</p>
+        {data.landStatusMarkers.length > 0 && (() => {
+          const allLandVerified = data.landStatusMarkers.every(m => m.value === "Verified" || m.value === "Active");
+          return (
+            <div>
+              <button
+                onClick={() => setShowLandMarkers(v => !v)}
+                className="w-full flex items-center justify-between hover:bg-muted/40 rounded-lg px-2 py-1.5 -mx-2 transition-colors"
+              >
+                <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+                  <MapPin className="h-3 w-3" /> Land Status
                 </div>
-              ))}
+                <div className="flex items-center gap-2">
+                  <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${allLandVerified ? "border-green-300 text-green-700 bg-green-50" : "border-amber-300 text-amber-700 bg-amber-50"}`}>
+                    {allLandVerified ? "Yes" : "No"} · {data.landStatusMarkers.length}
+                  </span>
+                  <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showLandMarkers ? "rotate-180" : ""}`} />
+                </div>
+              </button>
+              {showLandMarkers && (
+                <div className="space-y-2 mt-2">
+                  {data.landStatusMarkers.map((m, i) => (
+                    <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                      <div className="flex items-center gap-2 mb-0.5">
+                        <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
+                        <Badge variant="outline" className="text-[9px] py-0">{m.value}</Badge>
+                      </div>
+                      <p className="text-[10px] text-muted-foreground leading-snug">{m.jurisdictionNote}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
-          </div>
-        )}
+          );
+        })()}
 
         {/* ── Rights list ── */}
         <div>
