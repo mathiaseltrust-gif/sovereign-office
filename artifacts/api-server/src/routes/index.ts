@@ -118,6 +118,6 @@ router.use("/sovereign/pipeline", sovereignPipelineRouter);
 router.use("/sovereign/succession", sovereignSuccessionRouter);
 router.use("/memory", memoryRouter);
 router.use("/agent", agentRouter);
-router.use("/ki", kiRouter);
+router.use("/kaya", kiRouter);
 
 export default router;

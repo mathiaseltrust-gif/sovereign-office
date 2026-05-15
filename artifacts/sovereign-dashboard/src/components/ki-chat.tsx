@@ -5,9 +5,9 @@ import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
-import { Send, BookOpen, MessageCircle, Loader2, Sparkles } from "lucide-react";
+import { Send, BookOpen, MessageCircle, Loader2, Feather } from "lucide-react";
 
-interface KiMessage {
+interface KayaMessage {
   id: number;
   role: "user" | "assistant" | "diary";
   content: string;
@@ -26,8 +26,7 @@ interface DiaryEntry {
 const MOODS = ["reflective", "grateful", "concerned", "determined", "hopeful", "processing"];
 
 function formatTime(iso: string) {
-  const d = new Date(iso);
-  return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
+  return new Date(iso).toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit" });
 }
 
 function formatDate(iso: string) {
@@ -36,7 +35,7 @@ function formatDate(iso: string) {
   });
 }
 
-export function KiChat() {
+export function KayaChat() {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -50,21 +49,21 @@ export function KiChat() {
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
 
   const { data: historyData, isLoading: historyLoading } = useQuery({
-    queryKey: ["ki-history", user?.id],
+    queryKey: ["kaya-history", user?.id],
     queryFn: async () => {
-      const r = await fetch("/api/ki/history", { headers: authHeader });
-      if (!r.ok) throw new Error("Failed to load KI history");
-      return r.json() as Promise<{ messages: KiMessage[] }>;
+      const r = await fetch("/api/kaya/history", { headers: authHeader });
+      if (!r.ok) throw new Error("Failed to load conversation");
+      return r.json() as Promise<{ messages: KayaMessage[] }>;
     },
     enabled: !!user,
     staleTime: 30_000,
   });
 
   const { data: diaryData, isLoading: diaryLoading } = useQuery({
-    queryKey: ["ki-diary", user?.id],
+    queryKey: ["kaya-diary", user?.id],
     queryFn: async () => {
-      const r = await fetch("/api/ki/diary", { headers: authHeader });
-      if (!r.ok) throw new Error("Failed to load diary");
+      const r = await fetch("/api/kaya/diary", { headers: authHeader });
+      if (!r.ok) throw new Error("Failed to load journal");
       return r.json() as Promise<{ entries: DiaryEntry[] }>;
     },
     enabled: !!user && view === "diary",
@@ -73,36 +72,34 @@ export function KiChat() {
 
   const chatMutation = useMutation({
     mutationFn: async (message: string) => {
-      const r = await fetch("/api/ki/chat", {
+      const r = await fetch("/api/kaya/chat", {
         method: "POST",
         headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ message }),
       });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        throw new Error((e as any).error ?? "KI is unavailable right now");
+        throw new Error((e as any).error ?? "Kaya is unavailable right now");
       }
       return r.json() as Promise<{ reply: string }>;
     },
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ki-history", user?.id] });
-    },
-    onError: (e) => toast({ title: "KI error", description: (e as Error).message, variant: "destructive" }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] }),
+    onError: (e) => toast({ title: "Kaya error", description: (e as Error).message, variant: "destructive" }),
   });
 
   const diaryMutation = useMutation({
     mutationFn: async ({ content, mood }: { content: string; mood?: string }) => {
-      const r = await fetch("/api/ki/diary", {
+      const r = await fetch("/api/kaya/diary", {
         method: "POST",
         headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ content, mood }),
       });
-      if (!r.ok) throw new Error("Failed to save diary entry");
+      if (!r.ok) throw new Error("Failed to save journal entry");
       return r.json();
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ["ki-diary", user?.id] });
-      toast({ title: "Journal entry saved", description: "KI will remember this." });
+      qc.invalidateQueries({ queryKey: ["kaya-diary", user?.id] });
+      toast({ title: "Journal entry saved", description: "Kaya will remember this." });
     },
     onError: (e) => toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" }),
   });
@@ -117,7 +114,6 @@ export function KiChat() {
     const text = input.trim();
     if (!text) return;
     setInput("");
-
     if (diaryMode) {
       diaryMutation.mutate({ content: text, mood: selectedMood ?? undefined });
       setSelectedMood(null);
@@ -150,10 +146,10 @@ export function KiChat() {
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "1px solid rgba(255,255,255,0.15)" }}
           >
-            <Sparkles className="w-4 h-4 text-amber-300" />
+            <Feather className="w-4 h-4 text-amber-300" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-none">KI</p>
+            <p className="text-sm font-bold text-white leading-none">Kaya</p>
             <p className="text-[9px] tracking-[0.2em] text-white/45 uppercase mt-0.5">Your Sovereign Companion</p>
           </div>
         </div>
@@ -189,20 +185,17 @@ export function KiChat() {
                 <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
               </div>
             ) : messages.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-white/40 text-sm">
+              <div className="text-center py-8 space-y-1">
+                <p className="text-white/50 text-sm italic">
                   Is there anything you'd like to share today, {firstName}?
                 </p>
-                <p className="text-white/20 text-[11px] mt-1">
-                  I'm here — whether it's a question, a thought, or something on your mind.
+                <p className="text-white/20 text-[11px]">
+                  I'm here — a thought, a question, something on your mind.
                 </p>
               </div>
             ) : (
               messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
+                <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
                   <div
                     className="max-w-[82%] rounded-xl px-3.5 py-2.5"
                     style={
@@ -212,7 +205,7 @@ export function KiChat() {
                     }
                   >
                     {msg.role === "assistant" && (
-                      <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">KI</p>
+                      <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">Kaya</p>
                     )}
                     <p className="text-sm text-white/88 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                     <p className="text-[9px] text-white/25 mt-1 text-right">{formatTime(msg.createdAt)}</p>
@@ -227,7 +220,7 @@ export function KiChat() {
                   className="rounded-xl px-3.5 py-2.5"
                   style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.06)" }}
                 >
-                  <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">KI</p>
+                  <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">Kaya</p>
                   <div className="flex gap-1 items-center py-1">
                     {[0, 1, 2].map(i => (
                       <span
@@ -248,7 +241,6 @@ export function KiChat() {
             className="px-4 py-3 space-y-2"
             style={{ borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.25)" }}
           >
-            {/* Diary mode toggle */}
             <div className="flex items-center gap-2">
               <button
                 onClick={() => { setDiaryMode(false); setSelectedMood(null); }}
@@ -258,7 +250,7 @@ export function KiChat() {
                     : "border-white/10 text-white/30 hover:text-white/50"
                 }`}
               >
-                Chat with KI
+                Talk to Kaya
               </button>
               <button
                 onClick={() => setDiaryMode(true)}
@@ -273,7 +265,6 @@ export function KiChat() {
               </button>
             </div>
 
-            {/* Mood selector — only in diary mode */}
             {diaryMode && (
               <div className="flex flex-wrap gap-1">
                 {MOODS.map(mood => (
@@ -300,13 +291,10 @@ export function KiChat() {
                 placeholder={
                   diaryMode
                     ? "Write your reflection… (Ctrl+Enter to save)"
-                    : "Share something with KI… (Ctrl+Enter to send)"
+                    : "Say something to Kaya… (Ctrl+Enter to send)"
                 }
                 className="flex-1 resize-none text-sm text-white/85 placeholder:text-white/20 rounded-lg min-h-[72px] max-h-[140px]"
-                style={{
-                  background: "rgba(255,255,255,0.04)",
-                  border: "1px solid rgba(255,255,255,0.08)",
-                }}
+                style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
                 disabled={isWorking}
               />
               <Button
@@ -315,10 +303,12 @@ export function KiChat() {
                 className="self-end h-9 w-9 p-0 rounded-lg flex-shrink-0"
                 style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "none" }}
               >
-                {isWorking ? <Loader2 className="w-4 h-4 animate-spin text-white" /> : <Send className="w-4 h-4 text-white" />}
+                {isWorking
+                  ? <Loader2 className="w-4 h-4 animate-spin text-white" />
+                  : <Send className="w-4 h-4 text-white" />}
               </Button>
             </div>
-            <p className="text-[9px] text-white/18 text-right">Ctrl+Enter to send · KI remembers your conversations</p>
+            <p className="text-[9px] text-white/18 text-right">Ctrl+Enter to send · Kaya remembers your conversations</p>
           </div>
         </>
       )}
@@ -334,7 +324,9 @@ export function KiChat() {
             <div className="text-center py-10">
               <BookOpen className="w-7 h-7 text-white/15 mx-auto mb-2" />
               <p className="text-white/35 text-sm">Your journal is empty.</p>
-              <p className="text-white/20 text-[11px] mt-1">Switch to Chat and choose "Journal entry" to add your first reflection.</p>
+              <p className="text-white/20 text-[11px] mt-1">
+                Switch to Chat and choose "Journal entry" to write your first reflection.
+              </p>
             </div>
           ) : (
             diaryEntries.map((entry) => (
