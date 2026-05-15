@@ -217,10 +217,10 @@ export default function TribalIdPage() {
           className="relative flex items-center justify-between px-4 py-3"
           style={{ background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
-          {/* Left seal — State / Supreme Court */}
+          {/* Left seal — Office of the Chief Justice & Trustee */}
           <img
-            src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`}
-            alt="State Seal"
+            src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
+            alt="Office of the Chief Justice & Trustee"
             className="w-14 h-14 object-contain flex-shrink-0"
           />
 
@@ -280,7 +280,7 @@ export default function TribalIdPage() {
               title="Click to upload photo"
             >
               {data.profilePhoto ? (
-                <img src={data.profilePhoto} alt="Profile" className="w-full h-full object-cover object-top" />
+                <img src={data.profilePhoto} alt="Profile" className="w-full h-full object-contain" style={{ background: "transparent" }} />
               ) : (
                 <div className="w-full h-full flex flex-col items-center justify-center gap-1">
                   <User className="w-9 h-9 text-white/40" />
@@ -307,7 +307,18 @@ export default function TribalIdPage() {
           <div className="relative z-10 flex-1 flex flex-col justify-between py-4 pr-5 pl-4">
             <div className="space-y-2.5">
               <IdField label="Name" value={data.identity.legalName} large />
-              {data.identity.title && <IdField label="Title" value={data.identity.title} large />}
+              {data.identity.tribalName && (
+                <IdField label="Tribal Name" value={data.identity.tribalName} large />
+              )}
+              <IdField
+                label="Title / Office"
+                value={
+                  isSovereignOfficeRole(data.identity.role)
+                    ? "Office of the Chief Justice & Trustee"
+                    : data.identity.title || formatRole(data.identity.role)
+                }
+                large
+              />
               <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
                 {ssmel && <IdField label="ID #" value={ssmel} />}
                 {(data.bloodline ?? data.tribalNations?.[0]) && (
