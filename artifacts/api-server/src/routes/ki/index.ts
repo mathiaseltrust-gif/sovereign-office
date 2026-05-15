@@ -306,7 +306,7 @@ router.delete("/knowledge/:id", requireAuth, async (req, res, next) => {
     const userId = req.user!.dbId;
     if (!userId) { res.status(400).json({ error: "No user session" }); return; }
 
-    const id = parseInt(req.params.id, 10);
+    const id = parseInt(String(req.params.id), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid id" }); return; }
 
     const [row] = await db
