@@ -84,7 +84,8 @@ const MATTER_LABELS: Record<string, string> = {
 // Font: Compressed bold sans-serif (Arial Narrow 900) for text bands;
 //       Impact (ultra-condensed) for the date band — matches the physical stamp face
 // Ink: Blue (#1a3a6e) for all text/border; Red (#8B0000) for date band
-function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } }) {
+// date = null means the stamp has not yet been applied — date wheel shows blank
+function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } | null }) {
   const textFont = "'Arial Narrow', 'Arial', Helvetica, sans-serif";
   const dateFont = "Impact, 'Arial Narrow', Arial, sans-serif";
   const ink      = "#1a3a6e";
@@ -117,12 +118,18 @@ function OfficialStamp({ date }: { date: { month: string; daySpaced: string; yea
         MATHIAS EL TRIBE SUPREME COURT
       </div>
 
-      {/* Band 3 — DATE (dater wheel — ultra-condensed, red) */}
-      <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: dateInk, letterSpacing: "4px", lineHeight: 1, display: "flex", alignItems: "center", gap: "4px" }}>
-        <span>{date.month}</span>
-        <span style={{ letterSpacing: "6px" }}>{date.daySpaced}</span>
-        <span>{date.year}</span>
-      </div>
+      {/* Band 3 — DATE (dater wheel — ultra-condensed, red; blank slots if not yet stamped) */}
+      {date ? (
+        <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: dateInk, letterSpacing: "4px", lineHeight: 1, display: "flex", alignItems: "center", gap: "4px" }}>
+          <span>{date.month}</span>
+          <span style={{ letterSpacing: "6px" }}>{date.daySpaced}</span>
+          <span>{date.year}</span>
+        </div>
+      ) : (
+        <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: "#bbb", letterSpacing: "6px", lineHeight: 1 }}>
+          — — —
+        </div>
+      )}
 
       {/* Divider */}
       <div style={{ width: "72%", borderTop: `1px solid ${ink}` }} />
@@ -142,9 +149,9 @@ function OfficialStamp({ date }: { date: { month: string; daySpaced: string; yea
 
 // ── Full Official Document ─────────────────────────────────────────────────────
 function OfficialDocument({ record }: { record: PipelineRecord }) {
-  const stampDate = formatStampDate(
-    record.lastPrintedAt ? new Date(record.lastPrintedAt) : new Date(record.createdAt)
-  );
+  // Stamp date = the moment the seal was applied (lastPrintedAt).
+  // If the document has never been stamped, pass null — the dater wheel shows blank.
+  const stampDate = record.lastPrintedAt ? formatStampDate(new Date(record.lastPrintedAt)) : null;
   const riskColor = RISK_COLOR[record.riskLevel] ?? "#8B0000";
   const allDoctrines = record.doctrineOverlay?.allDoctrines ?? [];
   const violations   = record.intakeResult?.violations ?? [];
