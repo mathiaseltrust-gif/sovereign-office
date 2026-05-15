@@ -71,6 +71,9 @@ export interface SovereignIdentityGatewayPayload {
   icwaEligible: boolean;
   welfareEligible: boolean;
   trustInheritance: boolean;
+  issueDate: string | null;
+  expiryDate: string | null;
+  bloodline: string | null;
 }
 
 function resolveElderStatus(
@@ -208,6 +211,7 @@ export async function resolveSovereignIdentityGateway(
       profilePhoto: null, visibilityRules,
       generationalPosition: 0, generationalDepth: 0,
       icwaEligible: false, welfareEligible: false, trustInheritance: false,
+      issueDate: null, expiryDate: null, bloodline: null,
     };
   }
 
@@ -300,6 +304,9 @@ export async function resolveSovereignIdentityGateway(
       visibilityRules,
       generationalPosition, generationalDepth,
       icwaEligible, welfareEligible, trustInheritance,
+      issueDate: (profile?.aiPreferences as Record<string, string> | null)?.issue_date ?? null,
+      expiryDate: (profile?.aiPreferences as Record<string, string> | null)?.expiry_date ?? null,
+      bloodline: (profile?.aiPreferences as Record<string, string> | null)?.bloodline ?? null,
     };
   } catch (err) {
     logger.error({ err: (err as Error).message }, "SIG gateway DB error");
@@ -315,6 +322,7 @@ export async function resolveSovereignIdentityGateway(
       visibilityRules: buildVisibilityRules(role, false, []),
       generationalPosition: 0, generationalDepth: 0,
       icwaEligible: false, welfareEligible: false, trustInheritance: false,
+      issueDate: null, expiryDate: null, bloodline: null,
     };
   }
 }

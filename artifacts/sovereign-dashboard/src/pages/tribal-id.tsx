@@ -33,6 +33,9 @@ interface GatewayData {
   benefitEligibility: Record<string, boolean>;
   delegatedAuthorities: { canGenerateTribalId: boolean; memberType: string };
   profilePhoto: string | null;
+  issueDate: string | null;
+  expiryDate: string | null;
+  bloodline: string | null;
 }
 
 const PROTECTION_BADGE: Record<string, string> = {
@@ -59,6 +62,27 @@ function formatRole(role: string): string {
 
 function isSovereignOfficeRole(role: string): boolean {
   return ["trustee", "sovereign_admin", "admin"].includes(role.toLowerCase());
+}
+
+function formatCardDate(iso: string): string {
+  const d = new Date(iso);
+  return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}/${d.getFullYear()}`;
+}
+
+function IdField({ label, value, large }: { label: string; value: string; large?: boolean }) {
+  return (
+    <div>
+      <p className="text-[8px] tracking-[0.2em] font-semibold uppercase mb-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+        {label}:
+      </p>
+      <p
+        className={large ? "text-base font-bold leading-tight" : "text-sm font-semibold leading-tight"}
+        style={{ color: "rgba(255,255,255,0.95)", fontFamily: large ? "Georgia, serif" : "inherit" }}
+      >
+        {value}
+      </p>
+    </div>
+  );
 }
 
 export default function TribalIdPage() {
@@ -182,184 +206,165 @@ export default function TribalIdPage() {
         </p>
       </div>
 
-      {/* ── ID CARD ─────────────────────────────────────────────────────────── */}
+      {/* ── ID CARD — physical card design ─────────────────────────────────── */}
       <div
         id="tribal-id-card"
-        className="rounded-xl overflow-hidden shadow-2xl print:shadow-none"
-        style={{ background: "linear-gradient(135deg, #0d1529 0%, #141e3c 60%, #0a1020 100%)", border: "1.5px solid #8a6e24" }}
+        className="rounded-2xl overflow-hidden shadow-2xl print:shadow-none select-none"
+        style={{ background: "linear-gradient(160deg, #6B0000 0%, #9B1A1A 45%, #7A0808 100%)", border: "2px solid #5A0A0A" }}
       >
-        <div className="flex">
-          {/* Left panel — logo + photo + SSML */}
-          <div
-            className="flex flex-col items-center justify-between py-6 px-4 gap-4 shrink-0"
-            style={{ width: 160, background: "rgba(0,0,0,0.35)", borderRight: "1px solid rgba(138,110,36,0.4)" }}
-          >
-            {/* Tribe name */}
-            <div className="text-center">
-              <p className="text-[9px] tracking-[0.2em] font-semibold" style={{ color: "#d4af37" }}>MATHIAS EL</p>
-              <p className="text-[9px] tracking-[0.2em] font-semibold" style={{ color: "#d4af37" }}>TRIBE</p>
-            </div>
+        {/* ── HEADER BAND ── two seals + centered title */}
+        <div
+          className="relative flex items-center justify-between px-4 py-3"
+          style={{ background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}
+        >
+          {/* Left seal — State / Supreme Court */}
+          <img
+            src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`}
+            alt="State Seal"
+            className="w-14 h-14 object-contain flex-shrink-0"
+          />
 
-            {/* Full-color tribal seal — original colors preserved */}
-            <img
-              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-              alt="Mathias El Tribe Seal"
-              className="w-24 h-24 object-contain"
-              style={{ filter: "none" }}
-            />
-
-            {/* Profile photo section */}
-            <div className="flex flex-col items-center gap-2">
-              <div
-                className="relative w-16 h-20 rounded overflow-hidden flex items-center justify-center cursor-pointer group"
-                style={{ border: "1.5px solid #8a6e24", background: "rgba(20,30,60,0.6)" }}
-                onClick={() => fileInputRef.current?.click()}
-                title="Click to upload profile photo"
-              >
-                {data.profilePhoto ? (
-                  <img src={data.profilePhoto} alt="Profile" className="w-full h-full object-cover" />
-                ) : (
-                  <div className="flex flex-col items-center gap-1">
-                    <User className="w-6 h-6" style={{ color: "#8a6e24" }} />
-                    <span className="text-[7px] text-center leading-tight" style={{ color: "#8a6e24" }}>
-                      PHOTO
-                    </span>
-                  </div>
-                )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                  <Upload className="w-4 h-4 text-white" />
-                </div>
-              </div>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept="image/*"
-                className="hidden"
-                onChange={handlePhotoSelect}
-              />
-              {photoMutation.isPending && (
-                <span className="text-[8px]" style={{ color: "#d4af37" }}>Uploading…</span>
-              )}
-            </div>
-
-            {/* SSML enrollment number */}
-            <div className="text-center">
-              {ssmel && (
-                <p className="font-bold text-[11px] tracking-widest" style={{ color: "#d4af37" }}>{ssmel}</p>
-              )}
-              <p className="text-[7px] tracking-wider" style={{ color: "rgba(212,175,55,0.6)" }}>ENROLLMENT NO.</p>
-            </div>
+          {/* Center title */}
+          <div className="flex-1 text-center px-3">
+            <h2
+              className="text-2xl font-bold text-white tracking-wide leading-tight"
+              style={{ fontFamily: "Georgia, 'Times New Roman', serif", textShadow: "0 1px 4px rgba(0,0,0,0.6)" }}
+            >
+              Mathias El Tribe
+            </h2>
+            <p className="text-[10px] tracking-[0.35em] font-semibold text-white/75 uppercase mt-0.5">
+              Official Member ID
+            </p>
           </div>
 
-          {/* Right — identity content */}
-          <div className="flex-1 p-6">
-            {/* Header strip */}
-            <div className="flex items-start justify-between mb-4 pb-3" style={{ borderBottom: "0.5px solid rgba(138,110,36,0.4)" }}>
-              <div>
-                <p className="text-[9px] tracking-[0.18em] font-semibold mb-1" style={{ color: "#d4af37" }}>
-                  SOVEREIGN IDENTITY DOCUMENT
-                </p>
-                <p className="text-[8px]" style={{ color: "rgba(160,165,200,0.8)" }}>
-                  Office of the Chief Justice &amp; Trustee
-                </p>
+          {/* Right seal — Tribal */}
+          <img
+            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+            alt="Tribal Seal"
+            className="w-14 h-14 object-contain flex-shrink-0"
+          />
+        </div>
+
+        {/* ── CARD BODY ── diamond + photo + fields */}
+        <div className="relative flex" style={{ minHeight: 210, overflow: "hidden" }}>
+
+          {/* Diamond decorative shape */}
+          <div
+            className="absolute pointer-events-none"
+            style={{
+              width: 240,
+              height: 240,
+              background: "linear-gradient(145deg, #2A4A08, #3A6010)",
+              transform: "rotate(45deg)",
+              left: -40,
+              top: "50%",
+              marginTop: -120,
+              opacity: 0.8,
+              border: "1.5px solid rgba(90,150,20,0.35)",
+            }}
+          />
+
+          {/* Photo — left side */}
+          <div className="relative z-10 flex flex-col items-center justify-center flex-shrink-0 py-4 pl-5 pr-2" style={{ width: 152 }}>
+            <div
+              className="relative overflow-hidden cursor-pointer group"
+              style={{
+                width: 108,
+                height: 140,
+                border: "2px solid rgba(255,255,255,0.45)",
+                borderRadius: 6,
+                background: "rgba(0,0,0,0.4)",
+                boxShadow: "0 3px 14px rgba(0,0,0,0.5)",
+              }}
+              onClick={() => fileInputRef.current?.click()}
+              title="Click to upload photo"
+            >
+              {data.profilePhoto ? (
+                <img src={data.profilePhoto} alt="Profile" className="w-full h-full object-cover object-top" />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                  <User className="w-9 h-9 text-white/40" />
+                  <span className="text-[8px] text-white/40">PHOTO</span>
+                </div>
+              )}
+              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                <Upload className="w-5 h-5 text-white" />
               </div>
-              {/* ID number + office badge */}
-              <div className="text-right flex flex-col items-end gap-1.5">
-                {idNumber && (
-                  <>
-                    <p className="text-2xl font-bold tracking-widest" style={{ color: "#d4af37", fontFamily: "serif" }}>
-                      NO. {idNumber}
-                    </p>
-                    <p className="text-[8px]" style={{ color: "rgba(160,165,200,0.7)" }}>
-                      Exp: {new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
-                    </p>
-                  </>
+            </div>
+            <input ref={fileInputRef} type="file" accept="image/*" className="hidden" onChange={handlePhotoSelect} />
+            {photoMutation.isPending && <span className="text-[8px] text-white/50 mt-1">Uploading…</span>}
+
+            {/* Enrollment No. */}
+            {ssmel && (
+              <div className="text-center mt-2.5">
+                <p className="text-[11px] font-bold tracking-widest text-white/90">{ssmel}</p>
+                <p className="text-[7px] tracking-wider text-white/45">ENROLLMENT NO.</p>
+              </div>
+            )}
+          </div>
+
+          {/* Fields — right side */}
+          <div className="relative z-10 flex-1 flex flex-col justify-between py-4 pr-5 pl-4">
+            <div className="space-y-2.5">
+              <IdField label="Name" value={data.identity.legalName} large />
+              {data.identity.title && <IdField label="Title" value={data.identity.title} large />}
+              <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
+                {ssmel && <IdField label="ID #" value={ssmel} />}
+                {(data.bloodline ?? data.tribalNations?.[0]) && (
+                  <IdField label="Tribal Bloodline" value={data.bloodline ?? data.tribalNations?.[0] ?? ""} />
                 )}
-                {isSovereignOfficeRole(data.identity.role) && (
-                  <div
-                    className="mt-1 px-2 py-1 rounded text-center"
-                    style={{ border: "1px solid rgba(212,175,55,0.5)", background: "rgba(212,175,55,0.08)" }}
-                  >
-                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
-                      OFFICE OF THE
-                    </p>
-                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
-                      CHIEF JUSTICE
-                    </p>
-                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
-                      &amp; TRUSTEE
+                <IdField label="Role" value={formatRole(data.identity.role)} />
+                <div>
+                  <p className="text-[8px] tracking-[0.2em] font-semibold uppercase mb-0.5" style={{ color: "rgba(255,255,255,0.55)" }}>
+                    Status:
+                  </p>
+                  <div className="flex items-center gap-1">
+                    {data.membershipVerified && <ShieldCheck className="w-3 h-3 text-emerald-300 flex-shrink-0" />}
+                    <p className="text-sm font-semibold" style={{ color: data.membershipVerified ? "#6ee7b7" : "rgba(255,255,255,0.75)" }}>
+                      {data.membershipVerified ? "Verified" : "Pending"}
                     </p>
                   </div>
-                )}
+                </div>
               </div>
             </div>
 
-            {/* Two-column layout */}
-            <div className="grid grid-cols-2 gap-x-6 gap-y-3">
-              <div>
-                <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>LEGAL NAME</p>
-                <p className="text-lg font-bold" style={{ color: "rgba(255,255,255,0.95)", fontFamily: "serif" }}>
-                  {data.identity.legalName}
-                </p>
-              </div>
-
-              {data.identity.tribalName && (
-                <div>
-                  <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>TRIBAL NAME</p>
-                  <p className="text-sm" style={{ color: "rgba(230,230,245,0.9)" }}>{data.identity.tribalName}</p>
-                </div>
-              )}
-
-              {data.identity.title && (
-                <div>
-                  <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>TITLE / OFFICE</p>
-                  <p className="text-sm" style={{ color: "rgba(230,230,245,0.9)" }}>{data.identity.title}</p>
-                </div>
-              )}
-
-              <div>
-                <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>ROLE</p>
-                <p className="text-sm font-semibold" style={{ color: "rgba(230,230,245,0.9)" }}>
-                  {formatRole(data.identity.role)}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>MEMBERSHIP STATUS</p>
-                <div className="flex items-center gap-2">
-                  {data.membershipVerified
-                    ? <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                    : null}
-                  <p className="text-sm" style={{ color: data.membershipVerified ? "#4ade80" : "rgba(230,230,245,0.9)" }}>
-                    {data.membershipVerified ? "Verified Member" : "Pending Verification"}
+            {/* ISS / EXP dates — bottom right of fields */}
+            <div
+              className="flex items-end justify-between pt-2 mt-2"
+              style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
+            >
+              <p className="text-[7.5px] text-white/35 leading-snug max-w-[55%]">
+                Issued under inherent sovereign authority · Worcester v. Georgia (1832)
+              </p>
+              <div className="flex gap-4 flex-shrink-0">
+                {data.issueDate && (
+                  <div className="text-right">
+                    <p className="text-[7px] tracking-wider text-white/45 uppercase">ISS</p>
+                    <p className="text-[10px] font-semibold text-white/80">{formatCardDate(data.issueDate)}</p>
+                  </div>
+                )}
+                <div className="text-right">
+                  <p className="text-[7px] tracking-wider text-white/45 uppercase">EXP</p>
+                  <p className="text-[10px] font-semibold text-white/80">
+                    {data.expiryDate
+                      ? formatCardDate(data.expiryDate)
+                      : new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString("en-US", { month: "2-digit", day: "2-digit", year: "numeric" })}
                   </p>
                 </div>
               </div>
-
-              <div>
-                <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>PROTECTION LEVEL</p>
-                <span className={`inline-block text-[9px] font-bold px-2 py-0.5 rounded ${PROTECTION_BADGE[data.protectionLevel]}`}>
-                  {data.protectionLevel.toUpperCase()}
-                </span>
-              </div>
-
-              <div className="col-span-2">
-                <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>LINEAGE SUMMARY</p>
-                <p className="text-[11px] leading-relaxed" style={{ color: "rgba(180,183,215,0.85)" }}>
-                  {data.lineageSummary}
-                </p>
-              </div>
-            </div>
-
-            {/* Bottom bar */}
-            <div
-              className="mt-4 pt-2 text-[7.5px] text-center"
-              style={{ borderTop: "0.5px solid rgba(138,110,36,0.3)", color: "rgba(120,125,165,0.7)" }}
-            >
-              Issued under inherent sovereign authority of the Mathias El Tribe &nbsp;|&nbsp; Federal Trust Responsibility &nbsp;|&nbsp; Worcester v. Georgia, 31 U.S. 515 (1832)
             </div>
           </div>
         </div>
+
+        {/* ── SOVEREIGN OFFICE FOOTER BAR ── */}
+        {isSovereignOfficeRole(data.identity.role) && (
+          <div
+            className="text-center py-1.5 text-[8px] tracking-[0.25em] font-semibold text-white/60"
+            style={{ background: "rgba(0,0,0,0.4)", borderTop: "1px solid rgba(255,255,255,0.08)" }}
+          >
+            OFFICE OF THE CHIEF JUSTICE &amp; TRUSTEE &nbsp;·&nbsp; SOVEREIGN ADMINISTRATION
+          </div>
+        )}
       </div>
 
       {/* ── ACTION BUTTONS ──────────────────────────────────────────────────── */}
