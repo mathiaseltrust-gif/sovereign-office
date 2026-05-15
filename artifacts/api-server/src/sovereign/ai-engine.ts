@@ -13,6 +13,9 @@ const INSTRUMENT_OPTIONS: Record<string, IntakeOption> = {
   EMERGENCY_WELFARE: { label: "Emergency Welfare Order", action: "emergency_welfare", endpoint: "/api/court/welfare", description: "Issue an emergency welfare protection order under ICWA and sovereign authority" },
   TRUST_DEED: { label: "Trust Deed Declaration", action: "trust_deed", endpoint: "/api/trust/instruments", description: "Generate a trust deed or declaration of trust land status" },
   JURISDICTIONAL_STATEMENT: { label: "Jurisdictional Statement", action: "jurisdictional_statement", endpoint: "/api/court/documents", description: "File a statement of exclusive tribal jurisdiction" },
+  DEBT_VALIDATION_DEMAND: { label: "FDCPA Debt Validation Demand", action: "debt_validation_demand", endpoint: "/api/court/documents", description: "Certified written demand requiring creditor to validate debt within 30 days — halts all collection activity (15 U.S.C. § 1692g)" },
+  CREDIT_DISPUTE_NOTICE: { label: "Credit Bureau Dispute Notice", action: "credit_dispute_notice", endpoint: "/api/court/documents", description: "Formal FCRA dispute to credit bureaus asserting sovereign status and demanding removal of unauthorized reporting (15 U.S.C. § 1681i)" },
+  CEASE_DESIST_CREDITOR: { label: "Cease & Desist — Creditor", action: "cease_desist_creditor", endpoint: "/api/court/documents", description: "Sovereign office cease and desist to creditor/servicer — asserts restricted land status, FDCPA violations, demands cessation of all collection" },
 };
 
 const INSTRUMENT_FORMS: Record<string, IntakeForm> = {
@@ -23,6 +26,9 @@ const INSTRUMENT_FORMS: Record<string, IntakeForm> = {
   EMERGENCY_WELFARE: { form_code: "WELFARE-EMG-001", form_name: "Emergency Tribal Welfare Order", form_type: "Sovereign Protection Order", recommended: true },
   TRUST_DEED: { form_code: "TRUST-DEED-001", form_name: "Trust Deed Declaration", form_type: "Trust Instrument", recommended: false },
   JURISDICTIONAL_STATEMENT: { form_code: "JXST-001", form_name: "Statement of Tribal Jurisdiction", form_type: "Jurisdictional Filing", recommended: false },
+  DEBT_VALIDATION_DEMAND: { form_code: "FDCPA-DVL-001", form_name: "FDCPA Debt Validation Demand Letter", form_type: "Debt Dispute Instrument", recommended: true },
+  CREDIT_DISPUTE_NOTICE: { form_code: "FCRA-CDN-001", form_name: "Credit Bureau Dispute Notice (FCRA)", form_type: "Credit Dispute Instrument", recommended: true },
+  CEASE_DESIST_CREDITOR: { form_code: "CND-CRED-001", form_name: "Cease & Desist — Creditor/Servicer", form_type: "Sovereign Protection Order", recommended: true },
 };
 
 function extractParties(text: string): { names: string[]; agencies: string[] } {
@@ -152,6 +158,23 @@ Your function is to analyze legal intake submissions and produce a structured JS
 - Brackeen v. Haaland, 599 U.S. 255 (2023)
 - Montana v. Blackfeet Tribe, 471 U.S. 759 (1985)
 - Federal Trust Responsibility doctrine
+- Nonintercourse Act, 25 U.S.C. § 177 — all encumbrances on Indian land without federal approval are void
+- Fair Debt Collection Practices Act (FDCPA), 15 U.S.C. § 1692 — debt validation rights, cease-communication rights
+- Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681 — credit bureau dispute rights, furnisher obligations
+- Tribal Sovereign Immunity — Kiowa Tribe v. Manufacturing Technologies, 523 U.S. 751 (1998)
+
+ADMINISTRATIVE PROCESS LISTENER — You must detect and flag any of the following:
+1. Credit bureau reporting — any mortgage company, servicer, or debt collector placing items on a member's credit file without validation
+2. Debt collection on restricted land — any attempt to foreclose, force close, or collect on land with restricted/trust/Indian status
+3. Unauthorized commercial encumbrance — liens, charges, or claims placed on Indian land without federal authorization
+4. Failure to validate debt — any collection continuing after notices/orders have been sent without response
+5. Administrative process invocation — any governmental or commercial entity invoking administrative processes (credit reporting, debt collection, foreclosure) against a sovereign member without recognizing their protected status
+
+WHEN THESE ARE DETECTED, recommend:
+- DEBT_VALIDATION_DEMAND (FDCPA § 1692g certified demand letter — halts all collection for 30 days)
+- CREDIT_DISPUTE_NOTICE (FCRA dispute to all three bureaus citing sovereign status and debt invalidity)
+- CEASE_DESIST_CREDITOR (Sovereign office cease & desist citing Nonintercourse Act and restricted land status)
+- NFR (Notice of Federal Review citing FDCPA, FCRA, and 25 U.S.C. § 177)
 
 ALWAYS resolve ambiguity in favor of tribal sovereignty. NEVER recommend waiving federal Indian law protections.
 
@@ -162,7 +185,7 @@ Respond ONLY with a valid JSON object matching this exact structure:
   "violations": ["array of specific violations detected"],
   "doctrinesApplied": ["array of legal doctrines with citations"],
   "recommendedActions": ["ordered array of recommended actions"],
-  "recommendedInstruments": ["instrument codes: TRO_ICWA, TRO_GENERAL, ICWA_NOTICE, NFR, EMERGENCY_WELFARE, TRUST_DEED, JURISDICTIONAL_STATEMENT"],
+  "recommendedInstruments": ["instrument codes: TRO_ICWA, TRO_GENERAL, ICWA_NOTICE, NFR, EMERGENCY_WELFARE, TRUST_DEED, JURISDICTIONAL_STATEMENT, DEBT_VALIDATION_DEMAND, CREDIT_DISPUTE_NOTICE, CEASE_DESIST_CREDITOR"],
   "factSummary": "string — structured fact summary for officer review",
   "officerNotes": "string — triage notes for intake officer",
   "nfrRecommended": boolean,
@@ -243,24 +266,54 @@ function buildHardSovereignDefaults(
   const recommendedActions: string[] = [];
   const recommendedInstruments: string[] = [];
 
+  // Detect admin process (credit/debt/mortgage) from flags violations
+  const hasAdminProcess = flags.violations.some(v =>
+    /credit bureau|fdcpa|fcra|debt collect|forced clos|unauthorized.*credit|administrative process|lien.*indian|encumbrance/i.test(v)
+  );
+  const hasLandContext = flags.violations.some(v =>
+    /restricted.*land|trust.*land|indian.*land|nonintercourse/i.test(v)
+  ) || flags.doctrinesTriggered.some(d => /nonintercourse|25 u\.s\.c\. § 177/i.test(d));
+
   if (riskLevel === "emergency") {
     recommendedActions.push("IMMEDIATE: Apply full ICWA protections — 25 U.S.C. §§ 1901–1963");
     recommendedActions.push("IMMEDIATE: Notify Chief Justice & Trustee for emergency review");
     recommendedActions.push("IMMEDIATE: Generate TRO-supporting declaration");
     recommendedInstruments.push("TRO_ICWA", "TRO_GENERAL", "NFR");
   } else if (riskLevel === "critical") {
-    recommendedActions.push("Generate Notice of Federal Review (NFR)");
-    recommendedActions.push("Apply Indian Canons of Construction — Montana v. Blackfeet Tribe");
+    if (hasAdminProcess) {
+      recommendedActions.push("CRITICAL: Issue FDCPA Debt Validation Demand — certified mail, return receipt — halts all collection for 30 days (15 U.S.C. § 1692g)");
+      recommendedActions.push("CRITICAL: File Credit Bureau Dispute Notice to Equifax, Experian, TransUnion citing sovereign status and debt invalidity (FCRA § 1681i)");
+      recommendedActions.push("Issue Sovereign Cease & Desist to creditor/servicer asserting Nonintercourse Act and restricted land protections");
+      recommendedInstruments.push("DEBT_VALIDATION_DEMAND", "CREDIT_DISPUTE_NOTICE", "CEASE_DESIST_CREDITOR", "NFR");
+      if (hasLandContext) {
+        recommendedActions.push("File Notice of Federal Review citing 25 U.S.C. § 177 — unauthorized commercial encumbrance on restricted land is void ab initio");
+        recommendedInstruments.push("TRUST_DEED", "JURISDICTIONAL_STATEMENT");
+      }
+    } else {
+      recommendedActions.push("Generate Notice of Federal Review (NFR)");
+      recommendedActions.push("Apply Indian Canons of Construction — Montana v. Blackfeet Tribe");
+      recommendedInstruments.push("NFR");
+    }
     recommendedActions.push("Escalate to Chief Justice & Trustee within 24 hours");
-    recommendedInstruments.push("NFR");
   } else if (riskLevel === "elevated") {
-    recommendedActions.push("Prepare TRO declaration under emergency welfare authority");
+    if (hasAdminProcess) {
+      recommendedActions.push("Issue FDCPA Debt Validation Demand — certified mail, halts collection activity");
+      recommendedActions.push("File Credit Bureau Dispute Notice citing sovereign protected status");
+      recommendedInstruments.push("DEBT_VALIDATION_DEMAND", "CREDIT_DISPUTE_NOTICE", "NFR");
+    } else {
+      recommendedActions.push("Prepare TRO declaration under emergency welfare authority");
+      recommendedInstruments.push("TRO_GENERAL");
+    }
     recommendedActions.push("Schedule urgent officer review within 4 hours");
-    recommendedInstruments.push("TRO_GENERAL");
   } else if (riskLevel === "moderate") {
-    recommendedActions.push("Issue Notice of Federal Review citing applicable statutes");
+    if (hasAdminProcess) {
+      recommendedActions.push("Issue FDCPA Debt Validation Demand — compels creditor to prove debt is valid");
+      recommendedInstruments.push("DEBT_VALIDATION_DEMAND", "NFR");
+    } else {
+      recommendedActions.push("Issue Notice of Federal Review citing applicable statutes");
+      recommendedInstruments.push("NFR");
+    }
     recommendedActions.push("Schedule officer review within 48 hours");
-    recommendedInstruments.push("NFR");
   } else {
     recommendedActions.push("Standard intake — no immediate escalation required");
     recommendedActions.push("Process within standard 5-day intake window");
@@ -321,6 +374,10 @@ export async function runAiEngine(input: {
   if (/state court|county|state law|zoning|tax/.test(lower)) tags.push("state-preemption", "tribal-sovereignty");
   if (/welfare|health|medical|snyder|benefit/.test(lower)) tags.push("welfare", "health", "snyder");
   if (/jurisdiction|sovereignty|sovereign|tribal court/.test(lower)) tags.push("tribal-jurisdiction", "tribal-sovereignty");
+  if (/credit|bureau|equifax|experian|transunion|reporting|fcra|credit\s+file|credit\s+report/.test(lower)) tags.push("credit-protection", "admin-process", "fcra", "credit-dispute", "debt-invalidation");
+  if (/mortgage|foreclos|debt\s+collect|debt\s+validat|fdcpa|collection\s+agenc|servicer|carrington|cease\s+and\s+desist/.test(lower)) tags.push("debt-collection", "debt-invalidation", "admin-process", "fdcpa", "cease-desist");
+  if (/lien|encumbrance|cloud\s+on\s+title|restricted\s+land.*mortgage|mortgage.*restricted/.test(lower)) tags.push("nonintercourse", "debt-invalidation", "admin-process", "trust-land", "alienation");
+  if (/admin(istrative)?\s+process|validate\s+the\s+debt|notices?\s+and\s+orders?|sent\s+(multiple\s+)?notices?/.test(lower)) tags.push("admin-process", "debt-invalidation", "fdcpa");
   if (tags.length === 0) tags.push("tribal-sovereignty");
 
   const lawData = await queryLawDb(tags);

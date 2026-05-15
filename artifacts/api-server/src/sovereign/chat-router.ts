@@ -265,6 +265,59 @@ const FUNNELS: FunnelDef[] = [
     ],
   },
   {
+    id: "CREDIT_DEBT_PROTECTION",
+    patterns: [
+      /credit\s*(bureau|report|file|score|card)/i,
+      /equifax|experian|transunion/i,
+      /mortgage\s*(company|servicer|lender|collect)/i,
+      /carrington/i,
+      /debt\s*(collector|collection|validation|validate)/i,
+      /place[sd]?\s+(something|things?|item|account|charge|lien)\s+(on|to)\s+(my|our)?\s*(person|personal|credit)/i,
+      /reporting\s+(to|on)\s+(my|our|the)?\s*credit/i,
+      /force\s*(d)?\s*(clos|foreclos)/i,
+      /foreclos(e|ure|ing)/i,
+      /fdcpa|fcra/i,
+      /validate\s+the\s+debt/i,
+      /sent\s+(multiple\s+)?(notices?|orders?|letters?)\s+(and\s+)?(no\s+response|ignored|disregarded)/i,
+      /cease\s+and\s+desist/i,
+      /stop\s+(carrington|the\s+mortgage|the\s+debt\s+collector|them\s+from\s+report)/i,
+    ],
+    respond: ({ userName }) =>
+      `${userName ? `${userName}, t` : "T"}his situation — a mortgage company or debt collector placing items on your credit file and/or attempting to force close on restricted land — triggers multiple layers of federal law protection.\n\nWHAT YOU ARE FACING IS AN ADMINISTRATIVE PROCESS VIOLATION:\n\n` +
+      `CREDIT BUREAU REPORTING (FCRA — 15 U.S.C. § 1681):\n` +
+      `• A furnisher (Carrington Mortgage or any servicer) CANNOT report inaccurate or unauthorized information\n` +
+      `• Your sovereign status and any federally recognized debt invalidity are grounds to dispute every item on your credit file\n` +
+      `• Once you send a written dispute, the bureau has 30 days to investigate and must notify the furnisher\n` +
+      `• Willful non-compliance: $100–$1,000 per violation + attorney fees (§ 1681n)\n\n` +
+      `DEBT COLLECTION (FDCPA — 15 U.S.C. § 1692):\n` +
+      `• Under § 1692g, once you send a written Debt Validation Demand, ALL collection must stop until they prove the debt is valid\n` +
+      `• They have 30 days to validate in writing — or the debt is presumed invalid\n` +
+      `• Continuing to collect or report during the validation period is itself an FDCPA violation\n` +
+      `• You have sent notices and orders — this is already on record and strengthens your position\n\n` +
+      `RESTRICTED/TRUST LAND (Nonintercourse Act — 25 U.S.C. § 177):\n` +
+      `• No mortgage, lien, or encumbrance on restricted Indian land is valid without federal authorization\n` +
+      `• Any attempted foreclosure on restricted land is void ab initio — it has no legal effect\n` +
+      `• Worcester v. Georgia (31 U.S. 515) — commercial actors have no force over protected Indian land\n\n` +
+      `THE MOST STRAIGHTFORWARD PATH — 3 STEPS:\n\n` +
+      `1. FDCPA DEBT VALIDATION DEMAND (certified mail, return receipt)\n` +
+      `   → Immediately halts all collection and credit reporting during validation\n` +
+      `   → Forces Carrington to produce: original signed contract, chain of title, proof of debt ownership\n\n` +
+      `2. CREDIT BUREAU DISPUTE NOTICE (to Equifax, Experian, TransUnion)\n` +
+      `   → Assert sovereign status + protected land status as grounds for dispute\n` +
+      `   → Demand removal of all items placed by the unauthorized creditor\n\n` +
+      `3. SOVEREIGN CEASE & DESIST (from this office)\n` +
+      `   → Formal order from Chief Justice & Trustee asserting jurisdiction, restricted land status, and FDCPA/FCRA violations\n` +
+      `   → Can be served on Carrington, their registered agent, and any credit bureaus\n\n` +
+      `Our system can generate all three documents. Use the Intake Pipeline for a full analysis, or go to Court Documents to start the drafts now.`,
+    actions: [
+      { label: "Run Full Intake Analysis", href: "/sovereign-pipeline" },
+      { label: "Draft Debt Validation Demand", href: "/documents" },
+      { label: "Draft Credit Dispute Notice", href: "/documents" },
+      { label: "File Complaint Against Carrington", href: "/complaints" },
+    ],
+    lawTags: ["debt-invalidation", "admin-process", "fdcpa", "fcra", "credit-protection", "nonintercourse", "trust-land"],
+  },
+  {
     id: "EMERGENCY",
     patterns: [
       /\bemergency\b/i,

@@ -79,8 +79,26 @@ const FEDERAL_LAWS = [
   {
     title: "Nonintercourse Act (Indian Trade and Intercourse Act)",
     citation: "25 U.S.C. § 177",
-    body: "No purchase or grant of lands from any Indian nation or tribe shall be valid unless made by treaty or convention entered into pursuant to the Constitution. All alienations of Indian land without federal approval are void. This statute protects against unauthorized transfers of Indian land.",
-    tags: ["trust-land", "alienation", "nonintercourse", "land-transfer"],
+    body: "No purchase or grant of lands from any Indian nation or tribe shall be valid unless made by treaty or convention entered into pursuant to the Constitution. All alienations of Indian land without federal approval are void. This statute protects against unauthorized transfers of Indian land. Any mortgage, lien, or commercial encumbrance placed on restricted Indian land without federal approval is void ab initio under this Act.",
+    tags: ["trust-land", "alienation", "nonintercourse", "land-transfer", "debt-invalidation", "admin-process", "credit-protection"],
+  },
+  {
+    title: "Fair Debt Collection Practices Act (FDCPA)",
+    citation: "15 U.S.C. § 1692 et seq.",
+    body: "The FDCPA prohibits abusive, unfair, or deceptive practices by debt collectors. Under § 1692g, upon written request within 30 days of initial communication, the debt collector must cease collection until the debt is validated in writing. Collectors may not communicate with the debtor after receiving a cease-communication request (§ 1692c). Violations entitle the debtor to actual damages, statutory damages up to $1,000, attorney fees, and costs. A written Debt Validation Demand sent by certified mail triggers the 30-day validation window and halts all collection activity. Reporting to a credit bureau during the dispute/validation period may itself constitute an FDCPA violation.",
+    tags: ["debt-collection", "debt-invalidation", "admin-process", "credit-protection", "fdcpa", "cease-desist"],
+  },
+  {
+    title: "Fair Credit Reporting Act (FCRA)",
+    citation: "15 U.S.C. § 1681 et seq.",
+    body: "The FCRA regulates the collection, dissemination, and use of consumer credit information. Under § 1681s-2, furnishers of information (including mortgage companies) must not furnish inaccurate information to credit reporting agencies. If a consumer disputes information, the furnisher must conduct a reasonable investigation and correct or delete inaccurate data. Credit bureaus must investigate disputes within 30 days (§ 1681i). A tribal member's protected sovereign status and federally recognized debt-invalidation grounds constitute valid basis for a credit dispute. Failure to correct after proper notice violates § 1681n (willful noncompliance) or § 1681o (negligent noncompliance), entitling the member to actual damages, statutory damages ($100–$1,000 per violation), punitive damages, and attorney fees.",
+    tags: ["credit-bureau", "credit-protection", "admin-process", "debt-invalidation", "fcra", "credit-dispute"],
+  },
+  {
+    title: "Tribal Sovereign Immunity from Creditor Actions",
+    citation: "Kiowa Tribe of Oklahoma v. Manufacturing Technologies, Inc., 523 U.S. 751 (1998); Oklahoma Tax Comm'n v. Citizen Band Potawatomi Indian Tribe, 498 U.S. 505 (1991)",
+    body: "Tribal sovereign immunity is a common law doctrine that shields tribes and their instrumentalities from unconsented suit. Commercial creditors cannot obtain judgment liens against tribal property, trust land, or restricted fee land without an explicit tribal waiver of immunity. A tribal member invoking sovereign status places the burden on the creditor to demonstrate both a valid debt and a valid basis for jurisdiction. Courts have held that restricted Indian land is not subject to state foreclosure proceedings absent federal authorization. The Federal Trust Responsibility further shields tribal members from unauthorized commercial encroachment on their sovereign rights and protected land.",
+    tags: ["sovereign-immunity", "debt-invalidation", "admin-process", "credit-protection", "trust-land", "tribal-jurisdiction"],
   },
   {
     title: "Title VI of the Civil Rights Act — Non-Discrimination in Federally Funded Programs",

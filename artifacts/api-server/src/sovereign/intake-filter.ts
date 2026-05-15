@@ -81,6 +81,41 @@ const IMMINENT_HARM_PATTERNS = [
   /medical\s+emergency/i,
 ];
 
+// ── ADMINISTRATIVE PROCESS / DEBT / CREDIT BUREAU VIOLATIONS ──────────────────
+// Detects unauthorized commercial and creditor actions against a sovereign member,
+// including credit bureau reporting, mortgage collection on restricted land,
+// forced closure / foreclosure, and failure to validate debt.
+const ADMIN_PROCESS_PATTERNS = [
+  // Credit bureau / credit reporting
+  /place[sd]?\s+(something|things?|item[s]?|account[s]?|charge[s]?|lien[s]?|debt[s]?)?\s*(on|to)?\s*(my|our|the)?\s*(personal\s+)?credit/i,
+  /report(ed|ing|s)?\s+to\s+(a\s+)?(credit\s+(bureau|agenc|reporting)|equifax|experian|transunion)/i,
+  /credit\s+(bureau|report|file|record)\s+(reporting|posting|listing|adding|placing)/i,
+  /(negative|derogatory|adverse)\s+(mark|entry|item|account|report)\s+on\s+(my|our|the)?\s*credit/i,
+  /put\s+(something|a\s+charge|an?\s+(account|debt|lien))\s+on\s+(my|our|the)?\s*(person|credit)/i,
+  /posting\s+on\s+(my|our|the)?\s*(person|personal|credit)/i,
+];
+
+const DEBT_COLLECTION_PATTERNS = [
+  // Unauthorized debt collection against sovereign member
+  /(carrington|mortgage\s+company|servicer|creditor|debt\s+collector|collection\s+agenc)\s+(is\s+)?(attempting|trying|has|sent|reported|placed)/i,
+  /force\s*(d|ful)?\s*(clos(e|ure|ing)|foreclos(e|ure|ing)|sell|auction)/i,
+  /foreclos(e|ure|ing)\s+(on\s+)?(restricted|trust|indian|tribal|protected)\s+land/i,
+  /attempting\s+to\s+(foreclose|force\s+clos|sell)\s+(the|our|my|this)\s+(land|property|home)/i,
+  /collect(ion|ing)?\s+(on|against)\s+(restricted|trust|protected|indian|tribal)\s+(land|property|status)/i,
+  /debt\s+(collector|collection|agenc)\s+(disregard|ignor|violat|overrid)/i,
+  /did\s+not\s+validate\s+(the\s+)?debt/i,
+  /failure\s+to\s+validate\s+(the\s+)?debt/i,
+  /no\s+debt\s+validation/i,
+  /sent\s+(multiple\s+)?(notices?|orders?|letters?)\s+(and\s+)?(no\s+response|ignored|disregarded)/i,
+];
+
+const UNAUTHORIZED_LIEN_PATTERNS = [
+  /lien\s+(placed|filed|recorded|attached)\s+(on|against)\s+(restricted|trust|protected|indian|tribal)\s+(land|property)/i,
+  /unauthorized\s+(lien|encumbrance|charge)\s+on\s+(indian|trust|restricted|sovereign|tribal)/i,
+  /cloud\s+(on|over)\s+(the\s+)?(title|land|property)/i,
+  /encumber(ed|ing)?\s+(trust|restricted|indian|tribal)\s+land/i,
+];
+
 export function runIntakeFilter(text: string): IntakeFilterResult {
   const violations: string[] = [];
   const doctrinesTriggered: string[] = [];
@@ -149,10 +184,58 @@ export function runIntakeFilter(text: string): IntakeFilterResult {
     }
   }
 
+  // ── ADMINISTRATIVE PROCESS: credit bureau / debt collection / forced closure ──
+  let adminProcessViolation = false;
+
+  for (const pattern of ADMIN_PROCESS_PATTERNS) {
+    if (pattern.test(text)) {
+      adminProcessViolation = true;
+      violations.push("Unauthorized credit bureau reporting against a sovereign member — potential FCRA violation (15 U.S.C. § 1681s-2) and FDCPA violation (15 U.S.C. § 1692)");
+      doctrinesTriggered.push("Fair Credit Reporting Act (FCRA), 15 U.S.C. § 1681 — member has right to dispute and demand removal of inaccurate/unauthorized reporting");
+      doctrinesTriggered.push("Fair Debt Collection Practices Act (FDCPA), 15 U.S.C. § 1692g — creditor must validate debt within 30 days of written demand");
+      doctrinesTriggered.push("Sovereign status as an identifiable Indian — commercial creditor obligations do not override protected status under federal Indian law");
+      nfrRecommended = true;
+      break;
+    }
+  }
+
+  for (const pattern of DEBT_COLLECTION_PATTERNS) {
+    if (pattern.test(text)) {
+      adminProcessViolation = true;
+      violations.push("Unauthorized debt collection / forced closure attempt against a sovereign member on restricted or protected land");
+      doctrinesTriggered.push("Nonintercourse Act, 25 U.S.C. § 177 — no encumbrance or transfer of Indian land is valid without federal approval; unauthorized mortgage action is void");
+      doctrinesTriggered.push("Federal Trust Responsibility — U.S. holds fiduciary duty to protect restricted Indian land from unauthorized commercial action");
+      doctrinesTriggered.push("FDCPA, 15 U.S.C. § 1692 — debt must be validated in writing; collection must cease during validation period");
+      nfrRecommended = true;
+      break;
+    }
+  }
+
+  for (const pattern of UNAUTHORIZED_LIEN_PATTERNS) {
+    if (pattern.test(text)) {
+      adminProcessViolation = true;
+      violations.push("Unauthorized lien or encumbrance placed on Indian/restricted land — void under Nonintercourse Act");
+      doctrinesTriggered.push("Nonintercourse Act, 25 U.S.C. § 177 — all unauthorized encumbrances on Indian land are void ab initio");
+      doctrinesTriggered.push("Indian Land Consolidation Act (25 U.S.C. § 2201) — trust land status is federally protected from commercial encumbrance");
+      nfrRecommended = true;
+      break;
+    }
+  }
+
+  // If admin process + restricted land context — escalate posture
+  const landContextPresent = /restricted\s+land|trust\s+land|indian\s+land|tribal\s+land|protected\s+(land|status)|indian\s+country/i.test(text);
+  if (adminProcessViolation && landContextPresent) {
+    violations.push("Administrative process invoked on restricted/protected land without federal authorization — void under federal Indian law");
+    doctrinesTriggered.push("Worcester v. Georgia, 31 U.S. 515 (1832) — state and commercial actors have no force over protected Indian land");
+    troRecommended = true;
+  }
+
   const redFlag = violations.length > 0 || troRecommended;
 
   let redBannerMessage: string | null = null;
-  if (violations.length > 0) {
+  if (adminProcessViolation) {
+    redBannerMessage = `ADMINISTRATIVE PROCESS VIOLATION — Unauthorized creditor/credit bureau action detected against a sovereign member. FDCPA debt validation demand required. Credit bureau dispute notice recommended. ${landContextPresent ? "Nonintercourse Act (25 U.S.C. § 177) applies — commercial action on restricted land is void." : ""} Generate Cease & Desist and Credit Dispute Notice immediately.`;
+  } else if (violations.length > 0) {
     redBannerMessage = `RED FLAG — Indian Status / Jurisdiction Violation Detected: ${violations.join("; ")}. Federal Indian law applies. Indian Canons of Construction mandate resolution in favor of Indian interests.`;
   } else if (troRecommended && !indianStatusViolation) {
     redBannerMessage = "WARNING — Imminent harm indicators detected. TRO posture recommended.";
@@ -161,6 +244,10 @@ export function runIntakeFilter(text: string): IntakeFilterResult {
   let canonicalPosture = "Standard intake — no violations detected. Continue processing.";
   if (indianStatusViolation && troRecommended) {
     canonicalPosture = "EMERGENCY — Indian status violation with imminent harm. Apply full ICWA protections. Generate TRO-supporting declaration immediately.";
+  } else if (adminProcessViolation && landContextPresent) {
+    canonicalPosture = "CRITICAL — Unauthorized administrative/creditor process on restricted land. Debt is void under Nonintercourse Act. Issue FDCPA validation demand + Credit Bureau Dispute Notice + Cease & Desist to creditor. Escalate to Chief Justice & Trustee.";
+  } else if (adminProcessViolation) {
+    canonicalPosture = "ELEVATED — Unauthorized administrative process against sovereign member. Issue FDCPA debt validation demand and Credit Bureau Dispute Notice. NFR posture recommended.";
   } else if (indianStatusViolation && nfrRecommended) {
     canonicalPosture = "CRITICAL — Indian status or jurisdiction violation. Apply Indian Canons of Construction. Generate NFR document. Escalate to Chief Justice & Trustee.";
   } else if (troRecommended) {
