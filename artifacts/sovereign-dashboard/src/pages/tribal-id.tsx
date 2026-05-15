@@ -219,7 +219,7 @@ export default function TribalIdPage() {
         >
           {/* Left seal — Office of the Chief Justice & Trustee (slightly smaller than tribal seal) */}
           <img
-            src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
+            src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
             alt="Office of the Chief Justice & Trustee"
             style={{ width: 48, height: 48, objectFit: "contain", flexShrink: 0 }}
           />
@@ -239,7 +239,7 @@ export default function TribalIdPage() {
 
           {/* Right seal — Tribal */}
           <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+            src={`${import.meta.env.BASE_URL}tribal-seal.png?v=3`}
             alt="Tribal Seal"
             style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
           />
