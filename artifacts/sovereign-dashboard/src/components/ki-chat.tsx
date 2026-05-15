@@ -45,7 +45,24 @@ const MSG_KNOWLEDGE = { background: "rgba(40,20,0,0.6)", border: "1px solid rgba
 const HEADER_BG = { background: "rgba(0,0,0,0.4)", borderBottom: "1px solid rgba(255,255,255,0.07)" };
 const INPUT_BG = { borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.25)" };
 
-export function KayaChat() {
+interface KayaChatProps {
+  memberPhoto?: string | null;
+  memberName?: string;
+  pendingTasks?: number;
+  unreadNotifications?: number;
+  pendingFilings?: number;
+}
+
+const QUICK_PROMPTS = [
+  { label: "What's my status?", text: "Can you give me a quick summary of my sovereign standing and what I should focus on today?" },
+  { label: "Know your rights", text: "Remind me of the key federal Indian law rights that protect my sovereign standing." },
+  { label: "Red flag check", text: "What are the most common identity denial or misclassification red flags I should watch for?" },
+  { label: "Lineage & standing", text: "Can you walk me through what makes my lineage and tribal standing legally valid?" },
+  { label: "Trust responsibility", text: "Explain the federal trust responsibility and how it applies to my situation." },
+  { label: "ICWA protections", text: "What protections does ICWA give me and my family?" },
+];
+
+export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifications, pendingFilings }: KayaChatProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
@@ -212,6 +229,7 @@ export function KayaChat() {
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3" style={HEADER_BG}>
         <div className="flex items-center gap-2.5">
+          {/* Kaya icon */}
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "1px solid rgba(255,255,255,0.15)" }}
@@ -224,9 +242,25 @@ export function KayaChat() {
               Your Sovereign Companion · {knowledgeEntries.length} memories
             </p>
           </div>
+          {/* Member context badges */}
+          {(pendingTasks ?? 0) > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full text-amber-300/80 font-semibold" style={{ background: "rgba(180,120,10,0.2)", border: "1px solid rgba(180,120,10,0.25)" }}>
+              {pendingTasks} task{pendingTasks !== 1 ? "s" : ""}
+            </span>
+          )}
+          {(unreadNotifications ?? 0) > 0 && (
+            <span className="text-[9px] px-1.5 py-0.5 rounded-full text-orange-300/80 font-semibold" style={{ background: "rgba(200,80,10,0.2)", border: "1px solid rgba(200,80,10,0.25)" }}>
+              {unreadNotifications} unread
+            </span>
+          )}
         </div>
-
         <div className="flex items-center gap-1.5">
+          {/* Member photo avatar */}
+          {memberPhoto && (
+            <div className="w-7 h-7 rounded-full overflow-hidden border border-white/20 flex-shrink-0" title={memberName ?? "Member"}>
+              <img src={memberPhoto} alt={memberName ?? "Member"} className="w-full h-full object-cover" />
+            </div>
+          )}
           {!collapsed && (
             <>
               {tabBtn("chat", <MessageCircle className="w-3 h-3" />, "Chat")}
@@ -261,13 +295,63 @@ export function KayaChat() {
                     <Loader2 className="w-5 h-5 text-white/30 animate-spin" />
                   </div>
                 ) : messages.length === 0 ? (
-                  <div className="text-center py-8 space-y-1">
-                    <p className="text-white/50 text-sm italic">
-                      Is there anything you'd like to share today, {firstName}?
-                    </p>
-                    <p className="text-white/20 text-[11px]">
-                      Ask me about sovereign law, share something on your mind, or teach me something new.
-                    </p>
+                  <div className="py-5 space-y-4">
+                    {/* Greeting + member photo */}
+                    <div className="flex items-center gap-3">
+                      {memberPhoto ? (
+                        <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 shrink-0">
+                          <img src={memberPhoto} alt={memberName ?? "Member"} className="w-full h-full object-cover" />
+                        </div>
+                      ) : (
+                        <div className="w-10 h-10 rounded-full flex items-center justify-center shrink-0" style={{ background: "rgba(100,20,20,0.5)", border: "1px solid rgba(255,255,255,0.1)" }}>
+                          <Feather className="w-4 h-4 text-amber-300/60" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-white/70 text-sm font-medium leading-snug">
+                          Good to see you{memberName ? `, ${memberName.split(" ")[0]}` : ""}.
+                        </p>
+                        <p className="text-white/30 text-[11px]">
+                          What's on your mind today?
+                        </p>
+                      </div>
+                    </div>
+                    {/* Contextual status strip */}
+                    {((pendingTasks ?? 0) > 0 || (unreadNotifications ?? 0) > 0 || (pendingFilings ?? 0) > 0) && (
+                      <div className="flex flex-wrap gap-1.5 px-1">
+                        {(pendingTasks ?? 0) > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full text-amber-300/70" style={{ background: "rgba(180,120,10,0.15)", border: "1px solid rgba(180,120,10,0.2)" }}>
+                            {pendingTasks} pending task{pendingTasks !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {(unreadNotifications ?? 0) > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full text-orange-300/70" style={{ background: "rgba(200,80,10,0.15)", border: "1px solid rgba(200,80,10,0.2)" }}>
+                            {unreadNotifications} unread notification{unreadNotifications !== 1 ? "s" : ""}
+                          </span>
+                        )}
+                        {(pendingFilings ?? 0) > 0 && (
+                          <span className="text-[10px] px-2 py-0.5 rounded-full text-blue-300/70" style={{ background: "rgba(30,80,180,0.15)", border: "1px solid rgba(30,80,180,0.2)" }}>
+                            {pendingFilings} filing{pendingFilings !== 1 ? "s" : ""} pending
+                          </span>
+                        )}
+                      </div>
+                    )}
+                    {/* Quick prompt chips */}
+                    <div>
+                      <p className="text-white/20 text-[10px] uppercase tracking-widest mb-2 px-1">Ask me about</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {QUICK_PROMPTS.map((p) => (
+                          <button
+                            key={p.label}
+                            onClick={() => { setInput(p.text); }}
+                            className="text-[11px] px-2.5 py-1 rounded-full text-white/55 hover:text-white/90 transition-all"
+                            style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.1)" }}
+                          >
+                            {p.label}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
                   </div>
                 ) : (
                   messages.map((msg) => (

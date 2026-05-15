@@ -604,6 +604,17 @@ export default function ProfilePage() {
           }
         }
 
+        /* load photo from identity gateway (profilePhoto lives in familyLineage) */
+        if (!(d.identity as any)?.profilePhoto) {
+          const gr = await fetch("/api/identity/gateway", {
+            headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+          }).catch(() => null);
+          if (gr?.ok) {
+            const gd = await gr.json().catch(() => null);
+            if (gd?.profilePhoto) setPhotoUrl(gd.profilePhoto);
+          }
+        }
+
         /* load vault presence (never returns actual values) */
         const vr = await fetch("/api/user/vault", {
           headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
@@ -855,7 +866,17 @@ export default function ProfilePage() {
       {/* ── Header ── */}
       {isChief ? (
         <div className="flex items-center gap-4 pb-4 border-b border-border">
-          <img src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`} className="w-16 h-16 object-contain drop-shadow shrink-0" alt="Mathias El Tribe Supreme Court" />
+          <img src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`} className="w-14 h-14 object-contain drop-shadow shrink-0" alt="Mathias El Tribe Supreme Court" />
+          {/* Member photo — center */}
+          <div className="relative shrink-0">
+            <div className="w-16 h-16 rounded-full border-2 border-primary/30 overflow-hidden bg-muted flex items-center justify-center shadow-md">
+              {photoUrl
+                ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+                : <User className="h-7 w-7 text-muted-foreground" />
+              }
+            </div>
+            <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-background" title="Authority Active" />
+          </div>
           <div className="flex-1 min-w-0">
             <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Mathias El Tribe</p>
             <h1 className="font-serif text-xl font-bold text-foreground leading-tight">Office &amp; Identity Hub</h1>
@@ -874,18 +895,26 @@ export default function ProfilePage() {
           <img src={`${import.meta.env.BASE_URL}chief-justice-seal.png`} className="w-14 h-14 object-contain drop-shadow shrink-0" alt="Chief Justice" />
         </div>
       ) : (
-        <div>
-          <h1 className="text-2xl font-serif font-bold text-foreground">Profile &amp; Identity</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">Unified identity across welfare instruments, trust filings, and court captions.</p>
-          {unreadCount > 0 && (
-            <div className="flex items-center gap-3 px-3 py-2.5 rounded-lg border border-orange-200 bg-orange-50 mt-3">
-              <Bell className="h-4 w-4 text-orange-600 shrink-0" />
-              <p className="text-sm text-orange-800 flex-1">You have <strong>{unreadCount}</strong> unread notification{unreadCount !== 1 ? "s" : ""}.</p>
-              <Link href="/notifications">
-                <Button size="sm" variant="outline" className="border-orange-300 text-orange-800 hover:bg-orange-100 h-7 text-xs">View <ChevronRight className="h-3 w-3 ml-0.5" /></Button>
-              </Link>
-            </div>
-          )}
+        <div className="flex items-center gap-4 pb-4 border-b border-border">
+          <div className="w-14 h-14 rounded-full border-2 border-border overflow-hidden bg-muted flex items-center justify-center shrink-0">
+            {photoUrl
+              ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
+              : <User className="h-6 w-6 text-muted-foreground" />
+            }
+          </div>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-2xl font-serif font-bold text-foreground">Profile &amp; Identity</h1>
+            <p className="text-sm text-muted-foreground mt-0.5">Unified identity across welfare instruments, trust filings, and court captions.</p>
+            {unreadCount > 0 && (
+              <div className="flex items-center gap-2 mt-1.5">
+                <Bell className="h-3.5 w-3.5 text-orange-600 shrink-0" />
+                <p className="text-xs text-orange-800">You have <strong>{unreadCount}</strong> unread notification{unreadCount !== 1 ? "s" : ""}.</p>
+                <Link href="/notifications">
+                  <span className="text-xs text-primary underline cursor-pointer">View</span>
+                </Link>
+              </div>
+            )}
+          </div>
         </div>
       )}
 
@@ -893,7 +922,12 @@ export default function ProfilePage() {
       <SmokeCheckBar />
 
       {/* ── KAYA — primary AI interface (top) ── */}
-      <KayaChat />
+      <KayaChat
+        memberPhoto={photoUrl}
+        memberName={fields.legalName || undefined}
+        pendingTasks={data?.tasks?.filter((t: any) => t.status !== "completed" && t.status !== "done").length}
+        unreadNotifications={unreadCount}
+      />
 
       {/* ── Pipeline Records — compact indicators, office holders only ── */}
       {isOfficeHolder && (
