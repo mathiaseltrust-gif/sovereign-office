@@ -184,6 +184,42 @@ export default function Login() {
           </div>
         )}
 
+        {/* ── Law & Logic: Self-Determination Declaration ── */}
+        <div className="mb-6 rounded-lg px-5 py-4 relative overflow-hidden"
+          style={{
+            background: "linear-gradient(135deg, rgba(107,0,0,0.06) 0%, rgba(180,120,10,0.04) 100%)",
+            border: "1px solid rgba(107,0,0,0.12)",
+          }}
+        >
+          {/* Decorative left rule */}
+          <div className="absolute left-0 top-3 bottom-3 w-[2px] rounded-full"
+            style={{ background: "linear-gradient(180deg, transparent, rgba(107,0,0,0.35) 30%, rgba(180,120,10,0.4) 70%, transparent)" }}
+          />
+          <p className="text-[9px] tracking-[0.22em] uppercase font-semibold mb-2 pl-3"
+            style={{ color: "rgba(107,0,0,0.5)" }}
+          >
+            Law &amp; Logic — Self-Determination
+          </p>
+          <blockquote className="pl-3">
+            <p className="font-serif text-sm leading-relaxed text-foreground/80 italic">
+              "We hold these trusts to be self-evident: that every man and woman is entitled to his or her own personhood — to name, to nation, to standing — and that no external authority may sever that right without the full force of consent."
+            </p>
+          </blockquote>
+          <div className="pl-3 mt-2.5 flex flex-wrap gap-x-3 gap-y-1">
+            {[
+              "UNDRIP Art. 3 — Self-Determination",
+              "25 U.S.C. § 5302 — Self-Governance",
+              "Worcester v. Georgia (1832)",
+            ].map(cite => (
+              <span key={cite} className="text-[9px] tracking-wide"
+                style={{ color: "rgba(120,80,10,0.55)" }}
+              >
+                {cite}
+              </span>
+            ))}
+          </div>
+        </div>
+
         <Card className="mb-4">
           <CardContent className="pt-6 space-y-4">
             <Button
