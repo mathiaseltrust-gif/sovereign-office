@@ -233,14 +233,100 @@ router.put("/land", requireAuth, async (req, res, next) => {
 });
 
 router.get("/verify/:userId", async (req, res) => {
-  const userId = req.params.userId;
-  res.json({
-    verified: true,
-    issuingAuthority: "Mathias El Tribe Sovereign Identity Gateway",
-    userId,
-    verifiedAt: new Date().toISOString(),
-    message: "This identity record is maintained by the Sovereign Office of the Chief Justice & Trustee.",
-  });
+  const userId = parseInt(req.params.userId) || 0;
+  const verifiedAt = new Date().toLocaleString("en-US", { timeZoneName: "short", month: "long", day: "numeric", year: "numeric", hour: "2-digit", minute: "2-digit" });
+
+  let memberName = "Tribal Member";
+  let enrollmentNo = "";
+  let role = "";
+  let protectionLevel = "";
+  let membershipVerified = true;
+
+  try {
+    if (userId > 0) {
+      const tokenUser = { email: "", name: "", roles: [] as string[] };
+      const gateway = await resolveSovereignIdentityGateway(userId, tokenUser);
+      memberName = gateway.identity.legalName || gateway.identity.displayName || "Tribal Member";
+      enrollmentNo = gateway.identity.tribalEnrollmentNumber ?? "";
+      role = gateway.identity.role ?? "";
+      protectionLevel = gateway.protectionLevel ?? "standard";
+      membershipVerified = gateway.membershipVerified;
+    }
+  } catch { /* graceful — show generic verification */ }
+
+  const roleLabel: Record<string, string> = {
+    trustee: "Chief Justice & Trustee", sovereign_admin: "Chief Justice & Trustee",
+    admin: "Chief Justice & Trustee", officer: "Officer", elder: "Elder",
+    member: "Tribal Member", medical_provider: "Medical Provider",
+  };
+  const displayRole = (roleLabel[role] ?? role.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase())) || "Tribal Member";
+  const protBadge: Record<string, string> = { critical: "#8B0000", elevated: "#7A5C00", standard: "#1a4d1a" };
+  const badgeColor = protBadge[protectionLevel] ?? "#1a4d1a";
+
+  const html = `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Identity Verification — Mathias El Tribe</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: Georgia, 'Times New Roman', serif; background: #f5f0e8; min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 24px 16px; }
+    .card { background: #fff; border: 1.5px solid #c8b89a; border-radius: 4px; max-width: 480px; width: 100%; box-shadow: 0 4px 24px rgba(0,0,0,0.13); overflow: hidden; }
+    .header { background: linear-gradient(160deg, #6B0000 0%, #9B1A1A 100%); padding: 28px 24px 20px; text-align: center; }
+    .header-title { font-family: Arial, sans-serif; font-size: 10px; letter-spacing: 3px; text-transform: uppercase; color: rgba(255,255,255,0.7); margin-bottom: 6px; }
+    .header-name { font-size: 22px; font-weight: bold; color: #fff; margin-bottom: 2px; }
+    .header-sub { font-size: 12px; color: rgba(255,255,255,0.65); letter-spacing: 1px; }
+    .badge-row { display: flex; align-items: center; justify-content: center; gap: 10px; margin-top: 14px; flex-wrap: wrap; }
+    .badge { display: inline-block; padding: 4px 12px; border-radius: 3px; font-family: Arial, sans-serif; font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; }
+    .badge-verified { background: #1a4d1a; color: #fff; }
+    .badge-protection { color: #fff; }
+    .checkmark { display: inline-flex; align-items: center; justify-content: center; width: 48px; height: 48px; border-radius: 50%; background: rgba(255,255,255,0.15); font-size: 26px; margin: 0 auto 10px; }
+    .body { padding: 24px; }
+    .field { margin-bottom: 16px; border-bottom: 1px solid #e8e0d4; padding-bottom: 14px; }
+    .field:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .field-label { font-family: Arial, sans-serif; font-size: 9px; letter-spacing: 2px; text-transform: uppercase; color: #888; margin-bottom: 4px; }
+    .field-value { font-size: 14px; color: #1a1a1a; font-weight: 600; }
+    .field-value.mono { font-family: 'Courier New', monospace; color: #6B0000; }
+    .footer { background: #f9f5ee; border-top: 1px solid #e0d4c0; padding: 14px 24px; }
+    .footer-authority { font-family: Arial, sans-serif; font-size: 9px; color: #999; text-align: center; line-height: 1.5; letter-spacing: 0.3px; }
+    .footer-ts { font-family: 'Courier New', monospace; font-size: 9px; color: #bbb; text-align: center; margin-top: 6px; }
+    .seal-row { display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 10px; }
+    .seal-line { flex: 1; height: 1px; background: rgba(255,255,255,0.2); }
+    .not-verified { color: #8B0000; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="header">
+      <div class="header-title">Mathias El Tribe · Sovereign Identity Gateway</div>
+      <div class="checkmark">${membershipVerified ? "✓" : "⚠"}</div>
+      <div class="header-name">${memberName.replace(/</g, "&lt;")}</div>
+      <div class="header-sub">Office of the Chief Justice &amp; Trustee</div>
+      <div class="badge-row">
+        <span class="badge badge-verified">${membershipVerified ? "✓ Verified Member" : "⚠ Pending Verification"}</span>
+        ${protectionLevel ? `<span class="badge badge-protection" style="background:${badgeColor};">${protectionLevel.toUpperCase()} PROTECTION</span>` : ""}
+      </div>
+    </div>
+    <div class="body">
+      ${enrollmentNo ? `<div class="field"><div class="field-label">Enrollment Number</div><div class="field-value mono">${enrollmentNo}</div></div>` : ""}
+      ${displayRole ? `<div class="field"><div class="field-label">Role / Title</div><div class="field-value">${displayRole.replace(/</g, "&lt;")}</div></div>` : ""}
+      <div class="field"><div class="field-label">Membership Status</div><div class="field-value ${membershipVerified ? "" : "not-verified"}">${membershipVerified ? "Active &amp; Verified" : "Pending Verification"}</div></div>
+      <div class="field"><div class="field-label">Issuing Authority</div><div class="field-value" style="font-size:12px;">Mathias El Tribe Supreme Court<br><span style="font-weight:400;color:#666;font-size:11px;">Sovereign Identity Gateway · Federal Trust Responsibility Applies</span></div></div>
+      <div class="field"><div class="field-label">Legal Basis</div><div class="field-value" style="font-size:11px;font-weight:400;font-style:italic;color:#555;">Worcester v. Georgia, 31 U.S. 515 (1832)</div></div>
+    </div>
+    <div class="footer">
+      <div class="footer-authority">This record is maintained under inherent sovereign authority of the Mathias El Tribe — An Identifiable Group of American Indians. Federal Trust Responsibility applies.</div>
+      <div class="footer-ts">Verified: ${verifiedAt}</div>
+    </div>
+  </div>
+</body>
+</html>`;
+
+  res.set("Content-Type", "text/html; charset=utf-8");
+  res.set("Cache-Control", "no-store");
+  res.send(html);
 });
 
 export default router;

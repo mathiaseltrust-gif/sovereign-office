@@ -131,6 +131,20 @@ export default function TribalIdPage() {
     if (file) photoMutation.mutate(file);
   };
 
+  function triggerDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.style.display = "none";
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    setTimeout(() => {
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    }, 30_000);
+  }
+
   const handleDownloadId = async () => {
     setGenerating(true);
     try {
@@ -139,12 +153,7 @@ export default function TribalIdPage() {
       });
       if (!r.ok) throw new Error("Failed to generate Tribal ID");
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `tribal-id-${data?.identity.tribalEnrollmentNumber ?? user!.id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      triggerDownload(blob, `tribal-id-${data?.identity.tribalEnrollmentNumber ?? user!.id}.pdf`);
       toast({ title: "Tribal ID Generated", description: "Your Tribal ID PDF has been downloaded." });
     } catch (err) {
       toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
@@ -166,12 +175,7 @@ export default function TribalIdPage() {
       });
       if (!r.ok) throw new Error("Failed to generate Verification Letter");
       const blob = await r.blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `verification-letter-${data?.identity.tribalEnrollmentNumber ?? user!.id}.pdf`;
-      a.click();
-      URL.revokeObjectURL(url);
+      triggerDownload(blob, `verification-letter-${data?.identity.tribalEnrollmentNumber ?? user!.id}.pdf`);
       toast({ title: "Verification Letter Generated", description: "Verification letter PDF downloaded." });
     } catch (err) {
       toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
