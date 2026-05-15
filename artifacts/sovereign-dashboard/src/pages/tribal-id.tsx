@@ -483,8 +483,21 @@ export default function TribalIdPage() {
       {/* Print stylesheet override */}
       <style>{`
         @media print {
-          body > *:not(#tribal-id-card) { display: none !important; }
-          #tribal-id-card { width: 100% !important; break-inside: avoid; }
+          body * { visibility: hidden !important; }
+          #tribal-id-card,
+          #tribal-id-card * { visibility: visible !important; }
+          #tribal-id-card {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            width: 100vw !important;
+            height: auto !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            box-shadow: none !important;
+            border-radius: 0 !important;
+            z-index: 9999 !important;
+          }
         }
       `}</style>
     </div>
