@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Printer, Upload, User, ShieldCheck } from "lucide-react";
+import { Download, Printer, Upload, User, ShieldCheck, Feather } from "lucide-react";
 
 interface GatewayData {
   identity: {
@@ -239,7 +239,7 @@ export default function TribalIdPage() {
 
           {/* Right seal — Tribal */}
           <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png?v=3`}
+            src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
             alt="Tribal Seal"
             style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
           />
@@ -262,6 +262,14 @@ export default function TribalIdPage() {
               strokeWidth="2.5"
             />
           </svg>
+
+          {/* Feather watermark — far right, full-height, low opacity */}
+          <div
+            className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
+            style={{ opacity: 0.07 }}
+          >
+            <Feather className="w-32 h-32 text-amber-300" strokeWidth={0.8} />
+          </div>
 
           {/* Photo — left side */}
           <div className="relative z-10 flex flex-col items-center justify-center flex-shrink-0 py-4 pl-5 pr-2" style={{ width: 152 }}>

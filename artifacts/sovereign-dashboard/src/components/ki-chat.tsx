@@ -925,20 +925,13 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
         }}
       >
         <div className="flex items-center gap-3">
-          {/* COMPANION logo — copper on dark red circle */}
-          <div
-            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full"
-            style={{
-              background: "radial-gradient(circle, #2a0000 0%, #1a0000 100%)",
-              border: "1px solid rgba(180,90,30,0.3)",
-              boxShadow: "0 0 10px rgba(180,60,0,0.25) inset",
-            }}
-          >
+          {/* COMPANION logo — clean, no background circle */}
+          <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
             <img
               src="/sovereign-dashboard/companion-logo.png"
               alt="COMPANION"
-              className="w-full h-full object-contain rounded-full"
-              style={{ filter: "drop-shadow(0 0 4px rgba(220,140,50,0.6))" }}
+              className="w-full h-full object-contain"
+              style={{ filter: "drop-shadow(0 0 6px rgba(220,140,50,0.55))" }}
             />
           </div>
           <div>
