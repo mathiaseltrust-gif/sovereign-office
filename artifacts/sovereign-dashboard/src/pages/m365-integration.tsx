@@ -4,6 +4,10 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
+import {
+  CheckCircle2, XCircle, ChevronDown, ChevronRight,
+  Cloud, FileText, Zap, ShieldCheck, Settings, Copy,
+} from "lucide-react";
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "")}/api`;
 
@@ -14,266 +18,246 @@ interface M365Status {
   azureClientReady: boolean;
   endpoints: Record<string, string>;
   authentication: { method: string; headerName: string; note: string };
-  powerAutomateFlow: Array<{
-    step: number;
-    trigger?: string;
-    action?: string;
-    body?: string;
-    headers?: Record<string, string>;
-  }>;
 }
 
-function StatusBadge({ ok, label }: { ok: boolean; label: string }) {
+// ── Small connection indicator ───────────────────────────────────────────────
+function ServiceRow({ ok, label, detail }: { ok: boolean; label: string; detail?: string }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <Badge variant={ok ? "default" : "destructive"} className="text-xs">
-        {ok ? "Configured" : "Not configured"}
+    <div className="flex items-center gap-3 py-2.5 border-b border-border last:border-0">
+      {ok
+        ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+        : <XCircle className="h-4 w-4 text-destructive shrink-0" />}
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium">{label}</p>
+        {detail && <p className="text-xs text-muted-foreground">{detail}</p>}
+      </div>
+      <Badge
+        variant={ok ? "default" : "secondary"}
+        className={`text-[9px] uppercase tracking-wider shrink-0 ${ok ? "bg-green-700 text-white" : ""}`}
+      >
+        {ok ? "Active" : "Not configured"}
       </Badge>
     </div>
   );
 }
 
-function CopyBlock({ value, label }: { value: string; label: string }) {
+// ── Admin-only: copyable endpoint block ─────────────────────────────────────
+function EndpointRow({ label, value }: { label: string; value: string }) {
   const { toast } = useToast();
   return (
     <div className="mb-3">
-      <p className="text-xs text-muted-foreground mb-1">{label}</p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-1">{label}</p>
       <div className="flex items-center gap-2">
-        <code className="flex-1 text-xs bg-muted rounded px-3 py-2 font-mono break-all">{value}</code>
+        <code className="flex-1 text-[10px] bg-muted rounded px-2.5 py-1.5 font-mono break-all text-muted-foreground">
+          {value}
+        </code>
         <Button
           size="sm"
           variant="outline"
-          className="shrink-0 h-8 text-xs"
-          onClick={() => {
-            navigator.clipboard.writeText(value);
-            toast({ title: "Copied", description: label });
-          }}
+          className="shrink-0 h-7 w-7 p-0"
+          onClick={() => { navigator.clipboard.writeText(value); toast({ title: "Copied", description: label }); }}
+          title="Copy"
         >
-          Copy
+          <Copy className="h-3 w-3" />
         </Button>
       </div>
     </div>
   );
 }
 
-const POWER_AUTOMATE_STEPS = [
-  {
-    num: 1,
-    icon: "📁",
-    title: "Trigger: SharePoint file created",
-    desc: 'Add a "When a file is created (properties only)" trigger on your SharePoint document library.',
-    code: null,
-  },
-  {
-    num: 2,
-    icon: "📄",
-    title: "Get file content",
-    desc: 'Add "Get file content" action using the File Identifier from step 1.',
-    code: null,
-  },
-  {
-    num: 3,
-    icon: "🌐",
-    title: "HTTP POST — Sovereign AI Webhook",
-    desc: 'Add an HTTP action. Method: POST. URI: your webhook URL. Add header X-Api-Key with the service key value.',
-    code: JSON.stringify({
-      mode: "full_intake",
-      base64Content: "@{base64(body('Get_file_content'))}",
-      filename: "@{triggerOutputs()?['body/Name']}",
-    }, null, 2),
-  },
-  {
-    num: 4,
-    icon: "🔍",
-    title: "Parse JSON — extract facts + draft",
-    desc: 'Add "Parse JSON" action on the HTTP response body. Use the schema: { facts: {...}, draftText: "string", draftTitle: "string" }',
-    code: null,
-  },
-  {
-    num: 5,
-    icon: "📝",
-    title: "Word — Populate document template",
-    desc: 'Add a "Populate a Microsoft Word template" action (or create file) using draftText from the parsed response.',
-    code: null,
-  },
-  {
-    num: 6,
-    icon: "💾",
-    title: "SharePoint — Save versioned output",
-    desc: 'Save the populated Word doc back to SharePoint with metadata: caseType, urgencyLevel, parties from the facts object.',
-    code: null,
-  },
-];
-
+// ── Page ─────────────────────────────────────────────────────────────────────
 export default function M365IntegrationPage() {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const [status, setStatus] = useState<M365Status | null>(null);
   const [loading, setLoading] = useState(true);
+  const [adminOpen, setAdminOpen] = useState(false);
+
+  const isAdmin = ["sovereign_admin", "trustee"].includes(activeRole);
 
   useEffect(() => {
     if (!user) { setLoading(false); return; }
     fetch(`${API_BASE}/m365/status`, {
       headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
     })
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json() as Promise<M365Status>;
-      })
+      .then(r => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json() as Promise<M365Status>; })
       .then(setStatus)
       .catch(() => setStatus(null))
       .finally(() => setLoading(false));
   }, [user]);
 
+  const allConnected = !!(status?.serviceKeyConfigured && status?.azureConfigured && status?.entraConfigured && status?.azureClientReady);
+
   return (
-    <div className="p-6 max-w-4xl mx-auto space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold font-serif">Microsoft 365 Integration</h1>
-        <p className="text-sm text-muted-foreground mt-1">
-          Connect Power Automate to your Sovereign backend for document intake, fact extraction, and AI drafting.
-        </p>
+    <div className="max-w-2xl mx-auto space-y-5" data-testid="page-m365">
+
+      {/* ── Header ── */}
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-lg bg-[#0078d4]/10 flex items-center justify-center shrink-0">
+          <Cloud className="h-5 w-5 text-[#0078d4]" />
+        </div>
+        <div>
+          <h1 className="text-xl font-serif font-bold leading-tight">Microsoft 365</h1>
+          <p className="text-xs text-muted-foreground">Sovereign document integration &amp; AI services</p>
+        </div>
+        {!loading && (
+          <Badge
+            className={`ml-auto shrink-0 text-xs px-2.5 py-1 ${allConnected ? "bg-green-700 text-white" : "bg-muted text-muted-foreground"}`}
+          >
+            {allConnected ? "Connected" : "Partial setup"}
+          </Badge>
+        )}
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <Card className="md:col-span-1">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">System Status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <p className="text-xs text-muted-foreground">Checking…</p>
-            ) : status ? (
-              <>
-                <StatusBadge ok={status.serviceKeyConfigured} label="M365 Service Key" />
-                <StatusBadge ok={status.azureConfigured} label="Azure OpenAI" />
-                <StatusBadge ok={status.entraConfigured} label="Azure Entra ID" />
-                <StatusBadge ok={status.azureClientReady} label="AI Engine Ready" />
-              </>
-            ) : (
-              <p className="text-xs text-destructive">Could not reach the API.</p>
-            )}
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-semibold uppercase tracking-widest">Power Automate Endpoints</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {status?.endpoints ? (
-              <>
-                <CopyBlock value={status.endpoints.webhook ?? ""} label="Webhook (fact extraction + drafting)" />
-                <CopyBlock value={status.endpoints.factExtraction ?? ""} label="Fact extraction only" />
-                <CopyBlock value={status.endpoints.drafts ?? ""} label="Drafting engine" />
-                <CopyBlock value={status.endpoints.identityGateway ?? ""} label="Identity gateway" />
-                <div className="mt-3 rounded-md bg-amber-50 border border-amber-200 px-3 py-2">
-                  <p className="text-xs text-amber-800 font-medium">Authentication</p>
-                  <p className="text-xs text-amber-700 mt-0.5">
-                    Add header <code className="font-mono bg-amber-100 px-1 rounded">X-Api-Key</code> to every Power Automate HTTP action.
-                    The value is the <strong>M365_SERVICE_KEY</strong> secret set in Replit.
-                  </p>
-                </div>
-              </>
-            ) : (
-              <p className="text-xs text-muted-foreground">Loading endpoint URLs…</p>
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-widest">Architecture</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="rounded-md bg-muted p-4 font-mono text-xs leading-relaxed overflow-x-auto">
-            <pre>{`Staff / Member          Microsoft 365              Replit Sovereign API
-────────────────────────────────────────────────────────────────────
-Upload document  →  SharePoint Library
-                         ↓ Power Automate trigger
-                         ↓  POST /api/m365/webhook    ← Fact Engine
-                         ↓                            ← AI Drafting Engine
-                         ↓                            ← Identity Engine
-                  ←  Word doc populated with result
-                  ←  SharePoint version saved
-
-Member signs in  →  Sign in with Microsoft (login page)
-                         ↓ Azure Entra ID PKCE
-                         ↓  /api/auth/microsoft/callback
-                  ←  Sovereign dashboard loaded`}</pre>
+      {/* ── What this does ── */}
+      <Card className="border-[#0078d4]/20">
+        <CardContent className="p-4 grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div className="flex items-start gap-2.5">
+            <FileText className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold">Document Intake</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Files uploaded to SharePoint are automatically analyzed and classified by the Sovereign AI.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <Zap className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold">AI Drafting</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Legal draft responses are generated using the sovereign AI engine and returned to your Word library.</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-2.5">
+            <ShieldCheck className="h-4 w-4 text-[#0078d4] shrink-0 mt-0.5" />
+            <div>
+              <p className="text-sm font-semibold">Sovereign Sign-In</p>
+              <p className="text-xs text-muted-foreground mt-0.5">Members sign in with their Microsoft account through Azure Entra ID for secure access.</p>
+            </div>
           </div>
         </CardContent>
       </Card>
 
+      {/* ── Connection status ── */}
       <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-widest">Power Automate Setup — Step by Step</CardTitle>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm font-semibold">Connection Status</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          {POWER_AUTOMATE_STEPS.map((step) => (
-            <div key={step.num} className="flex gap-4">
-              <div className="shrink-0 w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-sm font-bold text-primary">
-                {step.num}
+        <CardContent className="pt-0">
+          {loading ? (
+            <div className="space-y-2 py-2">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-9 bg-muted/50 rounded animate-pulse" />
+              ))}
+            </div>
+          ) : status ? (
+            <>
+              <ServiceRow
+                ok={status.serviceKeyConfigured}
+                label="M365 Service Key"
+                detail="Authenticates Power Automate flows to the Sovereign API"
+              />
+              <ServiceRow
+                ok={status.azureConfigured}
+                label="Azure OpenAI"
+                detail="Powers document analysis, fact extraction, and AI drafting"
+              />
+              <ServiceRow
+                ok={status.entraConfigured}
+                label="Azure Entra ID"
+                detail="Enables Microsoft account sign-in for tribal members"
+              />
+              <ServiceRow
+                ok={status.azureClientReady}
+                label="AI Engine"
+                detail="End-to-end sovereign AI processing pipeline ready"
+              />
+            </>
+          ) : (
+            <p className="text-sm text-muted-foreground py-4 text-center">
+              Could not reach the API — check that the server is running.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* ── How to use (user-facing guidance) ── */}
+      <Card>
+        <CardHeader className="pb-1">
+          <CardTitle className="text-sm font-semibold">How It Works</CardTitle>
+        </CardHeader>
+        <CardContent className="pt-2 space-y-3">
+          {[
+            { num: 1, title: "Upload a document to SharePoint", body: "Any court document, correspondence, or case file saved to your connected SharePoint library is automatically picked up." },
+            { num: 2, title: "AI intake runs automatically", body: "The Sovereign AI analyzes the document, extracts facts, identifies parties, assesses urgency, and determines applicable legal doctrines." },
+            { num: 3, title: "A drafted response appears in Word", body: "A legal draft response — formatted for sovereign court use — is returned to your SharePoint library as a Word document, ready for review." },
+            { num: 4, title: "Sign in with your Microsoft account", body: "Team members with @mathiaseltribe.org accounts sign in using Microsoft SSO — no separate password required." },
+          ].map(s => (
+            <div key={s.num} className="flex gap-3 items-start">
+              <div className="w-6 h-6 rounded-full bg-[#0078d4]/10 text-[#0078d4] text-xs font-bold flex items-center justify-center shrink-0 mt-0.5">
+                {s.num}
               </div>
-              <div className="flex-1">
-                <p className="text-sm font-medium">{step.icon} {step.title}</p>
-                <p className="text-xs text-muted-foreground mt-0.5">{step.desc}</p>
-                {step.code && (
-                  <pre className="mt-2 text-xs bg-muted rounded-md p-3 overflow-x-auto font-mono">{step.code}</pre>
-                )}
+              <div>
+                <p className="text-sm font-medium">{s.title}</p>
+                <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{s.body}</p>
               </div>
             </div>
           ))}
         </CardContent>
       </Card>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-widest">Webhook Request Format</CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          <CopyBlock
-            label="Full intake (facts + draft) — recommended"
-            value={JSON.stringify({ mode: "full_intake", base64Content: "<base64 file>", filename: "case-notes.docx", documentType: "court_document", jurisdiction: "tribal", userNotes: "Optional context" }, null, 2)}
-          />
-          <CopyBlock
-            label="Facts only"
-            value={JSON.stringify({ mode: "facts_only", text: "Plain document text here…", context: { caseType: "ICWA", tribe: "Mathias El" } }, null, 2)}
-          />
-          <CopyBlock
-            label="Draft only (provide text, get Word-ready doc back)"
-            value={JSON.stringify({ mode: "draft", text: "Document text…", documentType: "welfare_instrument", jurisdiction: "federal" }, null, 2)}
-          />
-        </CardContent>
-      </Card>
+      {/* ── Admin-only technical panel ── */}
+      {isAdmin && status && (
+        <div className="border rounded-lg overflow-hidden">
+          <button
+            onClick={() => setAdminOpen(v => !v)}
+            className="flex items-center gap-2 w-full px-4 py-3 text-left hover:bg-muted/40 transition-colors"
+          >
+            <Settings className="h-4 w-4 text-muted-foreground shrink-0" />
+            <span className="text-sm font-medium">Technical Configuration</span>
+            <Badge variant="outline" className="text-[9px] uppercase tracking-wider ml-1">Admin</Badge>
+            {adminOpen
+              ? <ChevronDown className="h-4 w-4 text-muted-foreground ml-auto" />
+              : <ChevronRight className="h-4 w-4 text-muted-foreground ml-auto" />}
+          </button>
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold uppercase tracking-widest">Webhook Response Format</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <pre className="text-xs bg-muted rounded-md p-3 overflow-x-auto font-mono">{JSON.stringify({
-            mode: "full_intake",
-            facts: {
-              parties: [{ role: "petitioner", name: "Jane Doe", description: "Tribal member" }],
-              caseType: "ICWA custody",
-              urgencyLevel: "urgent",
-              childInvolved: true,
-              icwaApplicable: true,
-              tribalLandInvolved: false,
-              summary: "Petitioner seeks emergency custody under ICWA…",
-              keyFacts: ["Child is an enrolled member", "State court lacks jurisdiction"],
-              recommendedDocumentType: "icwa_notice",
-              confidence: "high",
-            },
-            draftTitle: "ICWA Notice of Pending Custody Proceeding",
-            draftText: "IN THE SOVEREIGN COURT OF THE MATHIAS EL TRIBE…",
-            sovereigntyProtections: ["Indian Child Welfare Act (25 U.S.C. § 1901)", "Tribal sovereignty over child custody matters"],
-            tier: "azure_openai",
-            processingMs: 1842,
-          }, null, 2)}</pre>
-        </CardContent>
-      </Card>
+          {adminOpen && (
+            <div className="border-t px-4 py-4 space-y-4">
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Power Automate Endpoints</p>
+                <EndpointRow label="Webhook (fact extraction + drafting)" value={status.endpoints?.webhook ?? ""} />
+                <EndpointRow label="Fact extraction only" value={status.endpoints?.factExtraction ?? ""} />
+                <EndpointRow label="Drafting engine" value={status.endpoints?.drafts ?? ""} />
+                <EndpointRow label="Identity gateway" value={status.endpoints?.identityGateway ?? ""} />
+              </div>
+
+              <div className="rounded-md bg-amber-50 border border-amber-200 px-3 py-2.5">
+                <p className="text-xs font-semibold text-amber-800 mb-1">Authentication</p>
+                <p className="text-xs text-amber-700 leading-relaxed">
+                  Add header <code className="font-mono bg-amber-100 px-1 rounded text-[10px]">X-Api-Key</code> to every Power Automate HTTP action.
+                  The value is the <strong>M365_SERVICE_KEY</strong> (or <strong>SERVICE_KEY</strong>) secret configured in Replit environment variables.
+                </p>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mb-2">Power Automate Flow</p>
+                <div className="space-y-1.5">
+                  {[
+                    "Trigger: SharePoint — When a file is created in library",
+                    "Action: SharePoint — Get file content",
+                    "Action: HTTP POST → /api/m365/webhook  (X-Api-Key header required)",
+                    "Action: Parse JSON — extract facts and draftText from response",
+                    "Action: Word — Create document from draftText",
+                    "Action: SharePoint — Update file with metadata (caseType, urgencyLevel, parties)",
+                  ].map((step, i) => (
+                    <div key={i} className="flex gap-2.5 items-start text-xs text-muted-foreground">
+                      <span className="font-mono text-[9px] bg-muted rounded px-1.5 py-0.5 shrink-0 mt-0.5 font-bold">{i + 1}</span>
+                      <span>{step}</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
