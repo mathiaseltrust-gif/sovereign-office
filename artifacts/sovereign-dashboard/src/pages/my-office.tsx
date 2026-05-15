@@ -79,39 +79,61 @@ const MATTER_LABELS: Record<string, string> = {
   general:             "General Matter",
 };
 
-// ── Official Stamp — MaxMark 2160 Heavy Duty Date Stamp (2.3" × 1.5" imprint) ──
-// Blue single-border, blue text, red date with dater-style spaced digits
-// Matches the physical MaxMark 2160 stamp purchased for the Supreme Court
+// ── Official Stamp — MaxMark 2160 Heavy Duty Pre-Inked Date Stamp ─────────────
+// Physical specs: 2-5/16" × 1-5/8" imprint = 222px × 156px at 96 dpi
+// Font: Compressed bold sans-serif (Arial Narrow 900) for text bands;
+//       Impact (ultra-condensed) for the date band — matches the physical stamp face
+// Ink: Blue (#1a3a6e) for all text/border; Red (#8B0000) for date band
 function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } }) {
+  const textFont = "'Arial Narrow', 'Arial', Helvetica, sans-serif";
+  const dateFont = "Impact, 'Arial Narrow', Arial, sans-serif";
+  const ink      = "#1a3a6e";
+  const dateInk  = "#8B0000";
+
   return (
     <div
       className="select-none"
       style={{
-        border: "2px solid #1a3a6e",
-        width: "222px",          // 2.3" at 96dpi — MaxMark 2160 imprint width
-        minHeight: "108px",      // 1.125" at 96dpi — MaxMark 2160 imprint height
-        padding: "7px 12px 8px",
+        border: `2px solid ${ink}`,
+        width: "222px",
+        height: "156px",
+        padding: "0 10px",
         textAlign: "center",
         background: "#fff",
-        fontFamily: "'Arial Narrow', 'Arial', 'Helvetica Neue', sans-serif",
-        lineHeight: 1,
         boxSizing: "border-box" as const,
+        display: "flex",
+        flexDirection: "column" as const,
+        alignItems: "center",
+        justifyContent: "space-evenly",
       }}
     >
-      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "1px" }}>
+      {/* Band 1 — BY ORDER OF THE */}
+      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "2px", lineHeight: 1 }}>
         BY ORDER OF THE
       </div>
-      <div style={{ fontSize: "7pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "5px", lineHeight: 1.2 }}>
+
+      {/* Band 2 — COURT NAME */}
+      <div style={{ fontFamily: textFont, fontSize: "7.5pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "0.8px", lineHeight: 1.15 }}>
         MATHIAS EL TRIBE SUPREME COURT
       </div>
-      <div style={{ fontSize: "22pt", fontWeight: 900, color: "#c0392b", letterSpacing: "2px", fontFamily: "'Courier New', Courier, monospace", margin: "0 0 5px", lineHeight: 1.1 }}>
-        {date.month}&nbsp;{date.daySpaced}&nbsp;{date.year}
+
+      {/* Band 3 — DATE (dater wheel — ultra-condensed, red) */}
+      <div style={{ fontFamily: dateFont, fontSize: "26pt", fontWeight: 900, color: dateInk, letterSpacing: "4px", lineHeight: 1, display: "flex", alignItems: "center", gap: "4px" }}>
+        <span>{date.month}</span>
+        <span style={{ letterSpacing: "6px" }}>{date.daySpaced}</span>
+        <span>{date.year}</span>
       </div>
-      <div style={{ width: "60%", borderTop: "0.75px solid #1a3a6e", margin: "3px auto 4px" }} />
-      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "1px" }}>
+
+      {/* Divider */}
+      <div style={{ width: "72%", borderTop: `1px solid ${ink}` }} />
+
+      {/* Band 4 — OFFICE OF THE */}
+      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "2px", lineHeight: 1 }}>
         OFFICE OF THE
       </div>
-      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px" }}>
+
+      {/* Band 5 — CHIEF JUSTICE & TRUSTEE */}
+      <div style={{ fontFamily: textFont, fontSize: "7pt", fontWeight: 900, color: ink, textTransform: "uppercase" as const, letterSpacing: "1.5px", lineHeight: 1 }}>
         CHIEF JUSTICE &amp; TRUSTEE
       </div>
     </div>
@@ -145,32 +167,33 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         boxSizing: "border-box",
       }}
     >
-      {/* ── LETTERHEAD BOX — matches real court document format ── */}
-      <div style={{
-        border: "2px solid #000",
-        padding: "14px 24px 12px",
-        textAlign: "center",
-        marginBottom: "18px",
-        fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
-      }}>
-        <div style={{ fontSize: "13pt", fontWeight: 900, letterSpacing: "0.5px", textTransform: "uppercase", lineHeight: 1.25 }}>
-          MATHIAS EL TRIBE SUPREME COURT
+      {/* ── LETTERHEAD — court-style, no border box ── */}
+      <div style={{ marginBottom: "20px" }}>
+        {/* Two-column: seal left, text right */}
+        <div style={{ display: "flex", alignItems: "center", gap: "18px", marginBottom: "10px" }}>
+          <img
+            src={`${BASE}court-seal-bw.png`}
+            alt="Mathias El Tribe Supreme Court Seal"
+            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0, opacity: 0.9 }}
+          />
+          <div style={{ flex: 1 }}>
+            <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.6px", lineHeight: 1.2, color: "#000" }}>
+              Mathias El Tribe Supreme Court
+            </div>
+            <div style={{ fontFamily: "'Times New Roman', Georgia, serif", fontSize: "9pt", fontStyle: "italic", color: "#444", margin: "3px 0 4px" }}>
+              &ldquo;Whatever we do, it has to make sense.&rdquo;
+            </div>
+            <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "8pt", color: "#555" }}>
+              mmccaster@MathiasElTribe.org&nbsp;&nbsp;·&nbsp;&nbsp;www.mathiaseltribe.org/supreme-court
+            </div>
+          </div>
         </div>
-        <div style={{ fontSize: "9pt", fontStyle: "italic", margin: "3px 0 4px", color: "#222" }}>
-          &ldquo;WHATEVER WE DO, IT HAS TO MAKE SENSE.&rdquo;
-        </div>
-        <div style={{ fontSize: "8.5pt", color: "#333", lineHeight: 1.6 }}>
-          mmccaster@MathiasElTribe.org
-        </div>
-        <div style={{ fontSize: "8.5pt", color: "#333", marginBottom: "8px" }}>
-          www.mathiaseltribe.org/supreme-court
-        </div>
-        <div style={{ borderTop: "1px solid #666", width: "80%", margin: "0 auto 8px" }} />
-        <div style={{ fontSize: "10pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px", lineHeight: 1.4 }}>
-          MATHIAS EL TRIBE SUPREME COURT
-        </div>
-        <div style={{ fontSize: "9pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.5px" }}>
-          OFFICE OF THE CHIEF JUSTICE &amp; TRUSTEE
+        {/* Double rule */}
+        <div style={{ borderTop: "2px solid #1a3a6e", marginBottom: "2px" }} />
+        <div style={{ borderTop: "0.5px solid #1a3a6e", marginBottom: "5px" }} />
+        {/* Office designation — right-aligned */}
+        <div style={{ textAlign: "right", fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "8.5pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.8px", color: "#1a3a6e" }}>
+          Office of the Chief Justice &amp; Trustee
         </div>
       </div>
 

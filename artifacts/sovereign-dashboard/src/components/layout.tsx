@@ -21,7 +21,8 @@ interface NavSection {
 
 function getCoreNav(role: Role): NavSection["items"] {
   const common = [
-    { href: "/notifications", label: "Notifications", highlight: true },
+    { href: "/my-office", label: "My Office", highlight: true },
+    { href: "/notifications", label: "Notifications" },
     { href: "/calendar", label: "Calendar" },
     { href: "/search", label: "Search" },
     { href: "/profile", label: "Profile & Identity" },
@@ -109,7 +110,6 @@ function getCoreNav(role: Role): NavSection["items"] {
     { href: "/nfr", label: "Notice of Federal Review" },
     { href: "/welfare", label: "Welfare Instruments" },
     { href: "/gwe-letter", label: "GWE Letters" },
-    { href: "/my-office", label: "My Office", highlight: true },
     { href: "/sovereign-pipeline", label: "Sovereign Pipeline", highlight: true },
     { href: "/official-documents", label: "Official Documents", highlight: true },
     { href: "/documents", label: "Court Documents" },
