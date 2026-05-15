@@ -601,17 +601,15 @@ export default function ProfilePage() {
           setNotifPrefs((p.notificationPreferences as Record<string, boolean>) ?? {});
           if ((d.identity as any)?.profilePhoto) {
             setPhotoUrl((d.identity as any).profilePhoto);
-          }
-        }
-
-        /* load photo from identity gateway (profilePhoto lives in familyLineage) */
-        if (!(d.identity as any)?.profilePhoto) {
-          const gr = await fetch("/api/identity/gateway", {
-            headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
-          }).catch(() => null);
-          if (gr?.ok) {
-            const gd = await gr.json().catch(() => null);
-            if (gd?.profilePhoto) setPhotoUrl(gd.profilePhoto);
+          } else {
+            /* profilePhoto lives in familyLineage — gateway surfaces it */
+            const gr = await fetch("/api/identity/gateway", {
+              headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+            }).catch(() => null);
+            if (gr?.ok) {
+              const gd = await gr.json().catch(() => null);
+              if (gd?.profilePhoto) setPhotoUrl(gd.profilePhoto);
+            }
           }
         }
 
