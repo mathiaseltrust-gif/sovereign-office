@@ -79,36 +79,39 @@ const MATTER_LABELS: Record<string, string> = {
   general:             "General Matter",
 };
 
-// ── Official Stamp — exact match to physical stamp ────────────────────────────
-// Blue border, blue text, red date with dater-style spaced digits
+// ── Official Stamp — MaxMark 2160 Heavy Duty Date Stamp (2.3" × 1.5" imprint) ──
+// Blue single-border, blue text, red date with dater-style spaced digits
+// Matches the physical MaxMark 2160 stamp purchased for the Supreme Court
 function OfficialStamp({ date }: { date: { month: string; daySpaced: string; year: string } }) {
   return (
     <div
       className="select-none"
       style={{
         border: "2px solid #1a3a6e",
-        padding: "6px 16px 8px",
-        minWidth: "215px",
+        width: "222px",          // 2.3" at 96dpi — MaxMark 2160 imprint width
+        minHeight: "108px",      // 1.125" at 96dpi — MaxMark 2160 imprint height
+        padding: "7px 12px 8px",
         textAlign: "center",
         background: "#fff",
-        fontFamily: "'Arial', 'Helvetica Neue', sans-serif",
+        fontFamily: "'Arial Narrow', 'Arial', 'Helvetica Neue', sans-serif",
         lineHeight: 1,
+        boxSizing: "border-box" as const,
       }}
     >
-      <div style={{ fontSize: "7pt", fontWeight: 600, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "2px" }}>
+      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "1px" }}>
         BY ORDER OF THE
       </div>
-      <div style={{ fontSize: "7.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "6px" }}>
+      <div style={{ fontSize: "7pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.5px", marginBottom: "5px", lineHeight: 1.2 }}>
         MATHIAS EL TRIBE SUPREME COURT
       </div>
-      <div style={{ fontSize: "24pt", fontWeight: 900, color: "#c0392b", letterSpacing: "3px", fontFamily: "'Courier New', monospace", margin: "2px 0 6px", lineHeight: 1.1 }}>
+      <div style={{ fontSize: "22pt", fontWeight: 900, color: "#c0392b", letterSpacing: "2px", fontFamily: "'Courier New', Courier, monospace", margin: "0 0 5px", lineHeight: 1.1 }}>
         {date.month}&nbsp;{date.daySpaced}&nbsp;{date.year}
       </div>
-      <div style={{ width: "65%", borderTop: "0.75px solid #1a3a6e", margin: "4px auto 5px" }} />
-      <div style={{ fontSize: "7pt", fontWeight: 600, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px", marginBottom: "2px" }}>
+      <div style={{ width: "60%", borderTop: "0.75px solid #1a3a6e", margin: "3px auto 4px" }} />
+      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px", marginBottom: "1px" }}>
         OFFICE OF THE
       </div>
-      <div style={{ fontSize: "7pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "0.8px" }}>
+      <div style={{ fontSize: "6.5pt", fontWeight: 700, color: "#1a3a6e", textTransform: "uppercase", letterSpacing: "1px" }}>
         CHIEF JUSTICE &amp; TRUSTEE
       </div>
     </div>
@@ -197,10 +200,10 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         </div>
       </div>
 
-      {/* ── CENTERED COURT SEAL (B&W stencil position, between header and body) ── */}
+      {/* ── CENTERED COURT SEAL — B&W stencil seal (82972cb3 provided image) ── */}
       <div style={{ textAlign: "center", margin: "20px 0 16px" }}>
         <img
-          src={`${BASE}supreme-court-seal.png`}
+          src={`${BASE}court-seal-bw.png`}
           alt="Mathias El Tribe Supreme Court Seal"
           style={{ width: "130px", height: "130px", objectFit: "contain" }}
         />
@@ -335,7 +338,7 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         <div style={{ textAlign: "center" }}>
           {record.sealApplied ? (
             <img
-              src={`${BASE}supreme-court-seal.png`}
+              src={`${BASE}court-seal-bw.png`}
               alt="Mathias El Tribe Supreme Court Seal"
               style={{ width: "120px", height: "120px", objectFit: "contain", opacity: 0.9 }}
             />
