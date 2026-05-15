@@ -659,15 +659,15 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color", signatu
   const stamp = `
     <div style="border:1.5px solid #1a3a6e;width:154px;height:100px;padding:6px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex-shrink:0;">
       <div style="line-height:1.25;width:100%;">
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.4px;">BY ORDER OF THE</div>
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.3pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;">MATHIAS EL TRIBE SUPREME COURT</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;">BY ORDER OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;">MATHIAS EL TRIBE SUPREME COURT</div>
       </div>
       ${stampDate
-        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:900;color:#8B0000;letter-spacing:1.5px;line-height:1.1;width:100%;">${esc(stampDate.month)}&nbsp;${esc(stampDate.daySpaced)}&nbsp;${esc(stampDate.year)}</div>`
-        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:900;color:#bbb;letter-spacing:2px;line-height:1.1;width:100%;">— — — — —</div>`}
+        ? `<div style="font-family:'Courier New',Courier,monospace;font-size:13pt;font-weight:700;color:#8B0000;letter-spacing:2px;line-height:1.1;width:100%;">${esc(stampDate.month)}&nbsp;${esc(stampDate.daySpaced)}&nbsp;${esc(stampDate.year)}</div>`
+        : `<div style="font-family:'Courier New',Courier,monospace;font-size:13pt;font-weight:700;color:#bbb;letter-spacing:2px;line-height:1.1;width:100%;">— — — — —</div>`}
       <div style="text-align:center;line-height:1.3;width:100%;">
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;">OFFICE OF THE</div>
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;">CHIEF JUSTICE &amp; TRUSTEE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;">OFFICE OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:6.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;">CHIEF JUSTICE &amp; TRUSTEE</div>
       </div>
     </div>`;
 

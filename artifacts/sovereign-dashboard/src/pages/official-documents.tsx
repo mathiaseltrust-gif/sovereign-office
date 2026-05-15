@@ -20,21 +20,24 @@ function formatStampDate(d: Date): string {
 }
 
 // ─── Official Date Stamp ──────────────────────────────────────────────────────
-const STAMP_LINES = [
-  { text: "BY ORDER OF THE",                color: "#0A3A78", scale: 1.00, mono: false },
-  { text: "MATHIAS EL TRIBE SUPREME COURT", color: "#0A3A78", scale: 0.88, mono: false },
-  { text: "DATE",                            color: "#C62828", scale: 1.20, mono: true  },
-  { text: "OFFICE OF THE",                  color: "#0A3A78", scale: 0.95, mono: false },
-  { text: "CHIEF JUSTICE & TRUSTEE",        color: "#0A3A78", scale: 1.00, mono: false },
-] as const;
-
-const STAMP_BASE_PX = 6.8;
-
 function OfficialStamp({ date }: { date: string }) {
+  const blue: React.CSSProperties = {
+    fontFamily: "'Arial Narrow', Arial, sans-serif",
+    fontWeight: 700,
+    color: "#0A3A78",
+    textTransform: "uppercase",
+    letterSpacing: "0.5px",
+    lineHeight: 1.25,
+    width: "100%",
+  };
   return (
     <div
-      className="inline-flex flex-col items-center justify-center select-none"
+      className="select-none"
       style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "space-between",
         width: "1.625in",
         height: "1.0in",
         border: "2.5px solid #0A3A78",
@@ -45,29 +48,28 @@ function OfficialStamp({ date }: { date: string }) {
         paddingRight: "0.08in",
         background: "#fff",
         boxSizing: "border-box",
-        gap: "1px",
         textAlign: "center",
       }}
     >
-      {STAMP_LINES.map((l, i) => (
-        <div
-          key={i}
-          style={{
-            fontSize: `${STAMP_BASE_PX * l.scale}px`,
-            color: l.color,
-            fontFamily: l.mono
-              ? "'Courier New', Courier, monospace"
-              : "'Arial Narrow', Arial, sans-serif",
-            fontWeight: 700,
-            letterSpacing: l.mono ? "1px" : "0.3px",
-            textTransform: "uppercase",
-            lineHeight: 1.15,
-            width: "100%",
-          }}
-        >
-          {l.text === "DATE" ? date : l.text}
-        </div>
-      ))}
+      <div style={{ width: "100%" }}>
+        <div style={{ ...blue, fontSize: "8px", fontWeight: 700 }}>BY ORDER OF THE</div>
+        <div style={{ ...blue, fontSize: "7.5px", fontWeight: 900 }}>MATHIAS EL TRIBE SUPREME COURT</div>
+      </div>
+      <div style={{
+        fontFamily: "'Courier New', Courier, monospace",
+        fontWeight: 700,
+        fontSize: "15px",
+        color: "#C62828",
+        letterSpacing: "2px",
+        lineHeight: 1.1,
+        width: "100%",
+      }}>
+        {date}
+      </div>
+      <div style={{ width: "100%" }}>
+        <div style={{ ...blue, fontSize: "8px", fontWeight: 700 }}>OFFICE OF THE</div>
+        <div style={{ ...blue, fontSize: "8px", fontWeight: 900 }}>CHIEF JUSTICE &amp; TRUSTEE</div>
+      </div>
     </div>
   );
 }
@@ -88,12 +90,16 @@ function buildOfficialDocHtml(opts: {
   const supremeSeal = `${origin}${base}supreme-court-seal.png`;
 
   const stampHtml = `
-    <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:156px;height:96px;border:2.5px solid #0A3A78;padding:8px 7px;background:#fff;box-sizing:border-box;gap:1px;text-align:center;flex-shrink:0;">
-      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">BY ORDER OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">MATHIAS EL TRIBE SUPREME COURT</div>
-      <div style="font-family:'Courier New',Courier,monospace;font-size:8pt;font-weight:700;color:#C62828;letter-spacing:1px;line-height:1.15;width:100%;">${escHtml(stampDate)}</div>
-      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">OFFICE OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
+    <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:space-between;width:156px;height:96px;border:2.5px solid #0A3A78;padding:8px 7px;background:#fff;box-sizing:border-box;text-align:center;flex-shrink:0;">
+      <div style="width:100%;">
+        <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:7pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.5px;line-height:1.25;width:100%;">BY ORDER OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.4px;line-height:1.25;width:100%;">MATHIAS EL TRIBE SUPREME COURT</div>
+      </div>
+      <div style="font-family:'Courier New',Courier,monospace;font-size:11pt;font-weight:700;color:#C62828;letter-spacing:2px;line-height:1.1;width:100%;">${escHtml(stampDate)}</div>
+      <div style="width:100%;">
+        <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:7pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.5px;line-height:1.25;width:100%;">OFFICE OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:7pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.5px;line-height:1.25;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
+      </div>
     </div>`;
 
   const sealHtml = showSeal
