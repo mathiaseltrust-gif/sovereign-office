@@ -6,6 +6,7 @@ import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
 import { getGovernorByRole, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
+import { accumulateIntelligence, getCompanionIntelContext } from "../../sovereign/intelligence-accumulator";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -176,7 +177,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     }
   }
 
-  const [recentDiary, savedKnowledge] = await Promise.all([
+  const [recentDiary, savedKnowledge, intelContext] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
       .from(kiConversationsTable)
       .where(and(eq(kiConversationsTable.userId, userId), eq(kiConversationsTable.isDiary, true)))
@@ -184,9 +185,13 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       .limit(DIARY_CONTEXT_LIMIT),
     db.select({ content: kiConversationsTable.content, category: kiConversationsTable.category, createdAt: kiConversationsTable.createdAt })
       .from(kiConversationsTable)
-      .where(and(eq(kiConversationsTable.userId, userId), eq(kiConversationsTable.role, "knowledge")))
+      .where(and(
+        eq(kiConversationsTable.userId, userId),
+        eq(kiConversationsTable.role, "knowledge"),
+      ))
       .orderBy(desc(kiConversationsTable.createdAt))
-      .limit(KNOWLEDGE_LIMIT),
+      .limit(KNOWLEDGE_LIMIT + 5),
+    getCompanionIntelContext(userId).catch(() => ""),
   ]);
 
   const diaryContext = recentDiary.length > 0
@@ -194,11 +199,19 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       recentDiary.map(d => `— "${d.content.substring(0, 200)}"${d.content.length > 200 ? "…" : ""}`).join("\n")
     : "";
 
-  const knowledgeContext = savedKnowledge.length > 0
+  const userKnowledge = savedKnowledge
+    .filter(k => k.category !== "_intel_picture")
+    .slice(0, KNOWLEDGE_LIMIT);
+
+  const knowledgeContext = userKnowledge.length > 0
     ? "\n\nKnowledge this member has shared with you (remember and apply):\n" +
-      savedKnowledge.map(k =>
+      userKnowledge.map(k =>
         `[${k.category ? k.category.toUpperCase() : "GENERAL"}] ${k.content.substring(0, 400)}${k.content.length > 400 ? "…" : ""}`
       ).join("\n")
+    : "";
+
+  const intelligenceContext = intelContext
+    ? `\n\n${intelContext}`
     : "";
 
   const protectionNote = protectionLevel === "critical"
@@ -248,7 +261,7 @@ ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
 ${rightsContext}${landContext}
 ${SOVEREIGN_LAW_FOUNDATION}
-${knowledgeContext}${diaryPatternNote}${diaryContext}
+${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}
 
 HOW YOU ENGAGE:
 
@@ -469,6 +482,31 @@ router.post("/chat", requireAuth, async (req, res, next) => {
 
     logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya chat response stored");
     res.json({ reply: result.content, tokens: result.usage?.totalTokens, alignmentWarning });
+
+    // Fire-and-forget: update the intelligence picture from this message
+    accumulateIntelligence(userId, trimmed).catch(() => {});
+  } catch (err) { next(err); }
+});
+
+// ── GET /intel ── Return the current intelligence picture and action queue ────
+router.get("/intel", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.status(400).json({ error: "No user session" }); return; }
+
+    const { getIntelligencePicture } = await import("../../sovereign/intelligence-accumulator");
+    const picture = await getIntelligencePicture(userId);
+
+    if (!picture) {
+      res.json({ signals: [], actionQueue: [], updatedAt: null });
+      return;
+    }
+
+    res.json({
+      signals: picture.signals,
+      actionQueue: picture.actionQueue,
+      updatedAt: picture.updatedAt,
+    });
   } catch (err) { next(err); }
 });
 
