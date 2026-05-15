@@ -20,35 +20,61 @@ function formatStampDate(d: Date): string {
 }
 
 // ─── Official Date Stamp ──────────────────────────────────────────────────────
+// Spec: STAMP_BOX 1.625in × 1.0in · border #0A3A78 · 0.035in border · no radius
+// Padding: top 0.10in · bottom 0.12in · left/right 0.08in
+// PAGE_SCALE: stamp_width_ratio 0.19 of 8.5in = 1.615in ≈ 1.625in confirmed
+const STAMP_LINES = [
+  { text: "BY ORDER OF THE",              color: "#0A3A78", scale: 1.00, mono: false },
+  { text: "MATHIAS EL TRIBE SUPREME COURT", color: "#0A3A78", scale: 1.15, mono: false },
+  { text: "DATE",                          color: "#C62828", scale: 1.10, mono: true  },
+  { text: "OFFICE OF THE",                color: "#0A3A78", scale: 1.00, mono: false },
+  { text: "CHIEF JUSTICE & TRUSTEE",      color: "#0A3A78", scale: 1.10, mono: false },
+] as const;
+
+// Base font size: 7.5px — at this size all 5 lines fit within the 0.78in
+// available height (1.0in minus 0.10+0.12in padding), and line 2 fits the
+// 1.469in available width (1.625in minus 2×0.08in padding).
+const STAMP_BASE_PX = 7.5;
+
 function OfficialStamp({ date }: { date: string }) {
   return (
     <div
-      className="inline-block text-center select-none"
+      className="inline-flex flex-col items-center justify-center select-none"
       style={{
-        border: "2.5px solid #1a3a6e",
-        borderRadius: "2px",
-        padding: "6px 14px 8px",
-        minWidth: "190px",
+        width: "1.625in",
+        height: "1.0in",
+        border: "2.5px solid #0A3A78",
+        borderRadius: 0,
+        paddingTop: "0.10in",
+        paddingBottom: "0.12in",
+        paddingLeft: "0.08in",
+        paddingRight: "0.08in",
         background: "#fff",
-        fontFamily: "'Times New Roman', serif",
+        boxSizing: "border-box",
+        gap: "1.5px",
+        textAlign: "center",
       }}
     >
-      <div style={{ fontSize: "8px", letterSpacing: "1.2px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.3 }}>
-        By Order of the
-      </div>
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.4, marginBottom: "4px" }}>
-        Mathias El Tribe Supreme Court
-      </div>
-      <div style={{ fontSize: "26px", fontWeight: 900, letterSpacing: "2px", color: "#111", lineHeight: 1.1, fontFamily: "monospace", margin: "2px 0 4px" }}>
-        {date}
-      </div>
-      <div style={{ width: "80%", borderTop: "1px solid #1a3a6e", margin: "4px auto" }} />
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 600, textTransform: "uppercase", lineHeight: 1.4 }}>
-        Office of the
-      </div>
-      <div style={{ fontSize: "7.5px", letterSpacing: "0.8px", color: "#1a3a6e", fontWeight: 700, textTransform: "uppercase", lineHeight: 1.4 }}>
-        Chief Justice &amp; Trustee
-      </div>
+      {STAMP_LINES.map((l, i) => (
+        <div
+          key={i}
+          style={{
+            fontSize: `${STAMP_BASE_PX * l.scale}px`,
+            color: l.color,
+            fontFamily: l.mono
+              ? "'Courier New', Courier, monospace"
+              : "'Times New Roman', Times, serif",
+            fontWeight: 700,
+            letterSpacing: l.mono ? "1px" : "0.5px",
+            textTransform: "uppercase",
+            lineHeight: 1.2,
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+          }}
+        >
+          {l.text === "DATE" ? date : l.text}
+        </div>
+      ))}
     </div>
   );
 }
