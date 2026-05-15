@@ -1,6 +1,7 @@
 import { runIntakeFilter, type IntakeFilterResult } from "./intake-filter";
 import { queryLawDb } from "./law-db";
 import { callAzureOpenAI, getAzureOpenAIClient, type ConversationMessage } from "../lib/azure-openai";
+import { checkAlignment, type AlignmentResult } from "./alignment-checker";
 import { logger } from "../lib/logger";
 
 export type ChatTier = "funnel" | "intake_filter" | "law_db" | "azure_openai" | "hard_default";
@@ -26,6 +27,15 @@ export interface ChatIntakeReport {
   canonicalPosture: string;
 }
 
+export interface AlignmentWarning {
+  isAligned: false;
+  severity: "notice" | "warning" | "critical";
+  maatMessage: string;
+  violationCount: number;
+  categories: string[];
+  governorConflict: boolean;
+}
+
 export interface ChatResponse {
   reply: string;
   tier: ChatTier;
@@ -37,6 +47,7 @@ export interface ChatResponse {
   funnelId?: string;
   azureTokensUsed?: number;
   intakeReport?: ChatIntakeReport;
+  alignmentWarning?: AlignmentWarning;
 }
 
 export interface ChatInput {
@@ -611,8 +622,30 @@ function hardDefault(input: ChatInput): ChatResponse {
 
 // ─── MAIN ROUTER ─────────────────────────────────────────────────────────────
 
+function buildAlignmentWarning(result: AlignmentResult): AlignmentWarning | undefined {
+  if (result.isAligned || !result.maatMessage || !result.severity) return undefined;
+  return {
+    isAligned: false,
+    severity: result.severity,
+    maatMessage: result.maatMessage,
+    violationCount: result.violations.length,
+    categories: [...new Set(result.violations.map(v => v.category))],
+    governorConflict: result.governorConflict,
+  };
+}
+
 export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   const { message } = input;
+
+  // Law & Logic Layer — run alignment check on every message (zero cost, synchronous)
+  const alignmentResult = checkAlignment(message + (input.uploadedDocumentText ? " " + input.uploadedDocumentText : ""));
+
+  if (!alignmentResult.isAligned) {
+    logger.info(
+      { severity: alignmentResult.severity, violations: alignmentResult.violations.length, governorConflict: alignmentResult.governorConflict },
+      "Law & Logic Layer: alignment drift detected",
+    );
+  }
 
   // Always run intake filter first (zero cost — pattern matching)
   const intakeFlags = runIntakeFilter(message + (input.uploadedDocumentText ? " " + input.uploadedDocumentText : ""));
@@ -620,9 +653,12 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   // Check if AI escalation is needed
   const needsAI = shouldEscalateToAI(input);
 
+  const alignmentWarning = buildAlignmentWarning(alignmentResult);
+
   // Red flag + complex situation → AI tier
   if (needsAI) {
-    return handleAITier(input, intakeFlags);
+    const aiResponse = await handleAITier(input, intakeFlags);
+    return { ...aiResponse, alignmentWarning };
   }
 
   // Try funnel match first (zero cost, instant response)
@@ -647,6 +683,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
       lawRefs,
       actions: funnel.actions,
       funnelId: funnel.id,
+      alignmentWarning,
       intakeReport: intakeFlags.redFlag ? {
         riskLevel: intakeFlags.indianStatusViolation ? "critical" : "elevated",
         violations: intakeFlags.violations,
@@ -677,6 +714,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
       redFlagMessage: intakeFlags.redBannerMessage ?? undefined,
       lawRefs,
       actions: buildIntakeActions(intakeFlags),
+      alignmentWarning,
       intakeReport: {
         riskLevel: intakeFlags.indianStatusViolation ? "critical" : "elevated",
         violations: intakeFlags.violations,
@@ -705,6 +743,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
           tierLabel: "Law Library",
           redFlag: false,
           lawRefs,
+          alignmentWarning,
           actions: [
             { label: "View Law Library", href: "/law" },
             { label: "Describe My Situation", intent: "ANALYZE_SITUATION" },
@@ -716,5 +755,6 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   }
 
   // Hard default — catch-all sovereign response
-  return hardDefault(input);
+  const defaultResponse = hardDefault(input);
+  return { ...defaultResponse, alignmentWarning };
 }

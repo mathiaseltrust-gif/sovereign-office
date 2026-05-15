@@ -434,6 +434,15 @@ router.post("/chat", requireAuth, async (req, res, next) => {
 
     logger.info({ userId, msgLen: trimmed.length }, "Kaya chat request");
 
+    const { checkAlignment } = await import("../../sovereign/alignment-checker");
+    const alignmentResult = checkAlignment(trimmed);
+    if (!alignmentResult.isAligned) {
+      logger.info(
+        { severity: alignmentResult.severity, violations: alignmentResult.violations.length },
+        "Kaya chat — Law & Logic Layer: alignment drift detected",
+      );
+    }
+
     const result = await callAzureOpenAI(
       systemPrompt,
       trimmed,
@@ -447,8 +456,19 @@ router.post("/chat", requireAuth, async (req, res, next) => {
       { userId, role: "assistant", content: result.content, isDiary: false, createdAt: now },
     ]);
 
+    const alignmentWarning = !alignmentResult.isAligned && alignmentResult.maatMessage && alignmentResult.severity
+      ? {
+          isAligned: false as const,
+          severity: alignmentResult.severity,
+          maatMessage: alignmentResult.maatMessage,
+          violationCount: alignmentResult.violations.length,
+          categories: [...new Set(alignmentResult.violations.map(v => v.category))],
+          governorConflict: alignmentResult.governorConflict,
+        }
+      : undefined;
+
     logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya chat response stored");
-    res.json({ reply: result.content, tokens: result.usage?.totalTokens });
+    res.json({ reply: result.content, tokens: result.usage?.totalTokens, alignmentWarning });
   } catch (err) { next(err); }
 });
 

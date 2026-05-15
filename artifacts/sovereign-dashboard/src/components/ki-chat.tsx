@@ -11,6 +11,7 @@ import {
   Brain, Trash2, ChevronDown, ChevronUp, Plus, X,
   ClipboardList, Briefcase, FileText, User, Shield,
   AlertTriangle, CheckCircle2, ArrowRight, ChevronRight,
+  Scale,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -52,6 +53,15 @@ interface IntakeAgentReport {
   nfrRecommended: boolean;
   troRecommended: boolean;
   aiConfidence: number;
+}
+
+interface AlignmentWarning {
+  isAligned: false;
+  severity: "notice" | "warning" | "critical";
+  maatMessage: string;
+  violationCount: number;
+  categories: string[];
+  governorConflict: boolean;
 }
 
 type IntakeType = "business" | "filing" | "profile";
@@ -541,6 +551,8 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const [collapsed, setCollapsed] = useState(false);
 
   const [pendingSaveMessage, setPendingSaveMessage] = useState<{ id: number; content: string } | null>(null);
+  const [alignmentWarning, setAlignmentWarning] = useState<AlignmentWarning | null>(null);
+  const [alignmentExpanded, setAlignmentExpanded] = useState(false);
 
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
 
@@ -588,9 +600,17 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
         const e = await r.json().catch(() => ({}));
         throw new Error((e as any).error ?? "COMPANION is unavailable right now");
       }
-      return r.json() as Promise<{ reply: string }>;
+      return r.json() as Promise<{ reply: string; alignmentWarning?: AlignmentWarning }>;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] }),
+    onSuccess: (data) => {
+      qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] });
+      if (data.alignmentWarning) {
+        setAlignmentWarning(data.alignmentWarning);
+        setAlignmentExpanded(true);
+      } else {
+        setAlignmentWarning(null);
+      }
+    },
     onError: (e) => toast({ title: "COMPANION error", description: (e as Error).message, variant: "destructive" }),
   });
 
@@ -870,6 +890,68 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 )}
                 <div ref={bottomRef} />
               </div>
+
+              {/* ── Law & Logic Alignment Warning (Ma'at Layer) ── */}
+              {alignmentWarning && (
+                <div
+                  className="mx-4 mb-2 rounded-lg overflow-hidden"
+                  style={{
+                    border: alignmentWarning.severity === "critical"
+                      ? "1px solid rgba(220,50,50,0.45)"
+                      : alignmentWarning.severity === "warning"
+                        ? "1px solid rgba(200,140,20,0.45)"
+                        : "1px solid rgba(100,140,220,0.35)",
+                    background: alignmentWarning.severity === "critical"
+                      ? "rgba(100,10,10,0.35)"
+                      : alignmentWarning.severity === "warning"
+                        ? "rgba(100,60,5,0.35)"
+                        : "rgba(20,50,100,0.35)",
+                  }}
+                >
+                  <button
+                    onClick={() => setAlignmentExpanded(e => !e)}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-left"
+                  >
+                    <Scale className="w-3.5 h-3.5 flex-shrink-0"
+                      style={{ color: alignmentWarning.severity === "critical" ? "rgb(250,100,100)" : alignmentWarning.severity === "warning" ? "rgb(240,180,40)" : "rgb(140,180,255)" }}
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[10px] font-bold tracking-[0.15em] uppercase"
+                        style={{ color: alignmentWarning.severity === "critical" ? "rgb(250,100,100)" : alignmentWarning.severity === "warning" ? "rgb(240,180,40)" : "rgb(140,180,255)" }}
+                      >
+                        ⚖ Law & Logic Layer{alignmentWarning.severity === "critical" ? " — Critical Alignment Alert" : alignmentWarning.severity === "warning" ? " — Alignment Warning" : " — Notice"}
+                      </p>
+                      <p className="text-[10px] text-white/45 mt-0.5 truncate">
+                        {alignmentWarning.violationCount} alignment {alignmentWarning.violationCount === 1 ? "issue" : "issues"} detected
+                        {alignmentWarning.governorConflict ? " · Governor conflict" : ""}
+                        {" · "}{alignmentWarning.categories.map(c => c.replace(/_/g, " ")).join(", ")}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-shrink-0">
+                      {alignmentWarning.governorConflict && (
+                        <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-red-900/40 text-red-300 border border-red-700/30">Governor</span>
+                      )}
+                      {alignmentExpanded
+                        ? <ChevronUp className="w-3 h-3 text-white/30" />
+                        : <ChevronDown className="w-3 h-3 text-white/30" />
+                      }
+                    </div>
+                  </button>
+                  {alignmentExpanded && (
+                    <div className="px-3 pb-3 border-t" style={{ borderColor: "rgba(255,255,255,0.06)" }}>
+                      <p className="text-[11px] text-white/65 leading-relaxed whitespace-pre-wrap mt-2">
+                        {alignmentWarning.maatMessage}
+                      </p>
+                      <button
+                        onClick={() => { setAlignmentWarning(null); setAlignmentExpanded(false); }}
+                        className="mt-2 text-[10px] text-white/25 hover:text-white/50 transition-colors"
+                      >
+                        Dismiss
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Pending save to memory */}
               {pendingSaveMessage && (
