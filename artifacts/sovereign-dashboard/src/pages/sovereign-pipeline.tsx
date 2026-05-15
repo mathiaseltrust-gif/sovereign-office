@@ -720,7 +720,7 @@ export default function SovereignPipelinePage() {
                         : "",
                     ].join("\n").trim();
                     sessionStorage.setItem("intake_context", JSON.stringify({ docType, notes, riskLevel: result.riskLevel }));
-                    navigate(`${BASE}/drafts`);
+                    navigate("/drafts");
                   }}
                 >
                   <FileText className="h-4 w-4" /> Draft Response
