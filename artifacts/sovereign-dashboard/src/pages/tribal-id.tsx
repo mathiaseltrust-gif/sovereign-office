@@ -41,6 +41,26 @@ const PROTECTION_BADGE: Record<string, string> = {
   critical: "bg-red-700 text-white",
 };
 
+const ROLE_DISPLAY: Record<string, string> = {
+  trustee: "Chief Justice & Trustee",
+  sovereign_admin: "Chief Justice & Trustee",
+  admin: "Chief Justice & Trustee",
+  officer: "Officer",
+  elder: "Elder",
+  member: "Member",
+  medical_provider: "Medical Provider",
+  visitor: "Visitor",
+  visitor_media: "Media",
+};
+
+function formatRole(role: string): string {
+  return ROLE_DISPLAY[role.toLowerCase()] ?? role.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function isSovereignOfficeRole(role: string): boolean {
+  return ["trustee", "sovereign_admin", "admin"].includes(role.toLowerCase());
+}
+
 export default function TribalIdPage() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -182,7 +202,7 @@ export default function TribalIdPage() {
 
             {/* Full-color tribal seal — original colors preserved */}
             <img
-              src="/tribal-seal.png"
+              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
               alt="Mathias El Tribe Seal"
               className="w-24 h-24 object-contain"
               style={{ filter: "none" }}
@@ -243,17 +263,35 @@ export default function TribalIdPage() {
                   Office of the Chief Justice &amp; Trustee
                 </p>
               </div>
-              {/* Tribal ID number badge */}
-              {idNumber && (
-                <div className="text-right">
-                  <p className="text-2xl font-bold tracking-widest" style={{ color: "#d4af37", fontFamily: "serif" }}>
-                    NO. {idNumber}
-                  </p>
-                  <p className="text-[8px]" style={{ color: "rgba(160,165,200,0.7)" }}>
-                    Exp: {new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
-                  </p>
-                </div>
-              )}
+              {/* ID number + office badge */}
+              <div className="text-right flex flex-col items-end gap-1.5">
+                {idNumber && (
+                  <>
+                    <p className="text-2xl font-bold tracking-widest" style={{ color: "#d4af37", fontFamily: "serif" }}>
+                      NO. {idNumber}
+                    </p>
+                    <p className="text-[8px]" style={{ color: "rgba(160,165,200,0.7)" }}>
+                      Exp: {new Date(new Date().setFullYear(new Date().getFullYear() + 2)).toLocaleDateString("en-US", { year: "numeric", month: "short" })}
+                    </p>
+                  </>
+                )}
+                {isSovereignOfficeRole(data.identity.role) && (
+                  <div
+                    className="mt-1 px-2 py-1 rounded text-center"
+                    style={{ border: "1px solid rgba(212,175,55,0.5)", background: "rgba(212,175,55,0.08)" }}
+                  >
+                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
+                      OFFICE OF THE
+                    </p>
+                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
+                      CHIEF JUSTICE
+                    </p>
+                    <p className="text-[7px] tracking-[0.15em] font-semibold leading-tight" style={{ color: "#d4af37" }}>
+                      &amp; TRUSTEE
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Two-column layout */}
@@ -281,8 +319,8 @@ export default function TribalIdPage() {
 
               <div>
                 <p className="text-[8px] tracking-widest mb-0.5" style={{ color: "rgba(160,165,200,0.6)" }}>ROLE</p>
-                <p className="text-sm capitalize" style={{ color: "rgba(230,230,245,0.9)" }}>
-                  {data.identity.role.replace(/_/g, " ")}
+                <p className="text-sm font-semibold" style={{ color: "rgba(230,230,245,0.9)" }}>
+                  {formatRole(data.identity.role)}
                 </p>
               </div>
 

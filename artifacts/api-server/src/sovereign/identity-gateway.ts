@@ -244,7 +244,8 @@ export async function resolveSovereignIdentityGateway(
     ].filter((v, i, a) => a.indexOf(v) === i);
 
     const hasFamilyGroup = identityTags.some((t) => t.toLowerCase().includes("family") || t.toLowerCase().includes("tribal")) || !!familyGroup;
-    const membershipVerified = lineageVerified && hasFamilyGroup;
+    const isSovereignOffice = ["trustee", "sovereign_admin", "admin"].includes((user?.role ?? role).toLowerCase());
+    const membershipVerified = isSovereignOffice || (lineageVerified && hasFamilyGroup);
 
     const protectionLevel: "standard" | "elevated" | "critical" =
       (narrative?.protectionLevel as "standard" | "elevated" | "critical") ??
