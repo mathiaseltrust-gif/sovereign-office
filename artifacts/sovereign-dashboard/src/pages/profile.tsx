@@ -561,7 +561,7 @@ export default function ProfilePage() {
           <img
             src={`${import.meta.env.BASE_URL}chief-justice-seal.png`}
             alt="Chief Mathias El — Office of the Chief Justice and Trustee"
-            className="w-28 h-28 object-contain drop-shadow-md"
+            className="w-20 h-20 object-contain drop-shadow-md"
           />
         </div>
       )}

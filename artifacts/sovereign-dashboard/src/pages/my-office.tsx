@@ -172,9 +172,9 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
 
   // ── Seal impressions at bottom ──
   const sealBlock = record.sealApplied
-    ? `<div style="display:flex;gap:12px;align-items:flex-end;justify-content:center;margin-top:18px;">
+    ? `<div style="display:flex;gap:12px;align-items:center;justify-content:center;margin-top:18px;">
          <img src="${courtSeal}" style="width:62px;height:62px;object-fit:contain;opacity:0.90;" alt="METS Court" />
-         <img src="${chiefSeal}" style="width:62px;height:62px;object-fit:contain;opacity:0.90;margin-top:4px;" alt="Chief Justice" />
+         <img src="${chiefSeal}" style="width:62px;height:62px;object-fit:contain;opacity:0.90;" alt="Chief Justice" />
        </div>
        <div style="text-align:center;font-size:6.5pt;color:#666;margin-top:3px;letter-spacing:0.5px;">Official Seal — Mathias El Tribe Supreme Court</div>`
     : `<div style="width:130px;height:56px;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:8pt;margin:18px auto 0;">&#8853; SEAL PENDING</div>`;
