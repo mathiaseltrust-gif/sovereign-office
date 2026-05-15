@@ -117,19 +117,18 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
   const isoTs        = now.toISOString();
   const humanTs      = now.toLocaleString("en-US", { timeZoneName: "short" });
 
-  // ── MaxMark 2160 Heavy Duty Pre-Inked Date Stamp ─────────────────────────────
-  // Physical imprint: 2-5/16" × 1-5/8" → 222px × 156px at 96 DPI
-  // Layout matches product photo: narrow text bands top/bottom, large date center
+  // ── MaxMark 2160 Imprint — actual spec: 1" × 1-5/8" = 96px × 156px at 96 CSS DPI ──
+  // Portrait orientation. No divider line (matches real stamp impression in photos).
+  // Font sizes calibrated to fit the narrow 1" (80px usable) width.
   const stamp = `
-    <div style="border:2px solid #1a3a6e;width:222px;height:156px;padding:0 14px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:7pt;font-weight:400;color:#1a3a6e;text-transform:uppercase;letter-spacing:2.5px;line-height:1;width:100%;">BY ORDER OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:7.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.4px;line-height:1.1;width:100%;">MATHIAS EL TRIBE SUPREME COURT</div>
+    <div style="border:1.5px solid #1a3a6e;width:96px;height:156px;padding:7px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;width:100%;">BY ORDER OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0px;line-height:1.2;width:100%;">MATHIAS EL TRIBE SUPREME COURT</div>
       ${stampDate
-        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:26pt;font-weight:900;color:#8B0000;letter-spacing:4px;line-height:1;width:100%;">${esc(stampDate.month)} ${esc(stampDate.daySpaced)} ${esc(stampDate.year)}</div>`
-        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:26pt;font-weight:900;color:#bbb;letter-spacing:6px;line-height:1;width:100%;">— — —</div>`}
-      <div style="width:76%;border-top:1px solid #1a3a6e;"></div>
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:7pt;font-weight:400;color:#1a3a6e;text-transform:uppercase;letter-spacing:2.5px;line-height:1;width:100%;">OFFICE OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:7.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.4px;line-height:1;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
+        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:11pt;font-weight:900;color:#8B0000;letter-spacing:1px;line-height:1;width:100%;">${esc(stampDate.month)} ${esc(stampDate.daySpaced)} ${esc(stampDate.year)}</div>`
+        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:11pt;font-weight:900;color:#bbb;letter-spacing:2px;line-height:1;width:100%;">— — —</div>`}
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;width:100%;">OFFICE OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0px;line-height:1.2;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
     </div>`;
 
   // ── Signature block ──
