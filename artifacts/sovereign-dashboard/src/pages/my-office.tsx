@@ -179,6 +179,10 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
        <div style="text-align:center;font-size:6.5pt;color:#666;margin-top:3px;letter-spacing:0.5px;">Official Seal — Mathias El Tribe Supreme Court</div>`
     : `<div style="width:130px;height:56px;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:8pt;margin:18px auto 0;">&#8853; SEAL PENDING</div>`;
 
+  const MEDICAL_TEMPLATES = new Set(["medical_protection_decree","disability_enforcement_notice","tribal_health_referral"]);
+  const isMedical = MEDICAL_TEMPLATES.has(record.templateKey);
+  const medCenterSeal = `${origin}${base}medical-center-logo.png`;
+
   const grayscaleStyle = mode === "esign" ? "img { filter: grayscale(100%) contrast(1.1) !important; }" : "";
 
   return `<!DOCTYPE html><html lang="en"><head>
@@ -188,10 +192,10 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
       * { box-sizing: border-box; }
       body { background: #fff; margin: 0; padding: 0; }
       ${grayscaleStyle}
-      @page { size: 8.5in 11in; margin: 0; }
+      @page { size: 8.5in 11in; margin: 0.5in 0.75in; }
     </style>
   </head><body>
-    <div style="background:#fff;color:#000;font-family:'Times New Roman',Georgia,serif;font-size:11pt;line-height:1.65;padding:0.75in 1in 1.25in;max-width:8.5in;margin:0 auto;position:relative;min-height:11in;box-sizing:border-box;">
+    <div style="background:#fff;color:#000;font-family:'Times New Roman',Georgia,serif;font-size:11pt;line-height:1.65;padding:0.25in 0.25in 0.75in;max-width:8.5in;margin:0 auto;position:relative;min-height:10in;box-sizing:border-box;">
 
       <!-- LETTERHEAD -->
       <div style="margin-bottom:16px;">
@@ -303,6 +307,17 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
 
       <!-- BOTTOM SEALS -->
       ${sealBlock}
+
+      <!-- MEDICAL CENTER BADGE (medical documents only) -->
+      ${isMedical ? `
+      <div style="display:flex;align-items:center;justify-content:center;gap:12px;margin-top:14px;padding-top:12px;border-top:0.75px solid #c8d8f0;">
+        <img src="${medCenterSeal}" style="width:54px;height:54px;object-fit:contain;opacity:0.92;" alt="Mathias El Tribe Medical Center" />
+        <div style="text-align:center;">
+          <div style="font-family:Arial,Helvetica,sans-serif;font-size:7pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.6px;line-height:1.3;">Mathias El Tribe Medical Center</div>
+          <div style="font-family:'Times New Roman',Georgia,serif;font-size:6.5pt;color:#555;font-style:italic;margin-top:1px;">In Conjunction With the Supreme Court</div>
+        </div>
+        <img src="${medCenterSeal}" style="width:54px;height:54px;object-fit:contain;opacity:0.92;" alt="Mathias El Tribe Medical Center" />
+      </div>` : ""}
 
       <!-- PAGE FOOTER -->
       <div style="position:absolute;bottom:0.45in;left:1in;right:1in;border-top:0.75px solid #bbb;padding-top:5px;">
