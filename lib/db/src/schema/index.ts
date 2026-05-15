@@ -26,3 +26,4 @@ export * from "./role-governors";
 export * from "./sovereign-pipeline";
 export * from "./sovereign-succession";
 export * from "./profile-vault";
+export * from "./ki-conversations";

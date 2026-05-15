@@ -56,6 +56,7 @@ import sovereignPipelineRouter from "./intake/pipeline";
 import sovereignSuccessionRouter from "./sovereign/succession";
 import memoryRouter from "./memory/index";
 import agentRouter from "./agent/index";
+import kiRouter from "./ki/index";
 
 const router: IRouter = Router();
 
@@ -117,5 +118,6 @@ router.use("/sovereign/pipeline", sovereignPipelineRouter);
 router.use("/sovereign/succession", sovereignSuccessionRouter);
 router.use("/memory", memoryRouter);
 router.use("/agent", agentRouter);
+router.use("/ki", kiRouter);
 
 export default router;

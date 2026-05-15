@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { DelegationPanel } from "@/components/DelegationPanel";
+import { KiChat } from "@/components/ki-chat";
 import { Link } from "wouter";
 import {
   Mic, MicOff, CheckCircle2, XCircle, Loader2, Bot,
@@ -1010,6 +1011,9 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── KI — Personal Sovereign Companion ── */}
+      <KiChat />
     </div>
   );
 }
