@@ -1122,9 +1122,11 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                     </div>
                   </div>
                 ) : (
-                  messages.map((msg) => (
+                  messages.map((msg, msgIdx) => {
+                    const isLastMsg = msgIdx === messages.length - 1;
+                    return (
                     <div key={msg.id} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"} group`}>
-                      <div className="relative max-w-[84%]">
+                      <div className="max-w-[84%]">
                         <div
                           className="rounded-xl px-3.5 py-2.5"
                           style={msg.role === "user" ? MSG_USER : MSG_AI}
@@ -1135,32 +1137,75 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                           <p className="text-sm text-white/88 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                           <p className="text-[9px] text-white/25 mt-1 text-right">{formatTime(msg.createdAt)}</p>
                         </div>
-                        {/* Copy button — assistant messages */}
+
+                        {/* ── Action row — COMPANION responses ── */}
                         {msg.role === "assistant" && (
-                          <button
-                            onClick={() => handleCopy(msg.id, msg.content)}
-                            className="absolute -bottom-4 left-0 opacity-0 group-hover:opacity-100 transition-opacity text-[9px] flex items-center gap-1 whitespace-nowrap px-1.5 py-0.5 rounded"
-                            style={{ color: copiedId === msg.id ? "rgba(110,231,183,0.9)" : "rgba(255,200,100,0.5)" }}
-                            title="Copy response"
-                          >
-                            {copiedId === msg.id
-                              ? <><CheckCircle2 className="w-2.5 h-2.5" /> Copied</>
-                              : <><X className="w-2.5 h-2.5 rotate-45" style={{ transform: "rotate(0deg)" }} /><span>copy</span></>
-                            }
-                          </button>
+                          <div className={`flex gap-0 mt-1 items-center flex-wrap transition-opacity duration-200 ${isLastMsg ? "opacity-100" : "opacity-0 group-hover:opacity-100"}`}>
+                            {/* Copy */}
+                            <button
+                              onClick={() => handleCopy(msg.id, msg.content)}
+                              className="flex items-center gap-1 text-[9px] px-2 py-1 rounded-l-md transition-colors hover:bg-white/5"
+                              style={{ color: copiedId === msg.id ? "rgba(110,231,183,0.9)" : "rgba(255,200,100,0.45)" }}
+                              title="Copy response"
+                            >
+                              {copiedId === msg.id
+                                ? <><CheckCircle2 className="w-2.5 h-2.5" /> Copied</>
+                                : <>copy</>}
+                            </button>
+                            <span className="text-white/10 text-[10px] select-none">|</span>
+                            {/* Add to Journal */}
+                            <button
+                              onClick={() => {
+                                setInputMode("journal");
+                                setInput(msg.content.slice(0, 700));
+                                setTimeout(() => document.querySelector<HTMLTextAreaElement>("textarea")?.focus(), 50);
+                              }}
+                              className="text-[9px] px-2 py-1 transition-colors hover:bg-white/5 hover:text-amber-300"
+                              style={{ color: "rgba(255,200,100,0.45)" }}
+                              title="Pre-fill journal with this response"
+                            >+ journal</button>
+                            <span className="text-white/10 text-[10px] select-none">|</span>
+                            {/* Save to Knowledge */}
+                            <button
+                              onClick={() => {
+                                setInputMode("memory");
+                                setInput(msg.content.slice(0, 700));
+                                setTimeout(() => document.querySelector<HTMLTextAreaElement>("textarea")?.focus(), 50);
+                              }}
+                              className="text-[9px] px-2 py-1 transition-colors hover:bg-white/5 hover:text-amber-300"
+                              style={{ color: "rgba(255,200,100,0.45)" }}
+                              title="Save this as standing knowledge for COMPANION"
+                            >+ knowledge</button>
+                            <span className="text-white/10 text-[10px] select-none">|</span>
+                            {/* Draft formal document */}
+                            <button
+                              onClick={() => {
+                                setInputMode("chat");
+                                setInput("Based on your previous response, please draft a complete formal document I can use officially — include a proper heading, body, and closing signature block.");
+                                setTimeout(() => document.querySelector<HTMLTextAreaElement>("textarea")?.focus(), 50);
+                              }}
+                              className="text-[9px] px-2 py-1 rounded-r-md transition-colors hover:bg-white/5 hover:text-amber-300"
+                              style={{ color: "rgba(255,200,100,0.45)" }}
+                              title="Ask COMPANION to draft a formal document from this response"
+                            >draft doc ↗</button>
+                          </div>
                         )}
+
                         {/* Save to memory — user messages */}
                         {msg.role === "user" && (
-                          <button
-                            onClick={() => setPendingSaveMessage({ id: msg.id, content: msg.content })}
-                            className="absolute -bottom-4 right-0 opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-amber-500/60 hover:text-amber-400 flex items-center gap-1 whitespace-nowrap"
-                          >
-                            <Brain className="w-2.5 h-2.5" /> save to memory
-                          </button>
+                          <div className="flex justify-end mt-1">
+                            <button
+                              onClick={() => setPendingSaveMessage({ id: msg.id, content: msg.content })}
+                              className="opacity-0 group-hover:opacity-100 transition-opacity text-[9px] text-amber-500/60 hover:text-amber-400 flex items-center gap-1 whitespace-nowrap px-1"
+                            >
+                              <Brain className="w-2.5 h-2.5" /> save to memory
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
-                  ))
+                    );
+                  })
                 )}
 
                 {chatMutation.isPending && (

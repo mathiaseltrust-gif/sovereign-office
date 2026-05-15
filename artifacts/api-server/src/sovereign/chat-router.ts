@@ -556,7 +556,7 @@ async function handleAITier(input: ChatInput, intakeFlags: IntakeFilterResult): 
     const result = await callAzureOpenAI(
       SOVEREIGN_SYSTEM_PROMPT,
       userPrompt,
-      { maxTokens: 800, temperature: 0.15, timeoutMs: 25000 },
+      { maxTokens: 3000, temperature: 0.15, timeoutMs: 45000 },
       input.conversationHistory ?? [],
     );
 
