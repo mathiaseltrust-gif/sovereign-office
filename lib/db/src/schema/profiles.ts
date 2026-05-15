@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, varchar, jsonb, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
@@ -22,6 +22,10 @@ export const profilesTable = pgTable("profiles", {
   entraVerified: boolean("entra_verified").notNull().default(false),
   lineageVerified: boolean("lineage_verified").notNull().default(false),
   delegatedAuthorities: jsonb("delegated_authorities").default({}),
+  apn: text("apn"),
+  mailingAddress: text("mailing_address"),
+  landStatus: varchar("land_status", { length: 50 }),
+  hasRecordedInstrument: boolean("has_recorded_instrument").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

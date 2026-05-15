@@ -116,6 +116,10 @@ router.put("/", requireAuth, async (req, res, next) => {
       jurisdictionTags,
       welfareTags,
       notificationPreferences,
+      apn,
+      mailingAddress,
+      landStatus,
+      hasRecordedInstrument,
     } = req.body as {
       bio?: string;
       preferredJurisdiction?: string;
@@ -129,6 +133,10 @@ router.put("/", requireAuth, async (req, res, next) => {
       jurisdictionTags?: string[];
       welfareTags?: string[];
       notificationPreferences?: object;
+      apn?: string;
+      mailingAddress?: string;
+      landStatus?: string;
+      hasRecordedInstrument?: boolean;
     };
 
     const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
@@ -146,6 +154,10 @@ router.put("/", requireAuth, async (req, res, next) => {
       jurisdictionTags: jurisdictionTags ?? existing[0]?.jurisdictionTags,
       welfareTags: welfareTags ?? existing[0]?.welfareTags,
       notificationPreferences: notificationPreferences ?? existing[0]?.notificationPreferences,
+      apn: apn ?? existing[0]?.apn,
+      mailingAddress: mailingAddress ?? existing[0]?.mailingAddress,
+      landStatus: landStatus ?? existing[0]?.landStatus,
+      hasRecordedInstrument: hasRecordedInstrument ?? existing[0]?.hasRecordedInstrument ?? false,
       updatedAt: new Date(),
     };
 

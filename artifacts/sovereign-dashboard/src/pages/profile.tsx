@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
@@ -18,7 +19,7 @@ import {
   CalendarDays, FileText, Shield, Archive, Bell, Scale,
   ClipboardList, Search, Users, Building2, Gavel, Layers,
   Printer, Workflow, ChevronRight, AlertTriangle, Wifi,
-  User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck,
+  User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck, MapPin,
 } from "lucide-react";
 
 /* ── types ── */
@@ -273,6 +274,18 @@ const INTAKE_QUESTIONS = [
     placeholder: "Family or clan group",
   },
   {
+    key: "mailingAddress",
+    label: "Mailing Address",
+    question: "What is your mailing address? This will appear on official documents, trust instruments, and filings.",
+    placeholder: "Street, City, State, ZIP",
+  },
+  {
+    key: "apn",
+    label: "APN (Assessor's Parcel Number)",
+    question: "What is the Assessor's Parcel Number for your primary land? This is used in trust instruments, LEN confirmations, and land status filings.",
+    placeholder: "e.g. 123-456-789-000",
+  },
+  {
     key: "bio",
     label: "Background",
     question: "Can you briefly describe your role and connection to the tribe? This personalizes your court documents and welfare filings.",
@@ -318,9 +331,13 @@ export default function ProfilePage() {
     nickname: "",
     title: "",
     familyGroup: "",
+    mailingAddress: "",
+    apn: "",
     bio: "",
     preferredJurisdiction: "",
   });
+  const [landStatus, setLandStatus] = useState("");
+  const [hasRecordedInstrument, setHasRecordedInstrument] = useState(false);
   const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
 
   /* notifications count */
@@ -357,9 +374,13 @@ export default function ProfilePage() {
             nickname: p.nickname ?? "",
             title: p.title ?? "",
             familyGroup: p.familyGroup ?? "",
+            mailingAddress: p.mailingAddress ?? "",
+            apn: p.apn ?? "",
             bio: p.bio ?? "",
             preferredJurisdiction: p.preferredJurisdiction ?? "",
           });
+          setLandStatus(p.landStatus ?? "");
+          setHasRecordedInstrument(p.hasRecordedInstrument ?? false);
           setNotifPrefs((p.notificationPreferences as Record<string, boolean>) ?? {});
           if ((d.identity as any)?.profilePhoto) {
             setPhotoUrl((d.identity as any).profilePhoto);
@@ -470,7 +491,7 @@ export default function ProfilePage() {
           Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ ...fields, notificationPreferences: notifPrefs }),
+        body: JSON.stringify({ ...fields, landStatus, hasRecordedInstrument, notificationPreferences: notifPrefs }),
       });
       if (r.ok) {
         toast({ title: "Saved", description: "Your identity has been updated." });
@@ -757,6 +778,74 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Land & Property ── */}
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
+            <MapPin className="h-4 w-4 text-primary" />
+            Land &amp; Property Status
+          </CardTitle>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Used in trust instruments, LEN confirmations, BIA land status filings, and recorded documents.
+          </p>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold uppercase tracking-wider">Land Status</Label>
+              <Select value={landStatus || "__none__"} onValueChange={v => setLandStatus(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="text-sm">
+                  <SelectValue placeholder="Select land status…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Not specified</SelectItem>
+                  <SelectItem value="trust">Indian Trust Land (25 U.S.C. § 5108)</SelectItem>
+                  <SelectItem value="allotment">Allotment (restricted fee)</SelectItem>
+                  <SelectItem value="fee">Fee Simple</SelectItem>
+                  <SelectItem value="restricted">Restricted Indian Land</SelectItem>
+                  <SelectItem value="none">No land interest on file</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">Classification auto-populates trust instruments and LEN documents.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="apn-field" className="text-xs font-semibold uppercase tracking-wider">APN (Assessor's Parcel Number)</Label>
+              <Input
+                id="apn-field"
+                value={fields.apn}
+                onChange={e => setFields(f => ({ ...f, apn: e.target.value }))}
+                placeholder="e.g. 123-456-789-000"
+                className="text-sm font-mono"
+              />
+              <p className="text-[10px] text-muted-foreground">Auto-fills trust deeds, recorder filings, and property instruments.</p>
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="mailing-address-field" className="text-xs font-semibold uppercase tracking-wider">Mailing Address</Label>
+            <Input
+              id="mailing-address-field"
+              value={fields.mailingAddress}
+              onChange={e => setFields(f => ({ ...f, mailingAddress: e.target.value }))}
+              placeholder="Street, City, State, ZIP"
+              className="text-sm"
+            />
+            <p className="text-[10px] text-muted-foreground">Appears on court filings, trust instruments, and official correspondence.</p>
+          </div>
+          <label className="flex items-center gap-2.5 cursor-pointer">
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-primary"
+              checked={hasRecordedInstrument}
+              onChange={e => setHasRecordedInstrument(e.target.checked)}
+            />
+            <div>
+              <span className="text-sm font-medium">Recorded instrument on file</span>
+              <p className="text-[10px] text-muted-foreground mt-0.5">Check if a deed, allotment, or trust document has been recorded with the county recorder or BIA.</p>
+            </div>
+          </label>
+        </CardContent>
+      </Card>
 
       {/* ── Notification preferences ── */}
       <Card>

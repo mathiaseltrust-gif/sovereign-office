@@ -37,8 +37,10 @@ export default function InstrumentsPage() {
     type: "trust_deed",
     templateKey: "",
     landDescription: "",
+    apn: "",
     jurisdiction: "",
     state: "",
+    county: "",
     indianLandProtection: true,
     trustStatus: true,
     federalPreemption: true,
@@ -51,13 +53,24 @@ export default function InstrumentsPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     createInstrument.mutate(
-      { data: { ...form, indianLandProtection: form.indianLandProtection, trustStatus: form.trustStatus } },
+      {
+        data: {
+          ...form,
+          indianLandProtection: form.indianLandProtection,
+          trustStatus: form.trustStatus,
+          recorderMetadata: {
+            apn: form.apn || undefined,
+            county: form.county || undefined,
+            state: form.state || undefined,
+          },
+        }
+      },
       {
         onSuccess: () => {
           toast({ title: "Instrument created", description: "Recorder-compliant PDF generated." });
           queryClient.invalidateQueries({ queryKey: getListInstrumentsQueryKey() });
           setOpen(false);
-          setForm({ title: "", type: "trust_deed", templateKey: "", landDescription: "", jurisdiction: "", state: "", indianLandProtection: true, trustStatus: true, federalPreemption: true, tribalJurisdiction: true, trusteeNotes: "" });
+          setForm({ title: "", type: "trust_deed", templateKey: "", landDescription: "", apn: "", jurisdiction: "", state: "", county: "", indianLandProtection: true, trustStatus: true, federalPreemption: true, tribalJurisdiction: true, trusteeNotes: "" });
         },
         onError: () => {
           toast({ title: "Error", description: "Failed to create instrument.", variant: "destructive" });
@@ -118,6 +131,16 @@ export default function InstrumentsPage() {
                 <div>
                   <Label htmlFor="state">State</Label>
                   <Input id="state" data-testid="input-state" value={form.state} onChange={(e) => setForm({ ...form, state: e.target.value })} />
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label htmlFor="county">County</Label>
+                  <Input id="county" data-testid="input-county" placeholder="e.g. Los Angeles" value={form.county} onChange={(e) => setForm({ ...form, county: e.target.value })} />
+                </div>
+                <div>
+                  <Label htmlFor="apn">APN (Assessor's Parcel Number)</Label>
+                  <Input id="apn" data-testid="input-apn" placeholder="e.g. 123-456-789-000" className="font-mono" value={form.apn} onChange={(e) => setForm({ ...form, apn: e.target.value })} />
                 </div>
               </div>
               <div>
