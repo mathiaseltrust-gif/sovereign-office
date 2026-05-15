@@ -112,6 +112,7 @@ export interface ProfileMemory {
   lastGreetedAt?: string;     // ISO timestamp of last Elder greeting
   recentTopics: string[];     // recent case summaries (last 5, ≤80 chars each)
   riskHistory: string[];      // risk levels from last 10 intakes
+  featureUsage: Record<string, number>; // feature → click count, drives adaptive suggestions
 }
 
 const PROFILE_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year
@@ -171,6 +172,7 @@ export async function appendIntakeFact(
     lastGreetedAt: existing?.lastGreetedAt,
     recentTopics: [opts.summary.substring(0, 80), ...(existing?.recentTopics ?? [])].slice(0, 5),
     riskHistory: [opts.riskLevel, ...(existing?.riskHistory ?? [])].slice(0, 10),
+    featureUsage: existing?.featureUsage ?? {},
   };
 
   await saveProfileMemory(userId, updated);

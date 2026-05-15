@@ -4,7 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
-import { ElderGreeting } from "@/components/ElderGreeting";
+import { AgentPanel } from "@/components/AgentPanel";
 
 export default function OfficerDashboard() {
   const { data: tasks, isLoading: loadingT } = useListTasks();
@@ -31,7 +31,11 @@ export default function OfficerDashboard() {
 
   return (
     <div data-testid="page-officer-dashboard">
-      <ElderGreeting />
+      <AgentPanel
+        pendingTasks={myTasks.length}
+        openComplaints={openComplaints.length}
+        draftNfrs={draftNfrs.length}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Officer Dashboard</h1>
         <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — complaints, welfare, classification, and tasks</p>

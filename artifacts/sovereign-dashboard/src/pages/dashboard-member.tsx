@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
-import { ElderGreeting } from "@/components/ElderGreeting";
+import { AgentPanel } from "@/components/AgentPanel";
 
 export default function MemberDashboard() {
   const { data: complaints } = useListComplaints();
@@ -15,7 +15,10 @@ export default function MemberDashboard() {
 
   return (
     <div data-testid="page-member-dashboard">
-      <ElderGreeting />
+      <AgentPanel
+        openComplaints={complaints?.length}
+        draftNfrs={nfrs?.length}
+      />
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Member Portal</h1>
         <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — family governance, filings, and welfare requests</p>
