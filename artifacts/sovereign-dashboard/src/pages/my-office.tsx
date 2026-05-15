@@ -121,17 +121,20 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
   const isoTs        = now.toISOString();
   const humanTs      = now.toLocaleString("en-US", { timeZoneName: "short" });
 
-  // ── Court filing date stamp — landscape rectangle [__], approx 1.6" × 0.85" at 96 DPI = 154×82px ──
-  // Matches real self-inking court date stamps: wider than tall, text stacked horizontally across the width.
-  // Layout (top→bottom): header line | org name | DATE (large, red) | footer line
+  // ── Court filing date stamp — matches physical self-inking stamp (photo reference) ──
+  // Layout (top→bottom): "BY ORDER OF THE" | "MATHIAS EL TRIBE SUPREME COURT" | DATE (large red) | "OFFICE OF THE" | "CHIEF JUSTICE & TRUSTEE"
+  // No horizontal rule — just even spacing via flex. Footer is two distinct lines.
   const stamp = `
-    <div style="border:1.5px solid #1a3a6e;width:154px;height:82px;padding:5px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;line-height:1.1;width:100%;white-space:nowrap;">BY ORDER OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;line-height:1.1;width:100%;white-space:nowrap;">MATHIAS EL TRIBE SUPREME COURT</div>
+    <div style="border:1.5px solid #1a3a6e;width:154px;height:90px;padding:6px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;line-height:1.2;width:100%;white-space:nowrap;">BY ORDER OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;line-height:1.2;width:100%;white-space:nowrap;">MATHIAS EL TRIBE SUPREME COURT</div>
       ${stampDate
-        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#8B0000;letter-spacing:2px;line-height:1.05;width:100%;white-space:nowrap;">${esc(stampDate.month)}&nbsp;&nbsp;${esc(stampDate.daySpaced)}&nbsp;&nbsp;${esc(stampDate.year)}</div>`
-        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#bbb;letter-spacing:3px;line-height:1.05;width:100%;">— — — — —</div>`}
-      <div style="border-top:0.5px solid #1a3a6e;width:100%;margin-top:1px;padding-top:2px;font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.1;white-space:nowrap;">OFFICE OF THE CHIEF JUSTICE &amp; TRUSTEE</div>
+        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#8B0000;letter-spacing:2px;line-height:1.1;width:100%;white-space:nowrap;">${esc(stampDate.month)}&nbsp;&nbsp;${esc(stampDate.daySpaced)}&nbsp;&nbsp;${esc(stampDate.year)}</div>`
+        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#bbb;letter-spacing:3px;line-height:1.1;width:100%;">— — — — —</div>`}
+      <div style="text-align:center;">
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;white-space:nowrap;">OFFICE OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;white-space:nowrap;">CHIEF JUSTICE &amp; TRUSTEE</div>
+      </div>
     </div>`;
 
   // ── Signature block ──
