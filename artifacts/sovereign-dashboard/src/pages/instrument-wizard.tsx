@@ -11,7 +11,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
-import { CheckCircle, ChevronRight, ChevronLeft, Wand2, FileText, Landmark, ScrollText, Heart, AlertTriangle, Scale, BookOpen, Info } from "lucide-react";
+import { CheckCircle, ChevronRight, ChevronLeft, Wand2, FileText, Landmark, ScrollText, Heart, AlertTriangle, Scale, BookOpen, Info, ClipboardList, Stethoscope, ShieldCheck, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface TemplateInfo {
@@ -28,6 +28,7 @@ interface TemplateInfo {
 }
 
 const TEMPLATE_CATALOG: TemplateInfo[] = [
+  // ── Land Instruments ──
   {
     key: "trust_deed",
     title: "Deed of Trust — Indian Trust Land",
@@ -37,41 +38,108 @@ const TEMPLATE_CATALOG: TemplateInfo[] = [
     law: "25 U.S.C. § 177",
     partyFields: ["Grantor", "Grantee", "Beneficiary"],
     needsLand: true,
-    eligibilityHint: "Recommended when you have a recorded APN or documented trust land.",
+    eligibilityHint: "Use when you have a recorded APN or documented trust land parcel.",
   },
   {
     key: "allotment_lease",
     title: "Lease of Individual Indian Allotment",
     category: "Land Instruments",
     icon: Landmark,
-    description: "Leases an individual Indian allotment, subject to BIA approval under federal allotment regulations.",
+    description: "Leases an individual Indian allotment to another party, subject to BIA approval under allotment regulations.",
     law: "25 U.S.C. § 415",
     partyFields: ["Lessor", "Lessee"],
     needsLand: true,
-    eligibilityHint: "Use when leasing allotted trust land to another party.",
+    eligibilityHint: "Use when leasing allotted trust land. BIA approval required.",
   },
   {
     key: "trust_transfer",
     title: "Trust Land Transfer Instrument",
     category: "Land Instruments",
     icon: Landmark,
-    description: "Transfers federal trust land between tribal entities with Secretarial approval. Title remains in trust.",
+    description: "Transfers federal trust land between tribal entities with Secretarial approval. Title remains in trust upon completion.",
     law: "25 U.S.C. § 177",
     partyFields: ["Transferor", "Transferee"],
     needsLand: true,
-    eligibilityHint: "For inter-tribal or intra-tribal trust land transfers requiring BIA filing.",
+    eligibilityHint: "For inter-tribal or intra-tribal trust land transfers requiring BIA Land Records filing.",
   },
   {
     key: "trust_land_status_report",
     title: "Trust Land Status Report (TSR)",
     category: "Land Instruments",
     icon: FileText,
-    description: "Official report documenting the trust land status of a parcel for court, agency, or recorder filing.",
-    law: "25 U.S.C. §§ 177, 465",
-    partyFields: [],
+    description: "Official report documenting the current trust land status of a parcel for court, agency, or recorder filing.",
+    law: "25 U.S.C. §§ 177, 5108",
+    partyFields: ["Beneficial Owner(s)"],
     needsLand: true,
     eligibilityHint: "Required for recorder compliance submissions involving trust parcels.",
   },
+  {
+    key: "trust_land_instrument",
+    title: "Trust Land Instrument (General Purpose)",
+    category: "Land Instruments",
+    icon: Landmark,
+    description: "General-purpose trust land instrument covering conveyance, lease, right-of-way, encumbrance, or protective declaration.",
+    law: "25 U.S.C. §§ 177, 415, 5108",
+    partyFields: ["Grantor / Beneficial Owner", "When Recorded Return To"],
+    needsLand: true,
+    eligibilityHint: "Use when none of the specific land instruments fits the exact need.",
+  },
+  {
+    key: "trust_land_decision_letter",
+    title: "Decision Letter — Trust Land Action",
+    category: "Land Instruments",
+    icon: FileText,
+    description: "Formal determination letter for a submitted trust land action request: approved, denied, conditional, or referred.",
+    law: "25 U.S.C. §§ 177, 5108 / Federal Trust Responsibility",
+    partyFields: ["Re: Request for", "Applicant / Petitioner", "Member ID"],
+    needsLand: false,
+    eligibilityHint: "Issued by the Office in response to a filed trust land request.",
+  },
+  {
+    key: "trust_land_intake_form",
+    title: "Trust Land Intake Form",
+    category: "Land Instruments",
+    icon: ClipboardList,
+    description: "Intake and routing form for a trust land matter submitted to the Office of the Chief Justice & Trustee for review.",
+    law: "25 U.S.C. §§ 177, 415, 5108",
+    partyFields: ["Applicant Name", "Tract Number (if known)"],
+    needsLand: false,
+    eligibilityHint: "First step for any new trust land matter — creates the intake record.",
+  },
+  {
+    key: "trust_land_probate_summary",
+    title: "Trust Land Probate Summary",
+    category: "Land Instruments",
+    icon: FileText,
+    description: "Heirship determination and distribution summary for trust land interests of a deceased tribal member under AIPRA.",
+    law: "25 U.S.C. §§ 2201–2216 (AIPRA)",
+    partyFields: ["Decedent", "Date of Death", "Probate Case No."],
+    needsLand: true,
+    eligibilityHint: "Use when a tribal member with trust land interests has passed. Coordinates with BIA Probate Office.",
+  },
+  {
+    key: "encumbrance_review",
+    title: "Encumbrance Review — Trust Land",
+    category: "Land Instruments",
+    icon: Scale,
+    description: "Reviews and determines the validity of encumbrances (leases, mortgages, liens, ROW) on trust land under federal law.",
+    law: "25 U.S.C. § 415 / BIA Trust Regulations",
+    partyFields: ["Property Owner / Beneficial Interest", "Tract Number"],
+    needsLand: true,
+    eligibilityHint: "Use when an encumbrance or lien on trust land requires official review.",
+  },
+  {
+    key: "notice_of_title_defect",
+    title: "Notice of Title Defect",
+    category: "Land Instruments",
+    icon: AlertTriangle,
+    description: "Formal notice of an identified defect in the chain of title for a trust land parcel, with required curative action.",
+    law: "25 U.S.C. §§ 177, 5108 / United States v. Mitchell II",
+    partyFields: ["Re: Tract", "Directed To"],
+    needsLand: true,
+    eligibilityHint: "Use when a title gap, unauthorized conveyance, or recording error is identified.",
+  },
+  // ── Sovereignty Declarations ──
   {
     key: "sovereign_restoration_declaration",
     title: "Sovereign Restoration Doctrine — Formal Declaration",
@@ -95,16 +163,38 @@ const TEMPLATE_CATALOG: TemplateInfo[] = [
     eligibilityHint: "Available to any tribal member for inclusion in filings or correspondence.",
   },
   {
+    key: "certification",
+    title: "Certification — Office of the Chief Justice & Trustee",
+    category: "Sovereignty Declarations",
+    icon: ShieldCheck,
+    description: "Standalone certification attesting to the trust land status, sovereign protections, and legal authenticity of an instrument or matter.",
+    law: "25 U.S.C. §§ 177, 5108 / Federal Trust Responsibility",
+    partyFields: ["Chief Justice & Trustee"],
+    needsLand: false,
+    eligibilityHint: "Use as a standalone attestation in BIA proceedings, court filings, and agency correspondence.",
+  },
+  {
+    key: "cascade_engine_template",
+    title: "Cascade Engine Output — Sovereign AI Drafting",
+    category: "Sovereignty Declarations",
+    icon: GitBranch,
+    description: "Structured output record from the Sovereign AI Drafting Engine capturing all triggers, provisions, and document references for a matter.",
+    law: "Tribal Law — Sovereignty & Jurisdiction",
+    partyFields: ["Matter Type", "Required Authority"],
+    needsLand: false,
+    eligibilityHint: "Auto-generated by the intake pipeline for complex matters requiring multi-document response.",
+  },
+  // ── Legal Notices ──
+  {
     key: "nfr",
     title: "Notice of Federal Review",
     category: "Legal Notices",
     icon: AlertTriangle,
-    description: "Formal notice of violation of federal Indian law, trust terms, or tribal law. Requires remedy within stated period.",
+    description: "Formal notice of violation of federal Indian law, trust terms, or tribal law, requiring remedy within a stated period.",
     law: "25 U.S.C. §§ 177, 5123",
     partyFields: ["Respondent", "Affected Party"],
     needsLand: true,
-    roleRequired: "trustee",
-    eligibilityHint: "Issued by the Office of the Chief Justice. Requires trustee role.",
+    eligibilityHint: "Issued by the Office of the Chief Justice. Serve via certified mail with proof of service.",
   },
   {
     key: "state_prohibition_notice",
@@ -122,33 +212,45 @@ const TEMPLATE_CATALOG: TemplateInfo[] = [
     title: "Tribal Jurisdiction — Criminal Jurisdiction Assertion",
     category: "Legal Notices",
     icon: Scale,
-    description: "Asserts tribal and federal criminal jurisdiction over matters occurring in Indian Country under 18 U.S.C. §§ 1151-1153.",
+    description: "Asserts tribal and federal criminal jurisdiction over matters in Indian Country under the Indian Country Crimes Act.",
     law: "18 U.S.C. §§ 1151, 1152, 1153",
     partyFields: ["Directed To", "Re: Matter", "Indian Country Location"],
     needsLand: false,
-    eligibilityHint: "Directed to law enforcement or courts asserting incorrect jurisdiction.",
+    eligibilityHint: "Directed to law enforcement or courts asserting incorrect jurisdiction over Indian Country matters.",
   },
+  // ── Medical & Welfare ──
   {
     key: "medical_protection_decree",
     title: "Jurisdictional Decree of Medical Protection & Healing Enforcement",
     category: "Medical & Welfare",
     icon: Heart,
     description: "Elevates tribal medical determinations to court decrees, enforceable against employers, insurers, SSA, and EDD.",
-    law: "25 U.S.C. § 1601 et seq. / IHCIA",
+    law: "25 U.S.C. § 1601 et seq. (IHCIA) / Williams v. Lee",
     partyFields: ["Patient / Beneficiary", "Date of Birth", "Member ID"],
     needsLand: false,
-    eligibilityHint: "For tribal members with documented medical conditions requiring protective leave.",
+    eligibilityHint: "For tribal members with documented medical conditions requiring protective leave or disability determination.",
   },
   {
     key: "disability_enforcement_notice",
     title: "Notice of Tribal Medical Decree — Compliance Required",
     category: "Medical & Welfare",
     icon: Heart,
-    description: "Directed to agencies, employers, or insurers requiring compliance with an existing medical protection decree.",
-    law: "25 U.S.C. §§ 1621e, 1647b / Title VI",
+    description: "Directed to agencies, employers, or insurers requiring compliance with an existing medical protection decree under federal law.",
+    law: "25 U.S.C. §§ 1621e, 1647b / Title VI / 42 U.S.C. § 2000d",
     partyFields: ["Directed To", "Re: Patient / Beneficiary", "Member ID", "Decree Reference"],
     needsLand: false,
     eligibilityHint: "Issue after a Medical Protection Decree is in place. Reference its case number.",
+  },
+  {
+    key: "tribal_health_referral",
+    title: "Referral for Contract Professional Health Services",
+    category: "Medical & Welfare",
+    icon: Stethoscope,
+    description: "Tribal health services referral for outpatient specialist or diagnostic services with the same federal standing as an IHS facility referral.",
+    law: "25 U.S.C. § 1601 et seq. / 42 C.F.R. § 136.11",
+    partyFields: ["Patient", "Date of Birth", "Member ID", "Referred To", "Authorizing Provider"],
+    needsLand: false,
+    eligibilityHint: "For tribal members requiring specialist or outpatient services outside the tribal health facility.",
   },
 ];
 
@@ -293,16 +395,34 @@ export default function InstrumentWizardPage() {
         }
       }
 
+      const landDesc = wiz.landDescription || (wiz.apn ? `APN: ${wiz.apn}` : "");
+      // Map wizard party fields directly — the template engine does replaceAll("[KEY]", value)
+      // so we pass the exact placeholder text as used in the template, without extra brackets.
+      const partyVars = Object.entries(wiz.parties)
+        .filter(([, v]) => v.trim())
+        .map(([key, value]) => ({ key, value }));
+
       const variables: Array<{ key: string; value: string }> = [
-        ...Object.entries(wiz.parties).map(([key, value]) => ({ key: `[${key.toUpperCase()}]`, value })),
-        { key: "[GRANTOR FULL NAME]", value: wiz.legalName },
-        { key: "[DECLARANT FULL NAME — CHIEF / TRUSTEE / TRIBAL MEMBER]", value: wiz.legalName },
-        { key: "[FULL NAME — CHIEF / TRUSTEE / TRIBAL MEMBER]", value: wiz.legalName },
-        { key: "[INSERT FULL LEGAL DESCRIPTION OF TRUST LAND HERE]", value: wiz.landDescription || `APN: ${wiz.apn}` },
-        { key: "[INSERT ALLOTMENT LEGAL DESCRIPTION]", value: wiz.landDescription || `APN: ${wiz.apn}` },
-        { key: "[INSERT TRUST LAND LEGAL DESCRIPTION]", value: wiz.landDescription || `APN: ${wiz.apn}` },
-        { key: "[INSERT DESCRIPTION OF AFFECTED TRUST LAND]", value: wiz.landDescription || `APN: ${wiz.apn}` },
-      ];
+        ...partyVars,
+        // Common identity placeholders across templates
+        { key: "GRANTOR FULL NAME", value: wiz.legalName },
+        { key: "FULL NAME — CHIEF / TRUSTEE / TRIBAL MEMBER", value: wiz.legalName },
+        { key: "APPLICANT FULL NAME", value: wiz.legalName },
+        { key: "DECLARANT", value: wiz.legalName },
+        { key: "CHIEF JUSTICE FULL NAME", value: wiz.legalName },
+        { key: "BENEFICIAL OWNER FULL NAME(S)", value: wiz.legalName },
+        { key: "GRANTOR / BENEFICIAL OWNER FULL NAME", value: wiz.legalName },
+        // Land description placeholders
+        { key: "INSERT FULL LEGAL DESCRIPTION OF TRUST LAND HERE", value: landDesc },
+        { key: "INSERT ALLOTMENT LEGAL DESCRIPTION", value: landDesc },
+        { key: "INSERT TRUST LAND LEGAL DESCRIPTION", value: landDesc },
+        { key: "INSERT DESCRIPTION OF AFFECTED TRUST LAND", value: landDesc },
+        { key: "INSERT FULL LEGAL DESCRIPTION — ATTACH EXHIBIT A IF NECESSARY", value: landDesc },
+        { key: "INSERT FULL LEGAL DESCRIPTION", value: landDesc },
+        // County/State
+        { key: "COUNTY", value: wiz.county || "Kern" },
+        { key: "STATE", value: wiz.state || "CA" },
+      ].filter(v => v.value.trim());
 
       const body = {
         templateKey: wiz.templateKey,
