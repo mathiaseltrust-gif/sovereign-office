@@ -937,7 +937,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             <img
               src="/sovereign-dashboard/companion-logo.png"
               alt="COMPANION"
-              className="w-7 h-7 object-contain"
+              className="w-full h-full object-contain rounded-full"
               style={{ filter: "drop-shadow(0 0 4px rgba(220,140,50,0.6))" }}
             />
           </div>
@@ -946,7 +946,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             <img
               src="/sovereign-dashboard/companion-wordmark.png"
               alt="COMPANION"
-              style={{ height: "18px", width: "auto", display: "block", filter: "drop-shadow(0 0 3px rgba(220,140,50,0.35))" }}
+              style={{ height: "22px", width: "auto", display: "block", filter: "drop-shadow(0 0 3px rgba(220,140,50,0.35))" }}
             />
             <p className="text-[9px] tracking-[0.16em] mt-1" style={{ color: "rgba(255,200,140,0.55)" }}>
               "Indigenous Intelligence" · {knowledgeEntries.length} memories
