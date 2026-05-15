@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -11,7 +11,8 @@ import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import {
   FileText, Shield, Eye, BookOpen, Archive, Stamp,
-  CheckCircle2, Clock, AlertTriangle, ChevronRight, Printer, RotateCcw, List
+  CheckCircle2, Clock, AlertTriangle, ChevronRight, Printer, RotateCcw, List,
+  Mic, MicOff, Upload, X, Loader2
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -379,6 +380,71 @@ export default function SovereignPipelinePage() {
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [view, setView] = useState<"pipeline" | "log">("pipeline");
 
+  // ── Voice input ──────────────────────────────────────────────────────────────
+  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const voiceSupported = typeof window !== "undefined" &&
+    ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  function startListening() {
+    const Win = window as unknown as Record<string, unknown>;
+    const Cls = (Win.SpeechRecognition ?? Win.webkitSpeechRecognition) as
+      (new () => SpeechRecognition) | undefined;
+    if (!Cls) return;
+    const r = new Cls();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-US";
+    r.onresult = (e: SpeechRecognitionEvent) => {
+      let t = "";
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      setInputText(t);
+    };
+    r.onend = () => setIsListening(false);
+    r.onerror = () => setIsListening(false);
+    r.start();
+    recognitionRef.current = r;
+    setIsListening(true);
+  }
+
+  function stopListening() {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }
+
+  // ── Document upload ──────────────────────────────────────────────────────────
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [uploadStatus, setUploadStatus] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
+
+  async function handleFileUpload(file: File) {
+    setIsUploading(true);
+    setUploadStatus(`Reading ${file.name}…`);
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`${API}/api/intake/upload`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: form,
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? `Upload failed (${r.status})`);
+      }
+      const data = await r.json() as { text: string; filename: string; char_count: number };
+      setInputText(data.text.substring(0, 8000));
+      setUploadStatus(`Extracted ${data.char_count.toLocaleString()} chars from "${data.filename}" — ready to run.`);
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : "Upload failed";
+      setUploadStatus(`Error: ${msg}`);
+      toast({ title: "Upload failed", description: msg, variant: "destructive" });
+    } finally {
+      setIsUploading(false);
+    }
+  }
+
   const runPipeline = useMutation({
     mutationFn: async (text: string) => {
       setActiveStep(0);
@@ -528,12 +594,72 @@ export default function SovereignPipelinePage() {
           {!result && (
             <Card>
               <CardHeader className="border-b pb-3">
-                <CardTitle className="text-sm font-semibold">Incoming Matter</CardTitle>
+                <div className="flex items-center justify-between flex-wrap gap-2">
+                  <CardTitle className="text-sm font-semibold">Incoming Matter</CardTitle>
+                  {/* Voice + Upload controls */}
+                  <div className="flex items-center gap-2">
+                    {voiceSupported && (
+                      <Button
+                        type="button"
+                        variant={isListening ? "destructive" : "outline"}
+                        size="sm"
+                        className="gap-1.5 text-xs h-7 px-2.5"
+                        onClick={isListening ? stopListening : startListening}
+                        title={isListening ? "Stop dictation" : "Dictate into this field"}
+                      >
+                        {isListening
+                          ? <><MicOff className="h-3.5 w-3.5" /> Stop</>
+                          : <><Mic className="h-3.5 w-3.5" /> Speak</>}
+                        {isListening && (
+                          <span className="ml-1 h-1.5 w-1.5 rounded-full bg-red-400 animate-pulse" />
+                        )}
+                      </Button>
+                    )}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-xs h-7 px-2.5"
+                      onClick={() => fileRef.current?.click()}
+                      disabled={isUploading}
+                      title="Upload a PDF, Word doc, or image to extract text"
+                    >
+                      {isUploading
+                        ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Reading…</>
+                        : <><Upload className="h-3.5 w-3.5" /> Upload Doc</>}
+                    </Button>
+                    <input
+                      ref={fileRef}
+                      type="file"
+                      className="hidden"
+                      accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.tiff,.bmp"
+                      onChange={e => {
+                        const f = e.target.files?.[0];
+                        if (f) handleFileUpload(f);
+                        e.target.value = "";
+                      }}
+                    />
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="p-4 space-y-4">
+                {uploadStatus && (
+                  <div className="flex items-start justify-between gap-2 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 px-3 py-2">
+                    <p className="text-xs text-blue-800 dark:text-blue-300">{uploadStatus}</p>
+                    <button onClick={() => setUploadStatus(null)} className="text-blue-400 hover:text-blue-600 flex-shrink-0">
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                )}
+                {isListening && (
+                  <div className="flex items-center gap-2 rounded-md border border-red-200 bg-red-50 dark:bg-red-950/30 dark:border-red-800 px-3 py-2">
+                    <span className="h-2 w-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" />
+                    <p className="text-xs text-red-700 dark:text-red-300 font-medium">Listening — speak clearly. Words will appear in the field below. Click "Stop" when done.</p>
+                  </div>
+                )}
                 <div className="space-y-1.5">
                   <Label className="text-xs font-semibold uppercase tracking-wider">
-                    Paste the incoming document, demand, letter, or claim text
+                    Document text — paste, speak, or upload
                   </Label>
                   <Textarea
                     value={inputText}
@@ -543,7 +669,7 @@ export default function SovereignPipelinePage() {
                     className="font-mono text-sm resize-y"
                   />
                   <p className="text-[10px] text-muted-foreground">
-                    The pipeline will classify this text, overlay doctrines, select the appropriate sovereign response template, and generate a file record automatically.
+                    Paste text directly · upload a PDF/Word/image · or click <strong>Speak</strong> to dictate. The pipeline classifies the matter, overlays doctrines, selects a response template, and creates a file record automatically.
                   </p>
                 </div>
                 <Button
