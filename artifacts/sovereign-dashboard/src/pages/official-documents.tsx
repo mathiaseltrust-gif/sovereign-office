@@ -20,21 +20,16 @@ function formatStampDate(d: Date): string {
 }
 
 // ─── Official Date Stamp ──────────────────────────────────────────────────────
-// Spec: STAMP_BOX 1.625in × 1.0in · border #0A3A78 · 0.035in border · no radius
-// Padding: top 0.10in · bottom 0.12in · left/right 0.08in
-// PAGE_SCALE: stamp_width_ratio 0.19 of 8.5in = 1.615in ≈ 1.625in confirmed
 const STAMP_LINES = [
-  { text: "BY ORDER OF THE",              color: "#0A3A78", scale: 1.00, mono: false },
-  { text: "MATHIAS EL TRIBE SUPREME COURT", color: "#0A3A78", scale: 1.15, mono: false },
-  { text: "DATE",                          color: "#C62828", scale: 1.10, mono: true  },
-  { text: "OFFICE OF THE",                color: "#0A3A78", scale: 1.00, mono: false },
-  { text: "CHIEF JUSTICE & TRUSTEE",      color: "#0A3A78", scale: 1.10, mono: false },
+  { text: "BY ORDER OF THE",         color: "#0A3A78", scale: 1.00, mono: false },
+  { text: "MATHIAS EL TRIBE",        color: "#0A3A78", scale: 1.10, mono: false },
+  { text: "SUPREME COURT",           color: "#0A3A78", scale: 1.10, mono: false },
+  { text: "DATE",                    color: "#C62828", scale: 1.20, mono: true  },
+  { text: "OFFICE OF THE",           color: "#0A3A78", scale: 0.95, mono: false },
+  { text: "CHIEF JUSTICE & TRUSTEE", color: "#0A3A78", scale: 1.00, mono: false },
 ] as const;
 
-// Base font size: 7.5px — at this size all 5 lines fit within the 0.78in
-// available height (1.0in minus 0.10+0.12in padding), and line 2 fits the
-// 1.469in available width (1.625in minus 2×0.08in padding).
-const STAMP_BASE_PX = 7.5;
+const STAMP_BASE_PX = 6.8;
 
 function OfficialStamp({ date }: { date: string }) {
   return (
@@ -45,13 +40,13 @@ function OfficialStamp({ date }: { date: string }) {
         height: "1.0in",
         border: "2.5px solid #0A3A78",
         borderRadius: 0,
-        paddingTop: "0.10in",
-        paddingBottom: "0.12in",
+        paddingTop: "0.09in",
+        paddingBottom: "0.09in",
         paddingLeft: "0.08in",
         paddingRight: "0.08in",
         background: "#fff",
         boxSizing: "border-box",
-        gap: "1.5px",
+        gap: "1px",
         textAlign: "center",
       }}
     >
@@ -63,13 +58,12 @@ function OfficialStamp({ date }: { date: string }) {
             color: l.color,
             fontFamily: l.mono
               ? "'Courier New', Courier, monospace"
-              : "'Times New Roman', Times, serif",
+              : "'Arial Narrow', Arial, sans-serif",
             fontWeight: 700,
-            letterSpacing: l.mono ? "1px" : "0.5px",
+            letterSpacing: l.mono ? "1px" : "0.3px",
             textTransform: "uppercase",
-            lineHeight: 1.2,
-            whiteSpace: "nowrap",
-            overflow: "hidden",
+            lineHeight: 1.15,
+            width: "100%",
           }}
         >
           {l.text === "DATE" ? date : l.text}
@@ -77,6 +71,74 @@ function OfficialStamp({ date }: { date: string }) {
       ))}
     </div>
   );
+}
+
+// ─── HTML print builder ────────────────────────────────────────────────────────
+function escHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
+function buildOfficialDocHtml(opts: {
+  stampDate: string; title: string; subject: string; body: string;
+  signerName: string; signerTitle: string; useActualSeal: boolean; showSeal: boolean;
+}): string {
+  const { stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal } = opts;
+  const origin = window.location.origin;
+  const base = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
+  const tribalSeal  = `${origin}${base}tribal-seal.png`;
+  const supremeSeal = `${origin}${base}supreme-court-seal.png`;
+
+  const stampHtml = `
+    <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:center;width:156px;height:96px;border:2.5px solid #0A3A78;padding:8px 7px;background:#fff;box-sizing:border-box;gap:1px;text-align:center;flex-shrink:0;">
+      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">BY ORDER OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:7pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">MATHIAS EL TRIBE</div>
+      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:7pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">SUPREME COURT</div>
+      <div style="font-family:'Courier New',Courier,monospace;font-size:8pt;font-weight:700;color:#C62828;letter-spacing:1px;line-height:1.15;width:100%;">${escHtml(stampDate)}</div>
+      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:700;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">OFFICE OF THE</div>
+      <div style="font-family:'Arial Narrow',Arial,sans-serif;font-size:6.5pt;font-weight:900;color:#0A3A78;text-transform:uppercase;letter-spacing:0.3px;line-height:1.15;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
+    </div>`;
+
+  const sealHtml = showSeal
+    ? useActualSeal
+      ? `<img src="${supremeSeal}" alt="Mathias El Tribe Supreme Court Seal" style="width:140px;height:140px;object-fit:contain;" />`
+      : `<div style="width:140px;height:140px;border-radius:50%;border:2px dashed #aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="text-align:center;color:#aaa;font-size:10px;padding:20px;"><div style="font-size:22px;margin-bottom:4px;">&#8853;</div>SEAL PLACEMENT</div></div>`
+    : "";
+
+  return `<!DOCTYPE html><html lang="en"><head>
+    <meta charset="utf-8">
+    <title>Official Document — ${escHtml(title || "Sovereign Order")}</title>
+    <style>* { box-sizing: border-box; } body { margin:0; padding:0; background:#fff; } @page { size: letter; margin: 0; }</style>
+  </head><body>
+    <div style="background:#fff;color:#000;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.6;padding:1in 1in 0.75in;max-width:8.5in;min-height:11in;margin:0 auto;position:relative;box-sizing:border-box;">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:12px;">
+        <img src="${tribalSeal}" alt="Mathias El Tribe" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;" />
+        <div style="flex:1;text-align:center;padding:0 16px;">
+          <div style="font-size:9pt;letter-spacing:3px;text-transform:uppercase;font-weight:700;color:#8B0000;">Mathias El Tribe</div>
+          <div style="font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:#555;">Sovereign Office &mdash; Chief Justice &amp; Trustee</div>
+          <div style="font-size:7pt;color:#777;margin-top:2px;">In His Sovereign Trustee Capacity, on Behalf of the Mathias El Tribe</div>
+        </div>
+        ${stampHtml}
+      </div>
+      <hr style="border-top:2px solid #000;margin-bottom:24px;" />
+      ${title ? `<div style="text-align:center;margin-bottom:20px;"><div style="font-size:13pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;">${escHtml(title)}</div></div>` : ""}
+      ${subject ? `<div style="margin-bottom:16px;font-size:11pt;"><strong>RE:</strong> ${escHtml(subject)}</div>` : ""}
+      <div style="margin-bottom:32px;font-size:11pt;white-space:pre-wrap;">${escHtml(body || " ")}</div>
+      <div style="margin-top:40px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;">
+        ${showSeal ? `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;">${sealHtml}<div style="font-size:8pt;color:#777;letter-spacing:0.5px;text-align:center;">${useActualSeal ? "Official Seal" : "[Seal Placement]"}</div></div>` : ""}
+        <div style="flex:1;margin-left:${showSeal ? "40px" : "0"};">
+          <div style="border-top:1px solid #000;width:260px;margin-bottom:4px;"></div>
+          <div style="font-size:11pt;font-weight:700;">${escHtml(signerName || "Mathew-Allen McCaster, Chief Mathias El")}</div>
+          <div style="font-size:10pt;">${escHtml(signerTitle || "Chief Justice & Trustee")}</div>
+          <div style="font-size:10pt;color:#555;">Mathias El Tribe Supreme Court</div>
+          <div style="font-size:9pt;color:#555;">In His Sovereign Trustee Capacity</div>
+        </div>
+      </div>
+      <div style="position:absolute;bottom:0.5in;left:1in;right:1in;border-top:1px solid #ccc;padding-top:6px;">
+        <div style="font-size:7.5pt;color:#888;text-align:center;letter-spacing:0.5px;">Issued under inherent sovereign authority of the Mathias El Tribe &mdash; An Identifiable Group of American Indians</div>
+      </div>
+    </div>
+    <script>window.onload=function(){var imgs=document.querySelectorAll('img');var done=0;var total=imgs.length;function tryPrint(){done++;if(done>=total)setTimeout(function(){window.print();},300);}if(total===0){setTimeout(function(){window.print();},400);return;}imgs.forEach(function(i){if(i.complete){tryPrint();}else{i.onload=i.onerror=tryPrint;}});setTimeout(function(){window.print();},3000);};<\/script>
+  </body></html>`;
 }
 
 // ─── Seal Placeholder ─────────────────────────────────────────────────────────
@@ -299,49 +361,33 @@ export default function OfficialDocumentsPage() {
   }
 
   const handlePrint = () => {
-    window.print();
+    const html = buildOfficialDocHtml({ stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal });
+    const w = window.open("", "_blank", "width=1000,height=820");
+    if (!w) { alert("Pop-up blocked — please allow pop-ups for this site."); return; }
+    w.document.open();
+    w.document.write(html);
+    w.document.close();
   };
 
   return (
-    <>
-      {/* Print-only CSS */}
-      <style>{`
-        @media print {
-          body > *:not(#print-root) { display: none !important; }
-          #print-root { display: block !important; }
-          .no-print { display: none !important; }
-          #official-document {
-            padding: 0.75in 1in !important;
-            box-shadow: none !important;
-            border: none !important;
-          }
-          @page {
-            size: letter;
-            margin: 0;
-          }
-        }
-      `}</style>
-
-      <div id="print-root" className="space-y-6 no-print" style={{ display: "contents" }}>
-        {/* Page header */}
-        <div className="no-print">
-          <div className="flex items-start justify-between flex-wrap gap-4">
-            <div>
-              <h1 className="text-2xl font-serif font-bold flex items-center gap-2">
-                <FileText className="h-6 w-6 text-primary" />
-                Official Documents
-              </h1>
-              <p className="text-muted-foreground mt-1 text-sm">
-                Compose, stamp, and print sovereign office documents with official seal and date block.
-              </p>
-            </div>
-            <Button onClick={handlePrint} className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white">
-              <Printer className="h-4 w-4" /> Print Official Document
-            </Button>
-          </div>
+    <div className="space-y-6">
+      {/* Page header */}
+      <div className="flex items-start justify-between flex-wrap gap-4">
+        <div>
+          <h1 className="text-2xl font-serif font-bold flex items-center gap-2">
+            <FileText className="h-6 w-6 text-primary" />
+            Official Documents
+          </h1>
+          <p className="text-muted-foreground mt-1 text-sm">
+            Compose, stamp, and print sovereign office documents with official seal and date block.
+          </p>
         </div>
+        <Button onClick={handlePrint} className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white">
+          <Printer className="h-4 w-4" /> Print Official Document
+        </Button>
+      </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-6 no-print">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
           {/* Left: controls */}
           <div className="space-y-4">
             <Card>
@@ -442,7 +488,7 @@ export default function OfficialDocumentsPage() {
 
           {/* Right: live document preview */}
           <div className="xl:col-span-2">
-            <div className="no-print mb-3 flex items-center justify-between">
+            <div className="mb-3 flex items-center justify-between">
               <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Live Preview</p>
               <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 text-xs">
                 <Printer className="h-3 w-3" /> Print
@@ -462,25 +508,6 @@ export default function OfficialDocumentsPage() {
             </div>
           </div>
         </div>
-      </div>
-
-      {/* Print-only: document alone */}
-      <div
-        id="official-document-print"
-        style={{ display: "none" }}
-        className="print:block"
-      >
-        <DocumentPreview
-          stampDate={stampDate}
-          title={title}
-          subject={subject}
-          body={body}
-          signerName={signerName}
-          signerTitle={signerTitle}
-          useActualSeal={useActualSeal}
-          showSeal={showSeal}
-        />
-      </div>
-    </>
+    </div>
   );
 }

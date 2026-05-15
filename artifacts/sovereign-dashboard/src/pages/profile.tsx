@@ -657,15 +657,18 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color", signatu
   const humanTs      = now.toLocaleString("en-US", { timeZoneName: "short" });
 
   const stamp = `
-    <div style="border:1.5px solid #1a3a6e;width:154px;height:90px;padding:6px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex-shrink:0;">
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.5px;line-height:1.2;width:100%;white-space:nowrap;">BY ORDER OF THE</div>
-      <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;line-height:1.2;width:100%;white-space:nowrap;">MATHIAS EL TRIBE SUPREME COURT</div>
+    <div style="border:1.5px solid #1a3a6e;width:154px;height:100px;padding:6px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-between;flex-shrink:0;">
+      <div style="line-height:1.25;width:100%;">
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.4px;">BY ORDER OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;">MATHIAS EL TRIBE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.2px;">SUPREME COURT</div>
+      </div>
       ${stampDate
-        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#8B0000;letter-spacing:2px;line-height:1.1;width:100%;white-space:nowrap;">${esc(stampDate.month)}&nbsp;&nbsp;${esc(stampDate.daySpaced)}&nbsp;&nbsp;${esc(stampDate.year)}</div>`
-        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:13pt;font-weight:900;color:#bbb;letter-spacing:3px;line-height:1.1;width:100%;">— — — — —</div>`}
-      <div style="text-align:center;">
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;white-space:nowrap;">OFFICE OF THE</div>
-        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.3;white-space:nowrap;">CHIEF JUSTICE &amp; TRUSTEE</div>
+        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:900;color:#8B0000;letter-spacing:1.5px;line-height:1.1;width:100%;">${esc(stampDate.month)}&nbsp;${esc(stampDate.daySpaced)}&nbsp;${esc(stampDate.year)}</div>`
+        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:12pt;font-weight:900;color:#bbb;letter-spacing:2px;line-height:1.1;width:100%;">— — — — —</div>`}
+      <div style="text-align:center;line-height:1.3;width:100%;">
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;">OFFICE OF THE</div>
+        <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;">CHIEF JUSTICE &amp; TRUSTEE</div>
       </div>
     </div>`;
 
@@ -1408,11 +1411,11 @@ export default function ProfilePage() {
       const d = await r.json();
       const updated = { ...rec, lastPrintedAt: new Date().toISOString(), printCount: (rec.printCount ?? 0) + 1 };
       const html = buildPrintHtml(updated, mode, signatureUrl);
-      const blob = new Blob([html], { type: "text/html; charset=utf-8" });
-      const blobUrl = URL.createObjectURL(blob);
-      const w = window.open(blobUrl, "_blank", "width=1000,height=820");
-      if (w) setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
-      else { URL.revokeObjectURL(blobUrl); alert("Pop-up blocked — please allow pop-ups."); }
+      const w = window.open("", "_blank", "width=1000,height=820");
+      if (!w) { alert("Pop-up blocked — please allow pop-ups for this site."); return; }
+      w.document.open();
+      w.document.write(html);
+      w.document.close();
       toast({ title: `Sealed — ${d.fileNumber}`, description: "Print event logged." });
     } catch (e: any) {
       toast({ title: "Print failed", description: e.message, variant: "destructive" });
