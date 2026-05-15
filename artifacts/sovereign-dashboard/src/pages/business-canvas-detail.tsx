@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Shield } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/components/auth-provider";
 import { getCurrentBearerToken } from "@/components/auth-provider";
@@ -213,6 +214,30 @@ function ModelTab({ conceptId, concept, onSaved }: { conceptId: number; concept:
 }
 
 function ProvisionsTab({ concept }: { concept: BusinessConcept }) {
+  const [, navigate] = useLocation();
+  const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+  function runIntakeCheck() {
+    const intakeText = [
+      "BUSINESS FORMATION SOVEREIGN PROTECTION CHECK",
+      "",
+      `Entity Name: ${concept.title}`,
+      `Business Structure: ${concept.structure}`,
+      "",
+      "Description:",
+      concept.description,
+      "",
+      concept.protections.length > 0
+        ? "Existing Protections:\n" + concept.protections.map(p => `• ${p}`).join("\n")
+        : "",
+      "",
+      "Please analyze what sovereign protections, tribal instruments (TRO, Trust, NFR, ICWA), and legal provisions this business entity needs under Mathias El Tribe sovereignty. Identify any jurisdictional conflicts, registration requirements, and recommended response instruments.",
+    ].filter(Boolean).join("\n");
+
+    sessionStorage.setItem("intake_prefill", intakeText);
+    navigate(`${BASE}/intake-ai`);
+  }
+
   return (
     <div className="space-y-6">
       {concept.protections.length > 0 && (
@@ -242,8 +267,18 @@ function ProvisionsTab({ concept }: { concept: BusinessConcept }) {
         </div>
       )}
       {concept.protections.length === 0 && concept.provisions.length === 0 && (
-        <p className="text-sm text-muted-foreground">No provisions recorded.</p>
+        <p className="text-sm text-muted-foreground">No provisions recorded yet.</p>
       )}
+
+      <div className="pt-4 border-t space-y-2">
+        <p className="text-xs text-muted-foreground">
+          Run a full sovereign intake analysis on this business structure to identify additional protective instruments, tribal compliance, and jurisdictional considerations.
+        </p>
+        <Button size="sm" variant="outline" className="gap-2" onClick={runIntakeCheck}>
+          <Shield className="h-3.5 w-3.5" />
+          Run Sovereign Protection Check
+        </Button>
+      </div>
     </div>
   );
 }

@@ -91,4 +91,60 @@ router.get("/status", requireAuth, async (_req, res) => {
   });
 });
 
+// ── extract-fields: pull structured reference data from document text ──────────
+router.post("/extract-fields", requireAuth, async (req, res, next) => {
+  try {
+    const { text } = req.body as { text: string };
+    if (!text || typeof text !== "string") {
+      res.status(400).json({ error: "text field is required" });
+      return;
+    }
+    const truncated = text.substring(0, 8000);
+
+    // AI extraction path
+    try {
+      const { callAzureOpenAI } = await import("../../lib/azure-openai");
+      const system = `You are a legal document reference extractor for a sovereign tribal legal office. Extract structured reference fields from legal and government documents. Respond ONLY with valid JSON — no explanation, no markdown. Use null for fields not found in the text. JSON shape: { "documentType", "caseNumber", "docketNumber", "propertyNumber", "propertyAddress", "receiptNumber", "court", "judge", "parties": { "plaintiffs":[], "defendants":[], "petitioners":[], "respondents":[], "agencies":[] }, "dates":[], "amounts":[], "allegations":[] }`;
+      const prompt = `Extract reference fields from this legal document and return JSON only:\n\n${truncated}`;
+
+      const raw = await callAzureOpenAI(system, prompt, { maxTokens: 1000 });
+      const jsonMatch = raw.content.match(/\{[\s\S]*\}/);
+      if (jsonMatch) {
+        const parsed = JSON.parse(jsonMatch[0]);
+        res.json({ source: "ai", ...parsed });
+        return;
+      }
+    } catch { /* fall through to regex */ }
+
+    // Regex fallback
+    const caseMatch = truncated.match(/(?:Case\s*(?:No\.?|Number|#)\s*|Cause\s*(?:No\.?|Number|#)\s*)([A-Z0-9\-:\/]+)/i);
+    const docketMatch = truncated.match(/Docket\s*(?:No\.?|Number|#)\s*([A-Z0-9\-:\/]+)/i);
+    const propertyAddrMatch = truncated.match(/(?:property\s+address|premises\s+(?:at|located)|located\s+at|situate[d]?\s+at)[:\s]+([^\n\r]{10,100})/i);
+    const apnMatch = truncated.match(/(?:APN|Assessor.{0,15}Parcel|Parcel\s*(?:No\.?|Number)|Property\s*(?:No\.?|Number))[:\s#]*([A-Z0-9\-\.]+)/i);
+    const receiptMatch = truncated.match(/(?:Receipt\s*(?:No\.?|Number|#)|Reference\s*(?:No\.?|#)|Account\s*(?:No\.?|Number|#))[:\s]*([A-Z0-9\-]+)/i);
+    const amounts = (truncated.match(/\$[\d,]+(?:\.\d{2})?/g) ?? []).slice(0, 8);
+    const dates = (truncated.match(/\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{1,2},?\s+\d{4}\b|\b\d{1,2}\/\d{1,2}\/\d{2,4}\b/g) ?? []).slice(0, 8);
+
+    const plaintiffMatch = truncated.match(/(?:Plaintiff|Petitioner)[:\s,]+([A-Z][A-Za-z\s,\.]+?)(?:\n|vs?\.|defendant|respondent)/i);
+    const defendantMatch = truncated.match(/(?:Defendant|Respondent)[:\s,]+([A-Z][A-Za-z\s,\.]+?)(?:\n|,|\.|and)/i);
+
+    res.json({
+      source: "regex",
+      caseNumber: caseMatch?.[1] ?? null,
+      docketNumber: docketMatch?.[1] ?? null,
+      propertyAddress: propertyAddrMatch?.[1]?.trim() ?? null,
+      propertyNumber: apnMatch?.[1] ?? null,
+      receiptNumber: receiptMatch?.[1] ?? null,
+      parties: {
+        plaintiffs: plaintiffMatch?.[1] ? [plaintiffMatch[1].trim()] : [],
+        defendants: defendantMatch?.[1] ? [defendantMatch[1].trim()] : [],
+      },
+      amounts,
+      dates,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;

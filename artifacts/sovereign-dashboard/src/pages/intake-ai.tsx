@@ -11,7 +11,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
-import { ArrowRight, Shield, FileText } from "lucide-react";
+import { ArrowRight, Shield, FileText, Mic, MicOff, Volume2, VolumeX, Copy } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -142,6 +142,39 @@ interface IntakeAgentReport {
   aiConfidence: number;
   processedAt: string;
 }
+
+interface ExtractedFields {
+  source?: string;
+  documentType?: string | null;
+  caseNumber?: string | null;
+  docketNumber?: string | null;
+  propertyNumber?: string | null;
+  propertyAddress?: string | null;
+  receiptNumber?: string | null;
+  court?: string | null;
+  judge?: string | null;
+  parties?: {
+    plaintiffs?: string[];
+    defendants?: string[];
+    petitioners?: string[];
+    respondents?: string[];
+    agencies?: string[];
+  } | null;
+  dates?: string[];
+  amounts?: string[];
+  allegations?: string[];
+}
+
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((e: { results: { length: number; [i: number]: { [i: number]: { transcript: string } } } }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
 
 const RISK_COLORS: Record<string, string> = {
   low: "bg-green-100 text-green-800 border-green-300",
@@ -414,9 +447,161 @@ function FullReport({ report }: { report: IntakeAgentReport }) {
   );
 }
 
+function ExtractedFieldsCard({ fields, loading }: { fields: ExtractedFields | null; loading: boolean }) {
+  const [, navigate] = useLocation();
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  function copyValue(key: string, value: string) {
+    navigator.clipboard.writeText(value).catch(() => {});
+    setCopiedKey(key);
+    setTimeout(() => setCopiedKey(null), 1500);
+  }
+
+  function useInDraft() {
+    const existing = JSON.parse(sessionStorage.getItem("intake_context") ?? "{}") as Record<string, string>;
+    const refs = [
+      fields?.documentType ? `Document Type: ${fields.documentType}` : "",
+      fields?.caseNumber ? `Case No: ${fields.caseNumber}` : "",
+      fields?.docketNumber ? `Docket: ${fields.docketNumber}` : "",
+      fields?.propertyAddress ? `Property Address: ${fields.propertyAddress}` : "",
+      fields?.propertyNumber ? `APN/Property No: ${fields.propertyNumber}` : "",
+      fields?.receiptNumber ? `Receipt/Acct: ${fields.receiptNumber}` : "",
+      fields?.court ? `Court: ${fields.court}` : "",
+      fields?.judge ? `Judge: ${fields.judge}` : "",
+      fields?.parties?.plaintiffs?.length ? `Plaintiffs: ${fields.parties.plaintiffs.join(", ")}` : "",
+      fields?.parties?.defendants?.length ? `Defendants: ${fields.parties.defendants.join(", ")}` : "",
+      fields?.parties?.petitioners?.length ? `Petitioners: ${fields.parties.petitioners.join(", ")}` : "",
+      fields?.parties?.respondents?.length ? `Respondents: ${fields.parties.respondents.join(", ")}` : "",
+      fields?.amounts?.length ? `Amounts: ${fields.amounts.join(", ")}` : "",
+    ].filter(Boolean).join("\n");
+
+    sessionStorage.setItem("intake_context", JSON.stringify({
+      ...existing,
+      docType: existing.docType ?? "court_document",
+      notes: [(existing.notes ?? ""), refs ? `\n\nExtracted Document References:\n${refs}` : ""].join("").trim(),
+    }));
+    navigate(`${BASE}/drafts`);
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-blue-200/60 bg-blue-50/40 p-3 mt-2">
+        <p className="text-xs text-blue-600 animate-pulse">Extracting document reference fields…</p>
+      </div>
+    );
+  }
+
+  if (!fields) return null;
+
+  const SCALAR: Array<{ key: keyof ExtractedFields; label: string }> = [
+    { key: "documentType", label: "Document Type" },
+    { key: "caseNumber", label: "Case Number" },
+    { key: "docketNumber", label: "Docket Number" },
+    { key: "propertyAddress", label: "Property Address" },
+    { key: "propertyNumber", label: "APN / Property No." },
+    { key: "receiptNumber", label: "Receipt / Acct No." },
+    { key: "court", label: "Court" },
+    { key: "judge", label: "Judge" },
+  ];
+
+  const visibleScalars = SCALAR.filter(({ key }) => !!(fields[key] as string | null | undefined));
+  const hasParties = fields.parties && Object.values(fields.parties).some(arr => arr && arr.length > 0);
+  const hasDates = (fields.dates?.length ?? 0) > 0;
+  const hasAmounts = (fields.amounts?.length ?? 0) > 0;
+  const hasAllegations = (fields.allegations?.length ?? 0) > 0;
+
+  if (!visibleScalars.length && !hasParties && !hasDates && !hasAmounts) return null;
+
+  return (
+    <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3 mt-2">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-700">
+          Document References {fields.source === "ai" ? "· AI Extracted" : "· Pattern Matched"}
+        </p>
+        <Button size="sm" variant="outline" className="text-xs h-6 px-2 shrink-0" onClick={useInDraft}>
+          Use in Draft →
+        </Button>
+      </div>
+
+      {visibleScalars.length > 0 && (
+        <div className="grid grid-cols-2 gap-x-4 gap-y-2">
+          {visibleScalars.map(({ key, label }) => {
+            const val = fields[key] as string;
+            return (
+              <div key={key} className="group flex items-start gap-1 min-w-0">
+                <div className="min-w-0 flex-1">
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide leading-none mb-0.5">{label}</p>
+                  <p className="text-xs font-mono text-foreground break-all leading-snug">{val}</p>
+                </div>
+                <button
+                  className="mt-0.5 shrink-0 opacity-0 group-hover:opacity-100 transition-opacity text-muted-foreground hover:text-foreground"
+                  onClick={() => copyValue(key, val)}
+                  title="Copy"
+                >
+                  {copiedKey === key ? <span className="text-green-600 text-xs">✓</span> : <Copy className="h-3 w-3" />}
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {hasParties && fields.parties && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Parties</p>
+          <div className="space-y-0.5">
+            {(Object.entries(fields.parties) as Array<[string, string[] | undefined]>).map(([role, names]) => {
+              if (!names?.length) return null;
+              return (
+                <p key={role} className="text-xs">
+                  <span className="font-semibold capitalize">{role}: </span>
+                  <span className="text-muted-foreground">{names.join(", ")}</span>
+                </p>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {hasDates && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Key Dates</p>
+          <div className="flex flex-wrap gap-1">
+            {fields.dates!.map((d, i) => <span key={i} className="text-xs bg-muted rounded px-1.5 py-0.5">{d}</span>)}
+          </div>
+        </div>
+      )}
+
+      {hasAmounts && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Amounts</p>
+          <div className="flex flex-wrap gap-1">
+            {fields.amounts!.map((a, i) => (
+              <span key={i} className="text-xs bg-green-100 text-green-800 rounded px-1.5 py-0.5 font-mono">{a}</span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {hasAllegations && (
+        <div>
+          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1">Allegations / Claims</p>
+          <ul className="space-y-0.5">
+            {fields.allegations!.map((a, i) => <li key={i} className="text-xs text-muted-foreground">• {a}</li>)}
+          </ul>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function IntakeAiPage() {
   const { user, activeRole } = useAuth();
-  const [text, setText] = useState("");
+  const [text, setText] = useState(() => {
+    const prefill = sessionStorage.getItem("intake_prefill");
+    if (prefill) { sessionStorage.removeItem("intake_prefill"); return prefill; }
+    return "";
+  });
   const [actorType, setActorType] = useState("__all__");
   const [landStatus, setLandStatus] = useState("__all__");
   const [childInvolved, setChildInvolved] = useState("__none__");
@@ -424,6 +609,62 @@ export default function IntakeAiPage() {
   const [uploadedFile, setUploadedFile] = useState<File | null>(null);
   const [uploadStatus, setUploadStatus] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [extractedFields, setExtractedFields] = useState<ExtractedFields | null>(null);
+  const [extractingFields, setExtractingFields] = useState(false);
+  const voiceSupported = typeof window !== "undefined" && ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
+
+  function startListening() {
+    const Win = window as unknown as Record<string, unknown>;
+    const Cls = (Win.SpeechRecognition ?? Win.webkitSpeechRecognition) as (new () => SpeechRecognitionLike) | undefined;
+    if (!Cls) return;
+    const r = new Cls();
+    r.continuous = true;
+    r.interimResults = true;
+    r.lang = "en-US";
+    r.onresult = (e) => {
+      let t = "";
+      for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
+      setText(t);
+    };
+    r.onend = () => setIsListening(false);
+    r.onerror = () => setIsListening(false);
+    r.start();
+    recognitionRef.current = r;
+    setIsListening(true);
+  }
+
+  function stopListening() {
+    recognitionRef.current?.stop();
+    setIsListening(false);
+  }
+
+  function speakReport(r: IntakeAgentReport) {
+    if (!("speechSynthesis" in window)) return;
+    window.speechSynthesis.cancel();
+    const words = [
+      "AI Intake Analysis complete.",
+      `Risk level: ${r.riskLevel}.`,
+      r.summary,
+      r.recommendedActions.length
+        ? `Recommended actions: ${r.recommendedActions.slice(0, 3).join(". ")}.`
+        : "",
+    ].filter(Boolean).join(" ");
+    const u = new SpeechSynthesisUtterance(words);
+    u.rate = 0.9;
+    u.pitch = 1;
+    u.onstart = () => setIsSpeaking(true);
+    u.onend = () => setIsSpeaking(false);
+    u.onerror = () => setIsSpeaking(false);
+    window.speechSynthesis.speak(u);
+  }
+
+  function stopSpeaking() {
+    window.speechSynthesis.cancel();
+    setIsSpeaking(false);
+  }
 
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -442,7 +683,19 @@ export default function IntakeAiPage() {
       }
       const data = await r.json() as { text: string; filename: string; char_count: number };
       setUploadStatus(`Extracted ${data.char_count.toLocaleString()} chars from ${data.filename}.`);
-      setText(data.text.substring(0, 8000));
+      const extracted = data.text.substring(0, 8000);
+      setText(extracted);
+      setExtractingFields(true);
+      setExtractedFields(null);
+      const tok2 = getCurrentBearerToken() ?? "";
+      fetch("/api/intake/extract-fields", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${tok2}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ text: extracted }),
+      })
+        .then(ex => ex.ok ? ex.json() as Promise<ExtractedFields> : Promise.resolve(null))
+        .then(fld => { setExtractedFields(fld); setExtractingFields(false); })
+        .catch(() => setExtractingFields(false));
       return data.text;
     },
   });
@@ -543,13 +796,28 @@ export default function IntakeAiPage() {
             />
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            {voiceSupported && (
+              <Button
+                type="button"
+                variant={isListening ? "destructive" : "outline"}
+                size="sm"
+                onClick={isListening ? stopListening : startListening}
+                className={`gap-1.5 text-xs h-8 shrink-0${isListening ? " animate-pulse" : ""}`}
+                title={isListening ? "Stop voice input" : "Speak your case description"}
+              >
+                {isListening
+                  ? <><MicOff className="h-3.5 w-3.5" /> Stop</>
+                  : <><Mic className="h-3.5 w-3.5" /> Speak</>}
+              </Button>
+            )}
             <Button
               type="button"
               variant="outline"
               size="sm"
               onClick={() => fileRef.current?.click()}
               disabled={uploadMutation.isPending}
+              className="text-xs h-8 shrink-0"
             >
               {uploadMutation.isPending ? "Extracting…" : "Upload Document"}
             </Button>
@@ -564,7 +832,7 @@ export default function IntakeAiPage() {
                 e.target.value = "";
               }}
             />
-            {uploadStatus && <p className="text-xs text-muted-foreground">{uploadStatus}</p>}
+            {uploadStatus && <p className="text-xs text-muted-foreground flex-1">{uploadStatus}</p>}
             {uploadMutation.isError && (
               <p className="text-xs text-destructive">{(uploadMutation.error as Error).message}</p>
             )}
@@ -572,6 +840,8 @@ export default function IntakeAiPage() {
               <Badge variant="outline" className="text-xs">{uploadedFile.name}</Badge>
             )}
           </div>
+
+          <ExtractedFieldsCard fields={extractedFields} loading={extractingFields} />
 
           {!isMember && (
             <div className="grid grid-cols-3 gap-4">
@@ -635,6 +905,21 @@ export default function IntakeAiPage() {
       {analyze.isPending && (
         <div className="space-y-3">
           {[...Array(isMember ? 2 : 4)].map((_, i) => <Skeleton key={i} className="h-24" />)}
+        </div>
+      )}
+
+      {report && (
+        <div className="flex justify-end">
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs h-8"
+            onClick={isSpeaking ? stopSpeaking : () => speakReport(report)}
+          >
+            {isSpeaking
+              ? <><VolumeX className="h-3.5 w-3.5" /> Stop Reading</>
+              : <><Volume2 className="h-3.5 w-3.5" /> Read Aloud</>}
+          </Button>
         </div>
       )}
 
