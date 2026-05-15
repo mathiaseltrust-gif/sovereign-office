@@ -702,7 +702,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           <div>
             <p className="text-sm font-bold text-white leading-none">COMPANION</p>
             <p className="text-[9px] tracking-[0.2em] text-white/45 uppercase mt-0.5">
-              AIK · Indigenous Intelligence Systems · {knowledgeEntries.length} memories
+              Your Indigenous Companion · {knowledgeEntries.length} memories
             </p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
