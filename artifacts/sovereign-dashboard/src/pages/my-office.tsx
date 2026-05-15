@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Printer, Shield, AlertTriangle, BookOpen, ChevronRight, Archive, Lock, Key, Eye, EyeOff, ShieldCheck, ShieldAlert, UserCheck, Trash2 } from "lucide-react";
+import { Printer, Shield, AlertTriangle, BookOpen, ChevronRight, ChevronDown, Archive, Lock, Key, Eye, EyeOff, ShieldCheck, ShieldAlert, UserCheck, Trash2 } from "lucide-react";
 
 const BASE = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
 const API  = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -179,9 +179,9 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
         {/* Three-column: seal left — text center — seal right */}
         <div style={{ display: "flex", alignItems: "center", gap: "18px", marginBottom: "10px" }}>
           <img
-            src={`${BASE}supreme-court-seal-color.png`}
+            src={`${BASE}court-seal-bw.png`}
             alt="The Mathias El Tribe Supreme Court"
-            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0 }}
+            style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0, opacity: 0.9 }}
           />
           <div style={{ flex: 1, textAlign: "center" }}>
             <div style={{ fontFamily: "'Arial', Helvetica, sans-serif", fontSize: "14pt", fontWeight: 900, textTransform: "uppercase", letterSpacing: "0.6px", lineHeight: 1.2, color: "#000" }}>
@@ -360,21 +360,28 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
           </div>
         </div>
 
-        {/* Round Logo Seal — 2" round stamp impression applied at signing */}
+        {/* Official Seals — two rectangular impressions aligned with self-inking stamp style */}
         <div style={{ textAlign: "center" }}>
           {record.sealApplied ? (
-            <img
-              src={`${BASE}round-seal.jpg`}
-              alt="Mathias El Tribe Supreme Court Round Seal"
-              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover", opacity: 0.92 }}
-            />
+            <div style={{ display: "flex", gap: "10px", alignItems: "center", justifyContent: "center" }}>
+              <img
+                src={`${BASE}court-seal-bw.png`}
+                alt="Mathias El Tribe Supreme Court"
+                style={{ width: "78px", height: "78px", objectFit: "contain", opacity: 0.9 }}
+              />
+              <img
+                src={`${BASE}chief-justice-seal.png`}
+                alt="Office of the Chief Justice and Trustee"
+                style={{ width: "78px", height: "78px", objectFit: "contain" }}
+              />
+            </div>
           ) : (
             <div style={{
-              width: "120px", height: "120px", borderRadius: "50%",
+              width: "166px", height: "78px",
               border: "2px dashed #aaa", display: "flex", alignItems: "center",
               justifyContent: "center", color: "#aaa", fontSize: "9px", textAlign: "center"
             }}>
-              <div>⊕<br />SEAL PENDING</div>
+              <div>⊕&nbsp; SEAL PENDING</div>
             </div>
           )}
           <div style={{ fontSize: "7pt", color: "#555", marginTop: "4px", letterSpacing: "0.5px" }}>
@@ -446,6 +453,7 @@ export default function MyOfficePage() {
   const [selectedId, setSelectedId] = useState<number | null>(null);
 
   // ── Vault form state ──
+  const [vaultOpen, setVaultOpen] = useState(false);
   const [vaultName, setVaultName] = useState("");
   const [vaultNotes, setVaultNotes] = useState("");
   const [vaultInstructions, setVaultInstructions] = useState("");
@@ -802,8 +810,11 @@ export default function MyOfficePage() {
       </div>
 
       {/* ── Pre-Delegation Vault ─────────────────────────────────────────────── */}
-      <div className="mt-8 border-t pt-6 print:hidden space-y-4">
-        <div className="flex items-center gap-3 flex-wrap">
+      <div className="mt-8 border-t print:hidden">
+        <button
+          onClick={() => setVaultOpen(v => !v)}
+          className="flex items-center gap-3 w-full text-left py-4 hover:opacity-80 transition-opacity"
+        >
           <Lock className="h-5 w-5 text-muted-foreground shrink-0" />
           <h2 className="text-base font-serif font-semibold">Pre-Delegation Vault</h2>
           <Badge variant="outline" className="text-[10px] uppercase tracking-wider">Private Safety Mechanism</Badge>
@@ -813,7 +824,11 @@ export default function MyOfficePage() {
           {vaultStatus && !vaultStatus.isActivated && (
             <Badge variant="secondary" className="text-[10px] text-green-700 bg-green-100">Vault Secured</Badge>
           )}
-        </div>
+          <ChevronDown className={`h-4 w-4 text-muted-foreground ml-auto transition-transform duration-200 ${vaultOpen ? "rotate-180" : ""}`} />
+        </button>
+
+        {vaultOpen && (
+        <div className="space-y-4 pb-6">
         <p className="text-sm text-muted-foreground max-w-2xl">
           Pre-designate a trusted successor and set a private passcode. This is a private safety mechanism,
           completely separate from all regular delegation systems. If you become unable to function in your role,
@@ -1011,6 +1026,8 @@ export default function MyOfficePage() {
             </CardContent>
           </Card>
         </div>
+        </div>
+        )}
       </div>
 
     </div>
