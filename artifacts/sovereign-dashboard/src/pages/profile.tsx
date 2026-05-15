@@ -24,13 +24,28 @@ import {
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
-const SIG_FONTS: { key: string; label: string; isSerifFormal?: boolean }[] = [
+const SIG_FONTS: { key: string; label: string }[] = [
   { key: "Dancing Script", label: "Dancing Script" },
   { key: "Great Vibes", label: "Great Vibes" },
   { key: "Pinyon Script", label: "Pinyon Script" },
   { key: "Alex Brush", label: "Alex Brush" },
-  { key: "Times New Roman", label: "Times New Roman", isSerifFormal: true },
 ];
+
+const SIG_TYPES = [
+  {
+    key: "script",
+    label: "Script",
+    sub: "Cursive · ID card & general use",
+    defaultFont: "Dancing Script",
+  },
+  {
+    key: "legal",
+    label: "Legal  /s/",
+    sub: "Typed · court filings & formal docs",
+    defaultFont: "Times New Roman",
+  },
+] as const;
+type SigType = typeof SIG_TYPES[number]["key"];
 
 const SIG_COLORS: { key: string; label: string; hex: string }[] = [
   { key: "black", label: "Black", hex: "#111111" },
@@ -1032,6 +1047,7 @@ export default function ProfilePage() {
   const sigInputRef = useRef<HTMLInputElement>(null);
   const [sigTab, setSigTab] = useState<"generate" | "upload">("generate");
   const [sigName, setSigName] = useState(SIG_PRESETS[0]);
+  const [sigType, setSigType] = useState<SigType>("script");
   const [sigFont, setSigFont] = useState("Dancing Script");
   const [sigColor, setSigColor] = useState("black");
   const [sigGenerating, setSigGenerating] = useState(false);
@@ -1974,53 +1990,64 @@ export default function ProfilePage() {
 
             {sigTab === "generate" && (
               <div className="space-y-3">
-                {/* Preset formats */}
+
+                {/* ── Signature Type selector — drives everything else ── */}
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Signature Name</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SIG_PRESETS.map(p => (
-                      <button key={p} onClick={() => { setSigName(p); generateSig(p, sigFont, sigColor); }}
-                        className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-colors ${sigName === p ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}>
-                        {sigFont === "Times New Roman" ? `/s/  ${p}` : p}
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Signature Type</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {SIG_TYPES.map(t => (
+                      <button
+                        key={t.key}
+                        onClick={() => {
+                          setSigType(t.key);
+                          const nextFont = t.defaultFont;
+                          setSigFont(nextFont);
+                          generateSig(sigName, nextFont, sigColor);
+                        }}
+                        className={`text-left px-3 py-2 rounded-lg border transition-colors ${sigType === t.key ? "border-primary bg-primary/5" : "border-border bg-muted/20 hover:border-primary/40"}`}
+                      >
+                        <p className={`text-xs font-bold leading-tight ${sigType === t.key ? "text-primary" : "text-foreground"}`}>{t.label}</p>
+                        <p className="text-[9px] text-muted-foreground mt-0.5 leading-snug">{t.sub}</p>
                       </button>
                     ))}
                   </div>
                 </div>
 
-                {/* Custom name */}
+                {/* Name presets */}
                 <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Or Custom Name</p>
-                  <div className="flex gap-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Name</p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {SIG_PRESETS.map(p => (
+                      <button key={p} onClick={() => { setSigName(p); generateSig(p, sigFont, sigColor); }}
+                        className={`text-[10px] px-2.5 py-1 rounded border font-mono transition-colors ${sigName === p ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}>
+                        {sigType === "legal" ? `/s/  ${p}` : p}
+                      </button>
+                    ))}
+                  </div>
+                  <div className="flex gap-2 mt-1.5">
                     <Input className="text-xs h-8 font-mono flex-1" value={sigName}
                       placeholder="Your Name"
                       onChange={e => setSigName(e.target.value)} />
                     <Button variant="outline" size="sm" className="h-8 text-xs shrink-0"
                       onClick={() => generateSig(sigName, sigFont, sigColor)}>Preview</Button>
                   </div>
-                  {sigFont === "Times New Roman" && (
-                    <p className="text-[10px] text-muted-foreground mt-1 italic">
-                      /s/ prefix added automatically for Times New Roman
-                    </p>
-                  )}
                 </div>
 
-                {/* Font style picker */}
-                <div>
-                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Style</p>
-                  <div className="flex flex-wrap gap-1.5">
-                    {SIG_FONTS.map(f => (
-                      <button key={f.key} onClick={() => { setSigFont(f.key); generateSig(sigName, f.key, sigColor); }}
-                        className={`px-3 py-0.5 rounded border transition-colors ${sigFont === f.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}
-                        style={{
-                          fontFamily: f.isSerifFormal ? `"Times New Roman", serif` : `"${f.key}", serif`,
-                          fontSize: f.isSerifFormal ? "13px" : "15px",
-                          fontStyle: f.isSerifFormal ? "italic" : "normal",
-                        }}>
-                        {f.label}
-                      </button>
-                    ))}
+                {/* Font style picker — only shown for script type */}
+                {sigType === "script" && (
+                  <div>
+                    <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1.5">Script Style</p>
+                    <div className="flex flex-wrap gap-1.5">
+                      {SIG_FONTS.map(f => (
+                        <button key={f.key} onClick={() => { setSigFont(f.key); generateSig(sigName, f.key, sigColor); }}
+                          className={`px-3 py-0.5 rounded border transition-colors ${sigFont === f.key ? "border-primary bg-primary/5 text-primary" : "border-border bg-muted/30 text-muted-foreground hover:border-primary/40"}`}
+                          style={{ fontFamily: `"${f.key}", serif`, fontSize: "15px" }}>
+                          {f.label}
+                        </button>
+                      ))}
+                    </div>
                   </div>
-                </div>
+                )}
 
                 {/* Color picker */}
                 <div>
