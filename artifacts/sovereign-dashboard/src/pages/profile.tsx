@@ -1373,46 +1373,15 @@ export default function ProfilePage() {
         <div className="border-t border-[#1C2B4B]/15">
       <Card className="border-0 shadow-none rounded-none bg-transparent">
         <CardHeader className="pb-3">
-          <div className="flex items-start gap-3">
-            <div className="p-2 rounded-lg bg-[#1C2B4B]/10 shrink-0 mt-0.5">
-              <Lock className="h-4 w-4 text-[#1C2B4B]" />
-            </div>
-            <div className="flex-1">
-              <CardTitle className="text-sm uppercase tracking-widest flex items-center gap-2">
-                Personal Information Vault
-                <ShieldCheck className="h-4 w-4 text-green-600" />
-              </CardTitle>
-              <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                All information stored here is <strong>encrypted and confidential</strong>. It is only accessed for administrative processes, emergency situations, or official document generation. Fields are never displayed in cleartext — even while typing.
-              </p>
-            </div>
-          </div>
-
-          {/* Status indicators */}
-          <div className="flex flex-wrap gap-2 mt-3">
-            {[
-              { label: "Date of Birth", has: vaultHas.dob },
-              { label: "Address", has: vaultHas.address },
-              { label: "Contact Email", has: vaultHas.email },
-              { label: "SSN", has: vaultHas.ssn },
-            ].map(({ label, has }) => (
-              <span
-                key={label}
-                className={`inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded-full border ${
-                  has
-                    ? "bg-green-50 text-green-700 border-green-200"
-                    : "bg-amber-50 text-amber-700 border-amber-200"
-                }`}
-              >
-                {has ? <CheckCircle2 className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
-                {label}
-              </span>
-            ))}
+          <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#1C2B4B]/6 border border-[#1C2B4B]/15">
+            <Shield className="h-4 w-4 text-[#1C2B4B] shrink-0 mt-0.5" />
+            <p className="text-[11px] text-[#1C2B4B]/80 leading-relaxed">
+              All information is <strong>encrypted and confidential</strong>. Only accessed for administrative processes, emergencies, or official document generation. Fields are never shown in cleartext — even while typing.
+            </p>
           </div>
         </CardHeader>
 
         <CardContent className="space-y-5">
-          {/* Notice */}
           <div className="flex items-start gap-2.5 p-3 rounded-lg bg-[#1C2B4B]/6 border border-[#1C2B4B]/15">
             <Shield className="h-4 w-4 text-[#1C2B4B] shrink-0 mt-0.5" />
             <p className="text-[11px] text-[#1C2B4B]/80 leading-relaxed">

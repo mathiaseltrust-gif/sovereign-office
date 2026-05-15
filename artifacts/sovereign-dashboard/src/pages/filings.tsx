@@ -1,5 +1,6 @@
 import { useListFilings, useGetFiling, getGetFilingQueryKey } from "@workspace/api-client-react";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useRoute } from "wouter";
@@ -19,14 +20,26 @@ export function FilingsListPage() {
 
   return (
     <div data-testid="page-filings">
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Trust Filings</h1>
-        <p className="text-muted-foreground mt-1">Recorder submissions and their status</p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Trust Filings</h1>
+          <p className="text-muted-foreground mt-1">Recorder submissions and their status</p>
+        </div>
+        <Link href="/instruments">
+          <Button size="sm">+ New Instrument Filing</Button>
+        </Link>
       </div>
       {isLoading ? (
         <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
       ) : (filings ?? []).length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No filings yet.</CardContent></Card>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-3">No filings on record yet.</p>
+            <Link href="/instruments">
+              <Button size="sm" variant="outline">Create a Trust Instrument to file</Button>
+            </Link>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {(filings ?? []).map((f) => (
@@ -35,14 +48,14 @@ export function FilingsListPage() {
                 <div>
                   <Link href={`/filings/${f.id}`}>
                     <h3 className="font-semibold hover:text-primary cursor-pointer">
-                      Filing #{f.id} — {f.county}, {f.state}
+                      {f.documentType ? f.documentType.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()) : `Filing #${f.id}`}
+                      {f.county ? ` — ${f.county}, ${f.state}` : ""}
                     </h3>
                   </Link>
                   <div className="flex items-center gap-2 mt-1 flex-wrap text-xs text-muted-foreground">
-                    {f.documentType && <span>{f.documentType}</span>}
-                    {f.filingNumber && <span>· #/{f.filingNumber}</span>}
+                    {f.filingNumber && <span>#{f.filingNumber}</span>}
                     <span>· Instrument #{f.instrumentId}</span>
-                    <span>· {new Date(f.createdAt).toLocaleDateString()}</span>
+                    <span>· {new Date(f.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}</span>
                   </div>
                 </div>
                 <Badge variant={statusVariant(f.filingStatus) as any}>{f.filingStatus}</Badge>

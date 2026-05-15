@@ -33,7 +33,10 @@ export default function TrusteeDashboard() {
   const pendingFilings = filings?.filter((f) => f.filingStatus === "pending") ?? [];
   const pendingTasks = tasks?.filter((t) => t.status === "pending") ?? [];
   const draftInstruments = instruments?.filter((i) => i.status === "draft") ?? [];
-  const upcomingEvents = (events ?? []).slice(0, 5);
+  const upcomingEvents = [...(events ?? [])]
+    .filter(e => new Date(e.date) >= new Date(today.getFullYear(), today.getMonth(), today.getDate()))
+    .sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime())
+    .slice(0, 5);
 
   return (
     <div data-testid="page-trustee-dashboard">

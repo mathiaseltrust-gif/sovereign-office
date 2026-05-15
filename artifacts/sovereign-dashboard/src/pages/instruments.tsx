@@ -25,6 +25,16 @@ function statusColor(status: string) {
   }
 }
 
+function formatInstrumentType(type: string): string {
+  const labels: Record<string, string> = {
+    trust_deed: "Trust Deed",
+    allotment_lease: "Allotment Lease",
+    trust_transfer: "Trust Transfer",
+    nfr: "NFR Notice",
+  };
+  return labels[type] ?? type.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+}
+
 export default function InstrumentsPage() {
   const { data: instruments, isLoading } = useListInstruments();
   const { data: templatesData } = useListInstrumentTemplates();
@@ -178,7 +188,12 @@ export default function InstrumentsPage() {
       {isLoading ? (
         <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
       ) : (instruments ?? []).length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No trust instruments yet.</CardContent></Card>
+        <Card>
+          <CardContent className="py-12 text-center">
+            <p className="text-muted-foreground mb-3">No trust instruments yet.</p>
+            <Button size="sm" onClick={() => setOpen(true)}>Create your first instrument</Button>
+          </CardContent>
+        </Card>
       ) : (
         <div className="space-y-3">
           {(instruments ?? []).map((inst) => (
@@ -189,7 +204,7 @@ export default function InstrumentsPage() {
                     <h3 className="font-semibold text-foreground hover:text-primary cursor-pointer truncate">{inst.title}</h3>
                   </Link>
                   <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    <span className="text-xs text-muted-foreground">{inst.instrumentType}</span>
+                    <span className="text-xs text-muted-foreground">{formatInstrumentType(inst.instrumentType)}</span>
                     {inst.jurisdiction && <span className="text-xs text-muted-foreground">· {inst.jurisdiction}</span>}
                     {inst.county && <span className="text-xs text-muted-foreground">· {inst.county}, {inst.state}</span>}
                     <span className="text-xs text-muted-foreground">· {new Date(inst.createdAt).toLocaleDateString()}</span>

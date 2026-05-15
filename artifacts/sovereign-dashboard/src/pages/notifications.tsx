@@ -1,7 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
@@ -20,6 +20,19 @@ interface Notification {
   troFlag: boolean;
   read: boolean;
   createdAt: string;
+}
+
+function timeAgo(iso: string): string {
+  const diff = Date.now() - new Date(iso).getTime();
+  const m = Math.floor(diff / 60000);
+  if (m < 1) return "just now";
+  if (m < 60) return `${m}m ago`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h ago`;
+  const d = Math.floor(h / 24);
+  if (d === 1) return "yesterday";
+  if (d < 7) return `${d}d ago`;
+  return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
 function severityBadge(severity: string, redFlag: boolean, troFlag: boolean) {
@@ -50,9 +63,11 @@ function categoryLabel(category: string) {
 function NotificationCard({
   notif,
   onMarkRead,
+  onDismiss,
 }: {
   notif: Notification;
   onMarkRead: (id: number) => void;
+  onDismiss: (id: number) => void;
 }) {
   const isUrgent = notif.redFlag || notif.troFlag || notif.severity === "emergency" || notif.severity === "critical";
 
@@ -60,7 +75,7 @@ function NotificationCard({
     <Card
       className={[
         "transition-all",
-        notif.read ? "opacity-70" : "",
+        notif.read ? "opacity-60" : "",
         notif.redFlag ? "border-red-500 bg-red-50 dark:bg-red-950/20" : "",
         notif.troFlag && !notif.redFlag ? "border-orange-400 bg-orange-50 dark:bg-orange-950/20" : "",
         isUrgent && !notif.redFlag && !notif.troFlag ? "border-yellow-400" : "",
@@ -83,16 +98,28 @@ function NotificationCard({
                 Federal Indian law applies. Indian Canons of Construction — ambiguities resolved in favor of Indians.
               </p>
             )}
-            <p className="text-xs text-muted-foreground">
-              {new Date(notif.createdAt).toLocaleString()}
-              {notif.relatedType && notif.relatedId ? ` · ${notif.relatedType.replace(/_/g, " ")} #${notif.relatedId}` : ""}
+            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+              <span>{timeAgo(notif.createdAt)}</span>
+              {notif.relatedType && notif.relatedId ? (
+                <span className="text-muted-foreground/60">· {notif.relatedType.replace(/_/g, " ")} #{notif.relatedId}</span>
+              ) : null}
             </p>
           </div>
-          {!notif.read && (
-            <Button size="sm" variant="ghost" onClick={() => onMarkRead(notif.id)} className="shrink-0 text-xs">
-              Mark read
+          <div className="flex flex-col items-end gap-1.5 shrink-0">
+            {!notif.read && (
+              <Button size="sm" variant="ghost" onClick={() => onMarkRead(notif.id)} className="text-xs h-7 px-2">
+                Mark read
+              </Button>
+            )}
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => onDismiss(notif.id)}
+              className="text-xs h-7 px-2 text-muted-foreground hover:text-destructive"
+            >
+              Dismiss
             </Button>
-          )}
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -120,9 +147,9 @@ export default function NotificationsPage() {
     }
   };
 
-  useState(() => {
+  useEffect(() => {
     loadNotifications();
-  });
+  }, []);
 
   const markRead = async (id: number) => {
     try {
@@ -146,6 +173,18 @@ export default function NotificationsPage() {
       toast({ title: "All marked as read" });
     } catch {
       toast({ title: "Error", description: "Could not mark all as read.", variant: "destructive" });
+    }
+  };
+
+  const dismissNotification = async (id: number) => {
+    setNotifications((prev) => prev.filter((n) => n.id !== id));
+    try {
+      await fetch(`/api/notifications/${id}/read`, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+    } catch {
+      // silent — already removed from UI
     }
   };
 
@@ -224,7 +263,7 @@ export default function NotificationsPage() {
       ) : (
         <div className="space-y-3">
           {filtered.map((n) => (
-            <NotificationCard key={n.id} notif={n} onMarkRead={markRead} />
+            <NotificationCard key={n.id} notif={n} onMarkRead={markRead} onDismiss={dismissNotification} />
           ))}
         </div>
       )}
