@@ -1,4 +1,5 @@
 import { useState, useRef } from "react";
+import { useLocation } from "wouter";
 import { useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,102 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/components/auth-provider";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { SovereignIntakeGuard } from "@/components/SovereignIntakeGuard";
+import { ArrowRight, Shield, FileText } from "lucide-react";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+const INSTRUMENT_TO_DOC: Record<string, string> = {
+  ICWA_NOTICE: "icwa_notice", ICWA: "icwa_notice",
+  NFR: "nfr_notice", NFR_NOTICE: "nfr_notice", FEDERAL_REVIEW: "nfr_notice",
+  TRO: "court_document", TRO_GENERAL: "court_document",
+  GWE: "gwe_letter", GWE_LETTER: "gwe_letter",
+  WELFARE: "welfare_letter", WELFARE_LETTER: "welfare_letter",
+  AFFIDAVIT: "tribal_affidavit", TRIBAL_AFFIDAVIT: "tribal_affidavit",
+  CEASE: "cease_and_desist", CEASE_AND_DESIST: "cease_and_desist",
+  TRUST: "trust_instrument", TRUST_INSTRUMENT: "trust_instrument",
+  RESOLUTION: "tribal_resolution", TRIBAL_RESOLUTION: "tribal_resolution",
+  IDENTITY: "identity_declaration", IDENTITY_DECLARATION: "identity_declaration",
+};
+
+const DOC_LABELS: Record<string, string> = {
+  icwa_notice: "ICWA Notice", nfr_notice: "Federal Review Notice",
+  court_document: "Court Document", gwe_letter: "GWE Letter",
+  welfare_letter: "Welfare Letter", tribal_affidavit: "Tribal Affidavit",
+  cease_and_desist: "Cease & Desist", trust_instrument: "Trust Instrument",
+  tribal_resolution: "Tribal Resolution", identity_declaration: "Identity Declaration",
+};
+
+function storeIntakeContext(report: IntakeAgentReport, docType: string, inputText: string) {
+  const notes = [
+    `AI Intake Summary:\n${report.summary}`,
+    report.factSummary ? `\nFact Summary:\n${report.factSummary}` : "",
+    report.intakeFlags.violations.length
+      ? `\nViolations: ${report.intakeFlags.violations.join("; ")}`
+      : "",
+    inputText ? `\n\nOriginal text excerpt:\n${inputText.substring(0, 600)}` : "",
+  ].join("").trim();
+  sessionStorage.setItem("intake_context", JSON.stringify({ docType, notes, riskLevel: report.riskLevel }));
+}
+
+function IntakeActionBar({ report, inputText }: { report: IntakeAgentReport; inputText: string }) {
+  const [, navigate] = useLocation();
+  const elevated = ["elevated", "critical", "emergency"].includes(report.riskLevel);
+
+  const docTypes = Array.from(new Set(
+    report.recommendedInstruments
+      .map(i => INSTRUMENT_TO_DOC[i.toUpperCase().replace(/ /g, "_")] ?? "court_document")
+  ));
+
+  if (docTypes.length === 0 && !elevated) return null;
+
+  return (
+    <div className="rounded-lg border border-primary/30 bg-primary/5 p-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-widest text-primary">Next Steps — Take Action</p>
+
+      {docTypes.length > 0 && (
+        <div className="space-y-2">
+          <p className="text-xs text-muted-foreground">Draft a response instrument based on this analysis:</p>
+          <div className="flex flex-wrap gap-2">
+            {docTypes.map((dt) => (
+              <Button
+                key={dt}
+                size="sm"
+                variant="outline"
+                className="gap-1.5 text-xs h-8 border-primary/40 hover:border-primary hover:bg-primary/10"
+                onClick={() => {
+                  storeIntakeContext(report, dt, inputText);
+                  navigate(`${BASE}/drafts`);
+                }}
+              >
+                <FileText className="h-3 w-3" />
+                Draft {DOC_LABELS[dt] ?? dt}
+                <ArrowRight className="h-3 w-3" />
+              </Button>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {elevated && (
+        <div className="flex items-center gap-3 pt-1 border-t border-primary/20">
+          <p className="text-xs text-muted-foreground flex-1">Risk level requires formal sovereign processing:</p>
+          <Button
+            size="sm"
+            className="gap-1.5 text-xs h-8 bg-[#8B0000] hover:bg-[#6B0000] text-white shrink-0"
+            onClick={() => {
+              sessionStorage.setItem("pipeline_prefill", inputText);
+              navigate(`${BASE}/sovereign-pipeline`);
+            }}
+          >
+            <Shield className="h-3 w-3" />
+            Run Sovereign Pipeline
+            <ArrowRight className="h-3 w-3" />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface IntakeFilterResult {
   indianStatusViolation: boolean;
@@ -526,6 +623,10 @@ export default function IntakeAiPage() {
           : isOfficer
           ? <OfficerReport report={report} />
           : <MemberReport report={report} />
+      )}
+
+      {report && (
+        <IntakeActionBar report={report} inputText={text} />
       )}
 
       {report && (report.intakeFlags.redFlag || report.riskLevel === "elevated" || report.riskLevel === "critical" || report.riskLevel === "emergency") && (

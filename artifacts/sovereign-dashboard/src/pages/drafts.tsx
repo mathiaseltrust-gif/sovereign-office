@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -73,6 +73,21 @@ export default function DraftsPage() {
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
   const [copied, setCopied] = useState(false);
+  const [fromIntake, setFromIntake] = useState<{ riskLevel?: string } | null>(null);
+
+  useEffect(() => {
+    try {
+      const raw = sessionStorage.getItem("intake_context");
+      if (!raw) return;
+      const ctx = JSON.parse(raw) as { docType?: string; notes?: string; riskLevel?: string };
+      sessionStorage.removeItem("intake_context");
+      if (ctx.docType && (DOC_KINDS.some(d => d.value === ctx.docType))) {
+        setDocType(ctx.docType as DocumentKind);
+      }
+      if (ctx.notes) setNotes(ctx.notes);
+      if (ctx.riskLevel) setFromIntake({ riskLevel: ctx.riskLevel });
+    } catch { /* ignore */ }
+  }, []);
 
   const isSovereignAdmin = canManageGovernors(activeRole);
 
@@ -130,6 +145,19 @@ export default function DraftsPage() {
           Generate sovereign legal documents using the AI drafting engine. All drafts are grounded in your verified identity, lineage, and delegated authorities.
         </p>
       </div>
+
+      {fromIntake && (
+        <div className="flex items-start gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">
+          <span className="text-primary text-base mt-0.5">↩</span>
+          <div>
+            <p className="text-sm font-semibold text-primary">Pre-filled from AI Intake Analysis</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Document type and notes have been populated from your intake results
+              {fromIntake.riskLevel ? ` (risk level: ${fromIntake.riskLevel})` : ""}. Review and adjust as needed before generating.
+            </p>
+          </div>
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-2 gap-6">
         {/* Config panel */}

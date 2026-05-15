@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -76,6 +77,17 @@ const RISK_STYLE: Record<string, string> = {
   elevated:  "bg-orange-100 text-orange-800 border-orange-300 dark:bg-orange-900/30 dark:text-orange-300",
   critical:  "bg-red-100 text-red-800 border-red-300 dark:bg-red-900/30 dark:text-red-300",
   emergency: "bg-red-200 text-red-900 border-red-500 dark:bg-red-900/50 dark:text-red-200 font-bold",
+};
+
+const MATTER_TO_DOC: Record<string, string> = {
+  jurisdiction_claim: "court_document",
+  icwa_violation: "icwa_notice",
+  federal_overreach: "nfr_notice",
+  welfare: "welfare_letter",
+  trust_violation: "trust_instrument",
+  land_claim: "court_document",
+  cease_desist: "cease_and_desist",
+  general: "court_document",
 };
 
 const MATTER_LABELS: Record<string, string> = {
@@ -347,13 +359,22 @@ function RecordLog() {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 export default function SovereignPipelinePage() {
   const { activeRole } = useAuth();
   const { toast } = useToast();
+  const [, navigate] = useLocation();
 
   const canAccess = ["trustee", "officer", "sovereign_admin"].includes(activeRole);
 
-  const [inputText, setInputText] = useState("");
+  const [inputText, setInputText] = useState(() => {
+    try {
+      const prefill = sessionStorage.getItem("pipeline_prefill");
+      if (prefill) { sessionStorage.removeItem("pipeline_prefill"); return prefill; }
+    } catch { /* ignore */ }
+    return "";
+  });
   const [activeStep, setActiveStep] = useState(0);
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [view, setView] = useState<"pipeline" | "log">("pipeline");
@@ -537,17 +558,39 @@ export default function SovereignPipelinePage() {
                 printing={printSeal.isPending}
               />
 
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setResult(null);
-                  setInputText("");
-                  setActiveStep(0);
-                }}
-                className="gap-2 text-sm"
-              >
-                <RotateCcw className="h-4 w-4" /> Run New Matter
-              </Button>
+              <div className="flex flex-wrap gap-3">
+                <Button
+                  variant="default"
+                  className="gap-2 text-sm"
+                  onClick={() => {
+                    const docType = MATTER_TO_DOC[result.matterType] ?? "court_document";
+                    const notes = [
+                      `Sovereign Pipeline — ${result.fileNumber}`,
+                      `Matter: ${MATTER_LABELS[result.matterType] ?? result.matterType}`,
+                      `Template: ${result.templateTitle}`,
+                      `\nSummary:\n${result.generatedSummary}`,
+                      result.doctrineOverlay.doctrinesApplied.length
+                        ? `\nDoctrines: ${result.doctrineOverlay.doctrinesApplied.join("; ")}`
+                        : "",
+                    ].join("\n").trim();
+                    sessionStorage.setItem("intake_context", JSON.stringify({ docType, notes, riskLevel: result.riskLevel }));
+                    navigate(`${BASE}/drafts`);
+                  }}
+                >
+                  <FileText className="h-4 w-4" /> Draft Response
+                </Button>
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setResult(null);
+                    setInputText("");
+                    setActiveStep(0);
+                  }}
+                  className="gap-2 text-sm"
+                >
+                  <RotateCcw className="h-4 w-4" /> Run New Matter
+                </Button>
+              </div>
             </>
           )}
 

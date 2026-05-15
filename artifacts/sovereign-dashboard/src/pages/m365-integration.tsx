@@ -5,7 +5,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   CheckCircle2, XCircle, ChevronDown, ChevronUp,
-  ExternalLink, Link2, Link2Off, Loader2,
+  ExternalLink, Link2, Link2Off, Loader2, AlertTriangle,
 } from "lucide-react";
 
 const API_BASE = `${import.meta.env.BASE_URL.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "")}/api`;
@@ -129,6 +129,8 @@ export default function M365IntegrationPage() {
   const [status, setStatus] = useState<M365Status | null>(null);
   const [statusOpen, setStatusOpen] = useState(false);
   const [linking, setLinking] = useState(false);
+  const [msConfig, setMsConfig] = useState<{ configured: boolean; redirectUri: string; clientId: string | null } | null>(null);
+  const [uriCopied, setUriCopied] = useState(false);
 
   const isMicrosoftLinked = mode === "microsoft";
   const activeCount = status
@@ -144,6 +146,13 @@ export default function M365IntegrationPage() {
       .then(d => setStatus(d))
       .catch(() => {});
   }, [user]);
+
+  useEffect(() => {
+    fetch(`${API_BASE}/auth/microsoft/config`)
+      .then(r => r.ok ? r.json() : null)
+      .then(d => setMsConfig(d))
+      .catch(() => {});
+  }, []);
 
   const handleLinkMicrosoft = useCallback(async () => {
     setLinking(true);
@@ -244,6 +253,64 @@ export default function M365IntegrationPage() {
           {M365_APPS.map(app => <AppTile key={app.id} app={app} />)}
         </div>
       </div>
+
+      {/* ── Microsoft Login Setup ── */}
+      {msConfig && (
+        <div className={`rounded-lg border p-4 space-y-3 ${msConfig.configured ? "border-green-200 bg-green-50/50" : "border-amber-200 bg-amber-50/60"}`}>
+          <div className="flex items-center gap-2">
+            {msConfig.configured
+              ? <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+              : <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0" />}
+            <p className={`text-sm font-semibold ${msConfig.configured ? "text-green-800" : "text-amber-800"}`}>
+              {msConfig.configured ? "Azure Entra ID configured" : "Microsoft SSO — action required"}
+            </p>
+          </div>
+
+          {!msConfig.configured && (
+            <p className="text-xs text-amber-700 leading-relaxed">
+              To enable "Sign in with Microsoft", register this exact Redirect URI in your{" "}
+              <strong>Azure Portal App Registration → Authentication → Redirect URIs</strong>:
+            </p>
+          )}
+
+          {msConfig.configured && (
+            <p className="text-xs text-green-700 leading-relaxed">
+              Azure Entra ID is active. Verify the Redirect URI below matches your App Registration:
+            </p>
+          )}
+
+          <div className="flex items-center gap-2">
+            <code className={`flex-1 rounded px-3 py-2 text-xs font-mono break-all border ${msConfig.configured ? "bg-green-100 border-green-300 text-green-900" : "bg-amber-100 border-amber-300 text-amber-900"}`}>
+              {msConfig.redirectUri}
+            </code>
+            <Button
+              size="sm"
+              variant="outline"
+              className="shrink-0 h-8 text-xs"
+              onClick={() => {
+                navigator.clipboard.writeText(msConfig.redirectUri).then(() => {
+                  setUriCopied(true);
+                  setTimeout(() => setUriCopied(false), 2000);
+                });
+              }}
+            >
+              {uriCopied ? "Copied!" : "Copy"}
+            </Button>
+          </div>
+
+          {!msConfig.configured && (
+            <a
+              href="https://portal.azure.com/#view/Microsoft_AAD_RegisteredApps/ApplicationsListBlade"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="inline-flex items-center gap-1.5 text-xs text-[#0078d4] hover:underline"
+            >
+              <ExternalLink className="h-3 w-3" />
+              Open Azure Portal → App Registrations
+            </a>
+          )}
+        </div>
+      )}
 
       {/* ── Compact service status strip ── */}
       <div className="border rounded-lg overflow-hidden">
