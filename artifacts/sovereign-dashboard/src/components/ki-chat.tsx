@@ -704,6 +704,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             <p className="text-[9px] tracking-[0.2em] text-white/45 uppercase mt-0.5">
               Your Indigenous Companion · {knowledgeEntries.length} memories
             </p>
+            <p className="text-[9px] text-amber-300/55 italic mt-0.5">"What ever we do. it has to make sense"</p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full text-amber-300/80 font-semibold" style={{ background: "rgba(180,120,10,0.2)", border: "1px solid rgba(180,120,10,0.25)" }}>

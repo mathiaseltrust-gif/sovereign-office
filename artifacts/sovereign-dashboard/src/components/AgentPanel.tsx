@@ -205,12 +205,13 @@ export function AgentPanel(props: AgentPanelProps) {
           <div className="flex items-center gap-2 flex-wrap mb-1">
             <span className="text-xs font-bold text-amber-900 tracking-wide">COMPANION</span>
             <span className="text-[10px] text-amber-600/60">· Indigenous Intelligence</span>
-            {!agent.isNewMember && (
-              <span className="ml-auto text-[10px] bg-amber-900/10 text-amber-900 rounded-full px-2 py-0.5 font-semibold">
-                Lv {agent.awakeningLevel} · {agent.intakeCount} case{agent.intakeCount !== 1 ? "s" : ""}
-              </span>
-            )}
           </div>
+          <p className="text-[9px] text-amber-700/55 italic mb-1">"What ever we do. it has to make sense"</p>
+          {!agent.isNewMember && (
+            <span className="text-[10px] bg-amber-900/10 text-amber-900 rounded-full px-2 py-0.5 font-semibold mb-1 inline-block">
+              Lv {agent.awakeningLevel} · {agent.intakeCount} case{agent.intakeCount !== 1 ? "s" : ""}
+            </span>
+          )}
           <p className="text-sm text-amber-950 leading-relaxed">{agent.greeting}</p>
         </div>
       </div>
