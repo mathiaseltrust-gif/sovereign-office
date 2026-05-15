@@ -17,6 +17,17 @@ import {
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
+type SpeechRecognitionLike = {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  onresult: ((e: { results: { length: number; [i: number]: { [i: number]: { transcript: string } } } }) => void) | null;
+  onend: (() => void) | null;
+  onerror: (() => void) | null;
+  start(): void;
+  stop(): void;
+};
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface PipelineResult {
@@ -381,7 +392,7 @@ export default function SovereignPipelinePage() {
   const [view, setView] = useState<"pipeline" | "log">("pipeline");
 
   // ── Voice input ──────────────────────────────────────────────────────────────
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
   const [isListening, setIsListening] = useState(false);
   const voiceSupported = typeof window !== "undefined" &&
     ("SpeechRecognition" in window || "webkitSpeechRecognition" in window);
@@ -389,13 +400,13 @@ export default function SovereignPipelinePage() {
   function startListening() {
     const Win = window as unknown as Record<string, unknown>;
     const Cls = (Win.SpeechRecognition ?? Win.webkitSpeechRecognition) as
-      (new () => SpeechRecognition) | undefined;
+      (new () => SpeechRecognitionLike) | undefined;
     if (!Cls) return;
     const r = new Cls();
     r.continuous = true;
     r.interimResults = true;
     r.lang = "en-US";
-    r.onresult = (e: SpeechRecognitionEvent) => {
+    r.onresult = (e) => {
       let t = "";
       for (let i = 0; i < e.results.length; i++) t += e.results[i][0].transcript;
       setInputText(t);
