@@ -942,22 +942,14 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             />
           </div>
           <div>
-            {/* COMPANION wordmark — copper/gold on red */}
-            <p
-              className="leading-none font-light"
-              style={{
-                fontSize: "13px",
-                letterSpacing: "0.28em",
-                background: "linear-gradient(90deg, #e8b060 0%, #f0c070 45%, #d4922a 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              COMPANION
-            </p>
-            <p className="text-[9px] tracking-[0.16em] mt-0.5" style={{ color: "rgba(255,200,140,0.55)" }}>
-              Indigenous Intelligence · {knowledgeEntries.length} memories
+            {/* COMPANION wordmark — image asset */}
+            <img
+              src="/sovereign-dashboard/companion-wordmark.png"
+              alt="COMPANION"
+              style={{ height: "18px", width: "auto", display: "block", filter: "drop-shadow(0 0 3px rgba(220,140,50,0.35))" }}
+            />
+            <p className="text-[9px] tracking-[0.16em] mt-1" style={{ color: "rgba(255,200,140,0.55)" }}>
+              "Indigenous Intelligence" · {knowledgeEntries.length} memories
             </p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
