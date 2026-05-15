@@ -919,26 +919,36 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
       {/* ── Header ── */}
       <div
         className="flex items-center justify-between px-4 py-3"
-        style={{ background: "linear-gradient(135deg, #1a0a02 0%, #0f0603 100%)", borderBottom: "1px solid rgba(180,100,40,0.18)" }}
+        style={{
+          background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 60%, #7A0808 100%)",
+          borderBottom: "1px solid rgba(0,0,0,0.25)",
+        }}
       >
         <div className="flex items-center gap-3">
-          {/* COMPANION logo */}
-          <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
+          {/* COMPANION logo — copper on dark red circle */}
+          <div
+            className="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-full"
+            style={{
+              background: "radial-gradient(circle, #2a0000 0%, #1a0000 100%)",
+              border: "1px solid rgba(180,90,30,0.3)",
+              boxShadow: "0 0 10px rgba(180,60,0,0.25) inset",
+            }}
+          >
             <img
               src="/sovereign-dashboard/companion-logo.png"
               alt="COMPANION"
-              className="w-9 h-9 object-contain"
-              style={{ filter: "drop-shadow(0 0 6px rgba(180,90,30,0.45))" }}
+              className="w-7 h-7 object-contain"
+              style={{ filter: "drop-shadow(0 0 4px rgba(220,140,50,0.6))" }}
             />
           </div>
           <div>
-            {/* COMPANION wordmark — copper/bronze, wide tracking */}
+            {/* COMPANION wordmark — copper/gold on red */}
             <p
               className="leading-none font-light"
               style={{
                 fontSize: "13px",
                 letterSpacing: "0.28em",
-                background: "linear-gradient(90deg, #c47a3a 0%, #e8a060 45%, #b86828 100%)",
+                background: "linear-gradient(90deg, #e8b060 0%, #f0c070 45%, #d4922a 100%)",
                 WebkitBackgroundClip: "text",
                 WebkitTextFillColor: "transparent",
                 backgroundClip: "text",
@@ -946,7 +956,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             >
               COMPANION
             </p>
-            <p className="text-[9px] tracking-[0.16em] mt-0.5" style={{ color: "rgba(180,100,40,0.5)" }}>
+            <p className="text-[9px] tracking-[0.16em] mt-0.5" style={{ color: "rgba(255,200,140,0.55)" }}>
               Indigenous Intelligence · {knowledgeEntries.length} memories
             </p>
           </div>
