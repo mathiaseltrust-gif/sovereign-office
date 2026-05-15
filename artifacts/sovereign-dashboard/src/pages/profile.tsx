@@ -11,6 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { DelegationPanel } from "@/components/DelegationPanel";
 import { KayaChat } from "@/components/ki-chat";
+import { DocumentIntakePanel } from "@/components/DocumentIntakePanel";
 import { Link } from "wouter";
 import {
   Mic, MicOff, CheckCircle2, XCircle, Loader2, Bot,
@@ -1011,6 +1012,9 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
       )}
+
+      {/* ── Document Review — sovereign intake + Kaya findings ── */}
+      <DocumentIntakePanel />
 
       {/* ── Kaya — Personal Sovereign Companion ── */}
       <KayaChat />

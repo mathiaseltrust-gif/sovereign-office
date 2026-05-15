@@ -25,6 +25,85 @@ interface GweLetter {
   createdAt: string;
 }
 
+interface Template { id: string; name: string; documentType: string; category: string; troSensitive: boolean; emergencyEligible: boolean }
+interface CourtDoc {
+  id: number; templateId: string; templateName: string; documentType: string; title: string;
+  caseNumber: string | null; court: string | null; status: string; troSensitive: boolean;
+  emergencyOrder: boolean; intakeFlags: Record<string, unknown>; createdAt: string; pdfUrl: string | null;
+}
+
+// ── Jurisdiction config ──────────────────────────────────────────────────────
+
+type Jurisdiction = "tribal" | "federal_district" | "state" | "other";
+type PartyRole = "petitioner" | "respondent" | "court_initiated";
+
+interface JurisdictionConfig {
+  label: string;
+  courtPlaceholder: string;
+  caseFormat: string;
+  casePrefix: string;
+  filingPartyLabel: string;
+  opposingPartyLabel: string;
+  courtInitiatedLabel: string;
+}
+
+const JURISDICTION_CONFIG: Record<Jurisdiction, JurisdictionConfig> = {
+  tribal: {
+    label: "Tribal Court — Mathias El Tribe",
+    courtPlaceholder: "Supreme Court of the Mathias El Tribe",
+    caseFormat: "MET-TC-YYYY-TYPE-001",
+    casePrefix: "MET-TC",
+    filingPartyLabel: "Petitioner",
+    opposingPartyLabel: "Respondent",
+    courtInitiatedLabel: "Office of the Chief Justice & Trustee",
+  },
+  federal_district: {
+    label: "Federal District Court",
+    courtPlaceholder: "U.S. District Court, [District]",
+    caseFormat: "YYYY-cv-NNNNN",
+    casePrefix: "",
+    filingPartyLabel: "Plaintiff",
+    opposingPartyLabel: "Defendant",
+    courtInitiatedLabel: "United States District Court",
+  },
+  state: {
+    label: "State Court",
+    courtPlaceholder: "Superior Court of the State of [State]",
+    caseFormat: "YYYY-[TYPE]-NNNNN",
+    casePrefix: "",
+    filingPartyLabel: "Plaintiff / Petitioner",
+    opposingPartyLabel: "Defendant / Respondent",
+    courtInitiatedLabel: "Court of the State of [State]",
+  },
+  other: {
+    label: "Other / Administrative",
+    courtPlaceholder: "Agency or Court Name",
+    caseFormat: "CASE-YYYY-001",
+    casePrefix: "",
+    filingPartyLabel: "Filing Party",
+    opposingPartyLabel: "Adverse Party",
+    courtInitiatedLabel: "Issuing Authority",
+  },
+};
+
+function generateCaseNumber(jurisdiction: Jurisdiction, docType: string): string {
+  const year = new Date().getFullYear();
+  const seq = String(Math.floor(Math.random() * 900) + 100);
+  const typeCode = docType.replace(/[^a-zA-Z]/g, "").substring(0, 3).toUpperCase() || "CV";
+  switch (jurisdiction) {
+    case "tribal":
+      return `MET-TC-${year}-${typeCode}-${seq}`;
+    case "federal_district":
+      return `${year}-cv-${seq.padStart(5, "0")}`;
+    case "state":
+      return `${year}-${typeCode}-${seq.padStart(5, "0")}`;
+    default:
+      return `CASE-${year}-${seq}`;
+  }
+}
+
+// ── GWE Letters Tab ──────────────────────────────────────────────────────────
+
 function useGweLetters(enabled: boolean) {
   return useQuery<GweLetter[]>({
     queryKey: ["gwe-letters-court-doc"],
@@ -149,12 +228,7 @@ function GweLettersTab() {
   );
 }
 
-interface Template { id: string; name: string; documentType: string; category: string; troSensitive: boolean; emergencyEligible: boolean }
-interface CourtDoc {
-  id: number; templateId: string; templateName: string; documentType: string; title: string;
-  caseNumber: string | null; court: string | null; status: string; troSensitive: boolean;
-  emergencyOrder: boolean; intakeFlags: Record<string, unknown>; createdAt: string; pdfUrl: string | null;
-}
+// ── Queries ──────────────────────────────────────────────────────────────────
 
 function useTemplates() {
   return useQuery<Template[]>({
@@ -190,6 +264,8 @@ const DOC_TYPE_COLORS: Record<string, string> = {
   emergency_welfare: "bg-red-900",
 };
 
+// ── Main Page ────────────────────────────────────────────────────────────────
+
 export default function CourtDocumentsPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -197,29 +273,55 @@ export default function CourtDocumentsPage() {
   const { data: docs, isLoading: docsLoading } = useCourtDocs();
 
   const [selectedTemplate, setSelectedTemplate] = useState("__none__");
+  const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("tribal");
+  const [partyRole, setPartyRole] = useState<PartyRole>("petitioner");
   const [caseNumber, setCaseNumber] = useState("");
   const [court, setCourt] = useState("");
-  const [petitioner, setPetitioner] = useState("");
-  const [respondent, setRespondent] = useState("");
+  const [filingParty, setFilingParty] = useState("");
+  const [opposingParty, setOpposingParty] = useState("");
   const [childName, setChildName] = useState("");
   const [tribe, setTribe] = useState("");
   const [notes, setNotes] = useState("");
 
+  const jConf = JURISDICTION_CONFIG[jurisdiction];
+  const selectedTpl = templates?.find(t => t.id === selectedTemplate);
+
+  function autoFillCaseNumber() {
+    const docType = selectedTpl?.documentType ?? "cv";
+    setCaseNumber(generateCaseNumber(jurisdiction, docType));
+  }
+
   const generate = useMutation({
     mutationFn: async () => {
+      const parties: Record<string, string> = {};
+
+      if (partyRole === "court_initiated") {
+        parties[jConf.courtInitiatedLabel] = jConf.courtInitiatedLabel;
+      } else if (partyRole === "petitioner") {
+        if (filingParty) parties[jConf.filingPartyLabel] = filingParty;
+        if (opposingParty) parties[jConf.opposingPartyLabel] = opposingParty;
+      } else {
+        if (filingParty) parties[jConf.opposingPartyLabel] = filingParty;
+        if (opposingParty) parties[jConf.filingPartyLabel] = opposingParty;
+      }
+
+      if (childName) parties["Child"] = childName;
+      if (tribe) parties["Tribe"] = tribe;
+
       const r = await fetch("/api/court/documents/generate", {
         method: "POST",
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
         body: JSON.stringify({
           templateId: selectedTemplate,
-          caseDetails: { caseNumber, court, notes },
-          parties: {
-            ...(petitioner ? { Petitioner: petitioner } : {}),
-            ...(respondent ? { Respondent: respondent } : {}),
-            ...(childName ? { Child: childName } : {}),
-            ...(tribe ? { Tribe: tribe } : {}),
+          caseDetails: {
+            caseNumber,
+            court: court || jConf.courtPlaceholder,
+            jurisdiction,
+            partyRole,
+            notes,
           },
-          vars: { caseNumber, court },
+          parties,
+          vars: { caseNumber, court: court || jConf.courtPlaceholder },
         }),
       });
       if (!r.ok) {
@@ -231,7 +333,8 @@ export default function CourtDocumentsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["court-docs"] });
       toast({ title: "Document generated", description: "Court document created successfully." });
-      setCaseNumber(""); setCourt(""); setPetitioner(""); setRespondent(""); setChildName(""); setTribe(""); setNotes("");
+      setCaseNumber(""); setCourt(""); setFilingParty(""); setOpposingParty("");
+      setChildName(""); setTribe(""); setNotes("");
       setSelectedTemplate("__none__");
     },
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
@@ -243,8 +346,6 @@ export default function CourtDocumentsPage() {
     const blob = await r.blob();
     window.open(URL.createObjectURL(blob));
   };
-
-  const selectedTpl = templates?.find(t => t.id === selectedTemplate);
 
   return (
     <div data-testid="page-court-documents">
@@ -266,7 +367,9 @@ export default function CourtDocumentsPage() {
         <TabsContent value="generate">
           <Card>
             <CardHeader><CardTitle className="text-base">Generate Court Document</CardTitle></CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-5">
+
+              {/* Template */}
               <div>
                 <Label>Document Template</Label>
                 <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
@@ -284,7 +387,7 @@ export default function CourtDocumentsPage() {
                   </SelectContent>
                 </Select>
                 {selectedTpl && (
-                  <div className="mt-2 flex gap-2">
+                  <div className="mt-2 flex gap-2 flex-wrap">
                     <Badge className={`${DOC_TYPE_COLORS[selectedTpl.documentType] ?? "bg-slate-600"} text-white text-xs`}>
                       {selectedTpl.documentType.replace(/_/g, " ")}
                     </Badge>
@@ -295,31 +398,105 @@ export default function CourtDocumentsPage() {
                 )}
               </div>
 
+              {/* Jurisdiction */}
+              <div>
+                <Label>Jurisdiction</Label>
+                <Select value={jurisdiction} onValueChange={v => { setJurisdiction(v as Jurisdiction); setCaseNumber(""); setCourt(""); }}>
+                  <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="tribal">Tribal Court — Mathias El Tribe</SelectItem>
+                    <SelectItem value="federal_district">Federal District Court</SelectItem>
+                    <SelectItem value="state">State Court</SelectItem>
+                    <SelectItem value="other">Other / Administrative</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[11px] text-muted-foreground mt-1">
+                  Court style and caption will align to the selected jurisdiction. Case number format: <span className="font-mono text-xs">{jConf.caseFormat}</span>
+                </p>
+              </div>
+
+              {/* Party Role */}
+              <div>
+                <Label>Filing Position</Label>
+                <div className="grid grid-cols-3 gap-2 mt-1">
+                  {[
+                    { value: "petitioner", label: `Filing as ${jConf.filingPartyLabel}` },
+                    { value: "respondent", label: `Filing as ${jConf.opposingPartyLabel}` },
+                    { value: "court_initiated", label: "Court / Office Initiated" },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => setPartyRole(opt.value as PartyRole)}
+                      className={`text-[11px] font-medium px-2 py-2 rounded border transition-all text-center ${
+                        partyRole === opt.value
+                          ? "border-primary bg-primary/10 text-primary"
+                          : "border-border text-muted-foreground hover:border-primary/40"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Case Number + Court */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
                   <Label>Case Number</Label>
-                  <Input value={caseNumber} onChange={e => setCaseNumber(e.target.value)} placeholder="TC-2026-001" className="mt-1" />
+                  <div className="flex gap-1 mt-1">
+                    <Input
+                      value={caseNumber}
+                      onChange={e => setCaseNumber(e.target.value)}
+                      placeholder={jConf.caseFormat}
+                      className="flex-1"
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="shrink-0 text-xs px-2"
+                      onClick={autoFillCaseNumber}
+                      title="Auto-generate case number"
+                    >
+                      Gen
+                    </Button>
+                  </div>
                 </div>
                 <div>
                   <Label>Court</Label>
-                  <Input value={court} onChange={e => setCourt(e.target.value)} placeholder="Tribal Court" className="mt-1" />
+                  <Input
+                    value={court}
+                    onChange={e => setCourt(e.target.value)}
+                    placeholder={jConf.courtPlaceholder}
+                    className="mt-1"
+                  />
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
-                <div>
-                  <Label>Petitioner / Protected Person</Label>
-                  <Input value={petitioner} onChange={e => setPetitioner(e.target.value)} className="mt-1" />
+              {/* Parties */}
+              {partyRole !== "court_initiated" && (
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <Label>
+                      {partyRole === "petitioner" ? jConf.filingPartyLabel : jConf.opposingPartyLabel}
+                      <span className="text-xs text-muted-foreground ml-1">(filing party)</span>
+                    </Label>
+                    <Input value={filingParty} onChange={e => setFilingParty(e.target.value)} className="mt-1" />
+                  </div>
+                  <div>
+                    <Label>
+                      {partyRole === "petitioner" ? jConf.opposingPartyLabel : jConf.filingPartyLabel}
+                      <span className="text-xs text-muted-foreground ml-1">(adverse party)</span>
+                    </Label>
+                    <Input value={opposingParty} onChange={e => setOpposingParty(e.target.value)} className="mt-1" />
+                  </div>
                 </div>
-                <div>
-                  <Label>Respondent / Agency</Label>
-                  <Input value={respondent} onChange={e => setRespondent(e.target.value)} className="mt-1" />
-                </div>
-              </div>
+              )}
 
+              {/* ICWA-specific */}
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label>Child Name (ICWA matters)</Label>
+                  <Label>Child Name <span className="text-xs text-muted-foreground">(ICWA matters)</span></Label>
                   <Input value={childName} onChange={e => setChildName(e.target.value)} className="mt-1" />
                 </div>
                 <div>

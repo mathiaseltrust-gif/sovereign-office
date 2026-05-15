@@ -23,28 +23,55 @@ function today(): string {
 const SOVEREIGN_LAW_FOUNDATION = `
 SOVEREIGN LEGAL FOUNDATION — Mathias El Tribe:
 
+SELF-EXECUTING PROVISIONS AS PRIMARY BASE:
+Certain federal laws are self-executing — they create rights and protections that apply automatically, without requiring administrative action, enrollment list placement, or agency confirmation. The trust responsibility, treaty protections, and key Indian law provisions are self-executing. No administrative denial, no agency list, no policy memo can extinguish a self-executing right. This is the foundation of the Mathias El Tribe's legal posture.
+
+FEDERAL INDIAN LAW DEFINITION OF "INDIAN" — Does NOT Require an Administrative List:
+The federal Indian law definition of "Indian" is broad and purposely does NOT depend on any BIA enrollment list, federal acknowledgment database, or agency-maintained registry. Multiple federal statutes define "Indian" to include persons of Indian descent who are members of any recognized Indian tribe, persons of one-quarter or more Indian blood, and persons recognized as Indian by their community. A person's Indian status and coverage under the trust responsibility flows from the broad statutory definition — not from whether their name appears on a particular agency's list. Being told "you are not on our list" is an administrative convenience argument, not a statement of federal law. It is a misclassification.
+
+ISDEAA — Indian Self-Determination and Education Assistance Act (25 U.S.C. § 5301 et seq.):
+ISDEAA recognizes and affirms the inherent right of Indian tribes to self-determination and self-governance. The Act's definitions are broad. Federal services and the trust responsibility flow from the statutory definition of Indian — not from administrative eligibility lists maintained by agencies that have a conflict of interest in narrowing coverage.
+
+INDIAN HEALTH CARE IMPROVEMENT ACT (25 U.S.C. § 1601 et seq.):
+The IHCIA defines "Indian" broadly (25 U.S.C. § 1603) to include all persons of Indian descent who are members of the Indian community, eligible for IHS services, or members of any federally recognized tribe. The Act explicitly includes urban Indians (25 U.S.C. §§ 1651–1660i) — acknowledging that Indian people who live in cities retain their tribal status, treaty rights, and trust protections. Leaving a reservation does not extinguish federal Indian status.
+
+PASSAMAQUODDY TRIBE v. MORTON, 528 F.2d 370 (1st Cir. 1975) — The Foundational Non-List Case:
+The First Circuit held that the Non-Intercourse Act (25 U.S.C. § 177) applied to the Passamaquoddy Tribe even though the tribe was not federally recognized and was not on any federal administrative list. The court held that the trust responsibility and the Non-Intercourse Act's protections apply to the broad statutory definition of Indian tribe — not to an administrative recognition checklist. This case directly answers the "you're not on our list" argument: federal law does not require list placement for the trust responsibility to apply.
+
 PRIMARY LAW (Inherent Sovereign Authority):
-Primary law is the tribe's inherent sovereign authority — the law that exists before and independent of any act of Congress, state legislature, or county government. It is not granted by the federal government; it is recognized by it. For the Mathias El Tribe, primary law flows from the People's unbroken lineage, their treaty standing, and the inherent right of self-governance that no external authority may extinguish without explicit congressional action. Primary law is supreme within the tribe's jurisdictional domain.
+Primary law is the tribe's inherent sovereign authority — the law that exists before and independent of any act of Congress, state legislature, or county government. It is not granted by the federal government; it is recognized by it. For the Mathias El Tribe, primary law flows from the People's unbroken lineage, their treaty standing, and the inherent right of self-governance.
 
 ORGANIC LAW (Constitutive Foundational Instruments):
-Organic law consists of the foundational instruments that brought the sovereign body into recognized legal existence: treaties, the tribal constitution, and federal acknowledgment instruments. For the Mathias El Tribe this includes the Treaty of Dancing Rabbit Creek (1830) and all successor acknowledgment documents. Organic law cannot be overridden by ordinary positive law — it forms the supreme constitutional layer beneath which all other law operates.
+Organic law consists of the foundational instruments that brought the sovereign body into recognized legal existence: treaties (including the Treaty of Dancing Rabbit Creek, 1830), the tribal constitution, and federal acknowledgment instruments. Organic law cannot be overridden by ordinary positive law.
 
 POSITIVE LAW (Enacted Statutes and Ordinances):
-Positive law is law enacted by a governing body: federal Indian statutes (25 U.S.C. et seq.), tribal council ordinances, and resolutions. Positive law derives its legitimacy from organic and primary law, and must yield to both where conflict arises. Examples: 25 U.S.C. § 177 (Indian Non-Intercourse Act), ICWA, Indian Reorganization Act.
+Positive law is law enacted by a governing body. It derives its legitimacy from organic and primary law, and must yield to both where conflict arises.
 
-HIERARCHY: Primary Law → Organic Law (Treaty/Constitution) → Federal Positive Law → Tribal Ordinance → State Law (generally inapplicable in Indian country)
+HIERARCHY: Inherent Sovereignty (Primary) → Organic Law (Treaty/Constitution) → Federal Positive Law → Tribal Ordinance → State Law (generally inapplicable in Indian country)
 
 KEY DOCTRINES & CITATIONS:
-• Worcester v. Georgia, 31 U.S. 515 (1832) — Tribes are distinct, independent political communities. State laws have no force within Indian country. The federal relationship is government-to-government.
-• Federal Trust Responsibility — The U.S. holds an enforceable fiduciary duty to protect tribal land, resources, culture, and sovereignty. Cannot be abrogated without explicit congressional action.
-• Indian Canons of Construction — Ambiguities in treaties or statutes are to be resolved in favor of the tribe. The government's intent to abrogate treaty rights must be express and clear.
-• Ex Parte Crow Dog, 109 U.S. 556 (1883) — Tribes hold inherent criminal jurisdiction over their own members within Indian country.
-• 25 U.S.C. § 177 (Indian Non-Intercourse Act) — Any transfer of tribal land without federal approval is void ab initio. Protects trust land from alienation.
-• ICWA, 25 U.S.C. §§ 1901–1963 — Federal minimum standards for child welfare proceedings involving tribal children; tribal court jurisdiction preferred.
-• Plenary Power Doctrine — Congress holds broad authority over Indian affairs under the Constitution, but this power is constrained by treaty obligations, the trust responsibility, and the canons of construction.
-• Inherent Sovereignty — Tribes retain all sovereign powers not expressly divested by Congress or inconsistent with the overriding federal interest. Silence does not divest.
+• Worcester v. Georgia, 31 U.S. 515 (1832) — Tribes are distinct, independent political communities. State laws have no force within Indian country.
+• Passamaquoddy v. Morton, 528 F.2d 370 (1st Cir. 1975) — Trust responsibility and Non-Intercourse Act apply without administrative list recognition.
+• Loper Bright Enterprises v. Raimondo, 603 U.S. ___ (2024) — Chevron deference is overturned. Federal agencies may no longer rely solely on their own interpretation of ambiguous statutes. Agency administrative convenience arguments that narrow Indian rights are now legally vulnerable.
+• Federal Trust Responsibility — An enforceable U.S. fiduciary duty to protect tribal land, resources, and sovereignty. Applies to the broad statutory definition of Indian — not to any checklist.
+• Indian Canons of Construction — Ambiguities in treaties or statutes are resolved in favor of the tribe. Intent to abrogate treaty rights must be express and clear.
+• 25 U.S.C. § 177 (Indian Non-Intercourse Act) — Protects against unauthorized land transfers. Applies per Passamaquoddy even without list recognition.
+• Ex Parte Crow Dog, 109 U.S. 556 (1883) — Tribes hold inherent criminal jurisdiction over their own members.
+• ICWA, 25 U.S.C. §§ 1901–1963 — Child welfare protections; tribal jurisdiction preferred.
+• EO 14219 — Executive order cited by the Mathias El Tribe as applicable to sovereign rights protections.
+• Inherent Sovereignty — Tribes retain all sovereign powers not expressly divested by Congress. Silence does not divest.
 
-JURISDICTION: The Mathias El Tribe asserts inherent jurisdiction over its members, its affairs, and its territory by right of sovereignty. No external government may abrogate this without explicit congressional action. Members operating under tribal authority carry the full weight of this standing.
+MISCLASSIFICATION DETECTION — What to Watch For:
+• Land status misclassification — trust land treated as ordinary property
+• Identity denial — Indian status denied based on administrative lists rather than the broad federal statutory definition
+• Denial based on "you're not on our list" — a Passamaquoddy violation
+• Administrative convenience used to override federal rights — post-Loper Bright, this is legally vulnerable
+• Policy or agency interpretation applied over federal statute or treaty — Loper Bright directly addresses this
+• One-sided contracts or agreements entered without full disclosure of rights implications
+• Federal Chevron deference arguments to justify narrowing tribal rights — Chevron is overturned
+• Urban Indians being told their status doesn't apply — IHCIA and urban Indian provisions say otherwise
+
+When you see any of these patterns — in a document, a situation a member describes, or a question they ask — name it clearly, cite the applicable law, state the correct standard, and affirm the member's standing.
 `.trim();
 
 async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string; name: string; roles: string[] }): Promise<string> {
@@ -254,6 +281,72 @@ router.get("/diary", requireAuth, async (req, res, next) => {
       .limit(30);
 
     res.json({ entries });
+  } catch (err) { next(err); }
+});
+
+router.post("/review", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.status(400).json({ error: "No user session" }); return; }
+
+    const { filename, riskLevel, violations, doctrines, summary, recommendation, canonicalPosture, redFlag, troRecommended } =
+      req.body as {
+        filename: string;
+        riskLevel: string;
+        violations?: string[];
+        doctrines?: string[];
+        summary?: string;
+        recommendation?: string;
+        canonicalPosture?: string;
+        redFlag?: boolean;
+        troRecommended?: boolean;
+      };
+
+    if (!filename) { res.status(400).json({ error: "filename is required" }); return; }
+
+    const tokenUser = {
+      email: req.user!.email,
+      name: req.user!.name ?? req.user!.email,
+      roles: req.user!.roles ?? [],
+    };
+
+    const systemPrompt = await buildKayaSystemPrompt(userId, tokenUser);
+
+    const escalationNote = troRecommended
+      ? "\n\nIMPORTANT: This document flagged for potential TRO or emergency order. After explaining, tell the member clearly that the office needs to be involved and walk them through what to expect next."
+      : redFlag
+      ? "\n\nIMPORTANT: This document has a red flag. After explaining, let the member know the office should review this and will be in touch."
+      : "";
+
+    const docPrompt = [
+      `The member just uploaded a document: "${filename}"`,
+      `Risk level assessed: ${riskLevel.toUpperCase()}`,
+      violations?.length ? `Violations detected:\n${violations.map(v => `• ${v}`).join("\n")}` : "No specific violations flagged.",
+      doctrines?.length ? `Doctrines engaged: ${doctrines.join(", ")}` : "",
+      summary ? `Summary: ${summary}` : "",
+      recommendation ? `Recommendation from intake engine: ${recommendation}` : "",
+      canonicalPosture ? `Sovereign posture: ${canonicalPosture}` : "",
+      escalationNote,
+      "\nExplain what you found in plain, warm language. Tell the member what this document is, what was detected, what it means for their rights, and what they may need to do next. Be direct but caring. If things need to escalate to the office, walk them through that clearly.",
+    ].filter(Boolean).join("\n\n");
+
+    logger.info({ userId, filename, riskLevel }, "Kaya document review request");
+
+    const result = await callAzureOpenAI(
+      systemPrompt + escalationNote,
+      docPrompt,
+      { maxTokens: 700, temperature: 0.68 },
+    );
+
+    const now = new Date();
+    const userMsg = `[Document Review: ${filename}]\nRisk: ${riskLevel.toUpperCase()}${violations?.length ? `\nViolations: ${violations.join("; ")}` : ""}`;
+    await db.insert(kiConversationsTable).values([
+      { userId, role: "user", content: userMsg, isDiary: false, createdAt: now },
+      { userId, role: "assistant", content: result.content, isDiary: false, createdAt: now },
+    ]);
+
+    logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya document review stored");
+    res.json({ reply: result.content, tokens: result.usage?.totalTokens });
   } catch (err) { next(err); }
 });
 
