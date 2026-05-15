@@ -221,7 +221,7 @@ export default function TribalIdPage() {
           <img
             src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
             alt="Office of the Chief Justice & Trustee"
-            style={{ width: 48, height: 48, objectFit: "contain", flexShrink: 0 }}
+            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
           />
 
           {/* Center title */}
