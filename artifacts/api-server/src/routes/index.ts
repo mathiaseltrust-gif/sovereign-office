@@ -53,6 +53,7 @@ import storageRouter from "./storage";
 import governorsRouter from "./governors/index";
 import sovereignPipelineRouter from "./intake/pipeline";
 import sovereignSuccessionRouter from "./sovereign/succession";
+import memoryRouter from "./memory/index";
 
 const router: IRouter = Router();
 
@@ -111,5 +112,6 @@ router.use(storageRouter);
 router.use("/governors", governorsRouter);
 router.use("/sovereign/pipeline", sovereignPipelineRouter);
 router.use("/sovereign/succession", sovereignSuccessionRouter);
+router.use("/memory", memoryRouter);
 
 export default router;

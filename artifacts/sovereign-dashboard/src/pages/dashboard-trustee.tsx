@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { ElderGreeting } from "@/components/ElderGreeting";
 
 function StatCard({ title, value, sub, href }: { title: string; value: number | string; sub?: string; href: string }) {
   return (
@@ -36,6 +37,7 @@ export default function TrusteeDashboard() {
 
   return (
     <div data-testid="page-trustee-dashboard">
+      <ElderGreeting />
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">Chief Justice & Trustee Overview</h1>
         <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — full court and trustee services</p>

@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { processIntake } from "../../sovereign/intake-pipeline";
+import { appendIntakeFact } from "../../lib/redis-memory";
 
 const router = Router();
 
@@ -25,7 +26,25 @@ router.post("/", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { report, meta } = await processIntake({ text, userId: req.user?.dbId, context });
+    const user = req.user;
+    const userId = user?.dbId;
+
+    const { report, meta } = await processIntake({ text, userId, context });
+
+    // Fire-and-forget: persist this intake into the user's long-term memory
+    if (userId) {
+      const r = report as unknown as Record<string, unknown>;
+      const riskLevel = (r.riskLevel as string)
+        ?? (r.tier as string)
+        ?? "standard";
+      const summary = (r.summary as string)
+        ?? (r.factSummary as string)
+        ?? text.substring(0, 80);
+      const docType = context?.caseType;
+      const name = user?.name ?? user?.email?.split("@")[0];
+      const role = (user as Record<string, unknown>)?.activeRole as string ?? undefined;
+      appendIntakeFact(userId, { riskLevel, summary, docType, name, role }).catch(() => {});
+    }
 
     res.status(200).json({ ...report, _meta: meta });
   } catch (err) {

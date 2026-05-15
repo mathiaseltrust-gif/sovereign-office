@@ -7,6 +7,7 @@ import { Link } from "wouter";
 import { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
+import { ElderGreeting } from "@/components/ElderGreeting";
 
 interface PendingLineageNode {
   id: number;
@@ -131,6 +132,7 @@ export default function AdminDashboard() {
 
   return (
     <div data-testid="page-admin-dashboard">
+      <ElderGreeting />
       <div className="mb-8">
         <h1 className="text-3xl font-serif font-bold text-foreground">System Administration</h1>
         <p className="text-muted-foreground mt-1">Office of the Chief Justice and Trustee — sovereign admin configuration</p>

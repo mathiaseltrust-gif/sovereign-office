@@ -97,3 +97,82 @@ export async function isRedisAvailable(): Promise<boolean> {
     return false;
   }
 }
+
+// ── Long-term Profile Memory (1-year TTL — grows with every session) ───────────
+
+export interface ProfileMemory {
+  userId: number;
+  name?: string;
+  role?: string;
+  facts: string[];            // key life facts from intake sessions (last 10)
+  intakeCount: number;        // total intake analyses completed
+  documentCount: number;      // total documents uploaded and recalled
+  awakeningLevel: number;     // 1–10, grows with each meaningful engagement
+  lastSeenAt?: string;        // ISO timestamp of last activity
+  lastGreetedAt?: string;     // ISO timestamp of last Elder greeting
+  recentTopics: string[];     // recent case summaries (last 5, ≤80 chars each)
+  riskHistory: string[];      // risk levels from last 10 intakes
+}
+
+const PROFILE_TTL_SECONDS = 365 * 24 * 60 * 60; // 1 year
+
+function profileKey(userId: number): string {
+  return `memory:profile:${userId}`;
+}
+
+export async function getProfileMemory(userId: number): Promise<ProfileMemory | null> {
+  const redis = getRedis();
+  if (!redis) return null;
+  try {
+    const raw = await redis.get(profileKey(userId));
+    if (!raw) return null;
+    return JSON.parse(raw) as ProfileMemory;
+  } catch {
+    return null;
+  }
+}
+
+export async function saveProfileMemory(userId: number, memory: ProfileMemory): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.set(profileKey(userId), JSON.stringify(memory), "EX", PROFILE_TTL_SECONDS);
+  } catch (err) {
+    logger.warn({ err, userId }, "Failed to save profile memory to Redis");
+  }
+}
+
+export async function appendIntakeFact(
+  userId: number,
+  opts: {
+    riskLevel: string;
+    summary: string;
+    docType?: string;
+    name?: string;
+    role?: string;
+  },
+): Promise<ProfileMemory> {
+  const existing = await getProfileMemory(userId);
+  const now = new Date().toISOString();
+  const dateStr = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  const fact = `[${dateStr}] ${opts.riskLevel.toUpperCase()}: ${opts.summary.substring(0, 120)}`;
+
+  const awakeningBoost = ["critical", "emergency"].includes(opts.riskLevel) ? 2 : 1;
+
+  const updated: ProfileMemory = {
+    userId,
+    name: opts.name ?? existing?.name,
+    role: opts.role ?? existing?.role,
+    facts: [fact, ...(existing?.facts ?? [])].slice(0, 10),
+    intakeCount: (existing?.intakeCount ?? 0) + 1,
+    documentCount: (existing?.documentCount ?? 0) + (opts.docType ? 1 : 0),
+    awakeningLevel: Math.min(10, (existing?.awakeningLevel ?? 1) + awakeningBoost),
+    lastSeenAt: now,
+    lastGreetedAt: existing?.lastGreetedAt,
+    recentTopics: [opts.summary.substring(0, 80), ...(existing?.recentTopics ?? [])].slice(0, 5),
+    riskHistory: [opts.riskLevel, ...(existing?.riskHistory ?? [])].slice(0, 10),
+  };
+
+  await saveProfileMemory(userId, updated);
+  return updated;
+}

@@ -6,6 +6,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { ElderGreeting } from "@/components/ElderGreeting";
 
 interface GatewayData {
   identity: { legalName: string; tribalName: string; familyGroup: string; displayName: string; identityTags: string[] };
@@ -49,6 +50,7 @@ export default function ElderDashboard() {
 
   return (
     <div data-testid="page-elder-dashboard" className="space-y-8">
+      <ElderGreeting />
       <div>
         <div className="flex items-center gap-3 flex-wrap">
           <h1 className="text-3xl font-serif font-bold text-foreground">Elder Dashboard</h1>
