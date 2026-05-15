@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { removeBackground } from "@imgly/background-removal";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -1172,8 +1173,17 @@ export default function ProfilePage() {
     }
     setIsUploadingPhoto(true);
     try {
+      toast({ title: "Processing photo…", description: "Removing background — may take a moment on first use." });
+      const objectUrl = URL.createObjectURL(file);
+      let processedBlob: Blob;
+      try {
+        processedBlob = await removeBackground(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+      const processedFile = new File([processedBlob], "profile.png", { type: "image/png" });
       const formData = new FormData();
-      formData.append("photo", file);
+      formData.append("photo", processedFile);
       const r = await fetch("/api/identity/photo", {
         method: "POST",
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
@@ -1182,8 +1192,8 @@ export default function ProfilePage() {
       if (r.ok) {
         const reader = new FileReader();
         reader.onload = (ev) => setPhotoUrl(ev.target?.result as string);
-        reader.readAsDataURL(file);
-        toast({ title: "Photo saved", description: "Your profile photo has been updated in the database." });
+        reader.readAsDataURL(processedFile);
+        toast({ title: "Photo saved", description: "Background removed and photo updated." });
       } else {
         const err = await r.json().catch(() => ({}));
         toast({ title: "Upload failed", description: err.error ?? "Please try again.", variant: "destructive" });
@@ -1517,13 +1527,13 @@ export default function ProfilePage() {
       {/* ── Header ── */}
       {isChief ? (
         <div className="flex items-center gap-4 pb-4 border-b border-border">
-          <img src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`} className="w-14 h-14 object-contain drop-shadow shrink-0" alt="Mathias El Tribe Supreme Court" />
+          <img src={`${import.meta.env.BASE_URL}supreme-court-seal-color.png`} className="w-24 h-24 object-contain drop-shadow shrink-0" alt="Mathias El Tribe Supreme Court" />
           {/* Member photo — center */}
           <div className="relative shrink-0">
-            <div className="w-16 h-16 rounded-full border-2 border-primary/30 overflow-hidden bg-muted flex items-center justify-center shadow-md">
+            <div className="w-20 h-24 flex items-end justify-center bg-transparent">
               {photoUrl
-                ? <img src={photoUrl} alt="Profile" className="w-full h-full object-cover" />
-                : <User className="h-7 w-7 text-muted-foreground" />
+                ? <img src={photoUrl} alt="Profile" className="w-full h-full object-contain object-bottom" />
+                : <User className="h-10 w-10 text-muted-foreground" />
               }
             </div>
             <span className="absolute -bottom-1 -right-1 w-4 h-4 rounded-full bg-green-500 border-2 border-background" title="Authority Active" />
@@ -1543,7 +1553,7 @@ export default function ProfilePage() {
               )}
             </div>
           </div>
-          <img src={`${import.meta.env.BASE_URL}chief-justice-seal.png`} className="w-14 h-14 object-contain drop-shadow shrink-0" alt="Chief Justice" />
+          <img src={`${import.meta.env.BASE_URL}chief-justice-seal.png`} className="w-24 h-24 object-contain drop-shadow shrink-0" alt="Chief Justice" />
         </div>
       ) : (
         <div className="flex items-center gap-4 pb-4 border-b border-border">
@@ -1920,7 +1930,7 @@ export default function ProfilePage() {
           <div className="flex items-center gap-6">
             {/* Photo preview */}
             <div
-              className="relative w-24 h-24 rounded-full border-2 border-border overflow-hidden bg-muted flex items-center justify-center cursor-pointer group shrink-0"
+              className="relative w-24 h-32 flex items-end justify-center bg-transparent cursor-pointer group shrink-0"
               onClick={() => photoInputRef.current?.click()}
               title="Click to change photo"
             >
@@ -1928,7 +1938,7 @@ export default function ProfilePage() {
                 <img
                   src={photoUrl}
                   alt="Profile"
-                  className="w-full h-full object-cover"
+                  className="w-full h-full object-contain object-bottom"
                 />
               ) : (
                 <User className="h-10 w-10 text-muted-foreground" />
