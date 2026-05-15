@@ -329,7 +329,7 @@ function IntakeTab({ memberName }: { memberName?: string }) {
 
   const intakeMutation = useMutation({
     mutationFn: async ({ text, caseType }: { text: string; caseType: string }) => {
-      const r = await fetch("/api/intake/analyze", {
+      const r = await fetch("/api/intake/ai", {
         method: "POST",
         headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({ text, context: { caseType } }),
