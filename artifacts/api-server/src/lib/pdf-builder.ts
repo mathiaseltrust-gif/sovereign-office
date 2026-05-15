@@ -1002,13 +1002,25 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
   const timesItalic = await pdfDoc.embedFont(StandardFonts.TimesRomanItalic);
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
 
+  // Multi-page tracking
+  const allVerifPages: PDFPage[] = [page];
+  let pageNum = 1;
+
+  function addVerifPage(): PDFPage {
+    const p = pdfDoc.addPage([612, 792]);
+    allVerifPages.push(p);
+    pageNum++;
+    p.drawRectangle({ x: 0, y: 0, width: 612, height: 792, color: rgb(0.99, 0.98, 0.96) });
+    return p;
+  }
+
   page.drawRectangle({ x: 0, y: 0, width, height: 792, color: rgb(0.99, 0.98, 0.96) });
 
-  // Seal header
-  const seal = await embedSeal(pdfDoc);
+  // Tribal seal header — official Mathias El Tribe color seal
+  const seal = await embedColorSeal(pdfDoc);
   let y = 752;
   if (seal) {
-    const sealSize = 60;
+    const sealSize = 68;
     page.drawImage(seal, { x: width / 2 - sealSize / 2, y: y - sealSize + 10, width: sealSize, height: sealSize });
     y -= sealSize + 8;
   } else {
@@ -1020,14 +1032,14 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
     page.drawText(text, { x: (width - w) / 2, y: cy, size, font, color });
   };
 
-  drawCenteredText("MATHIAS EL TRIBE", y, 13, timesBold, rgb(0.1, 0.1, 0.35));
-  y -= 16;
-  drawCenteredText("Sovereign Office of the Chief Justice & Trustee", y, 9, timesRoman, rgb(0.3, 0.3, 0.3));
-  y -= 12;
-  drawCenteredText("Identity Verification Letter", y, 10, timesBold, rgb(0.1, 0.1, 0.35));
+  drawCenteredText("MATHIAS EL TRIBE", y, 14, timesBold, rgb(0.55, 0.0, 0.0));
+  y -= 17;
+  drawCenteredText("Office of the Chief Justice & Trustee", y, 9, timesRoman, rgb(0.3, 0.3, 0.3));
+  y -= 13;
+  drawCenteredText("Identity Verification Letter", y, 10, timesBold, rgb(0.55, 0.0, 0.0));
   y -= 8;
 
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: width - MARGIN, y }, thickness: 1, color: rgb(0.3, 0.3, 0.5) });
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: width - MARGIN, y }, thickness: 1.5, color: rgb(0.55, 0.0, 0.0) });
   y -= 18;
 
   // Date + purpose
@@ -1129,22 +1141,62 @@ export async function buildVerificationLetterPdf(input: VerificationLetterInput)
   }
 
   // Closing paragraph
-  page.drawLine({ start: { x: MARGIN, y }, end: { x: width - MARGIN, y }, thickness: 0.5, color: rgb(0.5, 0.5, 0.5) });
+  page.drawLine({ start: { x: MARGIN, y }, end: { x: width - MARGIN, y }, thickness: 0.5, color: rgb(0.55, 0.0, 0.0) });
   y -= 14;
   page.drawText(
-    `This letter is issued by the Sovereign Office of the Chief Justice & Trustee of the Mathias El Tribe under the Federal Trust Responsibility and inherent tribal sovereignty recognized in Worcester v. Georgia, 31 U.S. 515 (1832). Any person, agency, or court receiving this letter is placed on notice of the federal trust relationship and applicable Indian law protections.`,
+    `This letter is issued by the Office of the Chief Justice & Trustee of the Mathias El Tribe pursuant to inherent sovereign authority — rights retained by the descendants of the Treaty of Dancing Rabbit Creek (1830) and never ceded. Any person, agency, or court receiving this letter is placed on notice of the federal trust relationship and applicable Indian law protections.`,
     { x: MARGIN, y, size: 8, font: timesItalic, maxWidth: BODY_W, lineHeight: 12, color: rgb(0.3, 0.3, 0.3) }
   );
-  y -= 46;
+  y -= 52;
 
-  // Signature block
-  page.drawText("_______________________________________________", { x: MARGIN, y, size: 9, font: timesRoman });
+  // ── Electronic & Wet Signatures ──────────────────────────────────────────
+  page.drawText("AUTHORIZED SIGNATURES", { x: MARGIN, y, size: 8, font: timesBold, color: rgb(0.2, 0.2, 0.2) });
+  y -= 14;
+
+  // Two-column layout: left = signature 1, right = signature 2
+  const midSig = width / 2 + 6;
+
+  // Electronic signature labels
+  page.drawText("Electronic Signature (Judicial / Official Capacity):", { x: MARGIN, y, size: 7.5, font: timesBold });
+  page.drawText("Electronic Signature (Legal Name):", { x: midSig, y, size: 7.5, font: timesBold });
   y -= 13;
-  page.drawText("Chief Justice & Trustee - Mathias El Tribe", { x: MARGIN, y, size: 9, font: timesBold });
-  y -= 11;
-  page.drawText("Sovereign Office of the Chief Justice & Trustee", { x: MARGIN, y, size: 8, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
+
+  page.drawText("/s/ Chief Mathias El", { x: MARGIN, y, size: 9.5, font: timesBold, color: rgb(0.1, 0.1, 0.35) });
+  page.drawText("/s/ Mathew-Allen: McCaster", { x: midSig, y, size: 9.5, font: timesBold, color: rgb(0.1, 0.1, 0.35) });
+  y -= 12;
+
+  page.drawText("Chief Justice & Trustee", { x: MARGIN, y, size: 8, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
+  page.drawText("Legal Name — In Propria Persona", { x: midSig, y, size: 8, font: timesRoman, color: rgb(0.3, 0.3, 0.3) });
   y -= 10;
-  page.drawText(`Protection Level: ${input.protectionLevel.toUpperCase()}  |  Document Date: ${input.issueDate}`, { x: MARGIN, y, size: 7.5, font: helvetica, color: rgb(0.4, 0.4, 0.4) });
+
+  page.drawText("Office of the Chief Justice & Trustee", { x: MARGIN, y, size: 7.5, font: timesItalic, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText("Mathias El Tribe", { x: midSig, y, size: 7.5, font: timesItalic, color: rgb(0.4, 0.4, 0.4) });
+  y -= 18;
+
+  // Wet signature lines (where physical signature is required)
+  page.drawText("Wet Signature (where required):", { x: MARGIN, y, size: 7.5, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
+  y -= 4;
+  page.drawLine({ start: { x: MARGIN, y: y - 14 }, end: { x: midSig - 12, y: y - 14 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  page.drawLine({ start: { x: midSig, y: y - 14 }, end: { x: width - MARGIN, y: y - 14 }, thickness: 0.5, color: rgb(0, 0, 0) });
+  y -= 18;
+  page.drawText("Chief Mathias El  /  Official Seal", { x: MARGIN, y, size: 7, font: timesRoman, color: rgb(0.4, 0.4, 0.4) });
+  page.drawText("Mathew-Allen: McCaster", { x: midSig, y, size: 7, font: timesRoman, color: rgb(0.4, 0.4, 0.4) });
+  y -= 12;
+
+  page.drawText(`Protection Level: ${input.protectionLevel.toUpperCase()}  |  Document Date: ${input.issueDate}`, { x: MARGIN, y, size: 7, font: helvetica, color: rgb(0.45, 0.45, 0.45) });
+
+  // Post-pass: add page numbers and footer to all pages
+  const totalVerifPages = allVerifPages.length;
+  allVerifPages.forEach((p, idx) => {
+    const pageW = p.getSize().width;
+    const pageNumText = `Page ${idx + 1} of ${totalVerifPages}`;
+    const pnW = timesRoman.widthOfTextAtSize(pageNumText, 7.5);
+    p.drawText(pageNumText, { x: (pageW - pnW) / 2, y: 20, size: 7.5, font: timesRoman, color: rgb(0.4, 0.4, 0.4) });
+    p.drawText(
+      "Mathias El Tribe  ·  Office of the Chief Justice & Trustee  ·  Inherent Sovereign Authority",
+      { x: MARGIN, y: 10, size: 6.5, font: timesItalic, color: rgb(0.55, 0.55, 0.55) }
+    );
+  });
 
   const pdfBytes = await pdfDoc.save();
   return { bytes: new Uint8Array(pdfBytes), generatedAt: new Date().toISOString() };

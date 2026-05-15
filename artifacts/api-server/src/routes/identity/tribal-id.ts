@@ -114,7 +114,7 @@ router.post("/verification-letter/generate", requireAuth, async (req, res, next)
         .map(([k]) => k.replace(/([A-Z])/g, " $1").replace(/^./, (s) => s.toUpperCase())),
       protectionLevel: gateway.protectionLevel,
       jurisdictionalProtections: [
-        "Worcester v. Georgia (1832) — tribal sovereignty recognized and protected",
+        "Treaty of Dancing Rabbit Creek (1830) — inherent sovereignty retained, never ceded",
         "Federal Trust Responsibility — U.S. fiduciary duty to protect Indian interests",
         "Indian Canons of Construction — ambiguity resolved in favor of tribal member",
         gateway.icwaEligible ? "ICWA (25 U.S.C. §§ 1901–1963) — child welfare protections active" : "",
