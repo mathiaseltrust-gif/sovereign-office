@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useLocation } from "wouter";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -8,8 +9,11 @@ import { Badge } from "@/components/ui/badge";
 import {
   Send, BookOpen, MessageCircle, Loader2, Feather,
   Brain, Trash2, ChevronDown, ChevronUp, Plus, X,
+  ClipboardList, Briefcase, FileText, User, Shield,
+  AlertTriangle, CheckCircle2, ArrowRight, ChevronRight,
 } from "lucide-react";
 
+/* ─── Types ─────────────────────────────────────────────────── */
 interface KayaMessage {
   id: number;
   role: "user" | "assistant" | "diary" | "knowledge";
@@ -27,6 +31,105 @@ interface KnowledgeEntry {
   createdAt: string;
 }
 
+interface IntakeAgentReport {
+  summary: string;
+  riskLevel: "low" | "moderate" | "elevated" | "critical" | "emergency";
+  intakeFlags: {
+    indianStatusViolation: boolean;
+    redFlag: boolean;
+    troRecommended: boolean;
+    nfrRecommended: boolean;
+    violations: string[];
+    doctrinesTriggered: string[];
+    canonicalPosture: string;
+    redBannerMessage: string | null;
+  };
+  doctrinesApplied: string[];
+  recommendedActions: string[];
+  recommendedInstruments: string[];
+  factSummary: string;
+  officerNotes: string;
+  nfrRecommended: boolean;
+  troRecommended: boolean;
+  aiConfidence: number;
+}
+
+type IntakeType = "business" | "filing" | "profile";
+
+interface IntakeOption {
+  key: IntakeType;
+  icon: React.ReactNode;
+  label: string;
+  sublabel: string;
+  description: string;
+  kayaOpening: string;
+  placeholder: string;
+  caseType: string;
+}
+
+const INTAKE_OPTIONS: IntakeOption[] = [
+  {
+    key: "business",
+    icon: <Briefcase className="w-5 h-5" />,
+    label: "Business Intake",
+    sublabel: "Formation, contracts, operations",
+    description: "Starting a business, reviewing a contract, protecting business assets, or navigating a commercial dispute under sovereign jurisdiction.",
+    kayaOpening: "I can help you work through your business matter. To give you the right guidance, I'll need to understand what you're facing — whether it's formation, a contract you're concerned about, a dispute, or something else. You don't have to have it all figured out. Just tell me what's going on in your own words, and I'll help us identify what we need and how we can assist.",
+    placeholder: "Describe your business situation — what you're trying to do, what's happening, or what concerns you…",
+    caseType: "business",
+  },
+  {
+    key: "filing",
+    icon: <FileText className="w-5 h-5" />,
+    label: "Filing Intake",
+    sublabel: "Documents, instruments, legal filings",
+    description: "A legal document you've received, a situation requiring a sovereign instrument (ICWA notice, NFR, TRO, affidavit, cease & desist), or a filing that needs review.",
+    kayaOpening: "I can walk you through what needs to be filed and why. Before we get into the specifics, I need to understand the situation — what document or event triggered this, who the other parties are, and what outcome you're looking for. Share what you have, and I'll identify what instruments apply and what we need from you to proceed.",
+    placeholder: "Describe the situation — what document you received, what happened, or what you need filed…",
+    caseType: "legal",
+  },
+  {
+    key: "profile",
+    icon: <User className="w-5 h-5" />,
+    label: "Personal Profile",
+    sublabel: "Identity, lineage, membership records",
+    description: "Updating your identity record, establishing lineage documentation, verifying membership standing, or recording land and property status.",
+    kayaOpening: "Your record is the foundation of everything we do for you. I can help you identify what's complete, what's missing, and what we need to strengthen your standing. To start, tell me what's on your mind — whether it's updating something specific, getting your identity documented, or something you're not sure about yet. I'll guide us through it.",
+    placeholder: "Tell me what you'd like to update or establish in your record — identity, lineage, land, membership…",
+    caseType: "identity",
+  },
+];
+
+const INSTRUMENT_TO_DOC: Record<string, string> = {
+  ICWA_NOTICE: "icwa_notice", ICWA: "icwa_notice",
+  NFR: "nfr_notice", NFR_NOTICE: "nfr_notice", FEDERAL_REVIEW: "nfr_notice",
+  TRO: "court_document", TRO_GENERAL: "court_document",
+  GWE: "gwe_letter", GWE_LETTER: "gwe_letter",
+  WELFARE: "welfare_letter", WELFARE_LETTER: "welfare_letter",
+  AFFIDAVIT: "tribal_affidavit", TRIBAL_AFFIDAVIT: "tribal_affidavit",
+  CEASE: "cease_and_desist", CEASE_AND_DESIST: "cease_and_desist",
+  TRUST: "trust_instrument", TRUST_INSTRUMENT: "trust_instrument",
+  RESOLUTION: "tribal_resolution", TRIBAL_RESOLUTION: "tribal_resolution",
+  IDENTITY: "identity_declaration", IDENTITY_DECLARATION: "identity_declaration",
+};
+
+const DOC_LABELS: Record<string, string> = {
+  icwa_notice: "ICWA Notice", nfr_notice: "Federal Review Notice",
+  court_document: "Court Document", gwe_letter: "GWE Letter",
+  welfare_letter: "Welfare Letter", tribal_affidavit: "Tribal Affidavit",
+  cease_and_desist: "Cease & Desist", trust_instrument: "Trust Instrument",
+  tribal_resolution: "Tribal Resolution", identity_declaration: "Identity Declaration",
+};
+
+const RISK_BADGE: Record<string, string> = {
+  low: "border-green-700/50 text-green-400",
+  moderate: "border-yellow-700/50 text-yellow-400",
+  elevated: "border-orange-700/50 text-orange-400",
+  critical: "border-red-600/60 text-red-400",
+  emergency: "border-red-500/70 text-red-300",
+};
+
+/* ─── Style constants ────────────────────────────────────────── */
 const MOODS = ["reflective", "grateful", "concerned", "determined", "hopeful", "processing"];
 const KNOWLEDGE_CATEGORIES = ["law", "process", "protocol", "personal", "general"];
 
@@ -44,6 +147,9 @@ const MSG_AI = { background: "rgba(255,255,255,0.05)", border: "1px solid rgba(2
 const MSG_KNOWLEDGE = { background: "rgba(40,20,0,0.6)", border: "1px solid rgba(180,120,30,0.2)" };
 const HEADER_BG = { background: "rgba(0,0,0,0.4)", borderBottom: "1px solid rgba(255,255,255,0.07)" };
 const INPUT_BG = { borderTop: "1px solid rgba(255,255,255,0.06)", background: "rgba(0,0,0,0.25)" };
+const INTAKE_BG = { background: "rgba(0,20,40,0.4)", border: "1px solid rgba(30,80,160,0.2)" };
+const INTAKE_RESULT_BG = { background: "rgba(10,30,10,0.5)", border: "1px solid rgba(30,120,30,0.25)" };
+const INTAKE_WARN_BG = { background: "rgba(40,10,0,0.6)", border: "1px solid rgba(180,40,10,0.3)" };
 
 interface KayaChatProps {
   memberPhoto?: string | null;
@@ -62,6 +168,365 @@ const QUICK_PROMPTS = [
   { label: "ICWA protections", text: "What protections does ICWA give me and my family?" },
 ];
 
+/* ─── Intake Result Panel ────────────────────────────────────── */
+function IntakeResultPanel({ report, intakeType, onReset }: {
+  report: IntakeAgentReport;
+  intakeType: IntakeType;
+  onReset: () => void;
+}) {
+  const [, navigate] = useLocation();
+  const BASE = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+  const elevated = ["elevated", "critical", "emergency"].includes(report.riskLevel);
+  const docTypes = Array.from(new Set(
+    (report.recommendedInstruments ?? [])
+      .map((i: string) => INSTRUMENT_TO_DOC[i.toUpperCase().replace(/ /g, "_")] ?? "court_document")
+  ));
+
+  function storeAndNavigate(docType: string) {
+    sessionStorage.setItem("intake_context", JSON.stringify({
+      docType,
+      notes: [
+        `AI Intake Summary:\n${report.summary}`,
+        report.factSummary ? `\nFact Summary:\n${report.factSummary}` : "",
+        report.intakeFlags.violations?.length
+          ? `\nViolations: ${report.intakeFlags.violations.join("; ")}`
+          : "",
+      ].join("").trim(),
+      riskLevel: report.riskLevel,
+    }));
+    navigate(`${BASE}/drafts`);
+  }
+
+  return (
+    <div className="px-4 pb-4 space-y-3">
+      {/* Risk header */}
+      <div className="flex items-center justify-between pt-1">
+        <div className="flex items-center gap-2">
+          <Shield className="w-4 h-4 text-white/40" />
+          <span className="text-[10px] uppercase tracking-widest text-white/40 font-bold">Intake Analysis</span>
+        </div>
+        <Badge variant="outline" className={`text-[10px] capitalize ${RISK_BADGE[report.riskLevel] ?? RISK_BADGE.moderate}`}>
+          {report.riskLevel} risk
+        </Badge>
+      </div>
+
+      {/* Red flag banner */}
+      {report.intakeFlags.redBannerMessage && (
+        <div className="rounded-lg px-3 py-2.5 flex items-start gap-2" style={INTAKE_WARN_BG}>
+          <AlertTriangle className="w-4 h-4 text-red-400 shrink-0 mt-0.5" />
+          <p className="text-[11px] text-red-300/90 leading-snug">{report.intakeFlags.redBannerMessage}</p>
+        </div>
+      )}
+
+      {/* Summary */}
+      <div className="rounded-lg px-3 py-2.5" style={INTAKE_RESULT_BG}>
+        <p className="text-[9px] uppercase tracking-widest text-white/35 mb-1">Summary</p>
+        <p className="text-[12px] text-white/80 leading-relaxed">{report.summary}</p>
+        {report.factSummary && report.factSummary !== report.summary && (
+          <p className="text-[11px] text-white/50 mt-1.5 leading-relaxed">{report.factSummary}</p>
+        )}
+      </div>
+
+      {/* Violations */}
+      {(report.intakeFlags.violations ?? []).length > 0 && (
+        <div className="rounded-lg px-3 py-2.5" style={INTAKE_WARN_BG}>
+          <p className="text-[9px] uppercase tracking-widest text-orange-400/70 mb-1.5">Violations Identified</p>
+          <ul className="space-y-1">
+            {report.intakeFlags.violations.map((v, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <ChevronRight className="w-3 h-3 text-orange-400/60 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-orange-200/80">{v}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Doctrines */}
+      {(report.doctrinesApplied ?? []).length > 0 && (
+        <div>
+          <p className="text-[9px] uppercase tracking-widest text-white/25 mb-1.5">Doctrines Applied</p>
+          <div className="flex flex-wrap gap-1">
+            {report.doctrinesApplied.map((d, i) => (
+              <span key={i} className="text-[9px] px-1.5 py-0.5 rounded text-blue-300/70"
+                style={{ background: "rgba(30,60,160,0.2)", border: "1px solid rgba(30,80,180,0.2)" }}>
+                {d}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Recommended actions */}
+      {(report.recommendedActions ?? []).length > 0 && (
+        <div>
+          <p className="text-[9px] uppercase tracking-widest text-white/25 mb-1.5">Recommended Actions</p>
+          <ul className="space-y-1">
+            {report.recommendedActions.map((a, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3 h-3 text-green-400/60 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-white/65">{a}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {/* Action buttons */}
+      <div className="space-y-2 pt-1 border-t border-white/8">
+        {docTypes.length > 0 && (
+          <div>
+            <p className="text-[9px] uppercase tracking-widest text-white/25 mb-1.5">Draft Instrument</p>
+            <div className="flex flex-wrap gap-1.5">
+              {docTypes.map((dt) => (
+                <button
+                  key={dt}
+                  onClick={() => storeAndNavigate(dt)}
+                  className="flex items-center gap-1.5 text-[10px] px-2.5 py-1.5 rounded-lg text-white/70 hover:text-white transition-all"
+                  style={{ background: "rgba(107,0,0,0.4)", border: "1px solid rgba(255,255,255,0.12)" }}
+                >
+                  <FileText className="w-3 h-3" />
+                  {DOC_LABELS[dt] ?? dt}
+                  <ArrowRight className="w-3 h-3" />
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+        {elevated && (
+          <button
+            onClick={() => {
+              navigate(`${BASE}/sovereign-pipeline`);
+            }}
+            className="w-full flex items-center justify-center gap-2 text-[11px] px-3 py-2 rounded-lg text-white/80 hover:text-white transition-all"
+            style={{ background: "rgba(107,0,0,0.5)", border: "1px solid rgba(180,20,20,0.35)" }}
+          >
+            <Shield className="w-3.5 h-3.5" />
+            Run Sovereign Pipeline
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        )}
+        <button
+          onClick={onReset}
+          className="w-full text-[10px] text-white/25 hover:text-white/45 transition-colors py-1"
+        >
+          Start a new intake
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ─── Intake Tab ─────────────────────────────────────────────── */
+function IntakeTab({ memberName }: { memberName?: string }) {
+  const { toast } = useToast();
+  const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
+
+  const [phase, setPhase] = useState<"select" | "open" | "describe" | "result">("select");
+  const [selected, setSelected] = useState<IntakeOption | null>(null);
+  const [description, setDescription] = useState("");
+  const [result, setResult] = useState<IntakeAgentReport | null>(null);
+
+  const intakeMutation = useMutation({
+    mutationFn: async ({ text, caseType }: { text: string; caseType: string }) => {
+      const r = await fetch("/api/intake/analyze", {
+        method: "POST",
+        headers: { ...authHeader, "Content-Type": "application/json" },
+        body: JSON.stringify({ text, context: { caseType } }),
+      });
+      if (!r.ok) {
+        const e = await r.json().catch(() => ({}));
+        throw new Error((e as any).error ?? "Intake analysis failed");
+      }
+      return r.json() as Promise<IntakeAgentReport>;
+    },
+    onSuccess: (data) => {
+      setResult(data);
+      setPhase("result");
+    },
+    onError: (e) => toast({ title: "Intake error", description: (e as Error).message, variant: "destructive" }),
+  });
+
+  function handleSelect(opt: IntakeOption) {
+    setSelected(opt);
+    setPhase("open");
+  }
+
+  function handleProceed() {
+    setPhase("describe");
+  }
+
+  function handleSubmit() {
+    if (!description.trim() || !selected) return;
+    intakeMutation.mutate({ text: description.trim(), caseType: selected.caseType });
+  }
+
+  function handleReset() {
+    setPhase("select");
+    setSelected(null);
+    setDescription("");
+    setResult(null);
+    intakeMutation.reset();
+  }
+
+  /* ── Phase: select type ── */
+  if (phase === "select") {
+    return (
+      <div className="px-4 py-4 space-y-3">
+        <div className="mb-1">
+          <p className="text-[11px] text-white/50 leading-relaxed">
+            I'm here to guide you — not just answer questions, but walk with you through what you need.
+            Tell me what kind of matter we're working on{memberName ? `, ${memberName.split(" ")[0]}` : ""}.
+          </p>
+        </div>
+        <div className="space-y-2">
+          {INTAKE_OPTIONS.map((opt) => (
+            <button
+              key={opt.key}
+              onClick={() => handleSelect(opt)}
+              className="w-full text-left rounded-xl px-3.5 py-3 hover:brightness-110 transition-all group"
+              style={INTAKE_BG}
+            >
+              <div className="flex items-start gap-3">
+                <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0 mt-0.5"
+                  style={{ background: "rgba(30,80,160,0.3)", border: "1px solid rgba(60,120,220,0.2)" }}>
+                  <span className="text-blue-300/70">{opt.icon}</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <p className="text-sm font-semibold text-white/80 group-hover:text-white transition-colors">{opt.label}</p>
+                    <ChevronRight className="w-4 h-4 text-white/20 group-hover:text-white/50 transition-colors shrink-0" />
+                  </div>
+                  <p className="text-[10px] text-white/35 mt-0.5">{opt.sublabel}</p>
+                  <p className="text-[11px] text-white/45 mt-1 leading-snug">{opt.description}</p>
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Phase: Kaya's opening — inform + offer ── */
+  if (phase === "open" && selected) {
+    return (
+      <div className="px-4 py-4 space-y-4">
+        {/* Kaya's message */}
+        <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
+          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">Kaya</p>
+          <p className="text-sm text-white/80 leading-relaxed">{selected.kayaOpening}</p>
+        </div>
+
+        {/* What we'll need */}
+        <div className="rounded-lg px-3 py-2.5" style={INTAKE_BG}>
+          <p className="text-[9px] uppercase tracking-widest text-blue-300/50 mb-1.5">What I'll analyze</p>
+          <ul className="space-y-1">
+            {[
+              "Any rights or protections that apply to your situation",
+              "Sovereign law doctrines that may be triggered",
+              "Violations or red flags to address",
+              "The instruments and actions that will best serve you",
+            ].map((item, i) => (
+              <li key={i} className="flex items-start gap-1.5">
+                <CheckCircle2 className="w-3 h-3 text-blue-400/50 shrink-0 mt-0.5" />
+                <span className="text-[11px] text-white/50">{item}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPhase("select")}
+            className="flex-1 text-[11px] text-white/30 hover:text-white/55 transition-colors py-2"
+          >
+            ← Choose different type
+          </button>
+          <button
+            onClick={handleProceed}
+            className="flex-1 flex items-center justify-center gap-1.5 text-[12px] font-medium text-white/80 hover:text-white rounded-lg py-2 transition-all"
+            style={{ background: "rgba(107,0,0,0.5)", border: "1px solid rgba(180,20,20,0.35)" }}
+          >
+            Ready — let's go
+            <ArrowRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  /* ── Phase: describe situation ── */
+  if (phase === "describe" && selected) {
+    return (
+      <div className="px-4 py-4 space-y-3">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-blue-300/50">{selected.icon}</span>
+          <p className="text-[10px] uppercase tracking-widest text-white/35 font-bold">{selected.label}</p>
+        </div>
+
+        <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
+          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">Kaya</p>
+          <p className="text-sm text-white/80 leading-relaxed">
+            Take your time. Describe what's happening — as much or as little as you're ready to share. I'll work with what you give me and let you know if I need anything else.
+          </p>
+        </div>
+
+        <Textarea
+          value={description}
+          onChange={e => setDescription(e.target.value)}
+          placeholder={selected.placeholder}
+          className="w-full resize-none text-sm text-white/85 placeholder:text-white/20 rounded-lg"
+          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 120 }}
+          disabled={intakeMutation.isPending}
+        />
+
+        <div className="flex gap-2">
+          <button
+            onClick={() => setPhase("open")}
+            className="flex-1 text-[11px] text-white/25 hover:text-white/50 transition-colors py-2"
+            disabled={intakeMutation.isPending}
+          >
+            ← Back
+          </button>
+          <button
+            onClick={handleSubmit}
+            disabled={!description.trim() || intakeMutation.isPending}
+            className="flex-1 flex items-center justify-center gap-2 text-[12px] font-medium text-white/80 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-2 transition-all"
+            style={{ background: "rgba(107,0,0,0.5)", border: "1px solid rgba(180,20,20,0.35)" }}
+          >
+            {intakeMutation.isPending ? (
+              <>
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                Kaya is analyzing…
+              </>
+            ) : (
+              <>
+                <Shield className="w-3.5 h-3.5" />
+                Run Intake Analysis
+              </>
+            )}
+          </button>
+        </div>
+
+        {intakeMutation.isPending && (
+          <p className="text-[10px] text-white/20 text-center">
+            Kaya is reviewing your situation against sovereign law and protections…
+          </p>
+        )}
+      </div>
+    );
+  }
+
+  /* ── Phase: result ── */
+  if (phase === "result" && result) {
+    return <IntakeResultPanel report={result} intakeType={selected!.key} onReset={handleReset} />;
+  }
+
+  return null;
+}
+
+/* ─── Main KayaChat Component ────────────────────────────────── */
 export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifications, pendingFilings }: KayaChatProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -72,7 +537,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const [inputMode, setInputMode] = useState<"chat" | "journal" | "memory">("chat");
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
-  const [tab, setTab] = useState<"chat" | "memory" | "journal">("chat");
+  const [tab, setTab] = useState<"chat" | "intake" | "memory" | "journal">("chat");
   const [collapsed, setCollapsed] = useState(false);
 
   const [pendingSaveMessage, setPendingSaveMessage] = useState<{ id: number; content: string } | null>(null);
@@ -208,7 +673,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const diaryEntries = diaryData?.entries ?? [];
   const knowledgeEntries = knowledgeData?.entries ?? [];
   const isWorking = chatMutation.isPending || diaryMutation.isPending || knowledgeMutation.isPending;
-  const firstName = (user?.name ?? "").split(/[\s,]+/)[0] || "you";
 
   const tabBtn = (key: typeof tab, icon: React.ReactNode, label: string) => (
     <button
@@ -229,7 +693,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
       {/* ── Header ── */}
       <div className="flex items-center justify-between px-4 py-3" style={HEADER_BG}>
         <div className="flex items-center gap-2.5">
-          {/* Kaya icon */}
           <div
             className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
             style={{ background: "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "1px solid rgba(255,255,255,0.15)" }}
@@ -242,7 +705,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
               Your Sovereign Companion · {knowledgeEntries.length} memories
             </p>
           </div>
-          {/* Member context badges */}
           {(pendingTasks ?? 0) > 0 && (
             <span className="text-[9px] px-1.5 py-0.5 rounded-full text-amber-300/80 font-semibold" style={{ background: "rgba(180,120,10,0.2)", border: "1px solid rgba(180,120,10,0.25)" }}>
               {pendingTasks} task{pendingTasks !== 1 ? "s" : ""}
@@ -255,7 +717,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           )}
         </div>
         <div className="flex items-center gap-1.5">
-          {/* Member photo avatar */}
           {memberPhoto && (
             <div className="w-7 h-7 rounded-full overflow-hidden border border-white/20 flex-shrink-0" title={memberName ?? "Member"}>
               <img src={memberPhoto} alt={memberName ?? "Member"} className="w-full h-full object-cover" />
@@ -264,6 +725,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           {!collapsed && (
             <>
               {tabBtn("chat", <MessageCircle className="w-3 h-3" />, "Chat")}
+              {tabBtn("intake", <ClipboardList className="w-3 h-3" />, "Intake")}
               {tabBtn("memory", <Brain className="w-3 h-3" />, "Memory")}
               {tabBtn("journal", <BookOpen className="w-3 h-3" />, "Journal")}
             </>
@@ -280,7 +742,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
 
       {collapsed && (
         <div className="px-4 py-2 text-[11px] text-white/25 italic">
-          Kaya is ready — expand to chat, add to memory, or journal.
+          Kaya is ready — expand to chat, start an intake, add to memory, or journal.
         </div>
       )}
 
@@ -296,7 +758,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="py-5 space-y-4">
-                    {/* Greeting + member photo */}
                     <div className="flex items-center gap-3">
                       {memberPhoto ? (
                         <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 shrink-0">
@@ -316,7 +777,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                         </p>
                       </div>
                     </div>
-                    {/* Contextual status strip */}
                     {((pendingTasks ?? 0) > 0 || (unreadNotifications ?? 0) > 0 || (pendingFilings ?? 0) > 0) && (
                       <div className="flex flex-wrap gap-1.5 px-1">
                         {(pendingTasks ?? 0) > 0 && (
@@ -336,7 +796,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                         )}
                       </div>
                     )}
-                    {/* Quick prompt chips */}
                     <div>
                       <p className="text-white/20 text-[10px] uppercase tracking-widest mb-2 px-1">Ask me about</p>
                       <div className="flex flex-wrap gap-1.5">
@@ -351,6 +810,21 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                           </button>
                         ))}
                       </div>
+                    </div>
+                    {/* Intake prompt */}
+                    <div className="rounded-xl px-3.5 py-3" style={INTAKE_BG}>
+                      <p className="text-[10px] text-blue-300/50 uppercase tracking-widest mb-1.5 font-bold">Need to start a matter?</p>
+                      <p className="text-[11px] text-white/45 leading-relaxed mb-2">
+                        For business, filings, or profile updates — I'll guide you through it step by step.
+                      </p>
+                      <button
+                        onClick={() => setTab("intake")}
+                        className="flex items-center gap-1.5 text-[11px] text-blue-300/70 hover:text-blue-200/90 transition-colors"
+                      >
+                        <ClipboardList className="w-3.5 h-3.5" />
+                        Start an intake
+                        <ArrowRight className="w-3 h-3" />
+                      </button>
                     </div>
                   </div>
                 ) : (
@@ -396,7 +870,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 <div ref={bottomRef} />
               </div>
 
-              {/* Pending save to memory banner */}
+              {/* Pending save to memory */}
               {pendingSaveMessage && (
                 <div className="mx-4 mb-2 rounded-lg px-3 py-2 flex items-start gap-2" style={MSG_KNOWLEDGE}>
                   <Brain className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />
@@ -526,6 +1000,13 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 </p>
               </div>
             </>
+          )}
+
+          {/* ── Intake Tab ── */}
+          {tab === "intake" && (
+            <div style={{ minHeight: 280 }}>
+              <IntakeTab memberName={memberName} />
+            </div>
           )}
 
           {/* ── Memory Tab ── */}
