@@ -11,7 +11,7 @@ import {
   Brain, Trash2, ChevronDown, ChevronUp, Plus, X,
   ClipboardList, Briefcase, FileText, User, Shield,
   AlertTriangle, CheckCircle2, ArrowRight, ChevronRight,
-  Scale, Zap, Activity,
+  Scale, Zap, Activity, Mic, MicOff,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -743,6 +743,10 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [tab, setTab] = useState<"chat" | "intake" | "memory" | "journal">("chat");
   const [collapsed, setCollapsed] = useState(false);
+  const [copiedId, setCopiedId] = useState<number | null>(null);
+  const [listening, setListening] = useState(false);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const recognitionRef = useRef<any>(null);
 
   const [pendingSaveMessage, setPendingSaveMessage] = useState<{ id: number; content: string } | null>(null);
   const [alignmentWarning, setAlignmentWarning] = useState<AlignmentWarning | null>(null);
@@ -893,6 +897,41 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
 
   function handleKeyDown(e: React.KeyboardEvent<HTMLTextAreaElement>) {
     if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) handleSend();
+  }
+
+  function handleCopy(id: number, text: string) {
+    navigator.clipboard.writeText(text).then(() => {
+      setCopiedId(id);
+      setTimeout(() => setCopiedId(null), 2000);
+    });
+  }
+
+  function toggleVoice() {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      toast({ title: "Voice not supported", description: "Your browser doesn't support speech recognition.", variant: "destructive" });
+      return;
+    }
+    if (listening) {
+      recognitionRef.current?.stop();
+      setListening(false);
+      return;
+    }
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition: any = new SR();
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.lang = "en-US";
+    recognition.onresult = (e: any) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? "";
+      setInput(prev => (prev ? prev + " " + transcript : transcript));
+      setListening(false);
+    };
+    recognition.onerror = () => setListening(false);
+    recognition.onend = () => setListening(false);
+    recognitionRef.current = recognition;
+    recognition.start();
+    setListening(true);
   }
 
   const messages = historyData?.messages ?? [];
@@ -1096,6 +1135,21 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                           <p className="text-sm text-white/88 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                           <p className="text-[9px] text-white/25 mt-1 text-right">{formatTime(msg.createdAt)}</p>
                         </div>
+                        {/* Copy button — assistant messages */}
+                        {msg.role === "assistant" && (
+                          <button
+                            onClick={() => handleCopy(msg.id, msg.content)}
+                            className="absolute -bottom-4 left-0 opacity-0 group-hover:opacity-100 transition-opacity text-[9px] flex items-center gap-1 whitespace-nowrap px-1.5 py-0.5 rounded"
+                            style={{ color: copiedId === msg.id ? "rgba(110,231,183,0.9)" : "rgba(255,200,100,0.5)" }}
+                            title="Copy response"
+                          >
+                            {copiedId === msg.id
+                              ? <><CheckCircle2 className="w-2.5 h-2.5" /> Copied</>
+                              : <><X className="w-2.5 h-2.5 rotate-45" style={{ transform: "rotate(0deg)" }} /><span>copy</span></>
+                            }
+                          </button>
+                        )}
+                        {/* Save to memory — user messages */}
                         {msg.role === "user" && (
                           <button
                             onClick={() => setPendingSaveMessage({ id: msg.id, content: msg.content })}
@@ -1293,31 +1347,56 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                     onChange={e => setInput(e.target.value)}
                     onKeyDown={handleKeyDown}
                     placeholder={
-                      inputMode === "journal"
+                      listening
+                        ? "Listening… speak now"
+                        : inputMode === "journal"
                         ? "Write your reflection… COMPANION carries this forward."
                         : inputMode === "memory"
                         ? "Share knowledge for COMPANION to remember across all sessions…"
                         : "Ask COMPANION about law, sovereignty, or anything on your mind…"
                     }
                     className="flex-1 resize-none text-sm text-white/85 placeholder:text-white/20 rounded-lg min-h-[72px] max-h-[140px]"
-                    style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
+                    style={{
+                      background: listening ? "rgba(180,20,20,0.08)" : "rgba(255,255,255,0.04)",
+                      border: listening ? "1px solid rgba(220,50,50,0.35)" : "1px solid rgba(255,255,255,0.08)",
+                    }}
                     disabled={isWorking}
                   />
-                  <Button
-                    onClick={handleSend}
-                    disabled={!input.trim() || isWorking}
-                    className="self-end h-9 w-9 p-0 rounded-lg flex-shrink-0"
-                    style={{ background: inputMode === "memory" ? "linear-gradient(135deg, #5a3a00 0%, #8a6020 100%)" : "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "none" }}
-                  >
-                    {isWorking
-                      ? <Loader2 className="w-4 h-4 animate-spin text-white" />
-                      : inputMode === "memory"
-                      ? <Brain className="w-4 h-4 text-amber-200" />
-                      : <Send className="w-4 h-4 text-white" />}
-                  </Button>
+                  <div className="flex flex-col gap-1.5 self-end flex-shrink-0">
+                    {/* Voice input button */}
+                    <button
+                      onClick={toggleVoice}
+                      title={listening ? "Stop listening" : "Speak to COMPANION"}
+                      className="h-9 w-9 p-0 rounded-lg flex items-center justify-center transition-all"
+                      style={{
+                        background: listening
+                          ? "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)"
+                          : "rgba(255,255,255,0.06)",
+                        border: listening ? "1px solid rgba(220,60,60,0.4)" : "1px solid rgba(255,255,255,0.1)",
+                      }}
+                    >
+                      {listening
+                        ? <MicOff className="w-4 h-4 text-red-300 animate-pulse" />
+                        : <Mic className="w-4 h-4 text-white/45 hover:text-white/70" />
+                      }
+                    </button>
+                    {/* Send button */}
+                    <Button
+                      onClick={handleSend}
+                      disabled={!input.trim() || isWorking}
+                      className="h-9 w-9 p-0 rounded-lg flex-shrink-0"
+                      style={{ background: inputMode === "memory" ? "linear-gradient(135deg, #5a3a00 0%, #8a6020 100%)" : "linear-gradient(135deg, #6B0000 0%, #9B1A1A 100%)", border: "none" }}
+                    >
+                      {isWorking
+                        ? <Loader2 className="w-4 h-4 animate-spin text-white" />
+                        : inputMode === "memory"
+                        ? <Brain className="w-4 h-4 text-amber-200" />
+                        : <Send className="w-4 h-4 text-white" />}
+                    </Button>
+                  </div>
                 </div>
                 <p className="text-[9px] text-white/18 text-right">
-                  Ctrl+Enter to send ·{" "}
+                  Ctrl+Enter to send · tap mic to speak ·{" "}
                   {inputMode === "memory" ? "COMPANION will retain this across all conversations" : "COMPANION carries your conversations and memory forward"}
                 </p>
               </div>
