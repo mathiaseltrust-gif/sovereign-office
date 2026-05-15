@@ -33,6 +33,7 @@ interface GatewayData {
   benefitEligibility: Record<string, boolean>;
   delegatedAuthorities: { canGenerateTribalId: boolean; memberType: string };
   profilePhoto: string | null;
+  signatureUrl: string | null;
   issueDate: string | null;
   expiryDate: string | null;
   bloodline: string | null;
@@ -346,14 +347,36 @@ export default function TribalIdPage() {
               </div>
             </div>
 
-            {/* ISS / EXP dates — bottom right of fields */}
+            {/* Signature + ISS/EXP — bottom row */}
             <div
-              className="flex items-end justify-between pt-2 mt-2"
+              className="flex items-end justify-between pt-2 mt-2 gap-3"
               style={{ borderTop: "1px solid rgba(255,255,255,0.12)" }}
             >
-              <p className="text-[7.5px] text-white/35 leading-snug max-w-[55%]">
-                By inherent right · Descendants of the Treaty of Dancing Rabbit Creek (1830)
-              </p>
+              {/* Signature block — left */}
+              <div className="flex-1 min-w-0">
+                <p className="text-[7px] tracking-[0.18em] font-semibold uppercase mb-1" style={{ color: "rgba(255,255,255,0.40)" }}>
+                  Holder's Signature
+                </p>
+                {data.signatureUrl ? (
+                  <div
+                    className="rounded overflow-hidden flex items-end"
+                    style={{ height: 38, maxWidth: 180, background: "rgba(255,255,255,0.06)", border: "1px solid rgba(255,255,255,0.14)", padding: "2px 6px" }}
+                  >
+                    <img
+                      src={data.signatureUrl}
+                      alt="Holder signature"
+                      style={{ maxHeight: 32, maxWidth: 168, objectFit: "contain", filter: "brightness(0) invert(1)", opacity: 0.88 }}
+                    />
+                  </div>
+                ) : (
+                  <div style={{ width: 160, height: 28, borderBottom: "1px solid rgba(255,255,255,0.25)" }} />
+                )}
+                <p className="text-[6.5px] text-white/25 leading-snug mt-1 max-w-[180px]">
+                  By inherent right · Treaty of Dancing Rabbit Creek (1830)
+                </p>
+              </div>
+
+              {/* ISS / EXP — right */}
               <div className="flex gap-4 flex-shrink-0">
                 {data.issueDate && (
                   <div className="text-right">

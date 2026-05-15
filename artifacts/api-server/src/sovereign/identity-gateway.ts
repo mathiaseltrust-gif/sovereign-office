@@ -65,6 +65,7 @@ export interface SovereignIdentityGatewayPayload {
   isElder: boolean;
   elderAuthorities: string[];
   profilePhoto: string | null;
+  signatureUrl: string | null;
   visibilityRules: VisibilityRules;
   generationalPosition: number;
   generationalDepth: number;
@@ -208,7 +209,7 @@ export async function resolveSovereignIdentityGateway(
       benefitEligibility: { icwa: false, tribalWelfare: false, trustBeneficiary: false, membershipBenefits: false, ancestralLandRights: false },
       orgAffiliations: resolveOrgAffiliations(role, []),
       elderStatus, isElder, elderAuthorities,
-      profilePhoto: null, visibilityRules,
+      profilePhoto: null, signatureUrl: null, visibilityRules,
       generationalPosition: 0, generationalDepth: 0,
       icwaEligible: false, welfareEligible: false, trustInheritance: false,
       issueDate: null, expiryDate: null, bloodline: null,
@@ -301,6 +302,7 @@ export async function resolveSovereignIdentityGateway(
       },
       orgAffiliations, elderStatus, isElder, elderAuthorities,
       profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl ?? (profile as any)?.profilePhoto ?? null,
+      signatureUrl: (profile as any)?.signatureUrl ?? null,
       visibilityRules,
       generationalPosition, generationalDepth,
       icwaEligible, welfareEligible, trustInheritance,
@@ -318,7 +320,7 @@ export async function resolveSovereignIdentityGateway(
       ancestorChain: [], tribalNations: [], membershipVerified: false, entraVerified: false, lineageVerified: false,
       delegatedAuthorities: authorities, protectionLevel: "standard",
       benefitEligibility: { icwa: false, tribalWelfare: false, trustBeneficiary: false, membershipBenefits: false, ancestralLandRights: false },
-      orgAffiliations: [], elderStatus, isElder, elderAuthorities, profilePhoto: null,
+      orgAffiliations: [], elderStatus, isElder, elderAuthorities, profilePhoto: null, signatureUrl: null,
       visibilityRules: buildVisibilityRules(role, false, []),
       generationalPosition: 0, generationalDepth: 0,
       icwaEligible: false, welfareEligible: false, trustInheritance: false,
