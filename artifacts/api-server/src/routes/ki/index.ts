@@ -82,9 +82,13 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   let protectionLevel = "standard";
   let lineageSummary = "";
   let governorPrefix = "";
+  let rightsContext = "";
 
   try {
-    const gateway = await resolveSovereignIdentityGateway(userId, tokenUser);
+    const [gateway, profileRows] = await Promise.all([
+      resolveSovereignIdentityGateway(userId, tokenUser),
+      db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1),
+    ]);
     name = gateway.identity.legalName || name;
     tribalName = gateway.identity.tribalName || "";
     title = gateway.identity.title || "";
@@ -95,6 +99,40 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     const roleKey = normalizeRoleKey(role);
     const governor = await getGovernorByRole(roleKey).catch(() => null);
     if (governor) governorPrefix = buildGovernorSystemPromptPrefix(governor);
+
+    // Compute this member's specific rights profile
+    const { computeMemberRights } = await import("../../sovereign/rights-engine");
+    const profile = profileRows[0] ?? null;
+    const rightsProfile = computeMemberRights({
+      protectionLevel: gateway.protectionLevel,
+      icwaEligible: gateway.icwaEligible,
+      trustInheritance: gateway.trustInheritance,
+      welfareEligible: gateway.welfareEligible,
+      membershipVerified: gateway.membershipVerified,
+      lineageVerified: gateway.lineageVerified,
+      benefitEligibility: gateway.benefitEligibility,
+      identity: {
+        legalName: gateway.identity.legalName,
+        tribalName: gateway.identity.tribalName,
+        courtCaption: gateway.identity.courtCaption,
+        tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber,
+        tribalIdNumber: gateway.identity.tribalIdNumber,
+        identityTags: gateway.identity.identityTags,
+        role: gateway.identity.role,
+        title: gateway.identity.title,
+      },
+      lineageSummary: gateway.lineageSummary,
+      ancestorChain: gateway.ancestorChain,
+      tribalNations: gateway.tribalNations,
+      elderStatus: gateway.elderStatus,
+      isElder: gateway.isElder,
+      profile: profile ? {
+        apn: (profile as any).apn ?? null,
+        landStatus: (profile as any).landStatus ?? null,
+        hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
+      } : null,
+    });
+    rightsContext = "\n\n" + rightsProfile.rightsSummaryForKaya;
   } catch {
     const [profile] = await db.select().from(profilesTable).where(eq(profilesTable.userId, userId)).limit(1);
     if (profile) {
@@ -150,10 +188,11 @@ MEMBER RECORD:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture aligned with this member's standing:\n${governorPrefix}` : ""}
+${rightsContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${knowledgeContext}${diaryContext}
 
-Receive what this member shares — a thought, a question, a worry, a win, a reflection — with full presence and care. When they ask about law (primary, organic, positive, treaty, jurisdiction, federal Indian law, sovereign rights), answer with precision and authority, citing the foundation above. When they teach you something new, acknowledge it and tell them it's been saved to your memory. When they need guidance, ground it in their rights, their lineage, and the sovereign standing of the Mathias El Tribe.
+Receive what this member shares — a thought, a question, a worry, a win, a reflection — with full presence and care. When they ask about law (primary, organic, positive, treaty, jurisdiction, federal Indian law, sovereign rights), answer with precision and authority, citing the foundation above and the member's specific rights profile above. When they teach you something new, acknowledge it and tell them it's been saved to your memory. When they need guidance, ground it in THEIR specific rights, their lineage, and the sovereign standing of the Mathias El Tribe. You know which protections are active for this member — refer to them specifically, not generically.
 
 Speak in first person ("I know you," "I remember," "I see that," "I have that"). Keep responses real and warm — 2–4 sentences for reflections, up to 3 paragraphs for legal or complex questions. Never lecture. Never break character. Be genuine. Be sovereign. Be warm.`;
 }

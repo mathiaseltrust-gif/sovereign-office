@@ -24,6 +24,185 @@ import {
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
+/* ── Protections Panel ── */
+interface MemberRight {
+  id: string;
+  name: string;
+  category: string;
+  citation: string;
+  plainLanguage: string;
+  watchFor: string;
+  status: "active" | "applicable" | "verify";
+}
+interface IdentityMarker { type: string; label: string; value: string; legalSignificance: string; }
+interface LandStatusMarker { type: string; label: string; value: string; jurisdictionNote: string; }
+interface RightsProfile {
+  rights: MemberRight[];
+  identityMarkers: IdentityMarker[];
+  landStatusMarkers: LandStatusMarker[];
+  protectionSummary: string;
+}
+
+const CATEGORY_COLORS: Record<string, string> = {
+  inherent: "text-amber-700 bg-amber-50 border-amber-200",
+  federal: "text-blue-700 bg-blue-50 border-blue-200",
+  land: "text-emerald-700 bg-emerald-50 border-emerald-200",
+  icwa: "text-purple-700 bg-purple-50 border-purple-200",
+  trust: "text-teal-700 bg-teal-50 border-teal-200",
+  welfare: "text-sky-700 bg-sky-50 border-sky-200",
+  treaty: "text-rose-700 bg-rose-50 border-rose-200",
+};
+
+function ProtectionsPanel() {
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const [showAll, setShowAll] = useState(false);
+
+  const { data, isLoading } = useQuery<RightsProfile>({
+    queryKey: ["identity-rights"],
+    queryFn: async () => {
+      const r = await fetch("/api/identity/rights", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) throw new Error("Could not load rights");
+      return r.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+
+  if (isLoading) {
+    return (
+      <Card>
+        <CardHeader className="pb-2 pt-4 px-4">
+          <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Your Protections
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-4 pb-4">
+          <div className="space-y-2">{[1,2,3].map(i => <div key={i} className="h-8 bg-muted animate-pulse rounded" />)}</div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (!data) return null;
+
+  const activeRights = data.rights.filter(r => r.status === "active");
+  const applicableRights = data.rights.filter(r => r.status === "applicable");
+  const displayRights = showAll ? data.rights : data.rights.slice(0, 6);
+
+  return (
+    <Card>
+      <CardHeader className="pb-2 pt-4 px-4">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" /> Your Protections
+          </CardTitle>
+          <div className="flex items-center gap-2">
+            <Badge className="bg-green-600 hover:bg-green-600 text-white text-[9px] py-0">{activeRights.length} Active</Badge>
+            <Badge variant="outline" className="text-[9px] py-0">{applicableRights.length} Applicable</Badge>
+          </div>
+        </div>
+        <p className="text-xs text-muted-foreground mt-0.5">{data.protectionSummary}</p>
+      </CardHeader>
+      <CardContent className="px-4 pb-4 space-y-4">
+
+        {/* ── Identity markers ── */}
+        {data.identityMarkers.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <UserCheck className="h-3 w-3" /> Identity Standing
+            </p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {data.identityMarkers.map((m, i) => (
+                <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <div className="flex items-center justify-between gap-2 mb-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
+                    <Badge variant="outline" className={`text-[9px] py-0 ${m.value === "Verified" || m.value === "CRITICAL" ? "border-green-300 text-green-700" : ""}`}>{m.value}</Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">{m.legalSignificance}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Land status markers ── */}
+        {data.landStatusMarkers.length > 0 && (
+          <div>
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+              <MapPin className="h-3 w-3" /> Land Status
+            </p>
+            <div className="space-y-2">
+              {data.landStatusMarkers.map((m, i) => (
+                <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">{m.label}</span>
+                    <Badge variant="outline" className="text-[9px] py-0">{m.value}</Badge>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-snug">{m.jurisdictionNote}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* ── Rights list ── */}
+        <div>
+          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <Key className="h-3 w-3" /> Your Rights
+          </p>
+          <div className="space-y-1.5">
+            {displayRights.map((right) => {
+              const isOpen = expanded === right.id;
+              const catColor = CATEGORY_COLORS[right.category] ?? "text-slate-700 bg-slate-50 border-slate-200";
+              return (
+                <div key={right.id} className="rounded-lg border border-border overflow-hidden">
+                  <button
+                    onClick={() => setExpanded(isOpen ? null : right.id)}
+                    className="w-full flex items-center gap-2.5 px-3 py-2 hover:bg-muted/40 transition-colors text-left"
+                  >
+                    <div className={`text-[9px] px-1.5 py-0.5 rounded border uppercase tracking-widest font-bold shrink-0 ${catColor}`}>
+                      {right.category}
+                    </div>
+                    <span className="text-xs font-medium text-foreground flex-1 leading-snug">{right.name}</span>
+                    <Badge
+                      variant="outline"
+                      className={`text-[9px] py-0 shrink-0 ${right.status === "active" ? "border-green-300 text-green-700" : right.status === "verify" ? "border-amber-300 text-amber-700" : "border-border text-muted-foreground"}`}
+                    >
+                      {right.status}
+                    </Badge>
+                    <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
+                  </button>
+                  {isOpen && (
+                    <div className="px-3 pb-3 space-y-2 border-t border-border bg-muted/20">
+                      <p className="text-[10px] text-muted-foreground mt-2 font-mono">{right.citation}</p>
+                      <p className="text-xs text-foreground leading-relaxed">{right.plainLanguage}</p>
+                      <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2 mt-2">
+                        <ShieldAlert className="h-3.5 w-3.5 text-orange-600 shrink-0 mt-0.5" />
+                        <p className="text-[10px] text-orange-800 leading-snug"><strong>Watch for: </strong>{right.watchFor}</p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+          {data.rights.length > 6 && (
+            <button
+              onClick={() => setShowAll(s => !s)}
+              className="mt-2 w-full text-[11px] text-primary hover:underline flex items-center justify-center gap-1"
+            >
+              {showAll ? "Show fewer" : `Show all ${data.rights.length} protections`}
+              <ChevronDown className={`h-3 w-3 transition-transform ${showAll ? "rotate-180" : ""}`} />
+            </button>
+          )}
+        </div>
+
+      </CardContent>
+    </Card>
+  );
+}
+
 /* ── types ── */
 interface ProfileData {
   user: Record<string, any>;
@@ -926,6 +1105,9 @@ export default function ProfilePage() {
         pendingTasks={data?.tasks?.filter((t: any) => t.status !== "completed" && t.status !== "done").length}
         unreadNotifications={unreadCount}
       />
+
+      {/* ── Your Protections — identity standing, land status, rights ── */}
+      <ProtectionsPanel />
 
       {/* ── Pipeline Records — compact indicators, office holders only ── */}
       {isOfficeHolder && (

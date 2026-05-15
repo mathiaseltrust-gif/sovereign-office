@@ -1,0 +1,63 @@
+import { Router } from "express";
+import { requireAuth } from "../../auth/entra-guard";
+import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
+import { computeMemberRights } from "../../sovereign/rights-engine";
+import { db } from "@workspace/db";
+import { profilesTable } from "@workspace/db";
+import { eq } from "drizzle-orm";
+
+const router = Router();
+
+router.get("/rights", requireAuth, async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId ?? 0;
+    const tokenUser = {
+      email: req.user!.email,
+      name: req.user!.name ?? req.user!.email,
+      roles: req.user!.roles ?? [],
+    };
+
+    const [gateway, profileRows] = await Promise.all([
+      resolveSovereignIdentityGateway(dbId, tokenUser),
+      db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1),
+    ]);
+
+    const profile = profileRows[0] ?? null;
+
+    const rightsProfile = computeMemberRights({
+      protectionLevel: gateway.protectionLevel,
+      icwaEligible: gateway.icwaEligible,
+      trustInheritance: gateway.trustInheritance,
+      welfareEligible: gateway.welfareEligible,
+      membershipVerified: gateway.membershipVerified,
+      lineageVerified: gateway.lineageVerified,
+      benefitEligibility: gateway.benefitEligibility,
+      identity: {
+        legalName: gateway.identity.legalName,
+        tribalName: gateway.identity.tribalName,
+        courtCaption: gateway.identity.courtCaption,
+        tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber,
+        tribalIdNumber: gateway.identity.tribalIdNumber,
+        identityTags: gateway.identity.identityTags,
+        role: gateway.identity.role,
+        title: gateway.identity.title,
+      },
+      lineageSummary: gateway.lineageSummary,
+      ancestorChain: gateway.ancestorChain,
+      tribalNations: gateway.tribalNations,
+      elderStatus: gateway.elderStatus,
+      isElder: gateway.isElder,
+      profile: profile ? {
+        apn: (profile as any).apn ?? null,
+        landStatus: (profile as any).landStatus ?? null,
+        hasRecordedInstrument: (profile as any).hasRecordedInstrument ?? false,
+      } : null,
+    });
+
+    res.json(rightsProfile);
+  } catch (err) {
+    next(err);
+  }
+});
+
+export default router;
