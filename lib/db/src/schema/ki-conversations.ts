@@ -7,6 +7,7 @@ export const kiConversationsTable = pgTable("ki_conversations", {
   content: text("content").notNull(),
   isDiary: boolean("is_diary").default(false).notNull(),
   mood: text("mood"),
+  category: text("category"),
   sessionId: text("session_id"),
   createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
 });
