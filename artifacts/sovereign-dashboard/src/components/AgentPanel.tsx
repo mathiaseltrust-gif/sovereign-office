@@ -197,14 +197,14 @@ export function AgentPanel(props: AgentPanelProps) {
         <div
           className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-amber-100 font-serif text-xl font-bold select-none shadow-sm"
           style={{ background: "linear-gradient(135deg,#78350f 0%,#92400e 55%,#b45309 100%)" }}
-          title="Kaya — Your Sovereign AI Guide"
+          title="COMPANION — Indigenous Intelligence"
         >
-          K
+          C
         </div>
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1">
-            <span className="text-xs font-bold text-amber-900 tracking-wide">Kaya</span>
-            <span className="text-[10px] text-amber-600/60">· Sovereign AI Guide</span>
+            <span className="text-xs font-bold text-amber-900 tracking-wide">COMPANION</span>
+            <span className="text-[10px] text-amber-600/60">· Indigenous Intelligence</span>
             {!agent.isNewMember && (
               <span className="ml-auto text-[10px] bg-amber-900/10 text-amber-900 rounded-full px-2 py-0.5 font-semibold">
                 Lv {agent.awakeningLevel} · {agent.intakeCount} case{agent.intakeCount !== 1 ? "s" : ""}
@@ -265,7 +265,7 @@ export function AgentPanel(props: AgentPanelProps) {
         </div>
       )}
 
-      {/* ── Ask Kaya input ────────────────────────────────────────────────────── */}
+      {/* ── Ask COMPANION input ────────────────────────────────────────────────────── */}
       <div className="border-t border-amber-200/40 px-5 py-3 bg-white/20">
         <form onSubmit={handleAsk} className="flex items-center gap-2">
           <input
@@ -273,7 +273,7 @@ export function AgentPanel(props: AgentPanelProps) {
             type="text"
             value={chatMsg}
             onChange={e => setChatMsg(e.target.value)}
-            placeholder={`Ask Kaya anything, ${agent.firstName}…`}
+            placeholder={`Ask COMPANION anything, ${agent.firstName}…`}
             disabled={chatLoading}
             className="flex-1 bg-white/90 border border-amber-200 rounded-lg px-3 py-2 text-sm text-amber-950 placeholder:text-amber-300 focus:outline-none focus:ring-2 focus:ring-amber-400/40 focus:border-amber-400 disabled:opacity-50 transition-all"
           />

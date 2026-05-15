@@ -135,7 +135,7 @@ export function DocumentIntakePanel() {
         }),
       });
       if (!reviewRes.ok) {
-        throw new Error("Kaya review unavailable");
+        throw new Error("COMPANION review unavailable");
       }
       const reviewData = await reviewRes.json();
       setKayaExplanation(reviewData.reply ?? "");
@@ -181,7 +181,7 @@ export function DocumentIntakePanel() {
           <div>
             <p className="text-sm font-bold text-white leading-none">Document Review</p>
             <p className="text-[9px] tracking-[0.18em] text-white/40 uppercase mt-0.5">
-              Sovereign Intake · Kaya explains findings
+              Sovereign Intake · COMPANION explains findings
             </p>
           </div>
         </div>
@@ -195,7 +195,7 @@ export function DocumentIntakePanel() {
 
       {collapsed && (
         <div className="px-4 py-2 text-[11px] text-white/25 italic">
-          Upload a document for sovereign intake review — Kaya will explain what she finds.
+          Upload a document for sovereign intake review — COMPANION will explain what she finds.
         </div>
       )}
 
@@ -235,7 +235,7 @@ export function DocumentIntakePanel() {
               <p className="text-sm text-white/60">
                 {step === "uploading" && `Reading ${selectedFile?.name}…`}
                 {step === "analyzing" && "Running sovereign intake analysis…"}
-                {step === "kaya" && "Kaya is reviewing the findings…"}
+                {step === "kaya" && "COMPANION is reviewing the findings…"}
               </p>
             </div>
           )}
@@ -288,13 +288,13 @@ export function DocumentIntakePanel() {
                 </div>
               )}
 
-              {/* Kaya's explanation */}
+              {/* COMPANION's explanation */}
               {kayaExplanation && (
                 <div className="rounded-xl px-3.5 py-3"
                   style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.06)" }}>
                   <div className="flex items-center gap-1.5 mb-2">
                     <Feather className="w-3.5 h-3.5 text-amber-400/70" />
-                    <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold">Kaya — Document Review</p>
+                    <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold">COMPANION — Document Review</p>
                   </div>
                   <p className="text-sm text-white/85 leading-relaxed whitespace-pre-wrap">{kayaExplanation}</p>
                 </div>
@@ -305,7 +305,7 @@ export function DocumentIntakePanel() {
                 <div className="rounded-lg px-3 py-2 flex items-center gap-2"
                   style={{ background: "rgba(0,120,40,0.1)", border: "1px solid rgba(0,150,50,0.2)" }}>
                   <CheckCircle className="w-3.5 h-3.5 text-emerald-400/70 flex-shrink-0" />
-                  <p className="text-[11px] text-white/55">No immediate violations flagged. Kaya's notes are saved in your chat.</p>
+                  <p className="text-[11px] text-white/55">No immediate violations flagged. COMPANION's notes are saved in your chat.</p>
                 </div>
               )}
 

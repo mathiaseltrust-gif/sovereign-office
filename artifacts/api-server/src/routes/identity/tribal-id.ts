@@ -5,7 +5,7 @@ import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gatewa
 import { buildTribalIdPdf, buildVerificationLetterPdf } from "../../lib/pdf-builder";
 import { logger } from "../../lib/logger";
 import { db } from "@workspace/db";
-import { familyLineageTable } from "@workspace/db";
+import { familyLineageTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
@@ -158,6 +158,28 @@ router.post("/photo", requireAuth, upload.single("photo"), async (req, res, next
         .where(eq(familyLineageTable.userId, dbId));
     }
     logger.info({ dbId }, "Profile photo updated");
+    res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/signature", requireAuth, upload.single("signature"), async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId;
+    if (!dbId || !req.file) {
+      res.status(400).json({ error: "No file provided or user not resolved" });
+      return;
+    }
+    const mimeType = req.file.mimetype.includes("png") ? "image/png" : "image/jpeg";
+    const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
+    const existing = await db.select({ id: profilesTable.id }).from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
+    if (existing.length > 0) {
+      await db.update(profilesTable).set({ signatureUrl: dataUrl, updatedAt: new Date() }).where(eq(profilesTable.userId, dbId));
+    } else {
+      await db.insert(profilesTable).values({ userId: dbId, signatureUrl: dataUrl });
+    }
+    logger.info({ dbId }, "Digital signature updated");
     res.json({ success: true });
   } catch (err) {
     next(err);

@@ -408,13 +408,13 @@ function IntakeTab({ memberName }: { memberName?: string }) {
     );
   }
 
-  /* ── Phase: Kaya's opening — inform + offer ── */
+  /* ── Phase: COMPANION's opening — inform + offer ── */
   if (phase === "open" && selected) {
     return (
       <div className="px-4 py-4 space-y-4">
-        {/* Kaya's message */}
+        {/* COMPANION's message */}
         <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
-          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">Kaya</p>
+          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">COMPANION</p>
           <p className="text-sm text-white/80 leading-relaxed">{selected.kayaOpening}</p>
         </div>
 
@@ -466,7 +466,7 @@ function IntakeTab({ memberName }: { memberName?: string }) {
         </div>
 
         <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
-          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">Kaya</p>
+          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">COMPANION</p>
           <p className="text-sm text-white/80 leading-relaxed">
             Take your time. Describe what's happening — as much or as little as you're ready to share. I'll work with what you give me and let you know if I need anything else.
           </p>
@@ -498,7 +498,7 @@ function IntakeTab({ memberName }: { memberName?: string }) {
             {intakeMutation.isPending ? (
               <>
                 <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                Kaya is analyzing…
+                COMPANION is analyzing…
               </>
             ) : (
               <>
@@ -511,7 +511,7 @@ function IntakeTab({ memberName }: { memberName?: string }) {
 
         {intakeMutation.isPending && (
           <p className="text-[10px] text-white/20 text-center">
-            Kaya is reviewing your situation against sovereign law and protections…
+            COMPANION is reviewing your situation against sovereign law and protections…
           </p>
         )}
       </div>
@@ -586,12 +586,12 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
       });
       if (!r.ok) {
         const e = await r.json().catch(() => ({}));
-        throw new Error((e as any).error ?? "Kaya is unavailable right now");
+        throw new Error((e as any).error ?? "COMPANION is unavailable right now");
       }
       return r.json() as Promise<{ reply: string }>;
     },
     onSuccess: () => qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] }),
-    onError: (e) => toast({ title: "Kaya error", description: (e as Error).message, variant: "destructive" }),
+    onError: (e) => toast({ title: "COMPANION error", description: (e as Error).message, variant: "destructive" }),
   });
 
   const diaryMutation = useMutation({
@@ -606,7 +606,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["kaya-diary", user?.id] });
-      toast({ title: "Journal entry saved", description: "Kaya will carry this forward." });
+      toast({ title: "Journal entry saved", description: "COMPANION will carry this forward." });
     },
     onError: (e) => toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" }),
   });
@@ -624,7 +624,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["kaya-knowledge", user?.id] });
       setPendingSaveMessage(null);
-      toast({ title: "Saved to Kaya's memory", description: "She'll carry this knowledge in every conversation." });
+      toast({ title: "Saved to COMPANION's memory", description: "COMPANION will carry this knowledge in every conversation." });
     },
     onError: (e) => toast({ title: "Memory save failed", description: (e as Error).message, variant: "destructive" }),
   });
@@ -700,9 +700,9 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             <Feather className="w-4 h-4 text-amber-300" />
           </div>
           <div>
-            <p className="text-sm font-bold text-white leading-none">Kaya</p>
+            <p className="text-sm font-bold text-white leading-none">COMPANION</p>
             <p className="text-[9px] tracking-[0.2em] text-white/45 uppercase mt-0.5">
-              Your Sovereign Companion · {knowledgeEntries.length} memories
+              AIK · Indigenous Intelligence Systems · {knowledgeEntries.length} memories
             </p>
           </div>
           {(pendingTasks ?? 0) > 0 && (
@@ -733,7 +733,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           <button
             onClick={() => setCollapsed(c => !c)}
             className="ml-1 text-white/30 hover:text-white/70 transition-colors p-1"
-            title={collapsed ? "Expand Kaya" : "Collapse Kaya"}
+            title={collapsed ? "Expand COMPANION" : "Collapse COMPANION"}
           >
             {collapsed ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
           </button>
@@ -742,7 +742,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
 
       {collapsed && (
         <div className="px-4 py-2 text-[11px] text-white/25 italic">
-          Kaya is ready — expand to chat, start an intake, add to memory, or journal.
+          COMPANION is ready — expand to chat, start an intake, add to memory, or journal.
         </div>
       )}
 
@@ -836,7 +836,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                           style={msg.role === "user" ? MSG_USER : MSG_AI}
                         >
                           {msg.role === "assistant" && (
-                            <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">Kaya</p>
+                            <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">COMPANION</p>
                           )}
                           <p className="text-sm text-white/88 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                           <p className="text-[9px] text-white/25 mt-1 text-right">{formatTime(msg.createdAt)}</p>
@@ -857,7 +857,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 {chatMutation.isPending && (
                   <div className="flex justify-start">
                     <div className="rounded-xl px-3.5 py-2.5" style={MSG_AI}>
-                      <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">Kaya</p>
+                      <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">COMPANION</p>
                       <div className="flex gap-1 items-center py-1">
                         {[0, 1, 2].map(i => (
                           <span key={i} className="w-1.5 h-1.5 rounded-full bg-white/30 animate-bounce"
@@ -875,7 +875,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 <div className="mx-4 mb-2 rounded-lg px-3 py-2 flex items-start gap-2" style={MSG_KNOWLEDGE}>
                   <Brain className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />
                   <div className="flex-1 min-w-0">
-                    <p className="text-[10px] text-amber-400/70 font-semibold mb-0.5">Save this to Kaya's memory?</p>
+                    <p className="text-[10px] text-amber-400/70 font-semibold mb-0.5">Save this to COMPANION's memory?</p>
                     <p className="text-[11px] text-white/60 truncate">{pendingSaveMessage.content.substring(0, 80)}…</p>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {KNOWLEDGE_CATEGORIES.map(cat => (
@@ -915,9 +915,9 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
               <div className="px-4 py-3 space-y-2" style={INPUT_BG}>
                 <div className="flex items-center gap-2 flex-wrap">
                   {[
-                    { key: "chat" as const, label: "Talk to Kaya" },
+                    { key: "chat" as const, label: "Talk to COMPANION" },
                     { key: "journal" as const, label: "Journal entry" },
-                    { key: "memory" as const, label: "Teach Kaya" },
+                    { key: "memory" as const, label: "Teach COMPANION" },
                   ].map(({ key, label }) => (
                     <button
                       key={key}
@@ -972,10 +972,10 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                     onKeyDown={handleKeyDown}
                     placeholder={
                       inputMode === "journal"
-                        ? "Write your reflection… Kaya carries this forward."
+                        ? "Write your reflection… COMPANION carries this forward."
                         : inputMode === "memory"
-                        ? "Share knowledge for Kaya to remember across all sessions…"
-                        : "Ask Kaya about law, sovereignty, or anything on your mind…"
+                        ? "Share knowledge for COMPANION to remember across all sessions…"
+                        : "Ask COMPANION about law, sovereignty, or anything on your mind…"
                     }
                     className="flex-1 resize-none text-sm text-white/85 placeholder:text-white/20 rounded-lg min-h-[72px] max-h-[140px]"
                     style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)" }}
@@ -996,7 +996,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                 </div>
                 <p className="text-[9px] text-white/18 text-right">
                   Ctrl+Enter to send ·{" "}
-                  {inputMode === "memory" ? "Kaya will retain this across all conversations" : "Kaya carries your conversations and memory forward"}
+                  {inputMode === "memory" ? "COMPANION will retain this across all conversations" : "COMPANION carries your conversations and memory forward"}
                 </p>
               </div>
             </>
@@ -1014,8 +1014,8 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
             <div className="flex flex-col" style={{ minHeight: 280 }}>
               <div className="px-4 pt-3 pb-2 space-y-2" style={{ borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
                 <p className="text-[11px] text-white/40 leading-relaxed">
-                  Teach Kaya facts, context, and knowledge you want her to carry in every conversation —
-                  law distinctions, tribal process, personal context, anything she should always know.
+                  Teach COMPANION facts, context, and knowledge you want carried in every conversation —
+                  law distinctions, tribal process, personal context, anything COMPANION should always know.
                 </p>
                 <div className="flex gap-1.5 flex-wrap">
                   {KNOWLEDGE_CATEGORIES.map(cat => (
@@ -1068,7 +1068,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                     <Brain className="w-7 h-7 text-white/12 mx-auto mb-2" />
                     <p className="text-white/30 text-sm">No memories saved yet.</p>
                     <p className="text-white/18 text-[11px] mt-1">
-                      Add knowledge above — Kaya will carry it in every conversation.
+                      Add knowledge above — COMPANION will carry it in every conversation.
                     </p>
                   </div>
                 ) : (

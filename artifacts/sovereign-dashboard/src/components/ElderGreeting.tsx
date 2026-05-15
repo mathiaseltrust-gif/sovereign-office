@@ -58,15 +58,15 @@ export function ElderGreeting() {
         <div
           className="shrink-0 w-11 h-11 rounded-full flex items-center justify-center text-amber-100 font-serif text-xl font-bold select-none shadow-inner"
           style={{ background: "linear-gradient(135deg, #78350f 0%, #92400e 50%, #b45309 100%)" }}
-          title="Elder Kaya — Sovereign Memory Guide"
+          title="COMPANION — Ancestral Memory Guide"
         >
-          K
+          C
         </div>
 
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 flex-wrap mb-1.5">
-            <span className="text-xs font-bold text-amber-900 tracking-wide">Elder Kaya</span>
-            <span className="text-[10px] text-amber-700/60">· Sovereign Memory Guide</span>
+            <span className="text-xs font-bold text-amber-900 tracking-wide">COMPANION</span>
+            <span className="text-[10px] text-amber-700/60">· Ancestral Memory Guide</span>
             {!data.isNewMember && (
               <span className="text-[10px] bg-amber-900/10 text-amber-900 rounded-full px-2 py-0.5 font-semibold">
                 Level {data.awakeningLevel} · {awakeningLabel}

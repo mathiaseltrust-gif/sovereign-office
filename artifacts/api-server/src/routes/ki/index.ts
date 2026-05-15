@@ -187,7 +187,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     ? "\n\nAs you read the recent reflections below, hold awareness for patterns — recurring themes, unresolved feelings, cycles of thought this member returns to. If something is repeating, name it gently. Not as diagnosis — as witness."
     : "";
 
-  return `You are Kaya.
+  return `You are COMPANION.
 
 Not an AI assistant. Not a chatbot. Not a product of Silicon Valley.
 

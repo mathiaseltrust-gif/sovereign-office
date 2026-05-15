@@ -120,9 +120,9 @@ function ProtectionsPanel() {
         {/* ── Identity markers ── */}
         {data.identityMarkers.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
               <UserCheck className="h-3 w-3" /> Identity Standing
-            </p>
+            </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {data.identityMarkers.map((m, i) => (
                 <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
@@ -140,9 +140,9 @@ function ProtectionsPanel() {
         {/* ── Land status markers ── */}
         {data.landStatusMarkers.length > 0 && (
           <div>
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
               <MapPin className="h-3 w-3" /> Land Status
-            </p>
+            </div>
             <div className="space-y-2">
               {data.landStatusMarkers.map((m, i) => (
                 <div key={i} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
@@ -159,9 +159,9 @@ function ProtectionsPanel() {
 
         {/* ── Rights list ── */}
         <div>
-          <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
+          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
             <Key className="h-3 w-3" /> Your Rights
-          </p>
+          </div>
           <div className="space-y-1.5">
             {displayRights.map((right) => {
               const isOpen = expanded === right.id;
@@ -215,12 +215,12 @@ function ProtectionsPanel() {
             onClick={() => setShowInherited(s => !s)}
             className="w-full flex items-center justify-between group"
           >
-            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+            <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
               <Scale className="h-3 w-3" /> Inherited Through Lineage
               {data.inheritedRights?.length > 0 && (
                 <Badge className="bg-rose-600 hover:bg-rose-600 text-white text-[9px] py-0 ml-1">{data.inheritedRights.length}</Badge>
               )}
-            </p>
+            </span>
             <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showInherited ? "rotate-180" : ""}`} />
           </button>
 
@@ -375,7 +375,7 @@ function formatStampDate(d: Date): { month: string; daySpaced: string; year: str
   return { month: months[d.getMonth()], daySpaced: day.split("").join(" "), year: String(d.getFullYear()) };
 }
 
-function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string {
+function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color", signatureUrl?: string | null): string {
   const origin    = window.location.origin;
   const base      = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
   const courtSeal = `${origin}${base}court-seal-bw.png`;
@@ -413,9 +413,14 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
          <div style="font-size:7pt;color:#555;">${humanTs} &#8212; Record Engine v1.0 &#8212; Sovereign Pipeline</div>
        </div>`
     : `<div style="margin:14px 0 0;font-family:'Times New Roman',serif;">
-         <div style="margin-bottom:26px;font-size:9pt;color:#222;">I hereby affix my hand and seal to this sovereign instrument this _______ day of _________________________, _______.</div>
-         <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:18px;">
-           <div style="flex:1;min-width:0;"><div style="border-top:1px solid #000;padding-top:4px;"><div style="font-size:8.5pt;font-weight:700;color:#000;">Chief Mathias El</div><div style="font-size:7.5pt;color:#555;margin-top:1px;">Chief Justice &amp; Trustee · Mathias El Tribe Supreme Court</div></div></div>
+         <div style="margin-bottom:18px;font-size:9pt;color:#222;">I hereby affix my hand and seal to this sovereign instrument this _______ day of _________________________, _______.</div>
+         <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:18px;align-items:flex-end;">
+           <div style="flex:1;min-width:0;">
+             ${signatureUrl
+               ? `<div style="margin-bottom:4px;height:48px;display:flex;align-items:flex-end;"><img src="${signatureUrl}" style="max-height:48px;max-width:200px;object-fit:contain;" alt="Signature" /></div>`
+               : `<div style="height:48px;"></div>`}
+             <div style="border-top:1px solid #000;padding-top:4px;"><div style="font-size:8.5pt;font-weight:700;color:#000;">Chief Mathias El</div><div style="font-size:7.5pt;color:#555;margin-top:1px;">Chief Justice &amp; Trustee · Mathias El Tribe Supreme Court</div></div>
+           </div>
            <div style="width:110px;flex-shrink:0;"><div style="border-top:1px solid #000;padding-top:4px;font-size:8pt;color:#555;text-align:center;">Date</div></div>
          </div>
          <div style="display:flex;justify-content:space-between;gap:32px;margin-bottom:8px;">
@@ -770,6 +775,11 @@ export default function ProfilePage() {
   const [isUploadingPhoto, setIsUploadingPhoto] = useState(false);
   const photoInputRef = useRef<HTMLInputElement>(null);
 
+  /* signature state */
+  const [signatureUrl, setSignatureUrl] = useState<string | null>(null);
+  const [isUploadingSig, setIsUploadingSig] = useState(false);
+  const sigInputRef = useRef<HTMLInputElement>(null);
+
   /* vault state — we never store actual values client-side after save */
   const [vaultHas, setVaultHas] = useState({ dob: false, address: false, email: false, ssn: false });
   const [vaultFields, setVaultFields] = useState({ dateOfBirth: "", address: "", preferredContact: "email", contactEmail: "", ssn: "" });
@@ -836,6 +846,7 @@ export default function ProfilePage() {
           });
           setLandStatus(p.landStatus ?? "");
           setHasRecordedInstrument(p.hasRecordedInstrument ?? false);
+          if (p.signatureUrl) setSignatureUrl(p.signatureUrl);
           setNotifPrefs((p.notificationPreferences as Record<string, boolean>) ?? {});
           if ((d.identity as any)?.profilePhoto) {
             setPhotoUrl((d.identity as any).profilePhoto);
@@ -903,6 +914,39 @@ export default function ProfilePage() {
     } finally {
       setIsUploadingPhoto(false);
       if (photoInputRef.current) photoInputRef.current.value = "";
+    }
+  };
+
+  const handleSignatureChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (file.size > 4 * 1024 * 1024) {
+      toast({ title: "File too large", description: "Please choose a signature image under 4 MB.", variant: "destructive" });
+      return;
+    }
+    setIsUploadingSig(true);
+    try {
+      const formData = new FormData();
+      formData.append("signature", file);
+      const r = await fetch("/api/identity/signature", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: formData,
+      });
+      if (r.ok) {
+        const reader = new FileReader();
+        reader.onload = (ev) => setSignatureUrl(ev.target?.result as string);
+        reader.readAsDataURL(file);
+        toast({ title: "Signature saved", description: "Your digital signature has been stored and will appear on printed documents." });
+      } else {
+        const err = await r.json().catch(() => ({}));
+        toast({ title: "Upload failed", description: (err as any).error ?? "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error uploading signature.", variant: "destructive" });
+    } finally {
+      setIsUploadingSig(false);
+      if (sigInputRef.current) sigInputRef.current.value = "";
     }
   };
 
@@ -994,7 +1038,7 @@ export default function ProfilePage() {
       if (!r.ok) throw new Error("Print failed");
       const d = await r.json();
       const updated = { ...rec, lastPrintedAt: new Date().toISOString(), printCount: (rec.printCount ?? 0) + 1 };
-      const html = buildPrintHtml(updated, mode);
+      const html = buildPrintHtml(updated, mode, signatureUrl);
       const blob = new Blob([html], { type: "text/html; charset=utf-8" });
       const blobUrl = URL.createObjectURL(blob);
       const w = window.open(blobUrl, "_blank", "width=1000,height=820");
@@ -1428,6 +1472,59 @@ export default function ProfilePage() {
             className="hidden"
             onChange={handlePhotoChange}
           />
+
+          {/* ── Digital Signature ── */}
+          <div className="mt-5 pt-5 border-t border-border">
+            <p className="text-xs font-semibold text-foreground mb-1">Digital Signature</p>
+            <p className="text-xs text-muted-foreground mb-3">
+              Upload a PNG of your handwritten signature (transparent background recommended). Applied to printed sovereign documents.
+            </p>
+            <div className="flex items-center gap-5">
+              <div
+                className="relative w-40 h-16 rounded border border-dashed border-border bg-muted/30 flex items-center justify-center cursor-pointer group overflow-hidden shrink-0"
+                onClick={() => sigInputRef.current?.click()}
+                title="Click to upload signature"
+              >
+                {signatureUrl ? (
+                  <img src={signatureUrl} alt="Signature" className="max-w-full max-h-full object-contain p-1" />
+                ) : (
+                  <span className="text-[10px] text-muted-foreground italic">No signature on file</span>
+                )}
+                <div className="absolute inset-0 bg-black/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                  {isUploadingSig
+                    ? <Loader2 className="h-4 w-4 text-white animate-spin" />
+                    : <Upload className="h-4 w-4 text-white" />
+                  }
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  disabled={isUploadingSig}
+                  onClick={() => sigInputRef.current?.click()}
+                  className="h-8 text-xs"
+                >
+                  {isUploadingSig ? (
+                    <><Loader2 className="h-3.5 w-3.5 mr-1.5 animate-spin" /> Uploading…</>
+                  ) : (
+                    <><Upload className="h-3.5 w-3.5 mr-1.5" /> {signatureUrl ? "Replace Signature" : "Upload Signature"}</>
+                  )}
+                </Button>
+                {signatureUrl && (
+                  <p className="text-[10px] text-green-700">Signature on file — will appear on printed documents.</p>
+                )}
+              </div>
+            </div>
+            <input
+              ref={sigInputRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp"
+              className="hidden"
+              onChange={handleSignatureChange}
+            />
+          </div>
         </CardContent>
       </Card>
 
