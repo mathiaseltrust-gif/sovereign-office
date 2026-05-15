@@ -45,7 +45,7 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Chief's Office",
       defaultOpen: true,
       items: [
-        { href: "/my-office",           label: "My Office",           highlight: true, icon: Archive },
+        { href: "/profile",              label: "Office & Profile",    highlight: true, icon: Archive },
         { href: "/sovereign-pipeline",  label: "Intake Pipeline",  highlight: true, icon: Zap },
         { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
         { href: "/documents",           label: "Court Documents",     icon: Gavel },
