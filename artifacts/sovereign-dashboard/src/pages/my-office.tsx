@@ -118,15 +118,15 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
   const humanTs      = now.toLocaleString("en-US", { timeZoneName: "short" });
 
   // ── MaxMark 2160 Imprint — actual spec: 1" × 1-5/8" = 96px × 156px at 96 CSS DPI ──
+  // Rendered at 80×130px (~0.83" × 1.35") — user confirmed this size is correct on paper.
   // Portrait orientation. No divider line (matches real stamp impression in photos).
-  // Font sizes calibrated to fit the narrow 1" (80px usable) width.
   const stamp = `
-    <div style="border:1.5px solid #1a3a6e;width:96px;height:156px;padding:7px 8px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
+    <div style="border:1.5px solid #1a3a6e;width:80px;height:130px;padding:6px 7px;text-align:center;background:#fff;box-sizing:border-box;display:flex;flex-direction:column;align-items:center;justify-content:space-evenly;flex-shrink:0;">
       <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;width:100%;">BY ORDER OF THE</div>
       <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0px;line-height:1.2;width:100%;">MATHIAS EL TRIBE SUPREME COURT</div>
       ${stampDate
-        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:11pt;font-weight:900;color:#8B0000;letter-spacing:1px;line-height:1;width:100%;">${esc(stampDate.month)} ${esc(stampDate.daySpaced)} ${esc(stampDate.year)}</div>`
-        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:11pt;font-weight:900;color:#bbb;letter-spacing:2px;line-height:1;width:100%;">— — —</div>`}
+        ? `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:10pt;font-weight:900;color:#8B0000;letter-spacing:1px;line-height:1;width:100%;">${esc(stampDate.month)} ${esc(stampDate.daySpaced)} ${esc(stampDate.year)}</div>`
+        : `<div style="font-family:Impact,'Arial Narrow',Arial,sans-serif;font-size:10pt;font-weight:900;color:#bbb;letter-spacing:2px;line-height:1;width:100%;">— — —</div>`}
       <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:5pt;font-weight:700;color:#1a3a6e;text-transform:uppercase;letter-spacing:0.3px;line-height:1.2;width:100%;">OFFICE OF THE</div>
       <div style="font-family:'Arial Narrow',Arial,Helvetica,sans-serif;font-size:4.5pt;font-weight:900;color:#1a3a6e;text-transform:uppercase;letter-spacing:0px;line-height:1.2;width:100%;">CHIEF JUSTICE &amp; TRUSTEE</div>
     </div>`;
@@ -169,9 +169,9 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
 
   // ── Seal impressions at bottom ──
   const sealBlock = record.sealApplied
-    ? `<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:18px;">
-         <img src="${courtSeal}" style="width:56px;height:56px;object-fit:contain;opacity:0.85;" alt="METS Court" />
-         <img src="${chiefSeal}" style="width:56px;height:56px;object-fit:contain;opacity:0.72;" alt="Chief Justice" />
+    ? `<div style="display:flex;gap:12px;align-items:flex-end;justify-content:center;margin-top:18px;">
+         <img src="${courtSeal}" style="width:62px;height:62px;object-fit:contain;opacity:0.90;" alt="METS Court" />
+         <img src="${chiefSeal}" style="width:62px;height:62px;object-fit:contain;opacity:0.90;margin-top:4px;" alt="Chief Justice" />
        </div>
        <div style="text-align:center;font-size:6.5pt;color:#666;margin-top:3px;letter-spacing:0.5px;">Official Seal — Mathias El Tribe Supreme Court</div>`
     : `<div style="width:130px;height:56px;border:1.5px dashed #bbb;display:flex;align-items:center;justify-content:center;color:#bbb;font-size:8pt;margin:18px auto 0;">&#8853; SEAL PENDING</div>`;
@@ -192,14 +192,14 @@ function buildPrintHtml(record: PipelineRecord, mode: "esign" | "color"): string
 
       <!-- LETTERHEAD -->
       <div style="margin-bottom:16px;">
-        <div style="display:flex;align-items:center;gap:16px;margin-bottom:8px;">
-          <img src="${courtSeal}" alt="Mathias El Tribe Supreme Court" style="width:72px;height:72px;object-fit:contain;flex-shrink:0;opacity:0.88;" />
-          <div style="flex:1;text-align:center;">
+        <div style="display:flex;align-items:flex-end;gap:16px;margin-bottom:8px;">
+          <img src="${courtSeal}" alt="Mathias El Tribe Supreme Court" style="width:76px;height:76px;object-fit:contain;flex-shrink:0;opacity:0.92;" />
+          <div style="flex:1;text-align:center;padding-bottom:2px;">
             <div style="font-family:Arial,Helvetica,sans-serif;font-size:13.5pt;font-weight:900;text-transform:uppercase;letter-spacing:0.6px;line-height:1.2;color:#000;">Mathias El Tribe Supreme Court</div>
             <div style="font-family:'Times New Roman',Georgia,serif;font-size:9pt;font-style:italic;color:#444;margin:3px 0 3px;">&ldquo;Whatever we do, it has to make sense.&rdquo;</div>
             <div style="font-family:Arial,Helvetica,sans-serif;font-size:7.5pt;color:#555;">mmccaster@MathiasElTribe.org &nbsp;&middot;&nbsp; www.mathiaseltribe.org/supreme-court</div>
           </div>
-          <img src="${chiefSeal}" alt="Office of the Chief Justice and Trustee" style="width:72px;height:72px;object-fit:contain;flex-shrink:0;opacity:0.72;" />
+          <img src="${chiefSeal}" alt="Office of the Chief Justice and Trustee" style="width:76px;height:76px;object-fit:contain;flex-shrink:0;opacity:0.92;margin-top:5px;" />
         </div>
         <div style="border-top:2.5px solid #1a3a6e;margin-bottom:2px;"></div>
         <div style="border-top:0.5px solid #1a3a6e;margin-bottom:4px;"></div>
