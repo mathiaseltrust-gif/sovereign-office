@@ -248,21 +248,20 @@ export default function TribalIdPage() {
         {/* ── CARD BODY ── diamond + photo + fields */}
         <div className="relative flex" style={{ minHeight: 230, overflow: "hidden", background: "#0A0400" }}>
 
-          {/* Diamond — edge-to-edge, red fill, thick olive border (matches template) */}
-          <div
-            className="absolute pointer-events-none"
-            style={{
-              width: 900,
-              height: 900,
-              background: "#BB0000",
-              border: "10px solid #4A7A10",
-              transform: "rotate(45deg)",
-              left: "50%",
-              top: "50%",
-              marginLeft: -450,
-              marginTop: -450,
-            }}
-          />
+          {/* Diamond — SVG rhombus that touches all 4 edges exactly, matching the template */}
+          <svg
+            className="absolute inset-0 pointer-events-none"
+            style={{ width: "100%", height: "100%" }}
+            viewBox="0 0 100 100"
+            preserveAspectRatio="none"
+          >
+            <polygon
+              points="50,0 100,50 50,100 0,50"
+              fill="#BB0000"
+              stroke="#4A7A10"
+              strokeWidth="2.5"
+            />
+          </svg>
 
           {/* Photo — left side */}
           <div className="relative z-10 flex flex-col items-center justify-center flex-shrink-0 py-4 pl-5 pr-2" style={{ width: 152 }}>
