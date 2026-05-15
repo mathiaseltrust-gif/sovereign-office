@@ -506,7 +506,7 @@ router.post("/chat", requireAuth, async (req, res, next) => {
     const result = await callAzureOpenAI(
       systemPrompt,
       trimmed,
-      { maxTokens: 700, temperature: 0.72 },
+      { maxTokens: 2000, temperature: 0.72 },
       conversationHistory,
     );
 
