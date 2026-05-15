@@ -170,9 +170,9 @@ export default function Login() {
         )}
         <div className="text-center mb-8">
           <img
-            src={`${import.meta.env.BASE_URL}round-seal.jpg`}
+            src={`${import.meta.env.BASE_URL}supreme-court-seal.png`}
             alt="The Mathias El Tribe Supreme Court"
-            className="w-28 h-28 object-cover rounded-full mx-auto mb-4 drop-shadow-lg"
+            className="w-28 h-28 object-contain mx-auto mb-4 drop-shadow-lg"
           />
           <h1 className="font-serif text-2xl font-bold text-foreground">The Mathias El Tribe Supreme Court</h1>
           <p className="text-sm text-muted-foreground mt-1">Office of the Chief Justice & Trustee — Sovereign Administration</p>

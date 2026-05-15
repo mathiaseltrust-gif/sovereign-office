@@ -6,15 +6,16 @@ import {
   TreePine, AlertCircle, BookOpen, Star
 } from "lucide-react";
 
-const ROLE_LABELS: Record<string, string> = {
-  chief_justice: "Chief Justice & Trustee",
-  trustee: "Trustee",
-  officer: "Officer",
-  sovereign_admin: "System Administrator",
-  elder: "Elder",
+// Position titles — presented as acknowledgements/earned positions, not system role names
+// Members have no special position label; access is reflected through visible services only
+const POSITION_TITLES: Record<string, string | null> = {
+  trustee: "Chief Justice & Trustee",
+  sovereign_admin: "Sovereign Administrator",
+  officer: "Duty Officer",
+  elder: "Tribal Elder",
   medical_provider: "Medical Provider",
-  member: "Member",
-  visitor_media: "Visitor / Media",
+  member: null,
+  visitor_media: "Visitor",
 };
 
 const TRUST_URL = "https://trust-dashboard.redstone-3e658f00.eastus.azurecontainerapps.io";
@@ -87,7 +88,7 @@ export default function HubPage() {
     .toUpperCase()
     .slice(0, 2) ?? "?";
 
-  const roleLabel = user?.roles.map((r) => ROLE_LABELS[r]).filter(Boolean)[0] ?? activeRole;
+  const positionTitle = POSITION_TITLES[activeRole] ?? null;
 
   const isGov = ["trustee", "sovereign_admin", "officer"].includes(activeRole);
   const isElder = activeRole === "elder";
@@ -112,7 +113,9 @@ export default function HubPage() {
             </div>
             <div className="min-w-0">
               <h1 className="text-lg font-bold text-sidebar-foreground leading-tight truncate">{user?.name}</h1>
-              <p className="text-sm text-sidebar-foreground/70 truncate">{roleLabel}</p>
+              {positionTitle && (
+                <p className="text-sm text-sidebar-foreground/70 truncate">{positionTitle}</p>
+              )}
               <p className="text-xs text-sidebar-foreground/50 truncate">{user?.email}</p>
             </div>
             <button

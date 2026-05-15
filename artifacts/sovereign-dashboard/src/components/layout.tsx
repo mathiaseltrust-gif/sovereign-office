@@ -3,14 +3,15 @@ import { useAuth, roleLandingPath, type Role } from "./auth-provider";
 import { canManageGovernors } from "@/lib/governor-access";
 import { Button } from "@/components/ui/button";
 
-const ROLE_LABELS: Record<Role, string> = {
+// Position titles shown in nav — presented as earned titles, not system role names
+// Plain members show no position title (access is reflected through what's visible, not labelled)
+const POSITION_TITLES: Partial<Record<Role, string>> = {
   trustee: "Chief Justice & Trustee",
-  officer: "Officer",
-  member: "Member",
-  sovereign_admin: "Sovereign Admin",
+  sovereign_admin: "Sovereign Administrator",
+  officer: "Duty Officer",
   elder: "Tribal Elder",
   medical_provider: "Medical Provider",
-  visitor_media: "Visitor / Media",
+  visitor_media: "Visitor",
 };
 
 interface NavSection {
@@ -190,23 +191,24 @@ export function Layout({ children }: { children: React.ReactNode }) {
     <div className="flex h-screen bg-background overflow-hidden font-sans">
       <aside className="w-64 border-r bg-card flex flex-col shrink-0">
         <div className="p-5 border-b flex flex-col items-center text-center">
-          <Link href={roleLandingPath(activeRole)} className="block rounded-full focus:outline-none focus-visible:ring-2 focus-visible:ring-primary">
+          <Link href={roleLandingPath(activeRole)} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-md">
             <img
-              src={`${import.meta.env.BASE_URL}round-seal.jpg`}
-              alt="Go to home — Office of the Chief Justice and Trustee"
-              className="w-20 h-20 object-cover rounded-full mb-3 drop-shadow-md hover:opacity-80 transition-opacity cursor-pointer"
+              src={`${import.meta.env.BASE_URL}supreme-court-seal.png`}
+              alt="Mathias El Tribe Supreme Court"
+              className="w-20 h-20 object-contain mb-3 drop-shadow-md hover:opacity-80 transition-opacity cursor-pointer"
             />
           </Link>
           <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-[0.18em] mb-0.5">
-            Office of the
+            Mathias El Tribe
           </p>
           <h1 className="font-serif text-sm font-bold text-primary leading-tight">
-            Chief Justice and Trustee
+            Supreme Court
           </h1>
-          <div className="mt-2 inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-secondary text-xs text-muted-foreground font-medium">
-            <span className="w-1.5 h-1.5 rounded-full bg-green-500 shrink-0" />
-            {ROLE_LABELS[activeRole]}
-          </div>
+          {POSITION_TITLES[activeRole] && (
+            <p className="mt-1.5 text-[10px] text-muted-foreground leading-tight text-center">
+              {POSITION_TITLES[activeRole]}
+            </p>
+          )}
         </div>
 
         <nav className="flex-1 p-3 overflow-y-auto space-y-4">

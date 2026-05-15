@@ -334,13 +334,13 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
           </div>
         </div>
 
-        {/* Supreme Court Seal */}
+        {/* Round Logo Seal — 2" round stamp impression applied at signing */}
         <div style={{ textAlign: "center" }}>
           {record.sealApplied ? (
             <img
-              src={`${BASE}court-seal-bw.png`}
-              alt="Mathias El Tribe Supreme Court Seal"
-              style={{ width: "120px", height: "120px", objectFit: "contain", opacity: 0.9 }}
+              src={`${BASE}round-seal.jpg`}
+              alt="Mathias El Tribe Supreme Court Round Seal"
+              style={{ width: "120px", height: "120px", borderRadius: "50%", objectFit: "cover", opacity: 0.92 }}
             />
           ) : (
             <div style={{
