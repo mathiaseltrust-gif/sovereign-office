@@ -195,7 +195,7 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
             </div>
           </div>
           <img
-            src={`${BASE}chief-justice-seal.png`}
+            src={`${BASE}chief-justice-seal-bw.png`}
             alt="Office of the Chief Justice and Trustee — Chief Mathias El"
             style={{ width: "78px", height: "78px", objectFit: "contain", flexShrink: 0 }}
           />
@@ -370,7 +370,7 @@ function OfficialDocument({ record }: { record: PipelineRecord }) {
                 style={{ width: "78px", height: "78px", objectFit: "contain", opacity: 0.9 }}
               />
               <img
-                src={`${BASE}chief-justice-seal.png`}
+                src={`${BASE}chief-justice-seal-bw.png`}
                 alt="Office of the Chief Justice and Trustee"
                 style={{ width: "78px", height: "78px", objectFit: "contain" }}
               />
