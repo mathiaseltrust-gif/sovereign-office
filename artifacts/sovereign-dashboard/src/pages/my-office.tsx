@@ -551,12 +551,19 @@ export default function MyOfficePage() {
     </head><body>
       ${clone.outerHTML}
       ${bottomBlock}
-      <script>window.onload=function(){setTimeout(function(){window.print();},700);};<\/script>
+      <script>window.onload=function(){var imgs=document.querySelectorAll('img');var done=0;var total=imgs.length;function tryPrint(){done++;if(done>=total)setTimeout(function(){window.print();},250);}if(total===0){setTimeout(function(){window.print();},400);return;}imgs.forEach(function(i){if(i.complete){tryPrint();}else{i.onload=i.onerror=tryPrint;}});setTimeout(function(){window.print();},2500);};<\/script>
     </body></html>`;
 
-    const w = window.open("", "_blank", "width=980,height=800");
-    if (w) { w.document.open(); w.document.write(fullHtml); w.document.close(); }
-    else { alert("Pop-up blocked — please allow pop-ups for this site to open the print window."); }
+    // Blob URL approach — more reliable than document.write in modern browsers
+    const blob = new Blob([fullHtml], { type: "text/html; charset=utf-8" });
+    const blobUrl = URL.createObjectURL(blob);
+    const w = window.open(blobUrl, "_blank", "width=980,height=800");
+    if (w) {
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 120_000);
+    } else {
+      URL.revokeObjectURL(blobUrl);
+      alert("Pop-up blocked — please allow pop-ups for this site to open the print window.");
+    }
   }
 
   const printSeal = useMutation({

@@ -570,6 +570,7 @@ export async function updateAncestor(id: number, updates: Partial<{
   tribalNation: string;
   tribalEnrollmentNumber: string;
   notes: string;
+  contactEmail: string;
   isDeceased: boolean;
   generationalPosition: number;
   lineageTags: string[];

@@ -71,6 +71,7 @@ interface LineageRecord {
   tribalNation?: string;
   tribalEnrollmentNumber?: string;
   notes?: string;
+  contactEmail?: string;
   isDeceased?: boolean;
   generationalPosition?: number;
   lineageTags?: string[];
@@ -2090,7 +2091,7 @@ function CsvUploadTab({ onSuccess }: { onSuccess: () => void }) {
 }
 
 function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?: LineageData; isLoading: boolean; onSuccess: () => void }) {
-  const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", generationalPosition: "0" });
+  const [form, setForm] = useState({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" });
   const [editId, setEditId] = useState<number | null>(null);
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
 
@@ -2106,6 +2107,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
         tribalNation: form.tribalNation || undefined,
         tribalEnrollmentNumber: form.tribalEnrollmentNumber || undefined,
         notes: form.notes || undefined,
+        contactEmail: form.contactEmail || undefined,
         generationalPosition: parseInt(form.generationalPosition, 10) || 0,
       };
 
@@ -2128,7 +2130,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
       }
     },
     onSuccess: () => {
-      setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", generationalPosition: "0" });
+      setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" });
       setEditId(null);
       onSuccess();
     },
@@ -2146,6 +2148,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
       tribalNation: person.tribalNation ?? "",
       tribalEnrollmentNumber: person.tribalEnrollmentNumber ?? "",
       notes: person.notes ?? "",
+      contactEmail: person.contactEmail ?? "",
       generationalPosition: person.generationalPosition?.toString() ?? "0",
     });
   }
@@ -2207,6 +2210,11 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
               <Label>Enrollment Number</Label>
               <Input className="mt-1" value={form.tribalEnrollmentNumber} onChange={fld("tribalEnrollmentNumber")} placeholder="Tribal enrollment number" />
             </div>
+            <div>
+              <Label>Contact Email</Label>
+              <Input className="mt-1" value={form.contactEmail} onChange={fld("contactEmail")} placeholder="email@example.com" type="email" />
+              <p className="text-xs text-muted-foreground mt-1">Used to verify access and membership for living members</p>
+            </div>
             <div className="md:col-span-3">
               <Label>Notes</Label>
               <Textarea className="mt-1" value={form.notes} onChange={fld("notes")} placeholder="Role, relationships, place of origin, any relevant history…" rows={3} />
@@ -2217,7 +2225,7 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
               {saveMutation.isPending ? "Saving…" : editId !== null ? "Update Ancestor" : "Add Ancestor"}
             </Button>
             {editId !== null && (
-              <Button variant="outline" onClick={() => { setEditId(null); setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", generationalPosition: "0" }); }}>
+              <Button variant="outline" onClick={() => { setEditId(null); setForm({ fullName: "", firstName: "", lastName: "", birthYear: "", deathYear: "", gender: "", tribalNation: "", tribalEnrollmentNumber: "", notes: "", contactEmail: "", generationalPosition: "0" }); }}>
                 Cancel Edit
               </Button>
             )}
@@ -2261,8 +2269,59 @@ function EditAncestorsTab({ lineageData, isLoading, onSuccess }: { lineageData?:
   );
 }
 
+const KOS_RESOURCES = [
+  {
+    category: "Sovereign Status & Urban Indian Rights",
+    color: "border-amber-600",
+    items: [
+      { title: "Urban Indian Policy — NCUIH", desc: "National Council of Urban Indian Health: federal policy, 2023 Urban Indian Confer Act, and direct service funding advocacy.", url: "https://ncuih.org/policy/" },
+      { title: "Indian Self-Determination & Education Assistance Act (ISDEAA)", desc: "25 U.S.C. § 5301 — the foundational law enabling tribes and urban Indian orgs to contract federal programs.", url: "https://uscode.house.gov/view.xhtml?path=/prelim@title25/chapter46&edition=prelim" },
+      { title: "Urban Indian Organizations (UIOs) — IHS", desc: "IHS list of federally funded UIOs providing health care and services to off-reservation tribal members.", url: "https://www.ihs.gov/urban/" },
+      { title: "SDU — Sociology of Developing Underclass (Political Context)", desc: "SDU framework applied to urban Indigenous displacement: redress, sovereignty, and self-determination outside the reservation system.", url: "https://www.urbannative.org/" },
+    ],
+  },
+  {
+    category: "Ancestry & Blood Quantum Documentation",
+    color: "border-sky-600",
+    items: [
+      { title: "Dawes Rolls — National Archives", desc: "1898–1914 enrollment records for the Five Civilized Tribes. Essential for proving lineal descent and eligibility.", url: "https://www.archives.gov/research/native-americans/dawes" },
+      { title: "BIA Tribal Enrollment Resources", desc: "Bureau of Indian Affairs guide to proving tribal membership, blood quantum, and descendancy.", url: "https://www.bia.gov/bia/ois/tribal-government/tribal-enrollment-process" },
+      { title: "FamilySearch — Native American Records", desc: "Free genealogy database with census rolls, church records, and Indian agency records from the 1800s–1900s.", url: "https://www.familysearch.org/en/wiki/Native_American_Genealogy" },
+      { title: "Ancestry.com — Native American Collections", desc: "Digitized Indian census schedules (1885–1940), Dawes packets, and allotment records.", url: "https://www.ancestry.com/search/collections/list/#ghCategories=40" },
+    ],
+  },
+  {
+    category: "ICWA & Child Welfare Sovereignty",
+    color: "border-red-600",
+    items: [
+      { title: "Indian Child Welfare Act (ICWA) — Full Text", desc: "25 U.S.C. § 1901 — federal minimum standards for placement of Indian children. Know your rights and the tribe's rights.", url: "https://uscode.house.gov/view.xhtml?path=/prelim@title25/chapter21&edition=prelim" },
+      { title: "NICWA — ICWA Compliance Guide", desc: "National Indian Child Welfare Association resources for families, advocates, and courts navigating ICWA cases.", url: "https://www.nicwa.org/icwa/" },
+      { title: "Haaland v. Brackeen (2023) — SCOTUS", desc: "Supreme Court ruling upholding ICWA's constitutionality. Key precedent affirming tribal sovereignty in child welfare.", url: "https://www.supremecourt.gov/opinions/22pdf/21-376_3f14.pdf" },
+    ],
+  },
+  {
+    category: "Knowing Your Land & Trust Rights",
+    color: "border-green-600",
+    items: [
+      { title: "TAAMS — Trust Asset & Accounting Management", desc: "BIA system for tracking trust land, mineral rights, and Individual Indian Money (IIM) accounts.", url: "https://www.bia.gov/bia/ots/taams" },
+      { title: "ILCA — Indian Land Consolidation Act", desc: "Law governing fractionated heirship interests and tribal land consolidation — affects every allottee's descendants.", url: "https://uscode.house.gov/view.xhtml?path=/prelim@title25/chapter24&edition=prelim" },
+      { title: "Cobell Settlement — Land Buy-Back Program", desc: "USDA/DOI Land Buy-Back Program purchasing fractionated interests from willing sellers to consolidate tribal lands.", url: "https://www.doi.gov/buybackprogram" },
+    ],
+  },
+  {
+    category: "Identity Narrative & Oral History",
+    color: "border-purple-600",
+    items: [
+      { title: "StoryCorps — Tribal Stories Project", desc: "Record and preserve oral histories. StoryCorps has a dedicated process for Indigenous family narratives.", url: "https://storycorps.org/" },
+      { title: "American Indian Studies Research Institute", desc: "AISRI at Indiana University: linguistic and archival resources for preserving tribal languages and histories.", url: "https://aisri.indiana.edu/" },
+      { title: "NDN Collective — Indigenous Knowledge Hub", desc: "Policy, land, language, and economic self-determination resources for urban and reservation Indigenous people.", url: "https://ndncollective.org/" },
+    ],
+  },
+];
+
 function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosData?: KnowledgeOfSelf; lineageData?: LineageData; isLoading: boolean; onLink: () => void }) {
   const [selectedLineageId, setSelectedLineageId] = useState<number | "">("");
+  const [kosTab, setKosTab] = useState<"profile" | "learn">("profile");
 
   const linkMutation = useMutation({
     mutationFn: async (lineageId: number) => {
@@ -2286,107 +2345,176 @@ function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosDa
 
   return (
     <div className="space-y-6">
-      {narratives.length > 0 && (
-        <div className="space-y-4">
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">Identity Narratives ({narratives.length})</p>
-          {narratives.map((n) => (
-            <Card key={n.id} className="border-l-4 border-amber-500">
-              <CardHeader className="pb-2"><CardTitle className="text-sm">{n.title ?? "Lineage Narrative"}</CardTitle></CardHeader>
-              <CardContent className="space-y-3">
-                {n.familyGroup && <p className="text-sm"><span className="text-muted-foreground">Family Group: </span>{n.familyGroup}</p>}
-                <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
-                  <div><span className="text-muted-foreground">Generational Depth: </span>{n.generationalDepth ?? 0}</div>
-                  <div><span className="text-muted-foreground">Protection: </span><Badge className={`${PROTECTION_COLORS[n.protectionLevel ?? "standard"]} text-xs`}>{n.protectionLevel ?? "standard"}</Badge></div>
-                  <div><span className="text-muted-foreground">ICWA: </span><Badge variant={n.icwaEligible ? "default" : "secondary"} className="text-xs">{n.icwaEligible ? "Eligible" : "N/A"}</Badge></div>
-                  <div><span className="text-muted-foreground">Trust: </span><Badge variant={n.trustInheritance ? "default" : "secondary"} className="text-xs">{n.trustInheritance ? "Beneficiary" : "N/A"}</Badge></div>
-                  <div><span className="text-muted-foreground">Welfare: </span><Badge variant={n.welfareEligible ? "default" : "secondary"} className="text-xs">{n.welfareEligible ? "Eligible" : "N/A"}</Badge></div>
+      {/* Sub-tab switcher */}
+      <div className="flex gap-2 border-b pb-2">
+        <button
+          onClick={() => setKosTab("profile")}
+          className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${kosTab === "profile" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          My Identity Profile
+        </button>
+        <button
+          onClick={() => setKosTab("learn")}
+          className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${kosTab === "learn" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          Learn & Resources
+        </button>
+      </div>
+
+      {kosTab === "profile" && (
+        <div className="space-y-6">
+          {narratives.length > 0 && (
+            <div className="space-y-4">
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">Identity Narratives ({narratives.length})</p>
+              {narratives.map((n) => (
+                <Card key={n.id} className="border-l-4 border-amber-500">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">{n.title ?? "Lineage Narrative"}</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {n.familyGroup && <p className="text-sm"><span className="text-muted-foreground">Family Group: </span>{n.familyGroup}</p>}
+                    <div className="grid grid-cols-2 md:grid-cols-3 gap-3 text-sm">
+                      <div><span className="text-muted-foreground">Generational Depth: </span>{n.generationalDepth ?? 0}</div>
+                      <div><span className="text-muted-foreground">Protection: </span><Badge className={`${PROTECTION_COLORS[n.protectionLevel ?? "standard"]} text-xs`}>{n.protectionLevel ?? "standard"}</Badge></div>
+                      <div><span className="text-muted-foreground">ICWA: </span><Badge variant={n.icwaEligible ? "default" : "secondary"} className="text-xs">{n.icwaEligible ? "Eligible" : "N/A"}</Badge></div>
+                      <div><span className="text-muted-foreground">Trust: </span><Badge variant={n.trustInheritance ? "default" : "secondary"} className="text-xs">{n.trustInheritance ? "Beneficiary" : "N/A"}</Badge></div>
+                      <div><span className="text-muted-foreground">Welfare: </span><Badge variant={n.welfareEligible ? "default" : "secondary"} className="text-xs">{n.welfareEligible ? "Eligible" : "N/A"}</Badge></div>
+                    </div>
+                    {n.ancestorChain && n.ancestorChain.length > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Ancestor Chain</p>
+                        <div className="flex flex-wrap gap-1">{n.ancestorChain.map((a, i) => <Badge key={i} variant="secondary" className="text-xs">{a}</Badge>)}</div>
+                      </div>
+                    )}
+                    {n.identityTags && n.identityTags.length > 0 && (
+                      <div className="flex flex-wrap gap-1">{n.identityTags.map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}</div>
+                    )}
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+
+          {linkedAncestors.length > 0 && (
+            <div>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">Linked Ancestors ({linkedAncestors.length})</p>
+              <div className="space-y-2">
+                {linkedAncestors.map((a) => (
+                  <Card key={a.id}>
+                    <CardContent className="py-3 flex items-center gap-3">
+                      <div className="flex-1">
+                        <span className="font-medium text-sm">{a.fullName}</span>
+                        {a.tribalNation && <span className="text-xs text-muted-foreground ml-2">· {a.tribalNation}</span>}
+                      </div>
+                      <Badge className="bg-green-700 text-white text-xs">Linked</Badge>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {allLineage.length > 0 && (
+            <Card>
+              <CardHeader><CardTitle className="text-base">Link Ancestor to Your Identity Profile</CardTitle></CardHeader>
+              <CardContent className="space-y-4">
+                <p className="text-sm text-muted-foreground">Linking creates an identity record connecting your user profile to this ancestor, supporting ICWA verification, welfare eligibility, and trust inheritance claims.</p>
+                <div>
+                  <Label>Select Ancestor</Label>
+                  <select value={selectedLineageId} onChange={(e) => setSelectedLineageId(e.target.value ? parseInt(e.target.value, 10) : "")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
+                    <option value="">Select an ancestor to link…</option>
+                    {allLineage.map((l) => (
+                      <option key={l.id} value={l.id}>{l.fullName}{l.birthYear ? ` (b. ${l.birthYear})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
-                {n.ancestorChain && n.ancestorChain.length > 0 && (
-                  <div>
-                    <p className="text-xs text-muted-foreground uppercase tracking-widest mb-1">Ancestor Chain</p>
-                    <div className="flex flex-wrap gap-1">{n.ancestorChain.map((a, i) => <Badge key={i} variant="secondary" className="text-xs">{a}</Badge>)}</div>
-                  </div>
-                )}
-                {n.identityTags && n.identityTags.length > 0 && (
-                  <div className="flex flex-wrap gap-1">{n.identityTags.map((tag) => <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>)}</div>
-                )}
+                <Button onClick={() => { if (selectedLineageId) linkMutation.mutate(selectedLineageId as number); }} disabled={!selectedLineageId || linkMutation.isPending}>
+                  {linkMutation.isPending ? "Linking…" : "Link to My Identity Profile"}
+                </Button>
+                {linkMutation.isError && <p className="text-sm text-destructive">{(linkMutation.error as Error).message}</p>}
+                {linkMutation.isSuccess && <p className="text-sm text-green-700">Ancestor linked to your identity profile.</p>}
               </CardContent>
             </Card>
-          ))}
-        </div>
-      )}
+          )}
 
-      {linkedAncestors.length > 0 && (
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">Linked Ancestors ({linkedAncestors.length})</p>
-          <div className="space-y-2">
-            {linkedAncestors.map((a) => (
-              <Card key={a.id}>
-                <CardContent className="py-3 flex items-center gap-3">
-                  <div className="flex-1">
-                    <span className="font-medium text-sm">{a.fullName}</span>
-                    {a.tribalNation && <span className="text-xs text-muted-foreground ml-2">· {a.tribalNation}</span>}
-                  </div>
-                  <Badge className="bg-green-700 text-white text-xs">Linked</Badge>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
+          {narratives.length === 0 && linkedAncestors.length === 0 && records.length === 0 && (
+            <Card className="border-dashed">
+              <CardContent className="py-10 text-center space-y-2">
+                <p className="font-medium text-sm">No identity links yet</p>
+                <p className="text-muted-foreground text-sm">Import lineage data via CSV or document, then link ancestors to your identity profile here. Switch to the <strong>Learn & Resources</strong> tab for guidance on gathering genealogical documentation.</p>
+              </CardContent>
+            </Card>
+          )}
 
-      {allLineage.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle className="text-base">Link Ancestor to Your Identity Profile</CardTitle></CardHeader>
-          <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground">Linking creates an identity record connecting your user profile to this ancestor, supporting ICWA verification, welfare eligibility, and trust inheritance claims.</p>
+          {records.length > 0 && (
             <div>
-              <Label>Select Ancestor</Label>
-              <select value={selectedLineageId} onChange={(e) => setSelectedLineageId(e.target.value ? parseInt(e.target.value, 10) : "")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
-                <option value="">Select an ancestor to link…</option>
-                {allLineage.map((l) => (
-                  <option key={l.id} value={l.id}>{l.fullName}{l.birthYear ? ` (b. ${l.birthYear})` : ""}</option>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ancestral Records ({records.length})</p>
+              <div className="space-y-2">
+                {records.map((rec) => (
+                  <Card key={rec.id}>
+                    <CardContent className="py-3">
+                      <div className="flex items-center justify-between mb-1">
+                        <Badge variant="outline" className="text-xs capitalize">{rec.recordType}</Badge>
+                        <Badge variant={rec.verificationStatus === "verified" ? "default" : "secondary"} className="text-xs">{rec.verificationStatus}</Badge>
+                      </div>
+                      {rec.documentContent && <p className="text-xs text-muted-foreground mt-1">{rec.documentContent}</p>}
+                      <div className="flex gap-2 mt-2">
+                        {rec.icwaRelevant && <Badge className="bg-blue-700 text-white text-xs">ICWA</Badge>}
+                        {rec.trustRelevant && <Badge className="bg-amber-700 text-white text-xs">Trust</Badge>}
+                        {rec.welfareRelevant && <Badge className="bg-green-700 text-white text-xs">Welfare</Badge>}
+                      </div>
+                    </CardContent>
+                  </Card>
                 ))}
-              </select>
+              </div>
             </div>
-            <Button onClick={() => { if (selectedLineageId) linkMutation.mutate(selectedLineageId as number); }} disabled={!selectedLineageId || linkMutation.isPending}>
-              {linkMutation.isPending ? "Linking…" : "Link to My Identity Profile"}
-            </Button>
-            {linkMutation.isError && <p className="text-sm text-destructive">{(linkMutation.error as Error).message}</p>}
-            {linkMutation.isSuccess && <p className="text-sm text-green-700">Ancestor linked to your identity profile.</p>}
-          </CardContent>
-        </Card>
+          )}
+        </div>
       )}
 
-      {narratives.length === 0 && linkedAncestors.length === 0 && records.length === 0 && (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <p className="text-muted-foreground">No Knowledge-of-Self links yet. Import lineage data via CSV or photo, then link ancestors to your identity profile here.</p>
-          </CardContent>
-        </Card>
-      )}
+      {kosTab === "learn" && (
+        <div className="space-y-6">
+          <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700">
+            <CardContent className="py-4">
+              <p className="text-sm font-semibold text-amber-800 dark:text-amber-300 mb-1">Knowledge of Self — The Foundation of Sovereignty</p>
+              <p className="text-sm text-amber-700 dark:text-amber-400">
+                Urban Indian people — those living off-reservation in cities — retain full tribal citizenship and sovereign rights. Knowing your lineage, your rights under federal Indian law, and how to document ancestry is the first act of reclaiming sovereignty. These resources are curated for Mathias El Tribe members navigating identity, ancestry, ICWA, and tribal rights outside the reservation context.
+              </p>
+            </CardContent>
+          </Card>
 
-      {records.length > 0 && (
-        <div>
-          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">Ancestral Records ({records.length})</p>
-          <div className="space-y-2">
-            {records.map((rec) => (
-              <Card key={rec.id}>
-                <CardContent className="py-3">
-                  <div className="flex items-center justify-between mb-1">
-                    <Badge variant="outline" className="text-xs capitalize">{rec.recordType}</Badge>
-                    <Badge variant={rec.verificationStatus === "verified" ? "default" : "secondary"} className="text-xs">{rec.verificationStatus}</Badge>
-                  </div>
-                  {rec.documentContent && <p className="text-xs text-muted-foreground mt-1">{rec.documentContent}</p>}
-                  <div className="flex gap-2 mt-2">
-                    {rec.icwaRelevant && <Badge className="bg-blue-700 text-white text-xs">ICWA</Badge>}
-                    {rec.trustRelevant && <Badge className="bg-amber-700 text-white text-xs">Trust</Badge>}
-                    {rec.welfareRelevant && <Badge className="bg-green-700 text-white text-xs">Welfare</Badge>}
-                  </div>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
+          {KOS_RESOURCES.map((section) => (
+            <div key={section.category}>
+              <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest mb-3">{section.category}</p>
+              <div className="space-y-3">
+                {section.items.map((item) => (
+                  <Card key={item.title} className={`border-l-4 ${section.color}`}>
+                    <CardContent className="py-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-sm">{item.title}</p>
+                          <p className="text-xs text-muted-foreground mt-0.5">{item.desc}</p>
+                        </div>
+                        <a
+                          href={item.url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="shrink-0 text-xs text-primary underline underline-offset-2 hover:no-underline"
+                        >
+                          Open →
+                        </a>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          <Card className="border-dashed">
+            <CardContent className="py-4">
+              <p className="text-sm font-semibold mb-1">Next Step: Build Your Lineage</p>
+              <p className="text-sm text-muted-foreground">Use the <strong>Edit Ancestors</strong> tab to enter family members, then return to <strong>My Identity Profile</strong> here to link them to your sovereign identity record. Each linked ancestor strengthens your documentation for ICWA, trust, and welfare claims.</p>
+            </CardContent>
+          </Card>
         </div>
       )}
     </div>

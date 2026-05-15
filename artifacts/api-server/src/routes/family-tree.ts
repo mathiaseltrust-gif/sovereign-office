@@ -268,6 +268,7 @@ router.post("/manual", requireAuth, async (req, res, next) => {
       tribalNation?: string;
       tribalEnrollmentNumber?: string;
       notes?: string;
+      contactEmail?: string;
       parentIds?: number[];
       spouseIds?: number[];
       generationalPosition?: number;
@@ -291,6 +292,7 @@ router.post("/manual", requireAuth, async (req, res, next) => {
         tribalNation: body.tribalNation ?? undefined,
         tribalEnrollmentNumber: body.tribalEnrollmentNumber ?? undefined,
         notes: body.notes ?? undefined,
+        contactEmail: body.contactEmail ?? undefined,
         isDeceased: body.deathYear !== undefined,
         isAncestor: true,
         generationalPosition: body.generationalPosition ?? 0,

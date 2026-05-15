@@ -147,9 +147,16 @@ router.post("/photo", requireAuth, upload.single("photo"), async (req, res, next
     }
     const mimeType = req.file.mimetype.includes("png") ? "image/png" : "image/jpeg";
     const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
-    await db.update(familyLineageTable)
+    // Update linked-profile node first; if none exists fall back to own lineage rows
+    const linkedRows = await db.update(familyLineageTable)
       .set({ photoUrl: dataUrl, updatedAt: new Date() })
-      .where(eq(familyLineageTable.linkedProfileUserId, dbId));
+      .where(eq(familyLineageTable.linkedProfileUserId, dbId))
+      .returning({ id: familyLineageTable.id });
+    if (linkedRows.length === 0) {
+      await db.update(familyLineageTable)
+        .set({ photoUrl: dataUrl, updatedAt: new Date() })
+        .where(eq(familyLineageTable.userId, dbId));
+    }
     logger.info({ dbId }, "Profile photo updated");
     res.json({ success: true });
   } catch (err) {

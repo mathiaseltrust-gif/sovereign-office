@@ -295,7 +295,7 @@ export async function resolveSovereignIdentityGateway(
         ...((narrative?.benefitEligibility as Record<string, boolean>) ?? {}),
       },
       orgAffiliations, elderStatus, isElder, elderAuthorities,
-      profilePhoto: linkedNode?.photoUrl ?? (profile as any)?.profilePhoto ?? null,
+      profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl ?? (profile as any)?.profilePhoto ?? null,
       visibilityRules,
       generationalPosition, generationalDepth,
       icwaEligible, welfareEligible, trustInheritance,
