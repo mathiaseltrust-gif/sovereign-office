@@ -811,16 +811,16 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Background — deep navy so the full-color tribal seal reads true
-  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.08, 0.11, 0.22) });
+  // Background — deep maroon matching the on-screen ID card (#6B0000 → #9B1A1A gradient approximated as flat)
+  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.42, 0.10, 0.03) });
 
-  // Subtle inner card area (lighter navy stripe)
+  // Inner card area — near-black body matching the screen card's #0A0400 body
   page.drawRectangle({ x: 8, y: 8, width: width - 16, height: height - 16,
-    borderColor: rgb(0.6, 0.5, 0.2), borderWidth: 0.8, color: rgb(0.10, 0.14, 0.28) });
+    borderColor: rgb(0.6, 0.5, 0.2), borderWidth: 0.8, color: rgb(0.04, 0.016, 0.00) });
 
-  // -- Logo panel (left 130pt wide) -----------------------------------------
+  // -- Logo panel (left 130pt wide) — darker maroon to match header band
   const LOGO_PANEL_W = 130;
-  page.drawRectangle({ x: 8, y: 8, width: LOGO_PANEL_W, height: height - 16, color: rgb(0.06, 0.09, 0.18) });
+  page.drawRectangle({ x: 8, y: 8, width: LOGO_PANEL_W, height: height - 16, color: rgb(0.22, 0.04, 0.04) });
 
   // Full-color tribal seal — centered in logo panel, fills most of it
   const seal = await embedColorSeal(pdfDoc);
@@ -875,7 +875,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   const cw = width - cx - 14;
   const GOLD = rgb(0.9, 0.82, 0.4);
   const WHITE = rgb(1, 1, 1);
-  const MUTED = rgb(0.65, 0.65, 0.75);
+  const MUTED = rgb(0.65, 0.62, 0.55); // warm gray — reads well on maroon/dark
   const LINE_H = 20;
 
   // Header strip
@@ -951,8 +951,8 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   }
   page.drawText("scan to verify", { x: qrX + 4, y: qrY - 10, size: 5.5, font: helvetica, color: MUTED });
 
-  // Bottom bar
-  page.drawRectangle({ x: 8, y: 8, width: width - 16, height: 14, color: rgb(0.04, 0.06, 0.14) });
+  // Bottom bar — very dark maroon strip
+  page.drawRectangle({ x: 8, y: 8, width: width - 16, height: 14, color: rgb(0.10, 0.02, 0.02) });
   page.drawText(
     "Issued under inherent sovereign authority of the Mathias El Tribe  |  Federal Trust Responsibility applies  |  Worcester v. Georgia, 31 U.S. 515 (1832)",
     { x: LOGO_PANEL_W + 16, y: 12, size: 4.8, font: helvetica, color: rgb(0.55, 0.55, 0.65) }

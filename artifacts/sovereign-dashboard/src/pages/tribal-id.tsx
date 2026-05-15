@@ -480,23 +480,28 @@ export default function TribalIdPage() {
         </Card>
       )}
 
-      {/* Print stylesheet override */}
+      {/* Print stylesheet — isolates just the ID card, sized to fit a landscape page */}
       <style>{`
         @media print {
+          @page { size: landscape; margin: 0.35in; }
           body * { visibility: hidden !important; }
           #tribal-id-card,
           #tribal-id-card * { visibility: visible !important; }
           #tribal-id-card {
             position: fixed !important;
-            top: 0 !important;
-            left: 0 !important;
-            width: 100vw !important;
+            top: 50% !important;
+            left: 50% !important;
+            transform: translate(-50%, -50%) !important;
+            width: 90vw !important;
+            max-width: 680px !important;
             height: auto !important;
             margin: 0 !important;
             padding: 0 !important;
             box-shadow: none !important;
-            border-radius: 0 !important;
+            border-radius: 8px !important;
             z-index: 9999 !important;
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
           }
         }
       `}</style>
