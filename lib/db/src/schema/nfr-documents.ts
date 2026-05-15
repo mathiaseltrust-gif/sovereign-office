@@ -9,6 +9,8 @@ export const nfrDocumentsTable = pgTable("nfr_documents", {
   content: text("content").notNull(),
   pdfUrl: text("pdf_url"),
   status: varchar("status", { length: 50 }).notNull().default("draft"),
+  certifiedMailNumber: text("certified_mail_number"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

@@ -38,6 +38,8 @@ export const trustInstrumentsTable = pgTable("trust_instruments", {
   tractNumber: varchar("tract_number", { length: 100 }),
   templateKey: varchar("template_key", { length: 100 }),
   versionHistory: jsonb("version_history").default([]),
+  certifiedMailNumber: text("certified_mail_number"),
+  sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

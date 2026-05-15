@@ -1235,6 +1235,8 @@ export interface MemberContext {
   protectionLevel?: string;
   trustLandProtected?: boolean;
   docRef?: string;
+  certifiedMailNumber?: string;
+  sentAt?: Date | null;
 }
 
 /**
@@ -1257,7 +1259,34 @@ async function stampMemberAssociation(buffer: Buffer, ctx: MemberContext): Promi
     const DARK = rgb(0.15, 0.15, 0.15);
     const RED  = rgb(0.55, 0.0, 0.0);
 
-    let y = MARGIN_BOTTOM + 28;
+    // CMRN line height — always printed (placeholder if not yet recorded)
+    const CMRN_HEIGHT = 13;
+    let y = MARGIN_BOTTOM + 28 + CMRN_HEIGHT;
+
+    // Certified Mail Receipt Number — prominent, above the association block
+    const cmrnLabel = "USPS Certified Mail No.:";
+    const cmrnValue = ctx.certifiedMailNumber
+      ? ctx.certifiedMailNumber
+      : "_________________________________";
+    const cmrnSentNote = ctx.sentAt
+      ? `  (sent ${ctx.sentAt.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })})`
+      : "";
+
+    lastPage.drawText(cmrnLabel, {
+      x: MARGIN_LEFT,
+      y,
+      size: 6.5,
+      font: helveticaBold,
+      color: DARK,
+    });
+    lastPage.drawText(cmrnValue + cmrnSentNote, {
+      x: MARGIN_LEFT + helveticaBold.widthOfTextAtSize(cmrnLabel + " ", 6.5),
+      y,
+      size: 6.5,
+      font: ctx.certifiedMailNumber ? helveticaBold : helvetica,
+      color: ctx.certifiedMailNumber ? rgb(0.1, 0.35, 0.1) : GRAY,
+    });
+    y -= CMRN_HEIGHT - 3;
 
     // Thin rule above association block
     lastPage.drawLine({

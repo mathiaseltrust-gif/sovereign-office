@@ -25,6 +25,8 @@ async function resolveMemberContext(
   userId: number,
   docType: string,
   docId: number,
+  certifiedMailNumber?: string | null,
+  sentAt?: Date | null,
 ): Promise<MemberContext> {
   const [profile] = await db
     .select()
@@ -63,8 +65,12 @@ async function resolveMemberContext(
     protectionLevel,
     trustLandProtected,
     docRef,
+    certifiedMailNumber: certifiedMailNumber ?? undefined,
+    sentAt: sentAt ?? undefined,
   };
 }
+
+// ── GET /nfr/:id/pdf ─────────────────────────────────────────────────────────
 
 router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
   try {
@@ -91,7 +97,13 @@ router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
     logger.info({ nfrId: id, memberId }, "Generating NFR PDF");
 
     const memberCtx = memberId
-      ? await resolveMemberContext(memberId, "NFR", id).catch(() => undefined)
+      ? await resolveMemberContext(
+          memberId,
+          "NFR",
+          id,
+          doc.certifiedMailNumber,
+          doc.sentAt,
+        ).catch(() => undefined)
       : undefined;
 
     const pdfBuffer = await buildNfrPdfBuffer(id, doc.content, memberCtx);
@@ -107,11 +119,51 @@ router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
       res.setHeader("X-Document-Ref", memberCtx.docRef);
       res.setHeader("X-Member-Id", String(memberId));
     }
+    if (doc.certifiedMailNumber) {
+      res.setHeader("X-Certified-Mail-Number", doc.certifiedMailNumber);
+    }
     res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }
 });
+
+// ── PATCH /nfr/:id/cmrn ──────────────────────────────────────────────────────
+
+router.patch("/nfr/:id/cmrn", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid document ID" }); return; }
+
+    const { certifiedMailNumber } = req.body as { certifiedMailNumber: string };
+    if (!certifiedMailNumber || typeof certifiedMailNumber !== "string" || !certifiedMailNumber.trim()) {
+      res.status(400).json({ error: "certifiedMailNumber is required" });
+      return;
+    }
+
+    const [doc] = await db
+      .select({ id: nfrDocumentsTable.id })
+      .from(nfrDocumentsTable)
+      .where(eq(nfrDocumentsTable.id, id))
+      .limit(1);
+
+    if (!doc) { res.status(404).json({ error: "NFR document not found" }); return; }
+
+    await db
+      .update(nfrDocumentsTable)
+      .set({
+        certifiedMailNumber: certifiedMailNumber.trim().toUpperCase(),
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(nfrDocumentsTable.id, id));
+
+    logger.info({ nfrId: id, certifiedMailNumber }, "NFR certified mail number recorded");
+    res.json({ recorded: true, certifiedMailNumber: certifiedMailNumber.trim().toUpperCase() });
+  } catch (err) { next(err); }
+});
+
+// ── GET /instrument/:id/pdf ───────────────────────────────────────────────────
 
 router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
   try {
@@ -133,6 +185,8 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
         recorderMetadata: trustInstrumentsTable.recorderMetadata,
         trusteeNotes: trustInstrumentsTable.trusteeNotes,
         userId: trustInstrumentsTable.userId,
+        certifiedMailNumber: trustInstrumentsTable.certifiedMailNumber,
+        sentAt: trustInstrumentsTable.sentAt,
       })
       .from(trustInstrumentsTable)
       .where(eq(trustInstrumentsTable.id, id))
@@ -144,13 +198,18 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
     }
 
     const inst = results[0];
-    /* Use the instrument's owner if set; otherwise fall back to requesting user */
     const memberId = inst.userId ?? req.user!.dbId ?? 0;
 
     logger.info({ instrumentId: id, memberId }, "Generating instrument PDF");
 
     const memberCtx = memberId
-      ? await resolveMemberContext(memberId, "INST", id).catch(() => undefined)
+      ? await resolveMemberContext(
+          memberId,
+          "INST",
+          id,
+          inst.certifiedMailNumber,
+          inst.sentAt,
+        ).catch(() => undefined)
       : undefined;
 
     const inputOverride: Partial<PdfBuildInput> = {
@@ -162,7 +221,6 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
       recorderMetadata: (inst.recorderMetadata ?? {}) as PdfBuildInput["recorderMetadata"],
     };
 
-    /* If member has an address on file, add it as the instrument's return address */
     if (memberCtx?.address) {
       inputOverride.recorderMetadata = {
         ...((inst.recorderMetadata ?? {}) as PdfBuildInput["recorderMetadata"]),
@@ -189,10 +247,48 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
       res.setHeader("X-Document-Ref", memberCtx.docRef);
       res.setHeader("X-Member-Id", String(memberId));
     }
+    if (inst.certifiedMailNumber) {
+      res.setHeader("X-Certified-Mail-Number", inst.certifiedMailNumber);
+    }
     res.send(pdfBuffer);
   } catch (err) {
     next(err);
   }
+});
+
+// ── PATCH /instrument/:id/cmrn ────────────────────────────────────────────────
+
+router.patch("/instrument/:id/cmrn", requireAuth, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid instrument ID" }); return; }
+
+    const { certifiedMailNumber } = req.body as { certifiedMailNumber: string };
+    if (!certifiedMailNumber || typeof certifiedMailNumber !== "string" || !certifiedMailNumber.trim()) {
+      res.status(400).json({ error: "certifiedMailNumber is required" });
+      return;
+    }
+
+    const [inst] = await db
+      .select({ id: trustInstrumentsTable.id })
+      .from(trustInstrumentsTable)
+      .where(eq(trustInstrumentsTable.id, id))
+      .limit(1);
+
+    if (!inst) { res.status(404).json({ error: "Trust instrument not found" }); return; }
+
+    await db
+      .update(trustInstrumentsTable)
+      .set({
+        certifiedMailNumber: certifiedMailNumber.trim().toUpperCase(),
+        sentAt: new Date(),
+        updatedAt: new Date(),
+      })
+      .where(eq(trustInstrumentsTable.id, id));
+
+    logger.info({ instrumentId: id, certifiedMailNumber }, "Instrument certified mail number recorded");
+    res.json({ recorded: true, certifiedMailNumber: certifiedMailNumber.trim().toUpperCase() });
+  } catch (err) { next(err); }
 });
 
 export default router;
