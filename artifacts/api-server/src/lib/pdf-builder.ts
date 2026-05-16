@@ -862,42 +862,77 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   page.drawRectangle({ x: 8, y: 8, width: width - 16, height: height - 16,
     borderColor: rgb(0.6, 0.5, 0.2), borderWidth: 0.8, color: rgb(0.04, 0.016, 0.00) });
 
-  // ── HEADER BAND — matches the on-screen card header ───────────────────────
-  const HEADER_H = 64;
-  const HEADER_Y = height - 8 - HEADER_H; // bottom of header band = 324 for 396pt page
+  // ── HEADER BAND ───────────────────────────────────────────────────────────
+  const HEADER_H = 104;
+  const HEADER_Y = height - 8 - HEADER_H; // bottom of header band
   page.drawRectangle({ x: 8, y: HEADER_Y, width: width - 16, height: HEADER_H, color: rgb(0.16, 0.03, 0.03) });
   // Gold divider line between header and body
   page.drawLine({ start: { x: 8, y: HEADER_Y }, end: { x: width - 8, y: HEADER_Y },
     thickness: 0.9, color: rgb(0.7, 0.55, 0.22) });
 
-  // Tribal seal — right side of header (matches on-screen card right seal)
+  // Split header: left half = title, right half = tribal seal
+  const innerW = width - 16; // 596pt
+  const halfCenter = 8 + innerW / 4; // center of left half ≈ 157
+
+  // ── Right half: tribal seal — large and prominent ─────────────────────────
   const headerSeal = await embedColorSeal(pdfDoc);
-  const HS = 46;
-  const hsX = width - 8 - HS - 8;   // right-aligned with margin
-  const hsY = HEADER_Y + (HEADER_H - HS) / 2; // vertically centered in header
+  const HS = 86;
+  const hsX = 8 + innerW * 3 / 4 - HS / 2; // centered in right half
+  const hsY = HEADER_Y + (HEADER_H - HS) / 2; // vertically centered
   if (headerSeal) {
     page.drawImage(headerSeal, { x: hsX, y: hsY, width: HS, height: HS });
   }
 
-  // NO. 001 to left of seal, vertically centered upper half
-  const idDisplay = input.tribalIdNumber ? `NO. ${input.tribalIdNumber}` : `ID-${String(input.userId).padStart(6, "0")}`;
-  const idW = helveticaBold.widthOfTextAtSize(idDisplay, 13);
-  page.drawText(idDisplay, { x: hsX - idW - 6, y: HEADER_Y + HEADER_H - 22, size: 13, font: helveticaBold, color: GOLD });
-  page.drawText(`Exp: ${input.expirationDate}`, {
-    x: hsX - helvetica.widthOfTextAtSize(`Exp: ${input.expirationDate}`, 5.5) - 6,
-    y: HEADER_Y + HEADER_H - 35, size: 5.5, font: helvetica, color: MUTED });
+  // ── Left half: title block — large, legible ───────────────────────────────
+  const t1 = "CHIEF MATHIAS L.";
+  const t2 = "Office of the Chief Justice & Trustee";
+  const t3 = "Mathias El Tribe  •  Sovereign Identity";
+  page.drawText(t1, {
+    x: halfCenter - helveticaBold.widthOfTextAtSize(t1, 16) / 2,
+    y: HEADER_Y + 76, size: 16, font: helveticaBold, color: GOLD });
+  page.drawText(t2, {
+    x: halfCenter - helvetica.widthOfTextAtSize(t2, 9.5) / 2,
+    y: HEADER_Y + 54, size: 9.5, font: helvetica, color: rgb(0.88, 0.80, 0.55) });
+  page.drawText(t3, {
+    x: halfCenter - helvetica.widthOfTextAtSize(t3, 7.5) / 2,
+    y: HEADER_Y + 40, size: 7.5, font: helvetica, color: MUTED });
 
-  // Center title block
-  const hCenterX = 8 + (width - 16) / 2;
-  const t1 = "MATHIAS EL TRIBE";
-  const t2 = "SOVEREIGN IDENTITY DOCUMENT";
-  const t3 = "Office of the Chief Justice & Trustee  |  Mathias El Tribe";
-  page.drawText(t1, { x: hCenterX - helveticaBold.widthOfTextAtSize(t1, 11) / 2,
-    y: HEADER_Y + 44, size: 11, font: helveticaBold, color: GOLD });
-  page.drawText(t2, { x: hCenterX - helveticaBold.widthOfTextAtSize(t2, 7.5) / 2,
-    y: HEADER_Y + 29, size: 7.5, font: helveticaBold, color: rgb(0.88, 0.80, 0.55) });
-  page.drawText(t3, { x: hCenterX - helvetica.widthOfTextAtSize(t3, 5.5) / 2,
-    y: HEADER_Y + 16, size: 5.5, font: helvetica, color: MUTED });
+  // Vertical gold divider between the two halves
+  page.drawLine({
+    start: { x: 8 + innerW / 2, y: HEADER_Y + 10 },
+    end:   { x: 8 + innerW / 2, y: HEADER_Y + HEADER_H - 10 },
+    thickness: 0.4, color: rgb(0.6, 0.5, 0.2),
+  });
+
+  // ── ID number — on the dark body ("black pavement") ───────────────────────
+  const idDisplay = input.tribalIdNumber ? `NO. ${input.tribalIdNumber}` : `ID-${String(input.userId).padStart(6, "0")}`;
+  // Positioned in the bottom-right of the body, above the QR code
+  const idSize = 14;
+  const qrSize = 60;
+  const qrX = width - qrSize - 14;
+  const qrY = 24;
+  const idW = helveticaBold.widthOfTextAtSize(idDisplay, idSize);
+  page.drawText(idDisplay, {
+    x: qrX + (qrSize - idW) / 2,
+    y: qrY + qrSize + 16,
+    size: idSize, font: helveticaBold, color: GOLD,
+  });
+  page.drawText(`Exp: ${input.expirationDate}`, {
+    x: qrX + (qrSize - helvetica.widthOfTextAtSize(`Exp: ${input.expirationDate}`, 5.5)) / 2,
+    y: qrY + qrSize + 5,
+    size: 5.5, font: helvetica, color: MUTED,
+  });
+
+  // ── Watermark — tribal insignia, right-body area, very light ──────────────
+  const wmSeal = headerSeal ?? await embedColorSeal(pdfDoc);
+  if (wmSeal) {
+    const wmSize = 168;
+    const bodyRight = width - 8;       // 604
+    const bodyLeft  = 8 + 148 + 18;   // cx (right of photo divider + gap) ≈ 174
+    const wmX = bodyLeft + (bodyRight - bodyLeft - wmSize) / 2; // centered in fields area
+    const wmY = HEADER_Y - wmSize - ((HEADER_Y - wmSize - 22) / 2); // vertically centered in body
+    page.drawImage(wmSeal, { x: wmX, y: wmY, width: wmSize, height: wmSize, opacity: 0.07 });
+  }
 
   // ── PHOTO COLUMN — left 148pt of body ─────────────────────────────────────
   const PANEL_W = 148;
@@ -1000,10 +1035,7 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
     }
   }
 
-  // QR code — bottom right
-  const qrSize = 60;
-  const qrX = width - qrSize - 14;
-  const qrY = 24;
+  // QR code — bottom right (qrSize/qrX/qrY declared above with ID number)
   page.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, color: rgb(1,1,1) });
   try {
     const QRCode = (await import("qrcode")).default;
