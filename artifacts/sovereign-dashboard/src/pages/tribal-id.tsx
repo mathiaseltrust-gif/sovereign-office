@@ -7,7 +7,44 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Printer, Upload, User, ShieldCheck } from "lucide-react";
+import { Download, Printer, Upload, User, ShieldCheck, Scale, ChevronDown, ChevronUp } from "lucide-react";
+
+interface LegalBasis {
+  citation: string;
+  title: string;
+  valid: boolean;
+  notes: string;
+}
+
+interface KeyOrder {
+  section: string;
+  order: string;
+}
+
+interface ProtectiveOrder {
+  id: number;
+  caseNumber: string;
+  title: string;
+  documentType: string;
+  court: string;
+  issuer: string;
+  issuedDate: string;
+  expiresDate: string | null;
+  retroactiveTo: string | null;
+  status: string;
+  supplementalTo: string | null;
+  summary: string;
+  scope: string;
+  coverageRoles: string[];
+  coveredPersonCategories: string[];
+  legalBases: LegalBasis[];
+  keyOrders: KeyOrder[];
+  enforcementMechanisms: string[];
+  namedRespondents: string[];
+  fullFaithAndCredit: boolean;
+  selfExecuting: boolean;
+  sovereignImmunityReserved: boolean;
+}
 
 interface GatewayData {
   identity: {
@@ -94,6 +131,7 @@ export default function TribalIdPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [generating, setGenerating] = useState(false);
   const [genLetter, setGenLetter] = useState(false);
+  const [expandedOrder, setExpandedOrder] = useState<number | null>(null);
 
   const { data, isLoading } = useQuery<GatewayData>({
     queryKey: ["identity-gateway", user?.id],
@@ -106,6 +144,19 @@ export default function TribalIdPage() {
     },
     enabled: !!user,
     staleTime: 60_000,
+  });
+
+  const { data: protectiveOrders } = useQuery<ProtectiveOrder[]>({
+    queryKey: ["identity-protective-orders"],
+    queryFn: async () => {
+      const r = await fetch("/api/identity/protective-orders", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!user,
+    staleTime: 300_000,
   });
 
   const photoMutation = useMutation({
@@ -547,6 +598,194 @@ export default function TribalIdPage() {
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* ── SOVEREIGN PROTECTIVE ORDERS ─────────────────────────────────────── */}
+      {protectiveOrders && protectiveOrders.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <Scale className="w-5 h-5 text-amber-600" />
+            <h2 className="text-lg font-serif font-bold text-foreground">Sovereign Protective Orders</h2>
+            <Badge className="bg-emerald-700 text-white text-[10px] px-2 py-0.5 ml-1">
+              {protectiveOrders.length} ACTIVE
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground -mt-1">
+            The following protective orders issued by the Mathias El Tribe Supreme Court are in full force and enforceable nationwide under full faith and credit — no registration required.
+          </p>
+
+          {protectiveOrders.map((order) => {
+            const isMain = !order.supplementalTo;
+            const isExpanded = expandedOrder === order.id;
+
+            return (
+              <Card
+                key={order.id}
+                className={`border ${isMain ? "border-amber-200 bg-amber-50/40 dark:bg-amber-950/10 dark:border-amber-900" : "border-border"}`}
+              >
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex-1 min-w-0">
+                      <div className="flex flex-wrap items-center gap-2 mb-1">
+                        <Badge className="bg-emerald-700 text-white text-[9px] px-1.5 font-bold tracking-wider">
+                          {order.status.toUpperCase()}
+                        </Badge>
+                        <span className="text-[11px] font-mono font-semibold text-amber-700 dark:text-amber-400">
+                          {order.caseNumber}
+                        </span>
+                        {order.fullFaithAndCredit && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 border-blue-400 text-blue-700 dark:text-blue-400">
+                            Full Faith &amp; Credit
+                          </Badge>
+                        )}
+                        {order.selfExecuting && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 border-emerald-500 text-emerald-700 dark:text-emerald-400">
+                            Self-Executing
+                          </Badge>
+                        )}
+                        {order.supplementalTo && (
+                          <Badge variant="secondary" className="text-[9px] px-1.5">
+                            Supp. to {order.supplementalTo}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="font-semibold text-sm leading-snug">{order.title}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">
+                        {order.court} · Issued {new Date(order.issuedDate).toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" })} by {order.issuer}
+                        {order.retroactiveTo && ` · Retroactive to ${new Date(order.retroactiveTo).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setExpandedOrder(isExpanded ? null : order.id)}
+                      className="flex-shrink-0 p-1.5 rounded hover:bg-muted transition-colors mt-0.5"
+                      aria-label={isExpanded ? "Collapse" : "Expand"}
+                    >
+                      {isExpanded ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+                    </button>
+                  </div>
+                </CardHeader>
+
+                <CardContent className="pt-0 space-y-3">
+                  {/* Summary — always visible */}
+                  <p className="text-sm text-muted-foreground leading-relaxed">{order.summary}</p>
+
+                  {/* Coverage chips — always visible */}
+                  {order.coveredPersonCategories.length > 0 && (
+                    <div>
+                      <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Covers</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {order.coveredPersonCategories.map((cat) => (
+                          <Badge key={cat} variant="secondary" className="text-[10px] px-2">
+                            <ShieldCheck className="w-2.5 h-2.5 mr-1 text-emerald-600" />
+                            {cat}
+                          </Badge>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Expanded detail */}
+                  {isExpanded && (
+                    <div className="space-y-3 pt-1 border-t mt-2">
+
+                      {/* Scope */}
+                      <div>
+                        <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1">Protective Scope</p>
+                        <p className="text-sm text-foreground leading-relaxed">{order.scope}</p>
+                      </div>
+
+                      {/* Key orders */}
+                      {order.keyOrders.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Orders Issued</p>
+                          <div className="space-y-2">
+                            {order.keyOrders.map((ko, i) => (
+                              <div key={i} className="flex gap-2">
+                                <span className="text-[10px] font-mono font-bold text-amber-600 mt-0.5 flex-shrink-0">{ko.section}</span>
+                                <p className="text-sm text-foreground leading-snug">{ko.order}</p>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Legal bases — validated */}
+                      {order.legalBases.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">
+                            Legal Authority &amp; Citations
+                            <span className="ml-1.5 text-emerald-600 normal-case font-normal">(all citations validated)</span>
+                          </p>
+                          <div className="space-y-1.5">
+                            {order.legalBases.map((lb, i) => (
+                              <div key={i} className="rounded border border-border bg-muted/30 px-2.5 py-1.5">
+                                <div className="flex items-center gap-1.5 mb-0.5">
+                                  <ShieldCheck className="w-3 h-3 text-emerald-600 flex-shrink-0" />
+                                  <span className="text-[10px] font-mono font-semibold text-foreground">{lb.citation}</span>
+                                </div>
+                                <p className="text-[11px] text-muted-foreground pl-4.5">{lb.title}</p>
+                                {lb.notes && (
+                                  <p className="text-[10px] text-muted-foreground/70 pl-4.5 italic mt-0.5">{lb.notes}</p>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Enforcement */}
+                      {order.enforcementMechanisms.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Enforcement Mechanisms</p>
+                          <ul className="space-y-0.5">
+                            {order.enforcementMechanisms.map((e, i) => (
+                              <li key={i} className="text-sm text-foreground flex gap-1.5 items-start">
+                                <span className="text-amber-600 mt-1 flex-shrink-0">·</span>{e}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+
+                      {/* Named respondents */}
+                      {order.namedRespondents.length > 0 && (
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Named Respondents / Enjoined Parties</p>
+                          <div className="flex flex-wrap gap-1.5">
+                            {order.namedRespondents.map((r) => (
+                              <Badge key={r} variant="outline" className="text-[10px] border-red-300 text-red-700 dark:text-red-400">
+                                {r}
+                              </Badge>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Footer flags */}
+                      <div className="flex flex-wrap gap-3 pt-1 border-t text-[10px] text-muted-foreground">
+                        {order.sovereignImmunityReserved && (
+                          <span className="flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-amber-600" /> Sovereign immunity fully reserved
+                          </span>
+                        )}
+                        {order.fullFaithAndCredit && (
+                          <span className="flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-blue-600" /> Enforceable in all U.S. jurisdictions
+                          </span>
+                        )}
+                        {order.selfExecuting && (
+                          <span className="flex items-center gap-1">
+                            <ShieldCheck className="w-3 h-3 text-emerald-600" /> Self-executing — no registration required
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       )}
 
       {/* Print stylesheet — isolates just the ID card, sized to fit a landscape page */}
