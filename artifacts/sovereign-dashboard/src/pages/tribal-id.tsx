@@ -421,7 +421,7 @@ export default function TribalIdPage() {
             {/* Enrollment No. */}
             {ssmel && (
               <div className="text-center mt-2.5">
-                <p className="text-[11px] font-bold tracking-widest text-white/90">{ssmel}</p>
+                <p className="text-[11px] font-bold tracking-widest" style={{ color: "#C6863B", textShadow: "0 0 8px rgba(198,134,59,0.4)" }}>{ssmel}</p>
                 <p className="text-[7px] tracking-wider text-white/45">ENROLLMENT NO.</p>
               </div>
             )}
@@ -488,7 +488,20 @@ export default function TribalIdPage() {
                     />
                   </div>
                 ) : (
-                  <div style={{ width: 160, height: 28, borderBottom: "1px solid rgba(255,255,255,0.25)" }} />
+                  <div style={{ width: 180, height: 36, borderBottom: "1px solid rgba(198,134,59,0.4)", display: "flex", alignItems: "flex-end", paddingBottom: 2 }}>
+                    <span
+                      style={{
+                        fontFamily: "'Great Vibes', cursive",
+                        fontSize: 26,
+                        color: "#C6863B",
+                        textShadow: "0 0 10px rgba(198,134,59,0.35)",
+                        lineHeight: 1,
+                        letterSpacing: "0.02em",
+                      }}
+                    >
+                      {data.identity.displayName || data.identity.legalName}
+                    </span>
+                  </div>
                 )}
                 <p className="text-[6.5px] text-white/25 leading-snug mt-1 max-w-[180px]">
                   By inherent right · Treaty of Dancing Rabbit Creek (1830)
