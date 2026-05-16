@@ -38,6 +38,7 @@ export const familyLineageTable = pgTable("family_lineage", {
   pendingReview: boolean("pending_review").default(false),
   addedByMemberId: integer("added_by_member_id").references(() => usersTable.id, { onDelete: "set null" }),
   supportingDocumentName: varchar("supporting_document_name", { length: 500 }),
+  visibility: varchar("visibility", { length: 50 }).default("private").notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

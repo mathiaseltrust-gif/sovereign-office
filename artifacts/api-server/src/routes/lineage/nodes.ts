@@ -1,10 +1,12 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
-import { eq, desc, ne } from "drizzle-orm";
+import { eq, desc, ne, or, and, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
 import { logger } from "../../lib/logger";
+
+const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer"]);
 
 const router = Router();
 
@@ -14,6 +16,87 @@ router.get("/", requireAuth, async (req, res, next) => {
     const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? "100"), 10)));
     const offset = (page - 1) * limit;
 
+    const isChief = (req.user?.roles ?? []).some((r) => CHIEF_ROLES.has(r));
+    const currentUserId = req.user?.dbId ?? null;
+
+    const baseSelect = {
+      id: familyLineageTable.id,
+      fullName: familyLineageTable.fullName,
+      firstName: familyLineageTable.firstName,
+      lastName: familyLineageTable.lastName,
+      birthYear: familyLineageTable.birthYear,
+      deathYear: familyLineageTable.deathYear,
+      gender: familyLineageTable.gender,
+      tribalNation: familyLineageTable.tribalNation,
+      isDeceased: familyLineageTable.isDeceased,
+      isAncestor: familyLineageTable.isAncestor,
+      generationalPosition: familyLineageTable.generationalPosition,
+      parentIds: familyLineageTable.parentIds,
+      childrenIds: familyLineageTable.childrenIds,
+      spouseIds: familyLineageTable.spouseIds,
+      protectionLevel: familyLineageTable.protectionLevel,
+      membershipStatus: familyLineageTable.membershipStatus,
+      nameVariants: familyLineageTable.nameVariants,
+      entraObjectId: familyLineageTable.entraObjectId,
+      icwaEligible: familyLineageTable.icwaEligible,
+      welfareEligible: familyLineageTable.welfareEligible,
+      trustBeneficiary: familyLineageTable.trustBeneficiary,
+      sourceType: familyLineageTable.sourceType,
+      linkedProfileUserId: familyLineageTable.linkedProfileUserId,
+      lineageTags: familyLineageTable.lineageTags,
+      notes: familyLineageTable.notes,
+      pendingReview: familyLineageTable.pendingReview,
+      addedByMemberId: familyLineageTable.addedByMemberId,
+      supportingDocumentName: familyLineageTable.supportingDocumentName,
+      visibility: familyLineageTable.visibility,
+      createdAt: familyLineageTable.createdAt,
+    };
+
+    let nodes;
+    if (isChief) {
+      // Chief / admin sees everything
+      nodes = await db.select(baseSelect).from(familyLineageTable)
+        .orderBy(desc(familyLineageTable.generationalPosition), desc(familyLineageTable.createdAt))
+        .limit(limit).offset(offset);
+    } else {
+      // Regular member: see official nodes + own nodes + tribal nodes from others
+      nodes = await db.select(baseSelect).from(familyLineageTable)
+        .where(
+          or(
+            eq(familyLineageTable.sourceType, "manual"),
+            ...(currentUserId ? [eq(familyLineageTable.addedByMemberId, currentUserId)] : []),
+            eq(familyLineageTable.visibility, "tribal"),
+          )
+        )
+        .orderBy(desc(familyLineageTable.generationalPosition), desc(familyLineageTable.createdAt))
+        .limit(limit).offset(offset);
+
+      // Strip sensitive fields from tribal nodes that belong to other members
+      nodes = nodes.map((n) => {
+        const isOwnNode = currentUserId && n.addedByMemberId === currentUserId;
+        const isOfficial = n.sourceType === "manual";
+        if (!isChief && !isOwnNode && !isOfficial) {
+          return { ...n, notes: null, supportingDocumentName: null, lineageTags: [], entraObjectId: null };
+        }
+        return n;
+      });
+    }
+
+    res.json({ nodes, page, limit, count: nodes.length });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── My submissions — all nodes added by the current user ─────────────────
+router.get("/my", requireAuth, async (req, res, next) => {
+  try {
+    const currentUserId = req.user?.dbId ?? null;
+    if (!currentUserId) {
+      res.json({ nodes: [] });
+      return;
+    }
+
     const nodes = await db
       .select({
         id: familyLineageTable.id,
@@ -21,37 +104,23 @@ router.get("/", requireAuth, async (req, res, next) => {
         firstName: familyLineageTable.firstName,
         lastName: familyLineageTable.lastName,
         birthYear: familyLineageTable.birthYear,
-        deathYear: familyLineageTable.deathYear,
         gender: familyLineageTable.gender,
         tribalNation: familyLineageTable.tribalNation,
-        isDeceased: familyLineageTable.isDeceased,
-        isAncestor: familyLineageTable.isAncestor,
-        generationalPosition: familyLineageTable.generationalPosition,
-        parentIds: familyLineageTable.parentIds,
-        childrenIds: familyLineageTable.childrenIds,
-        spouseIds: familyLineageTable.spouseIds,
-        protectionLevel: familyLineageTable.protectionLevel,
-        membershipStatus: familyLineageTable.membershipStatus,
-        nameVariants: familyLineageTable.nameVariants,
-        entraObjectId: familyLineageTable.entraObjectId,
-        icwaEligible: familyLineageTable.icwaEligible,
-        welfareEligible: familyLineageTable.welfareEligible,
-        trustBeneficiary: familyLineageTable.trustBeneficiary,
-        sourceType: familyLineageTable.sourceType,
-        linkedProfileUserId: familyLineageTable.linkedProfileUserId,
-        lineageTags: familyLineageTable.lineageTags,
         notes: familyLineageTable.notes,
+        generationalPosition: familyLineageTable.generationalPosition,
+        membershipStatus: familyLineageTable.membershipStatus,
         pendingReview: familyLineageTable.pendingReview,
+        visibility: familyLineageTable.visibility,
+        sourceType: familyLineageTable.sourceType,
         addedByMemberId: familyLineageTable.addedByMemberId,
         supportingDocumentName: familyLineageTable.supportingDocumentName,
         createdAt: familyLineageTable.createdAt,
       })
       .from(familyLineageTable)
-      .orderBy(desc(familyLineageTable.generationalPosition), desc(familyLineageTable.createdAt))
-      .limit(limit)
-      .offset(offset);
+      .where(eq(familyLineageTable.addedByMemberId, currentUserId))
+      .orderBy(desc(familyLineageTable.createdAt));
 
-    res.json({ nodes, page, limit, count: nodes.length });
+    res.json({ nodes });
   } catch (err) {
     next(err);
   }
@@ -209,6 +278,11 @@ router.post("/member", requireAuth, async (req, res, next) => {
       newSpouseIds.push(submitterNode.id);
     }
 
+    const {
+      visibility: visibilityRaw,
+    } = req.body as Record<string, unknown>;
+    const visibility = visibilityRaw === "tribal" ? "tribal" : "private";
+
     const [node] = await db
       .insert(familyLineageTable)
       .values({
@@ -232,6 +306,7 @@ router.post("/member", requireAuth, async (req, res, next) => {
         pendingReview: true,
         addedByMemberId: callerId,
         supportingDocumentName: typeof supportingDocumentName === "string" ? supportingDocumentName : undefined,
+        visibility,
       })
       .returning();
 
@@ -379,7 +454,7 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
   }
 });
 
-// ── Member edits their own pending submission ─────────────────────────────
+// ── Member edits their own submission (pending fields) or visibility (any status) ──
 router.patch("/member/:id", requireAuth, async (req, res, next) => {
   try {
     if (!req.user) { res.status(401).json({ error: "Unauthorized" }); return; }
@@ -388,25 +463,30 @@ router.patch("/member/:id", requireAuth, async (req, res, next) => {
 
     const [existing] = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
     if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
-    if (!existing.pendingReview) {
-      res.status(403).json({ error: "Only pending submissions can be edited by the submitter." });
-      return;
-    }
     if (existing.addedByMemberId !== req.user.dbId) {
-      res.status(403).json({ error: "You can only edit your own pending submissions." });
+      res.status(403).json({ error: "You can only edit your own submissions." });
       return;
     }
 
     const body = req.body as Record<string, unknown>;
     const updates: Record<string, unknown> = { updatedAt: new Date() };
-    if (typeof body.fullName === "string" && body.fullName.trim()) updates.fullName = body.fullName.trim();
-    if (typeof body.firstName === "string") updates.firstName = body.firstName || null;
-    if (typeof body.lastName === "string") updates.lastName = body.lastName || null;
-    if (typeof body.birthYear === "number") updates.birthYear = body.birthYear;
-    if (body.birthYear === null) updates.birthYear = null;
-    if (typeof body.gender === "string") updates.gender = body.gender || null;
-    if (typeof body.tribalNation === "string") updates.tribalNation = body.tribalNation || null;
-    if (typeof body.supportingDocumentName === "string") updates.supportingDocumentName = body.supportingDocumentName || null;
+
+    // Visibility can always be changed by the owner (private ↔ tribal)
+    if (body.visibility === "tribal" || body.visibility === "private") {
+      updates.visibility = body.visibility;
+    }
+
+    // Other fields only editable while still pending review
+    if (existing.pendingReview) {
+      if (typeof body.fullName === "string" && body.fullName.trim()) updates.fullName = body.fullName.trim();
+      if (typeof body.firstName === "string") updates.firstName = body.firstName || null;
+      if (typeof body.lastName === "string") updates.lastName = body.lastName || null;
+      if (typeof body.birthYear === "number") updates.birthYear = body.birthYear;
+      if (body.birthYear === null) updates.birthYear = null;
+      if (typeof body.gender === "string") updates.gender = body.gender || null;
+      if (typeof body.tribalNation === "string") updates.tribalNation = body.tribalNation || null;
+      if (typeof body.supportingDocumentName === "string") updates.supportingDocumentName = body.supportingDocumentName || null;
+    }
 
     const [updated] = await db.update(familyLineageTable)
       .set(updates)

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
 
-type Tab = "view-lineage" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
+type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
 interface LineageNode {
   id: number;
@@ -41,6 +41,7 @@ interface LineageNode {
   pendingReview?: boolean | null;
   addedByMemberId?: number | null;
   supportingDocumentName?: string | null;
+  visibility?: string | null;
   createdAt?: string;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
@@ -120,6 +121,7 @@ interface KnowledgeOfSelf {
 
 const TAB_LABELS: Record<Tab, string> = {
   "view-lineage": "Visual Tree",
+  "my-submissions": "My Family",
   "edit-ancestors": "Edit Ancestors",
   "knowledge-of-self": "Knowledge-of-Self Links",
   "deduplicate": "Find Duplicates",
@@ -366,6 +368,9 @@ export default function FamilyTreePage() {
       {activeTab === "view-lineage" && (
         <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
       )}
+      {activeTab === "my-submissions" && (
+        <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
+      )}
       {activeTab === "edit-ancestors" && (
         <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
       )}
@@ -374,6 +379,199 @@ export default function FamilyTreePage() {
       )}
       {activeTab === "deduplicate" && (
         <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+      )}
+    </div>
+  );
+}
+
+// ── My Family / Submissions Tab ───────────────────────────────────────────
+function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
+  const { user } = useAuth();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const [showAddModal, setShowAddModal] = useState(false);
+
+  interface MyNode {
+    id: number;
+    fullName: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    birthYear?: number | null;
+    gender?: string | null;
+    tribalNation?: string | null;
+    notes?: string | null;
+    membershipStatus?: string | null;
+    pendingReview?: boolean | null;
+    visibility?: string | null;
+    sourceType?: string | null;
+    addedByMemberId?: number | null;
+    supportingDocumentName?: string | null;
+    createdAt?: string;
+  }
+
+  const { data, isLoading, refetch } = useQuery<{ nodes: MyNode[] }>({
+    queryKey: ["my-submissions"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/nodes/my", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) throw new Error("Failed to load your submissions");
+      return r.json();
+    },
+  });
+
+  const visibilityMutation = useMutation({
+    mutationFn: async ({ id, visibility }: { id: number; visibility: string }) => {
+      const r = await fetch(`/api/lineage/nodes/member/${id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ visibility }),
+      });
+      if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Update failed");
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Visibility updated" });
+      queryClient.invalidateQueries({ queryKey: ["my-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Error", description: err.message, variant: "destructive" });
+    },
+  });
+
+  const nodes = data?.nodes ?? [];
+
+  function statusBadge(node: MyNode) {
+    if (node.membershipStatus === "verified" || node.membershipStatus === "descendant") {
+      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-800">Approved</span>;
+    }
+    if (node.membershipStatus === "rejected") {
+      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-100 text-red-800">Rejected</span>;
+    }
+    return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Pending Review</span>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h2 className="text-lg font-semibold">My Family Members</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            People you've added to the tribal tree. Control who can see each entry — private entries are only visible to you and the Chief Justice.
+          </p>
+        </div>
+        <Button size="sm" onClick={() => setShowAddModal(true)} className="shrink-0">
+          + Add Family Member
+        </Button>
+      </div>
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : nodes.length === 0 ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <p className="text-sm">You haven't added any family members yet.</p>
+            <p className="text-xs mt-1">Click "Add Family Member" to contribute to the tribal family tree.</p>
+          </CardContent>
+        </Card>
+      ) : (
+        <div className="space-y-3">
+          {nodes.map((node) => (
+            <Card key={node.id} className="overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-start gap-4">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap mb-1">
+                      <span className="font-semibold text-sm">{node.fullName}</span>
+                      {statusBadge(node)}
+                    </div>
+                    <div className="text-xs text-muted-foreground space-y-0.5">
+                      {node.notes && <p className="truncate">{node.notes}</p>}
+                      {node.birthYear && <p>Born {node.birthYear}</p>}
+                      {node.tribalNation && <p>{node.tribalNation}</p>}
+                      {node.supportingDocumentName && (
+                        <p className="text-blue-600">📄 {node.supportingDocumentName}</p>
+                      )}
+                      {node.createdAt && (
+                        <p>Submitted {new Date(node.createdAt).toLocaleDateString()}</p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Visibility toggle */}
+                  <div className="shrink-0 flex flex-col items-end gap-2">
+                    <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Visibility</div>
+                    <div className="flex rounded-lg border overflow-hidden text-xs">
+                      <button
+                        className={[
+                          "px-3 py-1.5 font-medium transition-colors",
+                          (node.visibility ?? "private") === "private"
+                            ? "bg-slate-800 text-white"
+                            : "bg-transparent text-muted-foreground hover:bg-muted",
+                        ].join(" ")}
+                        onClick={() => {
+                          if ((node.visibility ?? "private") !== "private") {
+                            visibilityMutation.mutate({ id: node.id, visibility: "private" });
+                          }
+                        }}
+                        disabled={visibilityMutation.isPending}
+                        title="Only you and administration can see this"
+                      >
+                        🔒 Private
+                      </button>
+                      <button
+                        className={[
+                          "px-3 py-1.5 font-medium transition-colors border-l",
+                          (node.visibility ?? "private") === "tribal"
+                            ? "bg-emerald-700 text-white"
+                            : "bg-transparent text-muted-foreground hover:bg-muted",
+                        ].join(" ")}
+                        onClick={() => {
+                          if ((node.visibility ?? "private") !== "tribal") {
+                            visibilityMutation.mutate({ id: node.id, visibility: "tribal" });
+                          }
+                        }}
+                        disabled={visibilityMutation.isPending}
+                        title="Name and relationship visible to all tribal members"
+                      >
+                        🌿 Tribal
+                      </button>
+                    </div>
+                    {(node.visibility ?? "private") === "tribal" && (
+                      <p className="text-[9px] text-emerald-700 text-right max-w-[140px] leading-tight">
+                        Name visible to all members. Details remain private.
+                      </p>
+                    )}
+                    {(node.visibility ?? "private") === "private" && (
+                      <p className="text-[9px] text-muted-foreground text-right max-w-[140px] leading-tight">
+                        Only you and the Chief Justice can see this.
+                      </p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      )}
+
+      <div className="text-xs text-muted-foreground border rounded-lg p-3 bg-muted/30">
+        <p className="font-semibold mb-1">How the tribal tree works</p>
+        <p>Each member contributes their own family connections. Your entries are yours to manage — they never overwrite anyone else's. The Chief Justice can see all contributions regardless of visibility setting, and uses them to build the collective tribal picture.</p>
+      </div>
+
+      {showAddModal && (
+        <MemberAddFamilyModal
+          allNodes={[]}
+          onClose={() => setShowAddModal(false)}
+          onSuccess={() => {
+            setShowAddModal(false);
+            refetch();
+            onDataChange();
+            toast({ title: "Family member submitted", description: "Pending review. You can adjust visibility at any time." });
+          }}
+        />
       )}
     </div>
   );
@@ -1398,6 +1596,7 @@ function MemberAddFamilyModal({ allNodes, onClose, onSuccess }: {
     tribalNation: "",
     relationshipType: "child",
     supportingDocumentName: "",
+    visibility: "private",
     parentSearch: "",
     selectedParentIds: [] as number[],
   });
@@ -1426,6 +1625,7 @@ function MemberAddFamilyModal({ allNodes, onClose, onSuccess }: {
         relationshipType: form.relationshipType,
         parentIds: form.selectedParentIds,
         supportingDocumentName: form.supportingDocumentName || undefined,
+        visibility: form.visibility,
       };
       const r = await fetch("/api/lineage/nodes/member", {
         method: "POST",
@@ -1583,6 +1783,23 @@ function MemberAddFamilyModal({ allNodes, onClose, onSuccess }: {
               placeholder="e.g. Birth Certificate, Adoption Order…"
             />
             <p className="text-xs text-muted-foreground mt-1">Enter the document name or type. Physical documents can be presented to an officer for verification.</p>
+          </div>
+
+          <div>
+            <Label>Who can see this person in the tribal tree?</Label>
+            <select
+              value={form.visibility}
+              onChange={f("visibility")}
+              className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground"
+            >
+              <option value="private">Private — only me and administration</option>
+              <option value="tribal">Share with tribe — name and relationship visible to all members</option>
+            </select>
+            <p className="text-xs text-muted-foreground mt-1">
+              {form.visibility === "tribal"
+                ? "Other members will see this person's name and your relationship in the shared tribal tree. Sensitive details (notes, documents) remain private."
+                : "This entry will only be visible to you and the Chief Justice. You can change this at any time."}
+            </p>
           </div>
 
           {saveMutation.isError && (
