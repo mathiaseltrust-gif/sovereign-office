@@ -30,13 +30,13 @@ interface AuthContextType {
 }
 
 const DEV_USERS: Record<Role, User> = {
-  trustee: { id: 6, email: "mmccaster@mathiaseltribe.org", roles: ["trustee"], name: "Chief Justice & Trustee" },
+  sovereign_admin: { id: 6, email: "mmccaster@mathiaseltribe.org", roles: ["sovereign_admin", "trustee", "admin"], name: "Chief Mathias El" },
+  trustee: { id: 20, email: "trustee@mathiaseltribe.org", roles: ["trustee"], name: "Delegated Trustee" },
   officer: { id: 1, email: "officer@sovereign.gov", roles: ["officer"], name: "Duty Officer" },
   member: { id: 3, email: "member@sovereign.local", roles: ["member"], name: "Citizen Member" },
-  sovereign_admin: { id: 6, email: "mmccaster@mathiaseltribe.org", roles: ["sovereign_admin", "trustee", "admin"], name: "Chief Mathias El" },
   elder: { id: 5, email: "elder@sovereign.local", roles: ["elder"], name: "Tribal Elder" },
-  medical_provider: { id: 6, email: "provider@sovereign.local", roles: ["medical_provider"], name: "Medical Provider" },
-  visitor_media: { id: 7, email: "visitor@sovereign.local", roles: ["visitor_media"], name: "Visitor / Media" },
+  medical_provider: { id: 8, email: "provider@sovereign.local", roles: ["medical_provider"], name: "Medical Provider" },
+  visitor_media: { id: 9, email: "visitor@sovereign.local", roles: ["visitor_media"], name: "Visitor / Media" },
 };
 
 const LS_KEY = "sovereign_auth_v3";
@@ -365,11 +365,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const switchRole = useCallback((role: Role) => {
-    if (mode !== "dev") return;
-    const u = DEV_USERS[role];
-    setUser(u); setActiveRole(role);
-    saveSession({ user: u, mode: "dev", activeRole: role });
-  }, [mode]);
+    if (mode === "dev") {
+      const u = DEV_USERS[role];
+      setUser(u); setActiveRole(role);
+      saveSession({ user: u, mode: "dev", activeRole: role });
+      return;
+    }
+    // In production: sovereign_admin can preview any role without losing their token
+    const isSovAdmin = user?.roles?.some(r => ["sovereign_admin", "admin", "chief_justice"].includes(r));
+    if (isSovAdmin) {
+      setActiveRole(role);
+      const existing = loadSession();
+      if (existing) saveSession({ ...existing, activeRole: role });
+    }
+  }, [mode, user]);
 
   const setLineagePendingFlag = useCallback((pending: boolean) => {
     setLineagePending(pending);

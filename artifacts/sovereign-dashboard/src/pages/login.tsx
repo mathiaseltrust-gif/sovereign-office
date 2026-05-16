@@ -8,11 +8,11 @@ import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
 
 const DEV_ROLES: Array<{ role: Role; label: string; desc: string }> = [
-  { role: "trustee", label: "Chief Justice & Trustee", desc: "Full court and trustee authority" },
+  { role: "sovereign_admin", label: "Chief Justice & Trustee", desc: "Sovereign admin — full system authority" },
+  { role: "trustee", label: "Delegated Trustee", desc: "Trustee working under delegated authority" },
   { role: "officer", label: "Duty Officer", desc: "Complaints, welfare, classification" },
-  { role: "sovereign_admin", label: "Tribal Admin", desc: "System configuration and admin" },
-  { role: "member", label: "Citizen Member", desc: "Member portal and filings" },
   { role: "elder", label: "Tribal Elder", desc: "Cultural authority and lineage" },
+  { role: "member", label: "Citizen Member", desc: "Member portal and filings" },
   { role: "medical_provider", label: "Medical Provider", desc: "Clinical notes and patient care" },
   { role: "visitor_media", label: "Visitor / Media", desc: "Public records access only" },
 ];

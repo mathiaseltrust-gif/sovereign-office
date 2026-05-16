@@ -365,26 +365,37 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "—"}</p>
             <p className="text-[10px] text-muted-foreground truncate">{user?.email ?? ""}</p>
           </div>
-          {mode === "dev" && (
-            <>
+
+          {/* Role preview switcher — only visible to the Chief Justice & Trustee (sovereign_admin) */}
+          {user?.roles?.some(r => ["sovereign_admin", "admin", "chief_justice"].includes(r)) && (
+            <div className="space-y-1">
               <p className="px-1 text-[10px] text-muted-foreground uppercase tracking-widest font-semibold">
-                View as
+                {activeRole === "sovereign_admin" ? "Preview member view" : "⚠ Previewing as"}
               </p>
               <select
                 value={activeRole}
                 onChange={(e) => switchRole(e.target.value as Role)}
-                className="w-full bg-input text-foreground border rounded-md p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary"
+                className={[
+                  "w-full bg-input border rounded-md p-1.5 text-xs focus:outline-none focus:ring-1 focus:ring-primary",
+                  activeRole !== "sovereign_admin" ? "text-amber-600 border-amber-400 font-semibold" : "text-foreground",
+                ].join(" ")}
               >
-                <option value="trustee">Chief Justice &amp; Trustee</option>
+                <option value="sovereign_admin">Chief Justice &amp; Trustee (My View)</option>
+                <option value="trustee">Trustee</option>
                 <option value="officer">Officer</option>
-                <option value="member">Member</option>
-                <option value="sovereign_admin">Sovereign Admin</option>
                 <option value="elder">Tribal Elder</option>
+                <option value="member">Member</option>
                 <option value="medical_provider">Medical Provider</option>
                 <option value="visitor_media">Visitor / Media</option>
               </select>
-            </>
+              {activeRole !== "sovereign_admin" && (
+                <p className="px-1 text-[10px] text-amber-600">
+                  Previewing {activeRole.replace(/_/g, " ")} view — your access is unchanged
+                </p>
+              )}
+            </div>
           )}
+
           <Button variant="outline" size="sm" className="w-full text-xs" onClick={logout}>
             Sign Out
           </Button>
