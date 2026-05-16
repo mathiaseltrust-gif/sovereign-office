@@ -10,7 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
-  GraduationCap, BookOpenCheck,
+  GraduationCap, BookOpenCheck, Landmark,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -61,6 +61,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/filings",      label: "Filings",                  icon: FileText },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
         { href: "/instrument-wizard", label: "Template Wizard",      icon: Wand2 },
+        { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
         { href: "/org",          label: "Organizations",            icon: Building2 },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
         { href: "/templates",    label: "Templates",                icon: FilePen },
@@ -111,6 +112,7 @@ function getOfficerNav(): NavSectionDef[] {
       items: [
         { href: "/dashboard/officer",  label: "Dashboard",            icon: LayoutDashboard },
         { href: "/my-office",          label: "My Office",            icon: Archive },
+        { href: "/land",               label: "Land & Asset Management", highlight: true, icon: Landmark },
         { href: "/membership",         label: "Membership Status",    icon: BadgeCheck },
         { href: "/org",                label: "Organizations",        icon: Building2 },
         { href: "/complaints",         label: "Complaints",           icon: MessageSquare },

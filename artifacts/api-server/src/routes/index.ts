@@ -68,6 +68,7 @@ import journalRouter from "./journal/index";
 import agentRouter from "./agent/index";
 import kiRouter from "./ki/index";
 import donateRouter from "./donate";
+import landRouter from "./land/index";
 
 const router: IRouter = Router();
 
@@ -141,5 +142,6 @@ router.use("/journal", journalRouter);
 router.use("/agent", agentRouter);
 router.use("/kaya", kiRouter);
 router.use("/donate", donateRouter);
+router.use("/land", landRouter);
 
 export default router;

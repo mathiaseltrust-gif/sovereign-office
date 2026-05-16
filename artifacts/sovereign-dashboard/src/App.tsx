@@ -74,6 +74,7 @@ const LegalProvisionsPage = lazy(() => import("@/pages/legal-provisions"));
 const JournalPage = lazy(() => import("@/pages/journal"));
 const AncestralTimelinePage = lazy(() => import("@/pages/ancestral-timeline"));
 const SduDefinitionsPage = lazy(() => import("@/pages/sdu-definitions"));
+const LandPage = lazy(() => import("@/pages/land"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -426,6 +427,9 @@ function AppRouter() {
       </Route>
       <Route path="/role-governors">
         {() => <ProtectedRoute component={RoleGovernorsPage} />}
+      </Route>
+      <Route path="/land">
+        {() => <ProtectedRoute component={LandPage} />}
       </Route>
 
       <Route component={NotFound} />

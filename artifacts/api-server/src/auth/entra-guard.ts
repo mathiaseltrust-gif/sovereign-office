@@ -26,6 +26,20 @@ export function requireRole(role: Role) {
   };
 }
 
+export function requireAnyRole(roles: Role[]) {
+  return (req: Request, res: Response, next: NextFunction): void => {
+    if (!req.user) {
+      res.status(401).json({ error: "Authentication required." });
+      return;
+    }
+    if (!roles.some(r => hasRole(req.user!.roles, r))) {
+      res.status(403).json({ error: `Insufficient privileges. Requires one of: ${roles.join(", ")}` });
+      return;
+    }
+    next();
+  };
+}
+
 export function requireAdmin(req: Request, res: Response, next: NextFunction): void {
   requireRole("admin")(req, res, next);
 }
