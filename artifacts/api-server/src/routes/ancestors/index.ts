@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, ancestralMemoriesTable, importantDatesTable } from "@workspace/db";
-import { eq, or, desc } from "drizzle-orm";
+import { eq, and, or, desc } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 
 const router = Router();
@@ -34,15 +34,14 @@ router.get("/", requireAuth, async (req, res, next) => {
       })
       .from(familyLineageTable)
       .where(
-        or(
+        and(
           eq(familyLineageTable.addedByMemberId, userId),
-          eq(familyLineageTable.userId, userId),
+          eq(familyLineageTable.isDeceased, true),
         )
       )
       .orderBy(familyLineageTable.generationalPosition, familyLineageTable.fullName);
 
-    const ancestors = rows.filter(r => r.isDeceased || r.isAncestor);
-    res.json(ancestors);
+    res.json(rows);
   } catch (err) {
     next(err);
   }

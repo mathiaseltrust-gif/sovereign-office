@@ -152,7 +152,7 @@ function AncestorList() {
                     </h3>
                     {(a.birthYear || a.deathYear) && (
                       <p className="text-sm text-muted-foreground mt-0.5">
-                        {a.birthYear ?? "?"} — {a.deathYear ?? "present"}
+                        {a.birthYear ?? "????"} — {a.deathYear ?? "????"}
                       </p>
                     )}
                     {a.tribalNation && (
@@ -389,7 +389,7 @@ function AncestorDetail({ id }: { id: number }) {
   const { ancestor, memories, anniversaries } = data;
 
   const lifespan = ancestor.birthYear || ancestor.deathYear
-    ? `${ancestor.birthYear ?? "??"} — ${ancestor.deathYear ?? "present"}`
+    ? `${ancestor.birthYear ?? "????"} — ${ancestor.deathYear ?? "????"}`
     : null;
 
   return (
