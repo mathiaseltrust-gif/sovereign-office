@@ -401,11 +401,47 @@ router.post("/staging/:id/reject", requireAuth, requireAdminOrTrustee, async (re
   } catch (err) { next(err); }
 });
 
+// ── GET  /api/ancestry/gedcom/cleanup-unknown  → count only (no delete) ───────
+// ── POST /api/ancestry/gedcom/cleanup-unknown  → delete and return count ──────
+// Targets family_lineage records imported via GEDCOM with no name (fullName = "(Unknown)").
+
+router.get("/cleanup-unknown", requireAuth, requireAdminOrTrustee, async (_req, res, next) => {
+  try {
+    const rows = await db.select({ id: familyLineageTable.id })
+      .from(familyLineageTable)
+      .where(
+        and(
+          eq(familyLineageTable.sourceType, "gedcom"),
+          eq(familyLineageTable.fullName, "(Unknown)"),
+        )
+      );
+    res.json({ count: rows.length });
+  } catch (err) { next(err); }
+});
+
+router.post("/cleanup-unknown", requireAuth, requireAdminOrTrustee, async (_req, res, next) => {
+  try {
+    const deleted = await db.delete(familyLineageTable)
+      .where(
+        and(
+          eq(familyLineageTable.sourceType, "gedcom"),
+          eq(familyLineageTable.fullName, "(Unknown)"),
+        )
+      )
+      .returning({ id: familyLineageTable.id });
+
+    logger.info({ deleted: deleted.length }, "Cleaned up unknown GEDCOM records from family_lineage");
+    res.json({ deleted: deleted.length });
+  } catch (err) { next(err); }
+});
+
 // ── POST /api/ancestry/gedcom/staging/bulk-approve ───────────────────────────
 // Bulk action for pending records in a batch.
 // - matchTypes "new"                  → inserts new family_lineage records
 // - matchTypes "exact"/"probable"/"possible" → merges missing fields into existing
 // Pass matchTypes=["new"] to approve new-only; ["exact","probable","possible"] to merge all duplicates.
+// NOTE: Records with no name data (fullName "(Unknown)") are automatically skipped
+// and marked rejected so they never enter the lineage database.
 router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (req, res, next) => {
   try {
     const { batchId, matchTypes } = req.body as { batchId?: number; matchTypes?: string[] };
@@ -419,15 +455,35 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
 
     const pending = await db.select().from(gedcomStagingTable).where(and(...conditions));
 
-    if (pending.length === 0) {
-      res.json({ approved: 0, merged: 0, message: "No matching pending records found" });
+    // Auto-reject nameless records — never let "(Unknown)" into family_lineage
+    const nameless = pending.filter(r => !r.givenName && !r.surname && r.fullName === "(Unknown)");
+    if (nameless.length > 0) {
+      const namelessIds = nameless.map(r => r.id);
+      await db.update(gedcomStagingTable)
+        .set({ status: "rejected" })
+        .where(inArray(gedcomStagingTable.id, namelessIds));
+      if (batchId) {
+        await db.execute(sql`
+          UPDATE gedcom_import_batches
+          SET rejected_count = rejected_count + ${nameless.length},
+              pending_count  = GREATEST(pending_count - ${nameless.length}, 0)
+          WHERE id = ${batchId}
+        `);
+      }
+    }
+
+    // Only process records that actually have name data
+    const toProcess = pending.filter(r => r.givenName || r.surname || r.fullName !== "(Unknown)");
+
+    if (toProcess.length === 0) {
+      res.json({ approved: 0, merged: 0, skipped: nameless.length, message: "No valid named records found to approve" });
       return;
     }
 
     let approved = 0;
     let merged = 0;
 
-    for (const staged of pending) {
+    for (const staged of toProcess) {
       try {
         const shouldMerge = staged.matchType !== "new" && !!staged.matchedAncestorId;
 

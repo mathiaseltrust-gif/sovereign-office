@@ -4,7 +4,7 @@ import { getCurrentBearerToken } from "@/components/auth-provider";
 import {
   Upload, FileText, CheckCircle, XCircle, AlertTriangle,
   ChevronDown, ChevronUp, Users, GitMerge, Search, Filter,
-  Trash2, RefreshCw,
+  Trash2, RefreshCw, ShieldAlert,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -290,6 +290,13 @@ export default function GedcomImportPage() {
     enabled: selectedBatchId !== null || batches.length > 0,
   });
 
+  // Always check for unknown records in family_lineage regardless of current filter
+  const { data: unknownData } = useQuery<{ count: number }>({
+    queryKey: ["gedcom-unknown-count"],
+    queryFn: () => authFetch("/api/ancestry/gedcom/cleanup-unknown").then((r: Response) => r.json() as Promise<{ count: number }>),
+    refetchOnWindowFocus: false,
+  });
+
   // ── Mutations ────────────────────────────────────────────────────────────────
   const approveMut = useMutation({
     mutationFn: (id: number) =>
@@ -319,7 +326,7 @@ export default function GedcomImportPage() {
     onError: () => toast({ title: "Skip failed", variant: "destructive" }),
   });
 
-  interface BulkResult { approved: number; merged: number; total: number }
+  interface BulkResult { approved: number; merged: number; total: number; skipped?: number }
   const bulkApproveMut = useMutation<BulkResult, Error, string[]>({
     mutationFn: (matchTypes: string[]) =>
       authFetch("/api/ancestry/gedcom/staging/bulk-approve", {
@@ -329,15 +336,33 @@ export default function GedcomImportPage() {
       }).then((r: Response) => r.json() as Promise<BulkResult>),
     onSuccess: (data: BulkResult, matchTypes: string[]) => {
       const isNew = matchTypes.includes("new") && !matchTypes.some(t => t !== "new");
+      const skippedMsg = data.skipped ? ` (${data.skipped} unnamed skipped)` : "";
       if (isNew) {
-        toast({ title: `Added ${data.approved} new ancestors to lineage` });
+        toast({ title: `Added ${data.approved} new ancestors to lineage${skippedMsg}` });
       } else {
-        toast({ title: `Merged ${data.merged} records into existing ancestors` });
+        toast({ title: `Merged ${data.merged} records into existing ancestors${skippedMsg}` });
       }
       qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
       qc.invalidateQueries({ queryKey: ["gedcom-batches"] });
     },
     onError: () => toast({ title: "Bulk action failed", variant: "destructive" }),
+  });
+
+  interface CleanupResult { deleted: number }
+  const cleanupMut = useMutation<CleanupResult, Error, void>({
+    mutationFn: () =>
+      authFetch("/api/ancestry/gedcom/cleanup-unknown", { method: "POST" })
+        .then((r: Response) => r.json() as Promise<CleanupResult>),
+    onSuccess: (data: CleanupResult) => {
+      toast({
+        title: `Removed ${data.deleted} unnamed record${data.deleted !== 1 ? "s" : ""} from the lineage database`,
+        description: "Records without any name data have been deleted.",
+      });
+      qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
+      qc.invalidateQueries({ queryKey: ["gedcom-batches"] });
+      qc.invalidateQueries({ queryKey: ["gedcom-unknown-count"] });
+    },
+    onError: () => toast({ title: "Cleanup failed", variant: "destructive" }),
   });
 
   const deleteBatchMut = useMutation({
@@ -479,6 +504,35 @@ export default function GedcomImportPage() {
             </div>
           ) : (
             <>
+              {/* Unknown records cleanup banner — always visible if any unnamed records exist in family_lineage */}
+              {(unknownData?.count ?? 0) > 0 && (
+                <div className="flex items-start gap-3 rounded-lg border border-orange-300 dark:border-orange-700 bg-orange-50 dark:bg-orange-950/40 px-4 py-3">
+                  <ShieldAlert className="h-5 w-5 text-orange-600 dark:text-orange-400 shrink-0 mt-0.5" />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold text-orange-800 dark:text-orange-200">
+                      {unknownData!.count} unnamed record{unknownData!.count !== 1 ? "s" : ""} are in the lineage database without name data
+                    </p>
+                    <p className="text-xs text-orange-700 dark:text-orange-300 mt-0.5">
+                      These "(Unknown)" entries came from GEDCOM individuals with no NAME field and should be removed from the official registry.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0 border-orange-400 text-orange-700 hover:bg-orange-100 dark:text-orange-300 dark:hover:bg-orange-900/40 text-xs h-8"
+                    disabled={cleanupMut.isPending}
+                    onClick={() => {
+                      const n = unknownData!.count;
+                      if (!confirm(`Remove ${n} unnamed "(Unknown)" record${n !== 1 ? "s" : ""} from the lineage database?\n\nThis cannot be undone.`)) return;
+                      cleanupMut.mutate();
+                    }}
+                  >
+                    {cleanupMut.isPending ? <RefreshCw className="h-3.5 w-3.5 mr-1 animate-spin" /> : <Trash2 className="h-3.5 w-3.5 mr-1" />}
+                    Remove unknown records
+                  </Button>
+                </div>
+              )}
+
               {/* Summary cards */}
               {activeBatch && (
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
@@ -505,7 +559,10 @@ export default function GedcomImportPage() {
                     size="sm"
                     className="gap-1.5 bg-green-600 hover:bg-green-700 text-white"
                     disabled={bulkApproveMut.isPending}
-                    onClick={() => bulkApproveMut.mutate(["new"])}
+                    onClick={() => {
+                      if (!confirm(`Add all ${newCount} new records to the lineage database?\n\nRecords with no name will be automatically skipped.`)) return;
+                      bulkApproveMut.mutate(["new"]);
+                    }}
                   >
                     <CheckCircle className="h-3.5 w-3.5" />
                     Approve all new ({newCount})
@@ -516,7 +573,11 @@ export default function GedcomImportPage() {
                     size="sm"
                     className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
                     disabled={bulkApproveMut.isPending}
-                    onClick={() => bulkApproveMut.mutate(["exact", "probable", "possible"])}
+                    onClick={() => {
+                      const total = exactCount + probCount + possCount;
+                      if (!confirm(`Merge ${total} matched records into existing ancestors?\n\nThis will enrich existing records with missing GEDCOM fields but will NOT create duplicates.`)) return;
+                      bulkApproveMut.mutate(["exact", "probable", "possible"]);
+                    }}
                   >
                     <GitMerge className="h-3.5 w-3.5" />
                     Merge all matches ({exactCount + probCount + possCount})
