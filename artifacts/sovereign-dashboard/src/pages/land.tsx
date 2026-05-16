@@ -301,21 +301,21 @@ function Modal({ title, subtitle, onClose, children }: {
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-muted-foreground">{label}</label>
+      <label htmlFor={htmlFor} className="text-xs font-medium text-muted-foreground">{label}</label>
       {children}
     </div>
   );
 }
 
-function Sel({ value, onChange, options, placeholder }: {
+function Sel({ value, onChange, options, placeholder, id }: {
   value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; placeholder?: string;
+  options: { value: string; label: string }[]; placeholder?: string; id?: string;
 }) {
   return (
-    <select value={value} onChange={e => onChange(e.target.value)}
+    <select id={id} aria-label={id} value={value} onChange={e => onChange(e.target.value)}
       className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-1 focus:ring-amber-500">
       {placeholder && <option value="">{placeholder}</option>}
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -370,16 +370,20 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
     culturalSignificance: parcel.cultural_significance ?? "", historicalOccupancy: parcel.historical_occupancy ?? "",
   } : { ...EMPTY_PARCEL });
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
     setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
+    setSaveErr(null);
     setSaving(true);
     try {
       const url = parcel ? `/api/land/parcels/${parcel.id}` : "/api/land/parcels";
       const res = await authFetch(url, { method: parcel ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving parcel.");
     } finally { setSaving(false); }
   }
 
@@ -407,36 +411,36 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
         {/* ── METC Title 4 Tribal Code Authority ── */}
         <SectionDivider icon={Scale} label="METC Title 4 — Tribal Code Authority" />
 
-        <Field label="Internal Tribal Status">
-          <Sel value={form.internalTribalStatus} onChange={v => setForm(f => ({ ...f, internalTribalStatus: v }))}
+        <Field label="Internal Tribal Status" htmlFor="p-internal-status">
+          <Sel id="p-internal-status" value={form.internalTribalStatus} onChange={v => setForm(f => ({ ...f, internalTribalStatus: v }))}
             options={INTERNAL_TRIBAL_STATUSES} placeholder="Select status" />
         </Field>
-        <Field label="Jurisdictional Status">
-          <Sel value={form.jurisdictionalStatus} onChange={v => setForm(f => ({ ...f, jurisdictionalStatus: v }))}
+        <Field label="Jurisdictional Status" htmlFor="p-juris-status">
+          <Sel id="p-juris-status" value={form.jurisdictionalStatus} onChange={v => setForm(f => ({ ...f, jurisdictionalStatus: v }))}
             options={JURISDICTIONAL_STATUSES} placeholder="Select jurisdiction" />
         </Field>
-        <Field label="Federal Administrative Status">
-          <Sel value={form.federalAdminStatus} onChange={v => setForm(f => ({ ...f, federalAdminStatus: v }))}
+        <Field label="Federal Administrative Status" htmlFor="p-fed-admin">
+          <Sel id="p-fed-admin" value={form.federalAdminStatus} onChange={v => setForm(f => ({ ...f, federalAdminStatus: v }))}
             options={FEDERAL_ADMIN_STATUSES} />
         </Field>
-        <Field label="Beneficiary / Stewardship Type">
-          <Sel value={form.beneficiaryStewType} onChange={v => setForm(f => ({ ...f, beneficiaryStewType: v }))}
+        <Field label="Beneficiary / Stewardship Type" htmlFor="p-ben-type">
+          <Sel id="p-ben-type" value={form.beneficiaryStewType} onChange={v => setForm(f => ({ ...f, beneficiaryStewType: v }))}
             options={BENEFICIARY_TYPES} placeholder="Select type" />
         </Field>
-        <Field label="Protection / Restriction Status">
-          <Sel value={form.protectionRestrictionStatus} onChange={v => setForm(f => ({ ...f, protectionRestrictionStatus: v }))}
+        <Field label="Protection / Restriction Status" htmlFor="p-protect-status">
+          <Sel id="p-protect-status" value={form.protectionRestrictionStatus} onChange={v => setForm(f => ({ ...f, protectionRestrictionStatus: v }))}
             options={PROTECTION_STATUSES} placeholder="Select status" />
         </Field>
-        <Field label="Stewardship Purpose">
-          <Sel value={form.stewardshipPurpose} onChange={v => setForm(f => ({ ...f, stewardshipPurpose: v }))}
+        <Field label="Stewardship Purpose" htmlFor="p-stew-purpose">
+          <Sel id="p-stew-purpose" value={form.stewardshipPurpose} onChange={v => setForm(f => ({ ...f, stewardshipPurpose: v }))}
             options={BENEFICIARY_TYPES} placeholder="Select purpose" />
         </Field>
-        <Field label="METC Title 4 Section Reference">
-          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
+        <Field label="METC Title 4 Section Reference" htmlFor="p-metc-ref">
+          <Sel id="p-metc-ref" value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
             options={METC_TITLE4_SECTIONS} placeholder="Select code section" />
         </Field>
-        <Field label="Federal Law Cross-Reference">
-          <Sel value={form.federalLawCrossRef} onChange={v => setForm(f => ({ ...f, federalLawCrossRef: v }))}
+        <Field label="Federal Law Cross-Reference" htmlFor="p-fed-law">
+          <Sel id="p-fed-law" value={form.federalLawCrossRef} onChange={v => setForm(f => ({ ...f, federalLawCrossRef: v }))}
             options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
         </Field>
         <div className="col-span-2">
@@ -475,6 +479,7 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
           <Field label="Internal Notes"><Textarea value={form.notes} onChange={set("notes")} placeholder="Internal notes" className="resize-none h-14" /></Field>
         </div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
@@ -502,14 +507,18 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: { lease?: Lease; parce
     biaLeaseNumber: lease.bia_lease_number ?? "", description: lease.description ?? "",
   } : { ...EMPTY_LEASE });
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
+    setSaveErr(null);
     setSaving(true);
     try {
       const res = await authFetch(lease ? `/api/land/leases/${lease.id}` : "/api/land/leases", { method: lease ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving lease.");
     } finally { setSaving(false); }
   }
 
@@ -542,6 +551,7 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: { lease?: Lease; parce
         <div className="col-span-2"><Field label="BIA Lease Number (if applicable)"><Input value={form.biaLeaseNumber} onChange={set("biaLeaseNumber")} placeholder="BIA assigned lease number" /></Field></div>
         <div className="col-span-2"><Field label="Description / Terms"><Textarea value={form.description} onChange={set("description")} placeholder="Lease terms, conditions, permitted use, tribal restrictions…" className="resize-none h-20" /></Field></div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
@@ -565,14 +575,18 @@ function AssetModal({ asset, parcels, onClose, onSaved }: { asset?: Asset; parce
     yearBuilt: String(asset.year_built ?? ""), notes: asset.notes ?? "",
   } : { ...EMPTY_ASSET });
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
+    setSaveErr(null);
     setSaving(true);
     try {
       const res = await authFetch(asset ? `/api/land/assets/${asset.id}` : "/api/land/assets", { method: asset ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving asset.");
     } finally { setSaving(false); }
   }
 
@@ -599,6 +613,7 @@ function AssetModal({ asset, parcels, onClose, onSaved }: { asset?: Asset; parce
         <div className="col-span-2"><Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Physical description, deed restrictions, permitted uses…" className="resize-none h-16" /></Field></div>
         <div className="col-span-2"><Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
@@ -628,14 +643,18 @@ function EncumbranceModal({ enc, parcels, onClose, onSaved }: { enc?: Encumbranc
     voidAbInitio: enc.void_ab_initio ?? false, resolutionNotes: enc.resolution_notes ?? "",
   } : { ...EMPTY_ENC });
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
+    setSaveErr(null);
     setSaving(true);
     try {
       const res = await authFetch(enc ? `/api/land/encumbrances/${enc.id}` : "/api/land/encumbrances", { method: enc ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving encumbrance.");
     } finally { setSaving(false); }
   }
 
@@ -679,6 +698,7 @@ function EncumbranceModal({ enc, parcels, onClose, onSaved }: { enc?: Encumbranc
         <div className="col-span-2"><Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Describe the encumbrance, interference, or obstruction in detail…" className="resize-none h-20" /></Field></div>
         <div className="col-span-2"><Field label="Resolution Notes / Tribal Response"><Textarea value={form.resolutionNotes} onChange={set("resolutionNotes")} placeholder="Tribal response, enforcement actions taken, resolution steps…" className="resize-none h-16" /></Field></div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving} className={`${form.voidAbInitio ? "bg-red-700 hover:bg-red-800" : "bg-amber-600 hover:bg-amber-700"} text-white`}>
@@ -717,6 +737,7 @@ function NoticeModal({ notice, parcels, onClose, onSaved }: { notice?: Notice; p
     courtOrderRef: notice.court_order_ref ?? "", enforcementAction: notice.enforcement_action ?? "",
   } : { ...EMPTY_NOTICE });
   const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   function loadTemplate() {
@@ -725,11 +746,14 @@ function NoticeModal({ notice, parcels, onClose, onSaved }: { notice?: Notice; p
   }
 
   async function save() {
+    setSaveErr(null);
     setSaving(true);
     try {
       const res = await authFetch(notice ? `/api/land/notices/${notice.id}` : "/api/land/notices", { method: notice ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving notice.");
     } finally { setSaving(false); }
   }
 
@@ -779,6 +803,7 @@ function NoticeModal({ notice, parcels, onClose, onSaved }: { notice?: Notice; p
         <Field label="Effective Date"><Input type="date" value={form.effectiveDate} onChange={set("effectiveDate")} /></Field>
         <div className="col-span-2"><Field label="Enforcement Action / Response"><Textarea value={form.enforcementAction} onChange={set("enforcementAction")} placeholder="Any enforcement action taken or planned…" className="resize-none h-14" /></Field></div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
@@ -812,13 +837,18 @@ function StewardshipModal({ entry, onClose, onSaved }: { entry?: StewardshipEntr
   const [saving, setSaving] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+
   async function save() {
     if (!form.name.trim()) return;
+    setSaveErr(null);
     setSaving(true);
     try {
       const res = await authFetch(entry ? `/api/land/pipeline/${entry.id}` : "/api/land/pipeline", { method: entry ? "PUT" : "POST", body: JSON.stringify(form) });
-      if (!res.ok) throw new Error(await res.text());
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
       onSaved();
+    } catch (e) {
+      setSaveErr(e instanceof Error ? e.message : "Unknown error saving pipeline entry.");
     } finally { setSaving(false); }
   }
 
@@ -855,6 +885,7 @@ function StewardshipModal({ entry, onClose, onSaved }: { entry?: StewardshipEntr
         <div className="col-span-2"><Field label="Cultural Notes"><Textarea value={form.culturalNotes} onChange={set("culturalNotes")} placeholder="Ancestral connection, traditional territory notes, ceremonial significance…" className="resize-none h-16" /></Field></div>
         <div className="col-span-2"><Field label="Internal Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
       </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
         <Button onClick={save} disabled={saving || !form.name.trim()} className="bg-amber-600 hover:bg-amber-700 text-white">
