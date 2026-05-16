@@ -4,6 +4,138 @@ import { callAzureOpenAI, type ConversationMessage } from "../../lib/azure-opena
 import { logger } from "../../lib/logger";
 import { z } from "zod";
 
+// ─── Authority Tier Resolution ─────────────────────────────────────────────────
+
+interface AuthorityTier {
+  tier: number;
+  label: string;
+  title: string;
+  toolsGranted: string[];
+  addressAs: string;
+  behavioralDirective: string;
+}
+
+function resolveAuthorityTier(roles: string[], name: string): AuthorityTier {
+  const r = roles.map(x => x.toLowerCase());
+  const first = name.split(" ")[0] || name;
+
+  if (r.some(x => ["sovereign_admin", "admin", "chief_justice"].includes(x))) {
+    return {
+      tier: 1,
+      label: "CHIEF AUTHORITY",
+      title: "Chief Justice & Trustee",
+      toolsGranted: [
+        "Full governance authority — create, approve, close, and execute motions",
+        "Sign and authorize tribal business instruments and resolutions",
+        "Full access to all generators: Logo Concept, SOP, Ethics Policy, Branding",
+        "Strategic enterprise counsel at the highest level",
+        "Direct tribal enterprise formation, structure, and governance",
+        "Financial authority — budgets, grant strategy, enterprise funding",
+        "Appointment and direction of officers and enterprise leadership",
+        "Sovereign business law analysis — IRA, federal trust, NIGC, tribal immunity",
+      ],
+      addressAs: `Chief Justice ${first}`,
+      behavioralDirective:
+        "Speak as an advisor to the highest sovereign office. Be direct, comprehensive, and treat this caller as the sovereign authority they are. They can authorize, sign, and execute. Do not hedge or over-qualify — give them the full picture and actionable counsel. When they ask for a document, produce the complete, ready-to-use text.",
+    };
+  }
+
+  if (r.includes("trustee")) {
+    return {
+      tier: 2,
+      label: "TRUSTEE AUTHORITY",
+      title: "Delegated Trustee",
+      toolsGranted: [
+        "Trust instrument management and fiduciary oversight",
+        "Trust-land business analysis and encumbrance review",
+        "Financial governance — trust fund dealings and disbursements",
+        "Governance review and motion participation",
+        "Ethics and conflict-of-interest review",
+        "Trust law and fiduciary duty analysis",
+      ],
+      addressAs: `Trustee ${first}`,
+      behavioralDirective:
+        "Speak as a trusted fiduciary advisor. Center trust integrity, financial accountability, and governance compliance. This caller holds delegated authority from the Chief Justice.",
+    };
+  }
+
+  if (r.includes("officer")) {
+    return {
+      tier: 3,
+      label: "OFFICER AUTHORITY",
+      title: "Tribal Officer",
+      toolsGranted: [
+        "SOP development and operational procedure generation",
+        "Team governance and departmental planning",
+        "Operational motion drafting and participation",
+        "Branding and communications tools",
+        "Business law Q&A for operational matters",
+        "Financial controls and procurement guidance",
+      ],
+      addressAs: first,
+      behavioralDirective:
+        "Speak as an operational partner. Focus on practical procedures, implementation, and team execution. This caller is responsible for making things work day-to-day within the Tribe's enterprise.",
+    };
+  }
+
+  if (r.includes("elder")) {
+    return {
+      tier: 4,
+      label: "ELDER ADVISORY",
+      title: "Elder",
+      toolsGranted: [
+        "Cultural wisdom and values alignment review",
+        "Community impact and intergenerational equity analysis",
+        "Advisory opinions on business ethics and cultural resonance",
+        "Business law Q&A with cultural framing",
+        "Motion review and advisory participation",
+      ],
+      addressAs: `Elder ${first}`,
+      behavioralDirective:
+        "Speak with deep respect for their wisdom and standing. Center cultural values, community impact, and intergenerational thinking in every response. Their advisory role carries significant weight in tribal governance.",
+    };
+  }
+
+  return {
+    tier: 5,
+    label: "MEMBER ACCESS",
+    title: "Tribal Member",
+    toolsGranted: [
+      "Personal business plan support and review",
+      "General business strategy and Q&A",
+      "Business name and branding brainstorming",
+      "Business law education (general information, not legal advice)",
+      "Entrepreneurship coaching and goal setting",
+    ],
+    addressAs: first,
+    behavioralDirective:
+      "Speak as an encouraging business coach. Be practical, accessible, and genuinely invested in this member's entrepreneurial success. Empower them — tribal members are sovereign people with every right to build thriving enterprises.",
+  };
+}
+
+function buildCallerBlock(user: { name?: string | null; email: string; roles?: string[] | null }): string {
+  const name = user.name ?? user.email.split("@")[0];
+  const roles = user.roles ?? ["member"];
+  const tier = resolveAuthorityTier(roles, name);
+
+  return `
+══════════════════════════════════════════════════════
+CALLER IDENTITY & AUTHORITY — READ THIS FIRST
+══════════════════════════════════════════════════════
+You are speaking with: ${name}
+Role / Title: ${tier.title}
+Authority Level: TIER ${tier.tier} — ${tier.label}
+Address this caller as: ${tier.addressAs}
+
+TOOLS & AUTHORITY AVAILABLE TO THIS CALLER:
+${tier.toolsGranted.map(t => `• ${t}`).join("\n")}
+
+BEHAVIORAL DIRECTIVE:
+${tier.behavioralDirective}
+══════════════════════════════════════════════════════
+`.trim();
+}
+
 const router = Router();
 
 const BUSINESS_COPILOT_SYSTEM = `You are the Sovereign Business Copilot for the Mathias El Tribe — a powerful, broad-purpose AI assistant for tribal business development, governance, and creative work.
@@ -64,6 +196,7 @@ const RequestBody = z.object({
     role: z.enum(["user", "assistant"]),
     content: z.string().max(2000),
   })).max(20).optional().default([]),
+  callerRole: z.string().max(50).optional(),
 });
 
 router.post("/", requireAuth, async (req, res, next) => {
@@ -76,6 +209,12 @@ router.post("/", requireAuth, async (req, res, next) => {
 
     const { message, context, mode, history } = parsed.data;
 
+    const callerBlock = buildCallerBlock({
+      name: req.user!.name ?? null,
+      email: req.user!.email,
+      roles: req.user!.roles ?? null,
+    });
+
     const modeInstructions: Record<string, string> = {
       logo: "The user wants a logo concept. Provide: (1) a visual concept description with symbol ideas, (2) recommended color palette with hex values and cultural rationale, (3) typography recommendations, (4) 3 tagline options. Be vivid and specific.",
       sop: "The user wants a Standard Operating Procedure. Write a complete, numbered SOP with: Purpose, Scope, Definitions, Responsibilities, Step-by-step Procedure, and a Review/Approval section. Use formal document formatting.",
@@ -86,7 +225,8 @@ router.post("/", requireAuth, async (req, res, next) => {
       chat: "",
     };
 
-    const fullSystem = BUSINESS_COPILOT_SYSTEM
+    const fullSystem = callerBlock
+      + "\n\n" + BUSINESS_COPILOT_SYSTEM
       + (modeInstructions[mode] ? `\n\nSPECIAL INSTRUCTION FOR THIS REQUEST: ${modeInstructions[mode]}` : "")
       + (context ? `\n\nBUSINESS CONTEXT: ${context}` : "");
 

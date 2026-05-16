@@ -10,6 +10,22 @@ import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { useAuth } from "@/components/auth-provider";
 
+// ─── Authority Tier Helper (mirrors server-side logic for UI display) ──────────
+
+function getCallerTierInfo(roles: string[] | undefined, name: string | undefined) {
+  const r = (roles ?? []).map(x => x.toLowerCase());
+  const first = (name ?? "").split(" ")[0] || "there";
+  if (r.some(x => ["sovereign_admin", "admin", "chief_justice"].includes(x)))
+    return { tier: 1, label: "CHIEF AUTHORITY", addressAs: `Chief Justice ${first}`, greeting: `Ready to build, Chief Justice ${first}.` };
+  if (r.includes("trustee"))
+    return { tier: 2, label: "TRUSTEE AUTHORITY", addressAs: `Trustee ${first}`, greeting: `Ready to advise, Trustee ${first}.` };
+  if (r.includes("officer"))
+    return { tier: 3, label: "OFFICER AUTHORITY", addressAs: first, greeting: `Ready to help you execute, ${first}.` };
+  if (r.includes("elder"))
+    return { tier: 4, label: "ELDER ADVISORY", addressAs: `Elder ${first}`, greeting: `Your counsel is valued, Elder ${first}.` };
+  return { tier: 5, label: "MEMBER ACCESS", addressAs: first, greeting: `Ready to help you build, ${first}.` };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface BusinessConcept {
@@ -410,6 +426,7 @@ const CREATIVE_TOOLS: { mode: CreativeMode; icon: string; title: string; descrip
 
 function CreativeStudioTab() {
   const { toast } = useToast();
+  const { user, activeRole } = useAuth();
   const [results, setResults] = useState<Record<CreativeMode, string>>({ logo: "", branding: "", sop: "", ethics: "" });
   const [inputs, setInputs] = useState<Record<CreativeMode, string>>({ logo: "", branding: "", sop: "", ethics: "" });
   const [loading, setLoading] = useState<Record<CreativeMode, boolean>>({ logo: false, branding: false, sop: false, ethics: false });
@@ -423,7 +440,7 @@ function CreativeStudioTab() {
       const r = await fetch("/api/business/copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
-        body: JSON.stringify({ message, mode }),
+        body: JSON.stringify({ message, mode, callerRole: activeRole ?? user?.roles?.[0] ?? "member" }),
       });
       if (!r.ok) throw new Error();
       const data = await r.json() as { reply: string };
@@ -558,6 +575,7 @@ const LAW_CARDS = [
 
 function LawEthicsTab() {
   const { toast } = useToast();
+  const { user, activeRole } = useAuth();
   const [question, setQuestion] = useState("");
   const [answer, setAnswer] = useState("");
   const [asking, setAsking] = useState(false);
@@ -573,7 +591,7 @@ function LawEthicsTab() {
       const r = await fetch("/api/business/copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
-        body: JSON.stringify({ message: question, mode: "law" }),
+        body: JSON.stringify({ message: question, mode: "law", callerRole: activeRole ?? user?.roles?.[0] ?? "member" }),
       });
       if (!r.ok) throw new Error();
       const data = await r.json() as { reply: string };
@@ -685,12 +703,15 @@ function formatCopilotContent(text: string) {
 
 function CopilotTab() {
   const { toast } = useToast();
+  const { user, activeRole } = useAuth();
   const [messages, setMessages] = useState<CopilotMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  const tierInfo = getCallerTierInfo(user?.roles, user?.name ?? undefined);
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -709,7 +730,7 @@ function CopilotTab() {
       const r = await fetch("/api/business/copilot", {
         method: "POST",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
-        body: JSON.stringify({ message: text, mode, history }),
+        body: JSON.stringify({ message: text, mode, history, callerRole: activeRole ?? user?.roles?.[0] ?? "member" }),
       });
       if (!r.ok) throw new Error();
       const data = await r.json() as { reply: string; mode: string };
@@ -738,9 +759,13 @@ function CopilotTab() {
       <div style={{ padding: "12px 16px", borderBottom: "1px solid #e5e7eb", background: "linear-gradient(135deg, #451a03 0%, #7c2d12 100%)", color: "#fef3c7", flexShrink: 0 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div style={{ width: 36, height: 36, borderRadius: "50%", background: "rgba(255,255,255,0.15)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 18 }}>🤖</div>
-          <div>
+          <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 700, fontSize: 14, fontFamily: "'Georgia', serif" }}>Business Copilot</div>
             <div style={{ fontSize: 10.5, opacity: 0.8 }}>Strategy · Law · Ethics · Creative · Governance</div>
+          </div>
+          <div style={{ textAlign: "right", flexShrink: 0 }}>
+            <div style={{ fontSize: 11.5, fontWeight: 600, opacity: 0.95 }}>{tierInfo.addressAs}</div>
+            <div style={{ fontSize: 9, fontWeight: 700, letterSpacing: 0.8, opacity: 0.65, textTransform: "uppercase", marginTop: 1 }}>{tierInfo.label}</div>
           </div>
         </div>
       </div>
@@ -749,8 +774,11 @@ function CopilotTab() {
       <div style={{ flex: 1, overflowY: "auto", padding: "12px 16px", display: "flex", flexDirection: "column", gap: 12 }}>
         {messages.length === 0 && (
           <div style={{ margin: "auto 0", paddingTop: 20 }}>
-            <p style={{ textAlign: "center", fontSize: 13, color: "#6b7280", marginBottom: 16 }}>
-              Your sovereign business AI partner — strategy, law, ethics, creative, and governance all in one.
+            <p style={{ textAlign: "center", fontSize: 14, color: "#7c2d12", fontWeight: 600, fontFamily: "'Georgia', serif", marginBottom: 4 }}>
+              {tierInfo.greeting}
+            </p>
+            <p style={{ textAlign: "center", fontSize: 12, color: "#9ca3af", marginBottom: 16 }}>
+              Strategy · Law · Ethics · Creative · Governance — at your authority level.
             </p>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 8, justifyContent: "center" }}>
               {COPILOT_CHIPS.map(chip => (
