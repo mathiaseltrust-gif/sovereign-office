@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 
-type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical";
+type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
 type AccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
 
 interface Org {
@@ -50,6 +50,7 @@ const TYPE_LABELS: Record<OrgType, string> = {
   political: "§527 Political Organization",
   enterprise: "Indian Economic Enterprise",
   medical: "Tribal Health Facility",
+  education: "Nonprofit Education System",
 };
 
 const ACCESS_COLORS: Record<AccessLevel, string> = {
@@ -67,6 +68,8 @@ const ORG_COLOR_CLASSES: Record<string, string> = {
   green: "border-green-200 bg-green-50/30",
   amber: "border-amber-200 bg-amber-50/30",
   purple: "border-purple-200 bg-purple-50/30",
+  teal: "border-teal-200 bg-teal-50/30",
+  orange: "border-orange-200 bg-orange-50/30",
   zinc: "border-zinc-200 bg-zinc-50",
 };
 

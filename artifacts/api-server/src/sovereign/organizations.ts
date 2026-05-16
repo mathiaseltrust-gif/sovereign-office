@@ -1,4 +1,4 @@
-export type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical";
+export type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
 export type OrgAccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
 export type CourtAccessLevel = "none" | "view" | "file" | "adjudicate";
 export type TrustAccessLevel = "none" | "beneficiary" | "officer" | "trustee";
@@ -133,6 +133,28 @@ export const SOVEREIGN_ORGS: SovereignOrg[] = [
     authorities: ["Political advocacy", "Indigenous policy engagement", "Federal Indian law defense", "Policy comment filings", "Political communication"],
     federalStatutes: ["26 U.S.C. § 527", "52 U.S.C. § 30101 et seq.", "Indian Self-Determination & Education Assistance Act"],
     color: "purple",
+  },
+  {
+    id: "sdu",
+    name: "Self Determination University",
+    shortName: "SDU",
+    type: "education",
+    legalStatus: "Nonprofit Education System — 501(c)(3)",
+    legalCode: "25 U.S.C. § 5321 (ISDEAA)",
+    jurisdiction: "Mathias El Tribe — Indigenous Education Authority",
+    description: "A nonprofit indigenous education system operating under the Indian Self-Determination and Education Assistance Act. SDU provides culturally grounded education, professional development, and sovereignty literacy programs for enrolled members and eligible indigenous communities.",
+    mission: "Educate and empower enrolled members through self-determined, culturally competent learning programs rooted in indigenous sovereignty principles.",
+    navPath: "/sdu",
+    requiredRole: "member",
+    letterhead: {
+      line1: "SELF DETERMINATION UNIVERSITY (SDU)",
+      line2: "Mathias El Tribe — Indigenous Education System",
+      line3: "Indian Self-Determination & Education Assistance Act — 25 U.S.C. § 5321",
+      line4: "A 501(c)(3) Nonprofit Educational Institution",
+    },
+    authorities: ["Education program delivery", "Sovereignty literacy curriculum", "Professional certification", "ISDEAA contract administration", "Cultural preservation programs"],
+    federalStatutes: ["25 U.S.C. § 5321 (ISDEAA contracts)", "25 U.S.C. § 5322 (self-governance compacts)", "26 U.S.C. § 501(c)(3)", "20 U.S.C. § 7441 (Native language programs)"],
+    color: "teal",
   },
   {
     id: "iee",

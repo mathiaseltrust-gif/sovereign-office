@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 
 const ENTERPRISE_TYPES = [
   {
@@ -158,6 +159,8 @@ export default function IeePage() {
               ))}
             </CardContent>
           </Card>
+
+          <OrgDocumentsPanel orgId="iee" orgName="Indian Economic Enterprises" />
 
           <Card className="border-orange-300 bg-orange-50/50">
             <CardContent className="pt-4">

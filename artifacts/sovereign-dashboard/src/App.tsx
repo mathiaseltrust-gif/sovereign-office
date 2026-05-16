@@ -48,6 +48,7 @@ const OfficialDocumentsPage = lazy(() => import("@/pages/official-documents"));
 const SovereignPipelinePage = lazy(() => import("@/pages/sovereign-pipeline"));
 const MyOfficePage = lazy(() => import("@/pages/my-office"));
 const IeePage = lazy(() => import("@/pages/iee"));
+const SduPage = lazy(() => import("@/pages/sdu"));
 const AdminStubPage = lazy(() => import("@/pages/admin-stub"));
 const TribalIdPage = lazy(() => import("@/pages/tribal-id"));
 const M365IntegrationPage = lazy(() => import("@/pages/m365-integration"));
@@ -283,6 +284,9 @@ function AppRouter() {
       </Route>
       <Route path="/iee">
         {() => <ProtectedRoute component={IeePage} />}
+      </Route>
+      <Route path="/sdu">
+        {() => <ProtectedRoute component={SduPage} />}
       </Route>
       <Route path="/tribal-id">
         {() => <ProtectedRoute component={TribalIdPage} />}
