@@ -394,9 +394,19 @@ function AncestorDetail({ id }: { id: number }) {
 
   return (
     <div className="space-y-8 max-w-3xl">
-      <Link to="/ancestors" className="text-sm text-muted-foreground hover:underline flex items-center gap-1">
-        <ArrowLeft className="w-3 h-3" /> Back to Memorials
-      </Link>
+      <div className="flex items-center justify-between gap-3">
+        <Link to="/ancestors" className="text-sm text-muted-foreground hover:underline flex items-center gap-1">
+          <ArrowLeft className="w-3 h-3" /> Back to Memorials
+        </Link>
+        <Link
+          to={`/ancestors/${id}/timeline`}
+          className="flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-lg font-medium transition-colors"
+          style={{ background: "linear-gradient(135deg,#0d1433,#080c1a)", border: "1px solid #1e2a4a", color: "#818cf8" }}
+        >
+          <BookOpen className="w-3 h-3" />
+          Ancestral Continuity Timeline
+        </Link>
+      </div>
 
       {/* ── Header ── */}
       <div
