@@ -2,14 +2,14 @@ import React from "react";
 import { Link } from "wouter";
 import {
   Users,
-  BookOpen,
   MessageSquare,
+  Megaphone,
   UserPlus,
   AlertCircle,
   FileText,
-  Activity,
   ArrowRight,
   Shield,
+  ExternalLink,
 } from "lucide-react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -123,34 +123,12 @@ export default function Dashboard() {
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2 mb-1">
                 <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
-                  <BookOpen className="h-3.5 w-3.5 text-primary" />
-                </div>
-                <CardTitle className="text-base">Legal Resources</CardTitle>
-              </div>
-              <CardDescription className="text-sm">
-                Access the tribal law library, federal Indian law, and sovereignty doctrines.
-              </CardDescription>
-            </CardHeader>
-            <CardFooter className="mt-auto pt-4">
-              <Link href="/legal" className="w-full">
-                <Button className="w-full justify-between group" variant="default" size="sm">
-                  <span>View Resources</span>
-                  <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
-                </Button>
-              </Link>
-            </CardFooter>
-          </Card>
-
-          <Card className="flex flex-col border-primary/10 bg-gradient-to-br from-card to-card/50">
-            <CardHeader className="pb-3">
-              <div className="flex items-center gap-2 mb-1">
-                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
                   <MessageSquare className="h-3.5 w-3.5 text-primary" />
                 </div>
                 <CardTitle className="text-base">Community Forum</CardTitle>
               </div>
               <CardDescription className="text-sm">
-                Join discussions, ask questions, and share announcements with tribal members.
+                Join discussions, ask questions, and share with tribal members.
               </CardDescription>
             </CardHeader>
             <CardFooter className="mt-auto pt-4">
@@ -163,26 +141,46 @@ export default function Dashboard() {
             </CardFooter>
           </Card>
 
-          <Card className="flex flex-col border-primary/10 bg-gradient-to-br from-primary/10 to-card border">
+          <Card className="flex flex-col border-primary/10 bg-gradient-to-br from-card to-card/50">
             <CardHeader className="pb-3">
               <div className="flex items-center gap-2 mb-1">
-                <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center">
-                  <Activity className="h-3.5 w-3.5 text-primary-foreground" />
+                <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Megaphone className="h-3.5 w-3.5 text-primary" />
                 </div>
-                <CardTitle className="text-base">AI Legal Guidance</CardTitle>
+                <CardTitle className="text-base">Announcements</CardTitle>
               </div>
               <CardDescription className="text-sm">
-                Ask about your tribal rights, ICWA protections, or trust status. Get cited answers.
+                Official communications from the Office of the Chief Justice & Trustee.
               </CardDescription>
             </CardHeader>
             <CardFooter className="mt-auto pt-4">
-              <Link href="/guidance" className="w-full">
-                <Button className="w-full justify-between group" variant="secondary" size="sm">
-                  <span>Ask the AI Assistant</span>
+              <Link href="/announcements" className="w-full">
+                <Button className="w-full justify-between group" variant="default" size="sm">
+                  <span>View Announcements</span>
                   <ArrowRight className="h-3.5 w-3.5 group-hover:translate-x-1 transition-transform" />
                 </Button>
               </Link>
             </CardFooter>
+          </Card>
+
+          {/* Sovereign Tools pointer */}
+          <Card className="sm:col-span-2 flex flex-col border border-amber-200/60 dark:border-amber-800/30 bg-amber-50/50 dark:bg-amber-950/10">
+            <CardContent className="py-4 px-5">
+              <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wide mb-2">
+                Advanced Tools — Sovereign Office Dashboard
+              </p>
+              <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
+                COMPANION (AI Rights Guidance), the Law Library, Sovereign Definition Literacy, the Ancestral Timeline, 
+                and Business Canvas are available in the Sovereign Office Dashboard — the full intelligence system for the Tribe.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <a href="/sovereign-dashboard" target="_blank" rel="noopener noreferrer">
+                  <Button variant="outline" size="sm" className="gap-1.5 text-xs border-amber-300 dark:border-amber-700 text-amber-800 dark:text-amber-400 hover:bg-amber-100 dark:hover:bg-amber-950/40">
+                    Open Sovereign Dashboard <ExternalLink className="w-3 h-3" />
+                  </Button>
+                </a>
+              </div>
+            </CardContent>
           </Card>
 
           {/* Admin card */}

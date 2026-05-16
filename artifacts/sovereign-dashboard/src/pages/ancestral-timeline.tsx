@@ -13,6 +13,7 @@ import { getCurrentBearerToken } from "@/components/auth-provider";
 import {
   ArrowLeft, PlusCircle, Flame, Scale, AlertTriangle, BookOpen,
   MapPin, Users, FileText, Layers, Shield, Eye, X, ChevronDown, ChevronUp,
+  Gavel, TrendingDown, Fingerprint, Building2,
 } from "lucide-react";
 
 /* ─────────── types ─────────── */
@@ -230,6 +231,269 @@ function AddEventForm({ ancestorId, onDone }: { ancestorId: number; onDone: () =
           {mut.isPending ? "Saving…" : "Add to Timeline"}
         </Button>
         <Button size="sm" variant="ghost" onClick={onDone} className="text-xs h-7 text-slate-400">Cancel</Button>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────── Rights analysis data ─────────── */
+interface Era {
+  name: string; years: string; start: number; end: number;
+  trustRightsInForce: string;
+  violations: { type: "land" | "identity" | "trust" | "governance"; event: string; legalBasis: string; canon: string; }[];
+  continuingImpact: string;
+}
+
+const ALL_ERAS: Era[] = [
+  {
+    name: "Treaty & Sovereign Recognition Era",
+    years: "1778–1830", start: 1778, end: 1830,
+    trustRightsInForce: "Federal treaties with Indigenous nations were recognized as supreme law under Article VI of the Constitution. Tribal sovereignty was acknowledged by the federal government through nation-to-nation treaty-making. No authority existed to unilaterally extinguish treaty rights.",
+    violations: [
+      { type: "land", event: "Systematic land cessions obtained through coercive negotiation, often with unrepresentative signatories", legalBasis: "Marshall Trilogy (1823–1832) established discovery doctrine over tribal consent", canon: "Ambiguities in treaties must be resolved in favor of the Indians — Jones v. Meehan (1899)" },
+      { type: "governance", event: "State governments began asserting jurisdiction over tribal lands in violation of federal treaty supremacy", legalBasis: "Worcester v. Georgia (1832) later ruled this unconstitutional — but enforcement failed", canon: "Tribal rights are not diminished by implication — Minnesota v. Mille Lacs Band (1999)" },
+    ],
+    continuingImpact: "Treaties signed in this era carry legal force today under the Supremacy Clause. Rights promised then — hunting, fishing, territory — have never been lawfully extinguished and remain active claims.",
+  },
+  {
+    name: "Forced Removal Era",
+    years: "1830–1861", start: 1830, end: 1861,
+    trustRightsInForce: "The Indian Removal Act of 1830 authorized removal but did not extinguish treaty rights. The federal trust responsibility — the duty to protect Indigenous peoples and their property — was implicitly in force through prior treaties.",
+    violations: [
+      { type: "land", event: "Forced removal from ancestral homelands under military threat; treaty provisions for land equivalency rarely honored", legalBasis: "Indian Removal Act (1830) — used to coerce treaty 'negotiations' that were not voluntary", canon: "Treaties are to be construed as the Indians understood them — Washington v. Washington Passenger Fishing Vessel Assn. (1979)" },
+      { type: "identity", event: "Census records during and after removal reclassified displaced Indigenous peoples as 'Free Colored,' 'Mulatto,' or 'White' when tribal structures were disrupted", legalBasis: "No federal law authorized these reclassifications — they were administrative acts of erasure", canon: "Statutes passed for the benefit of Indians are to be construed liberally — Montana v. Blackfeet Tribe (1985)" },
+      { type: "trust", event: "Federal agents responsible for managing removal funds and annuities committed widespread fraud; trust responsibility was systematically breached", legalBasis: "Seminole Nation v. United States (1942): the government owes the highest fiduciary duty to Indigenous peoples", canon: "The trust responsibility requires the government to act in the Indians' best interest — United States v. Mitchell (1983)" },
+    ],
+    continuingImpact: "Reclassifications made during removal are precisely why records show ancestors as 'non-Indian.' These are not identity — they are evidence of interruption and administrative harm.",
+  },
+  {
+    name: "Allotment & Assimilation Era",
+    years: "1887–1934", start: 1887, end: 1934,
+    trustRightsInForce: "Despite trust obligations, the Dawes General Allotment Act was enacted to fragment communal tribal lands. Federal courts had recognized tribal status as a political classification, not racial — yet assimilation policy operated on racial erasure.",
+    violations: [
+      { type: "land", event: "Approximately 90 million acres of tribal land taken through allotment, surplus land sales, and fee-patent conversions", legalBasis: "Dawes Act (1887); Burke Act (1906) — enabled rapid transfer of allotted lands out of trust", canon: "Rights reserved to Indians in a treaty or statute are not to be diminished by implication" },
+      { type: "identity", event: "Dawes Rolls created racial and political classifications that permanently tied Indigenous identity to federal enrollment lists, erasing peoples not on the rolls", legalBasis: "No constitutional authority authorized making the Rolls the sole legal definition of Indigenous identity", canon: "Treaties are construed as the Indians understood them — federal enrollment was not the Indian understanding of tribal membership" },
+      { type: "trust", event: "Allotment funds held in trust were mismanaged across generations — a breach not resolved until Cobell v. Salazar (2009) settlement of $3.4 billion", legalBasis: "United States v. Mitchell I & II (1980, 1983) confirmed full fiduciary duty over Individual Indian Money accounts", canon: "The government owes the highest fiduciary obligations to Indigenous peoples — Seminole Nation v. United States (1942)" },
+      { type: "governance", event: "Indian boarding schools operated to eliminate language, ceremony, and governance structures — a direct attack on tribal self-governance", legalBasis: "No statutory authority existed to compel cultural erasure — these were executive branch policy actions without tribal consent", canon: "Tribal self-governance rights are inherent, not granted — United States v. Wheeler (1978)" },
+    ],
+    continuingImpact: "The Dawes Rolls-as-identity framework still restricts tribal membership claims today. Cobell confirmed the trust breaches were real. Boarding school records are being used in present-day healing and sovereignty proceedings.",
+  },
+  {
+    name: "Termination Era",
+    years: "1953–1968", start: 1953, end: 1968,
+    trustRightsInForce: "House Concurrent Resolution 108 (1953) declared a policy of 'terminating' the federal-tribal relationship for specific tribes — but no act of Congress could unilaterally extinguish treaty rights, which are supreme law.",
+    violations: [
+      { type: "trust", event: "Over 100 tribal nations were 'terminated' — their federal recognition withdrawn, trust lands sold, jurisdiction transferred to states", legalBasis: "Menominee Tribe v. United States (1968): termination did not extinguish treaty-guaranteed hunting and fishing rights", canon: "Treaty rights survive termination unless Congress expressly abrogates them — Menominee Tribe (1968)" },
+      { type: "identity", event: "Terminated peoples became state subjects without tribal legal protection, and were recorded in state systems as 'non-Indian'", legalBasis: "Indian Civil Rights Act (1968) later recognized the constitutional violations inherent in termination policy", canon: "Ambiguities in acts of Congress purporting to diminish tribal status are resolved in favor of the tribe" },
+      { type: "governance", event: "Public Law 280 transferred criminal and civil jurisdiction over tribal lands in certain states to state governments without tribal consent", legalBasis: "P.L. 280 (1953) — tribal consent was not required despite treaty provisions protecting self-governance", canon: "Tribal sovereignty is not divested except by clear and unambiguous act of Congress — Montana v. United States (1981)" },
+    ],
+    continuingImpact: "Many families whose ancestors were in terminated nations lost their records and standing during this era. Restoration legislation (1970s–present) has reversed terminations for many nations. Peoples administratively erased during termination retain inherent rights.",
+  },
+  {
+    name: "Self-Determination Era",
+    years: "1975–Present", start: 1975, end: 2100,
+    trustRightsInForce: "Indian Self-Determination and Education Assistance Act (1975) reversed termination policy. NAGPRA (1990), VAWA tribal provisions, ICWA (1978), and Tribal Law and Order Act (2010) have expanded tribal jurisdictional authority. The trust responsibility is codified and enforceable.",
+    violations: [
+      { type: "trust", event: "Despite policy reversal, trust asset mismanagement continued — Cobell settlement (2009) covered 1887–2009 period, with many claims still outstanding", legalBasis: "United States v. Navajo Nation (2003, 2009) — courts affirmed trust duty but narrowed remedies", canon: "Trust responsibility requires active protection, not mere non-interference — Mitchell II (1983)" },
+      { type: "identity", event: "Blood quantum requirements and enrollment caps imposed by federal policy continue to fracture tribal membership based on racial metrics, not political or cultural standing", legalBasis: "Morton v. Mancari (1974): Indian identity is a political, not racial, classification — but blood quantum contradicts this", canon: "Statutes benefiting Indians are construed liberally; those limiting Indigenous rights are construed narrowly" },
+    ],
+    continuingImpact: "This is the era in which present-day members exercise rights. Every historical violation documented in prior eras forms the chain of standing for present-day claims. The trust responsibility runs forward — what was owed then is still owed.",
+  },
+];
+
+function getAncestorEras(birthYear: number | null, deathYear: number | null): Era[] {
+  const birth = birthYear ?? 1800;
+  const death = deathYear ?? new Date().getFullYear();
+  return ALL_ERAS.filter(e => e.end > birth && e.start < death);
+}
+
+const VIOLATION_META: Record<string, { label: string; icon: typeof Gavel; color: string; bg: string; border: string; }> = {
+  land:       { label: "Land & Territory",       icon: TrendingDown,  color: "text-amber-300",   bg: "bg-amber-950/40",   border: "border-amber-700/40" },
+  identity:   { label: "Identity & Classification", icon: Fingerprint, color: "text-orange-300",  bg: "bg-orange-950/40",  border: "border-orange-700/40" },
+  trust:      { label: "Trust Responsibility",   icon: Shield,        color: "text-red-300",     bg: "bg-red-950/40",     border: "border-red-700/40" },
+  governance: { label: "Self-Governance",        icon: Building2,     color: "text-violet-300",  bg: "bg-violet-950/40",  border: "border-violet-700/40" },
+};
+
+/* ─────────── RightsAnalysisPanel ─────────── */
+function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancestor; historicalEvents: HistoricalEvent[] }) {
+  const [openEraIdx, setOpenEraIdx] = useState<number | null>(null);
+  const [openViolation, setOpenViolation] = useState<string | null>(null);
+
+  const eras = getAncestorEras(ancestor.birthYear, ancestor.deathYear);
+  const firstName = ancestor.firstName ?? "this ancestor";
+
+  /* aggregate violation types across ancestor's eras */
+  const violationsByType: Record<string, { era: string; event: string; legalBasis: string; canon: string; }[]> = {};
+  eras.forEach(era => {
+    era.violations.forEach(v => {
+      if (!violationsByType[v.type]) violationsByType[v.type] = [];
+      violationsByType[v.type].push({ era: era.name, event: v.event, legalBasis: v.legalBasis, canon: v.canon });
+    });
+  });
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 pb-2 border-b border-violet-800/40">
+        <div className="w-2 h-2 rounded-full bg-violet-500"></div>
+        <h2 className="text-sm font-bold text-violet-300 tracking-wide uppercase">Rights Violation Analysis</h2>
+        <span className="text-xs text-violet-700 ml-1">Federal trust, canons of construction, and temporal legal record</span>
+      </div>
+
+      {/* Framing statement */}
+      <div className="rounded-xl border border-violet-800/30 bg-violet-950/20 p-4">
+        <div className="flex items-start gap-3">
+          <Gavel className="w-4 h-4 text-violet-400 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className="text-xs font-semibold text-violet-300 mb-1">COMPANION Rights Analysis — How to Read This Section</p>
+            <p className="text-xs text-violet-200/70 leading-relaxed">
+              This analysis takes <span className="text-violet-200">{ancestor.fullName}</span>'s birth-to-death window and applies the law <em>as it existed at each point in time</em>. 
+              The Indian Canons of Construction — the interpretive rules courts use to resolve ambiguity in favor of Indigenous peoples — are applied to each documented violation. 
+              The purpose is not historical grievance for its own sake: it is to equip members to see the precise legal mechanism by which each generation's rights were diminished, 
+              so that pattern cannot repeat. What was owed then is still owed now.
+            </p>
+          </div>
+        </div>
+      </div>
+
+      {/* Era-by-era temporal pockets */}
+      {eras.length === 0 ? (
+        <p className="text-xs text-muted-foreground text-center py-6">Add birth or death years to generate a temporal rights analysis.</p>
+      ) : (
+        <div className="space-y-3">
+          <p className="text-xs text-violet-300/60 font-medium tracking-wide uppercase">Temporal Pockets — Eras {firstName} Lived Through</p>
+          {eras.map((era, idx) => {
+            const isOpen = openEraIdx === idx;
+            return (
+              <div key={era.name} className="rounded-xl border border-violet-800/30 bg-slate-900/60 overflow-hidden">
+                <button
+                  className="w-full flex items-center justify-between p-4 text-left hover:bg-violet-950/20 transition-colors"
+                  onClick={() => setOpenEraIdx(isOpen ? null : idx)}
+                >
+                  <div className="flex items-start gap-3">
+                    <div className="mt-0.5 w-6 h-6 rounded-full bg-violet-900/60 border border-violet-700/50 flex items-center justify-center flex-shrink-0">
+                      <span className="text-[10px] font-bold text-violet-400">{idx + 1}</span>
+                    </div>
+                    <div>
+                      <p className="text-sm font-semibold text-violet-200">{era.name}</p>
+                      <p className="text-xs text-violet-400/60">{era.years} · {era.violations.length} documented violation{era.violations.length !== 1 ? "s" : ""}</p>
+                    </div>
+                  </div>
+                  {isOpen ? <ChevronUp className="w-4 h-4 text-violet-500 flex-shrink-0" /> : <ChevronDown className="w-4 h-4 text-violet-500 flex-shrink-0" />}
+                </button>
+
+                {isOpen && (
+                  <div className="border-t border-violet-900/40 p-4 space-y-4">
+                    {/* Rights in force */}
+                    <div className="rounded-lg bg-violet-950/30 border border-violet-800/20 p-3">
+                      <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-1.5">Rights in Force During This Era</p>
+                      <p className="text-xs text-violet-200/70 leading-relaxed">{era.trustRightsInForce}</p>
+                    </div>
+
+                    {/* Violations */}
+                    <div className="space-y-3">
+                      {era.violations.map((v, vi) => {
+                        const meta = VIOLATION_META[v.type];
+                        const Icon = meta.icon;
+                        return (
+                          <div key={vi} className={`rounded-lg border ${meta.border} ${meta.bg} p-3`}>
+                            <div className="flex items-center gap-2 mb-2">
+                              <Icon className={`w-3 h-3 ${meta.color}`} />
+                              <span className={`text-[10px] font-bold uppercase tracking-wider ${meta.color}`}>{meta.label} Violation</span>
+                            </div>
+                            <p className="text-xs text-slate-200/80 leading-relaxed mb-2">{v.event}</p>
+                            <div className="space-y-1.5">
+                              <div className="flex gap-2">
+                                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-wider mt-0.5 flex-shrink-0">Legal Basis</span>
+                                <p className="text-[10px] text-slate-400/80 leading-relaxed">{v.legalBasis}</p>
+                              </div>
+                              <div className="flex gap-2 bg-black/20 rounded p-2">
+                                <Scale className="w-3 h-3 text-violet-400 mt-0.5 flex-shrink-0" />
+                                <p className="text-[10px] text-violet-300/80 leading-relaxed italic">{v.canon}</p>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+
+                    {/* Continuing impact */}
+                    <div className="rounded-lg bg-green-950/20 border border-green-800/20 p-3">
+                      <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider mb-1.5">Continuing Impact on Present-Day Rights</p>
+                      <p className="text-xs text-green-200/70 leading-relaxed">{era.continuingImpact}</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {/* Violation category summary */}
+      {Object.keys(violationsByType).length > 0 && (
+        <div className="space-y-3 pt-2">
+          <p className="text-xs text-violet-300/60 font-medium tracking-wide uppercase">Violation Summary — Across {firstName}'s Lifetime</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {(Object.entries(violationsByType) as [string, typeof violationsByType[string]][]).map(([type, items]) => {
+              const meta = VIOLATION_META[type];
+              const Icon = meta.icon;
+              const key = `sum-${type}`;
+              const isOpen = openViolation === key;
+              return (
+                <div key={type} className={`rounded-xl border ${meta.border} ${meta.bg} overflow-hidden`}>
+                  <button
+                    className="w-full flex items-center justify-between p-3 text-left"
+                    onClick={() => setOpenViolation(isOpen ? null : key)}
+                  >
+                    <div className="flex items-center gap-2">
+                      <Icon className={`w-4 h-4 ${meta.color}`} />
+                      <span className={`text-xs font-semibold ${meta.color}`}>{meta.label}</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <Badge className={`text-[10px] px-1.5 ${meta.bg} border ${meta.border} ${meta.color}`}>{items.length}</Badge>
+                      {isOpen ? <ChevronUp className="w-3 h-3 text-slate-500" /> : <ChevronDown className="w-3 h-3 text-slate-500" />}
+                    </div>
+                  </button>
+                  {isOpen && (
+                    <div className="border-t border-slate-800/40 p-3 space-y-2">
+                      {items.map((item, i) => (
+                        <div key={i} className="text-xs space-y-1">
+                          <p className="text-[9px] font-bold text-slate-500 uppercase">{item.era}</p>
+                          <p className="text-slate-300/80 leading-relaxed">{item.event}</p>
+                          <p className="text-violet-400/70 italic text-[10px] leading-relaxed">"{item.canon}"</p>
+                          {i < items.length - 1 && <div className="border-t border-slate-800/30 pt-1 mt-1" />}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Indian Canons of Construction — full reference */}
+      <div className="rounded-xl border border-slate-700/40 bg-slate-900/60 p-4">
+        <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Indian Canons of Construction — Applied Throughout This Analysis</p>
+        <div className="space-y-2">
+          {[
+            { canon: "Ambiguities in treaties are resolved in favor of the Indians.", cite: "Jones v. Meehan, 175 U.S. 1 (1899)" },
+            { canon: "Treaties are to be construed as the Indians understood them at the time of signing.", cite: "Washington v. Washington Passenger Fishing Vessel Assn., 443 U.S. 658 (1979)" },
+            { canon: "Tribal rights are not diminished by implication — Congress must express any diminishment clearly and unambiguously.", cite: "Minnesota v. Mille Lacs Band, 526 U.S. 172 (1999)" },
+            { canon: "The federal government owes a trust responsibility and the highest fiduciary duties to Indigenous peoples.", cite: "Seminole Nation v. United States, 316 U.S. 286 (1942)" },
+            { canon: "Statutes passed for the benefit of Indians are to be construed liberally; those limiting Indigenous rights are construed narrowly.", cite: "Montana v. Blackfeet Tribe, 471 U.S. 759 (1985)" },
+            { canon: "Indian status is a political classification based on tribal membership — not a racial classification.", cite: "Morton v. Mancari, 417 U.S. 535 (1974)" },
+          ].map((c, i) => (
+            <div key={i} className="flex gap-3 py-2 border-b border-slate-800/40 last:border-0">
+              <Scale className="w-3 h-3 text-violet-500 mt-0.5 flex-shrink-0" />
+              <div>
+                <p className="text-xs text-slate-300/80 leading-relaxed italic">"{c.canon}"</p>
+                <p className="text-[10px] text-slate-500 mt-0.5">{c.cite}</p>
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );
@@ -562,6 +826,9 @@ export default function AncestralTimelinePage() {
           />
         </div>
       </div>
+
+      {/* ── Rights Violation Analysis ── */}
+      <RightsAnalysisPanel ancestor={ancestor} historicalEvents={historicalEvents} />
 
       {/* ── Footer principle ── */}
       <div

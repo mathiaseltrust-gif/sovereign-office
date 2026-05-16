@@ -2,9 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import {
   Home,
-  BookOpen,
   MessageSquare,
-  MessageCircle,
+  Megaphone,
   Menu,
   Sun,
   Moon,
@@ -12,7 +11,6 @@ import {
   Users,
   X,
   LogOut,
-  GraduationCap,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -21,14 +19,12 @@ import { getSovereignSession } from "@/lib/utils";
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Family Directory", href: "/directory", icon: Users },
-  { name: "SDU", href: "/university", icon: GraduationCap },
-  { name: "Legal Resources", href: "/legal", icon: BookOpen },
   { name: "Community Forum", href: "/forum", icon: MessageSquare },
-  { name: "Legal Guidance", href: "/guidance", icon: MessageCircle },
+  { name: "Announcements", href: "/announcements", icon: Megaphone },
   { name: "Admin", href: "/admin", icon: Shield },
 ];
 
-const mobileNav = navigation.slice(0, 5);
+const mobileNav = navigation.slice(0, 4);
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location] = useLocation();

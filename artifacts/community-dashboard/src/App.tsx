@@ -8,12 +8,10 @@ import { Layout } from "@/components/layout";
 import Dashboard from "@/pages/dashboard";
 import Directory from "@/pages/directory";
 import MemberDetail from "@/pages/member-detail";
-import Legal from "@/pages/legal";
 import Forum from "@/pages/forum";
 import ForumPost from "@/pages/forum-post";
-import Guidance from "@/pages/guidance";
+import Announcements from "@/pages/announcements";
 import Admin from "@/pages/admin";
-import University from "@/pages/university";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -31,11 +29,9 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/directory" component={Directory} />
         <Route path="/directory/:id" component={MemberDetail} />
-        <Route path="/legal" component={Legal} />
         <Route path="/forum" component={Forum} />
         <Route path="/forum/:id" component={ForumPost} />
-        <Route path="/guidance" component={Guidance} />
-        <Route path="/university" component={University} />
+        <Route path="/announcements" component={Announcements} />
         <Route path="/admin" component={Admin} />
         <Route component={NotFound} />
       </Switch>
