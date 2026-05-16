@@ -1,15 +1,14 @@
 import { useState, useCallback } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Landmark, Building2, Leaf, Droplets, Zap, Tractor, Mountain,
-  Plus, X, Edit2, Trash2, AlertTriangle, CheckCircle, Clock,
-  DollarSign, TrendingUp, Loader2, TreePine, Waves, Package,
-  Wrench, FlaskConical, BarChart3, ArrowRight, MapPin, FileText,
-  ChevronRight,
+  Landmark, Building2, Leaf, Droplets, Mountain, Tractor, Package, Wrench,
+  Plus, X, Edit2, Trash2, AlertTriangle, Clock, DollarSign, TrendingUp,
+  Loader2, TreePine, Scale, ScrollText, ShieldAlert, ShieldCheck,
+  ArrowRight, MapPin, FileText, BarChart3, ChevronRight, Gavel, BookOpen,
 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -19,6 +18,13 @@ type Parcel = {
   acreage: string; classification: string; status: string; county: string; state: string;
   plss_description: string; owner_type: string; acquired_date: string;
   acquisition_source: string; bia_tract_number: string; lat: string; lng: string; notes: string;
+  // Tribal Code Authority layer
+  internal_tribal_status: string; federal_admin_status: string; jurisdictional_status: string;
+  beneficiary_stewardship_type: string; protection_restriction_status: string;
+  tribal_code_ref: string; tribal_court_order_num: string;
+  protected_status_basis: string; restriction_basis: string; enforcement_authority: string;
+  federal_law_cross_ref: string; stewardship_purpose: string;
+  cultural_significance: string; historical_occupancy: string;
 };
 
 type Lease = {
@@ -34,47 +40,168 @@ type Asset = {
   year_built: number; notes: string; tract_number?: string;
 };
 
-type PipelineEntry = {
+type StewardshipEntry = {
   id: number; name: string; description: string; acreage: string;
   county: string; state: string; estimated_cost: string; acquisition_type: string;
-  stage: string; bia_case_number: string; priority: string; target_date: string; notes: string;
+  stage: string; bia_case_number: string; priority: string; target_date: string;
+  notes: string; stewardship_purpose: string; cultural_notes: string;
+  tribal_code_ref: string; jurisdictional_status: string;
+};
+
+type Encumbrance = {
+  id: number; parcel_id: number; encumbrance_type: string; title: string;
+  description: string; source: string; date_identified: string; status: string;
+  federal_law_implicated: string; tribal_code_ref: string; void_ab_initio: boolean;
+  resolution_notes: string; tract_number?: string;
+};
+
+type Notice = {
+  id: number; parcel_id: number; notice_type: string; title: string;
+  content: string; issued_date: string; effective_date: string; served_to: string;
+  service_method: string; status: string; tribal_code_ref: string;
+  federal_law_ref: string; court_order_ref: string; enforcement_action: string;
+  tract_number?: string;
 };
 
 type Stats = {
-  totalParcels: number; totalAcreage: number; trustAcreage: number; feeAcreage: number;
-  allotmentAcreage: number; restrictedAcreage: number; activeParcels: number;
-  disputedParcels: number; totalLeases: number; activeLeases: number;
-  annualRevenue: number; expiringSoon: number; pipelineCount: number;
-  activePipeline: number; pipelineAcreage: number;
+  totalParcels: number; totalAcreage: number; govAcreage: number; trustAcreage: number;
+  protectedAcreage: number; sacredAcreage: number; beneficiaryAcreage: number;
+  restrictedAcreage: number; activeParcels: number; disputedParcels: number;
+  exclusiveJurisdiction: number; contestedParcels: number;
+  totalLeases: number; activeLeases: number; annualRevenue: number; expiringSoon: number;
+  pipelineCount: number; activePipeline: number; pipelineAcreage: number;
+  activeEncumbrances: number; voidAbInitioCount: number; activeNotices: number;
 };
 
 // ── constants ─────────────────────────────────────────────────────────────────
 
-const CLASSIFICATIONS = ["trust", "fee", "allotment", "restricted", "fee_to_trust_pending"];
+const INTERNAL_TRIBAL_STATUSES = [
+  { value: "tribal_government_land",    label: "Tribal Government Land" },
+  { value: "tribal_trust_stewardship",  label: "Tribal Trust Stewardship Land" },
+  { value: "protected_tribal_land",     label: "Protected Tribal Land" },
+  { value: "restricted_tribal_status",  label: "Restricted Tribal Status" },
+  { value: "beneficiary_stewardship",   label: "Beneficiary Stewardship Land" },
+  { value: "sacred_cultural_land",      label: "Sacred / Cultural Land" },
+  { value: "federal_indian_law_implicated", label: "Federal Indian Law Implicated" },
+  { value: "jurisdictional_review",     label: "Jurisdictional Review Triggered" },
+];
+
+const FEDERAL_ADMIN_STATUSES = [
+  { value: "none",                      label: "Not Applicable" },
+  { value: "federal_trust",             label: "Federal Trust" },
+  { value: "fee_land",                  label: "Fee Land" },
+  { value: "fee_to_trust_pending",      label: "Fee-to-Trust Pending (DOI)" },
+  { value: "federal_indian_law",        label: "Federal Indian Law Implicated" },
+  { value: "jurisdictional_review",     label: "Jurisdictional Review Triggered" },
+];
+
+const JURISDICTIONAL_STATUSES = [
+  { value: "exclusive_tribal",          label: "Exclusive Tribal Jurisdiction" },
+  { value: "concurrent",                label: "Concurrent Jurisdiction" },
+  { value: "contested",                 label: "Contested Jurisdiction" },
+  { value: "federal_overlay",           label: "Federal Overlay" },
+  { value: "state_challenged",          label: "State Challenged" },
+];
+
+const BENEFICIARY_TYPES = [
+  { value: "member_welfare",            label: "Member Welfare" },
+  { value: "housing",                   label: "Housing" },
+  { value: "ceremonial_use",            label: "Ceremonial / Cultural Use" },
+  { value: "governmental_use",          label: "Governmental Use" },
+  { value: "preservation",              label: "Preservation" },
+  { value: "community_benefit",         label: "Community Benefit" },
+  { value: "economic_development",      label: "Economic Development" },
+];
+
+const PROTECTION_STATUSES = [
+  { value: "anti_alienation",           label: "Anti-Alienation Protected (METC T4 §4)" },
+  { value: "void_ab_initio_protected",  label: "Void Ab Initio — Unauthorized Interference" },
+  { value: "court_order_protected",     label: "Tribal Court Order Protected" },
+  { value: "treaty_protected",          label: "Treaty Protected" },
+  { value: "preservation_restricted",  label: "Preservation Restricted" },
+];
+
+const METC_TITLE4_SECTIONS = [
+  { value: "METC.T4.§1",  label: "§1 — Short Title & Declaration of Sovereignty" },
+  { value: "METC.T4.§2",  label: "§2 — Exclusive Tribal Jurisdiction" },
+  { value: "METC.T4.§3",  label: "§3 — Tribal Land Trust Governance" },
+  { value: "METC.T4.§4",  label: "§4 — Inherent Anti-Alienation Right" },
+  { value: "METC.T4.§5",  label: "§5 — Void Ab Initio — Unauthorized Interference" },
+  { value: "METC.T4.§6",  label: "§6 — Protective Orders & Enforcement" },
+  { value: "METC.T4.§7",  label: "§7 — Effective Date of Sovereign Orders" },
+  { value: "METC.T4.§8",  label: "§8 — Notice & Service Protocols" },
+  { value: "METC.T4.§9",  label: "§9 — Jurisdictional Review Triggers" },
+  { value: "METC.T4.§10", label: "§10 — Tribal Supreme Court Interpretation & Enforcement" },
+];
+
+const FEDERAL_LAW_REFS = [
+  { value: "25USC177",          label: "25 U.S.C. §177 — Nonintercourse Act" },
+  { value: "18USC1151",         label: "18 U.S.C. §1151 — Indian Country Definition" },
+  { value: "25USC2201",         label: "25 U.S.C. §2201 — Indian Land Consolidation Act" },
+  { value: "25USC5301",         label: "25 U.S.C. §5301 — Indian Self-Determination Act" },
+  { value: "UNDRIP.Art.3",      label: "UNDRIP Art. 3 — Self-Determination" },
+  { value: "UNDRIP.Art.26",     label: "UNDRIP Art. 26 — Rights to Lands & Territories" },
+  { value: "Worcester.v.Georgia", label: "Worcester v. Georgia (1832)" },
+];
+
+const ENCUMBRANCE_TYPES = [
+  { value: "lien",                  label: "Lien" },
+  { value: "foreclosure_attempt",   label: "Foreclosure Attempt" },
+  { value: "tax_assessment",        label: "Tax Assessment" },
+  { value: "utility_interference",  label: "Utility Interference" },
+  { value: "admin_obstruction",     label: "Administrative Obstruction" },
+  { value: "jurisdictional_conflict", label: "Jurisdictional Conflict" },
+  { value: "title_dispute",         label: "Title Dispute" },
+  { value: "regulatory_overreach",  label: "Regulatory Overreach" },
+];
+
+const NOTICE_TYPES = [
+  { value: "federal_review",           label: "Notice of Federal Review" },
+  { value: "jurisdictional_review",    label: "Jurisdictional Review Notice" },
+  { value: "protected_land",           label: "Protected Land Notice" },
+  { value: "anti_alienation",          label: "Anti-Alienation Enforcement Notice" },
+  { value: "void_ab_initio",           label: "Void Ab Initio Declaration" },
+  { value: "admin_obstruction",        label: "Administrative Obstruction Log" },
+  { value: "encumbrance_challenge",    label: "Encumbrance Challenge" },
+  { value: "preservation",             label: "Preservation Notice" },
+];
+
+const STEWARDSHIP_STAGES = [
+  { value: "identified",    label: "Identified",        color: "bg-slate-500" },
+  { value: "research",      label: "Research",          color: "bg-blue-600" },
+  { value: "negotiating",   label: "Negotiating",       color: "bg-indigo-600" },
+  { value: "under_contract",label: "Under Arrangement", color: "bg-violet-600" },
+  { value: "bia_processing",label: "Federal Review",    color: "bg-amber-600" },
+  { value: "transferred",   label: "Restored",          color: "bg-emerald-600" },
+  { value: "stewarded",     label: "Under Stewardship", color: "bg-teal-600" },
+  { value: "culturally_protected", label: "Culturally Protected", color: "bg-rose-700" },
+  { value: "cancelled",     label: "Suspended",         color: "bg-red-700" },
+];
+
+const STEWARDSHIP_TYPES = [
+  { value: "tribal_governmental_administration", label: "Tribal Governmental Administration" },
+  { value: "protected_stewardship",             label: "Protected Stewardship" },
+  { value: "beneficiary_held",                  label: "Beneficiary-Held Land" },
+  { value: "jurisdictionally_disputed",         label: "Jurisdictionally Disputed" },
+  { value: "culturally_protected",              label: "Culturally Protected Territory" },
+  { value: "fee_to_trust",                      label: "Fee-to-Trust Application (DOI)" },
+  { value: "reacquisition",                     label: "Reacquisition / Treaty Restoration" },
+  { value: "purchase",                          label: "Purchase" },
+  { value: "donation",                          label: "Donation / Gift" },
+];
+
 const PARCEL_STATUSES = ["active", "inactive", "disputed", "transferred", "pending"];
 const LEASE_TYPES = ["agricultural", "surface", "mineral", "commercial", "residential", "grazing", "timber"];
 const ASSET_TYPES = [
-  { value: "building", label: "Building", icon: Building2 },
-  { value: "infrastructure", label: "Infrastructure", icon: Wrench },
-  { value: "water_right", label: "Water Right", icon: Droplets },
-  { value: "mineral_right", label: "Mineral Right", icon: Mountain },
-  { value: "timber", label: "Timber / Forestry", icon: TreePine },
-  { value: "agricultural", label: "Agricultural Land", icon: Tractor },
-  { value: "equipment", label: "Equipment", icon: Package },
-  { value: "natural_resource", label: "Natural Resource", icon: Leaf },
+  { value: "building",         label: "Building",           icon: Building2 },
+  { value: "infrastructure",   label: "Infrastructure",     icon: Wrench },
+  { value: "water_right",      label: "Water Right",        icon: Droplets },
+  { value: "mineral_right",    label: "Mineral Right",      icon: Mountain },
+  { value: "timber",           label: "Timber / Forestry",  icon: TreePine },
+  { value: "agricultural",     label: "Agricultural Land",  icon: Tractor },
+  { value: "equipment",        label: "Equipment",          icon: Package },
+  { value: "natural_resource", label: "Natural Resource",   icon: Leaf },
 ];
-const PIPELINE_STAGES = [
-  { value: "identified",    label: "Identified",      color: "bg-slate-500" },
-  { value: "research",      label: "Research",        color: "bg-blue-600" },
-  { value: "negotiating",   label: "Negotiating",     color: "bg-indigo-600" },
-  { value: "under_contract",label: "Under Contract",  color: "bg-violet-600" },
-  { value: "bia_processing",label: "BIA Processing",  color: "bg-amber-600" },
-  { value: "transferred",   label: "Transferred",     color: "bg-emerald-600" },
-  { value: "cancelled",     label: "Cancelled",       color: "bg-red-700" },
-];
-const ACQUISITION_TYPES = ["fee_to_trust", "purchase", "donation", "exchange", "reacquisition", "treaty_restoration"];
-const CONDITIONS = ["excellent", "good", "fair", "poor"];
-const PRIORITIES = ["high", "medium", "low"];
 
 // ── helpers ───────────────────────────────────────────────────────────────────
 
@@ -90,44 +217,43 @@ async function authFetch(url: string, opts: RequestInit = {}) {
   });
 }
 
-function fmt(n: number, decimals = 2) {
-  return n.toLocaleString("en-US", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
-}
-
-function fmtAcres(n: number) {
-  return `${fmt(n)} ac`;
-}
-
+function fmt(n: number, d = 2) { return n.toLocaleString("en-US", { minimumFractionDigits: d, maximumFractionDigits: d }); }
+function fmtAcres(n: number) { return `${fmt(n)} ac`; }
 function fmtDollar(n: number) {
-  return n >= 1_000_000
-    ? `$${fmt(n / 1_000_000)}M`
-    : n >= 1_000
-    ? `$${fmt(n / 1_000, 0)}K`
-    : `$${fmt(n, 0)}`;
+  return n >= 1_000_000 ? `$${fmt(n / 1_000_000)}M` : n >= 1_000 ? `$${fmt(n / 1_000, 0)}K` : `$${fmt(n, 0)}`;
 }
 
-function classColor(c: string) {
+function daysUntil(dateStr: string) {
+  return Math.ceil((new Date(dateStr).getTime() - Date.now()) / 86_400_000);
+}
+
+function internalStatusColor(s: string) {
   const m: Record<string, string> = {
-    trust: "bg-emerald-700 text-emerald-100",
-    fee: "bg-slate-600 text-slate-100",
-    allotment: "bg-amber-700 text-amber-100",
-    restricted: "bg-violet-700 text-violet-100",
-    fee_to_trust_pending: "bg-blue-700 text-blue-100",
+    tribal_government_land: "bg-amber-700 text-amber-100",
+    tribal_trust_stewardship: "bg-emerald-700 text-emerald-100",
+    protected_tribal_land: "bg-blue-700 text-blue-100",
+    restricted_tribal_status: "bg-violet-700 text-violet-100",
+    beneficiary_stewardship: "bg-teal-700 text-teal-100",
+    sacred_cultural_land: "bg-rose-800 text-rose-100",
+    federal_indian_law_implicated: "bg-orange-700 text-orange-100",
+    jurisdictional_review: "bg-red-700 text-red-100",
   };
-  return m[c] ?? "bg-muted text-muted-foreground";
+  return m[s] ?? "bg-muted text-muted-foreground";
+}
+
+function jurisdictionColor(s: string) {
+  const m: Record<string, string> = {
+    exclusive_tribal: "text-emerald-400",
+    concurrent: "text-blue-400",
+    contested: "text-red-400",
+    federal_overlay: "text-amber-400",
+    state_challenged: "text-orange-400",
+  };
+  return m[s] ?? "text-muted-foreground";
 }
 
 function leaseStatusColor(s: string) {
-  if (s === "active") return "text-emerald-400";
-  if (s === "expired") return "text-red-400";
-  if (s === "pending") return "text-blue-400";
-  return "text-amber-400";
-}
-
-function daysUntil(dateStr: string): number {
-  const d = new Date(dateStr);
-  const now = new Date();
-  return Math.ceil((d.getTime() - now.getTime()) / 86_400_000);
+  return { active: "text-emerald-400", expired: "text-red-400", pending: "text-blue-400" }[s] ?? "text-amber-400";
 }
 
 // ── tiny shared UI ────────────────────────────────────────────────────────────
@@ -146,8 +272,7 @@ function StatCard({ icon: Icon, label, value, sub, accent }: {
   return (
     <div className="bg-background/60 border border-border rounded-lg p-4 flex flex-col gap-1">
       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-        <Icon className="w-3.5 h-3.5" />
-        {label}
+        <Icon className="w-3.5 h-3.5" />{label}
       </div>
       <p className={`text-2xl font-bold ${accent ?? "text-foreground"}`}>{value}</p>
       {sub && <p className="text-xs text-muted-foreground">{sub}</p>}
@@ -155,13 +280,18 @@ function StatCard({ icon: Icon, label, value, sub, accent }: {
   );
 }
 
-function Modal({ title, onClose, children }: { title: string; onClose: () => void; children: React.ReactNode }) {
+function Modal({ title, subtitle, onClose, children }: {
+  title: string; subtitle?: string; onClose: () => void; children: React.ReactNode;
+}) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
       <div className="bg-[#111] border border-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-center justify-between px-6 py-4 border-b border-border sticky top-0 bg-[#111] z-10">
-          <h2 className="text-base font-semibold text-amber-400">{title}</h2>
-          <button onClick={onClose} className="text-muted-foreground hover:text-foreground">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-border sticky top-0 bg-[#111] z-10">
+          <div>
+            <h2 className="text-base font-semibold text-amber-400">{title}</h2>
+            {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-0.5">
             <X className="w-4 h-4" />
           </button>
         </div>
@@ -185,14 +315,22 @@ function Sel({ value, onChange, options, placeholder }: {
   options: { value: string; label: string }[]; placeholder?: string;
 }) {
   return (
-    <select
-      value={value}
-      onChange={e => onChange(e.target.value)}
-      className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-1 focus:ring-amber-500"
-    >
+    <select value={value} onChange={e => onChange(e.target.value)}
+      className="bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground w-full focus:outline-none focus:ring-1 focus:ring-amber-500">
       {placeholder && <option value="">{placeholder}</option>}
       {options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
     </select>
+  );
+}
+
+function SectionDivider({ icon: Icon, label }: { icon: React.ElementType; label: string }) {
+  return (
+    <div className="col-span-2 border-t border-amber-700/25 pt-4 mt-1">
+      <div className="flex items-center gap-2 mb-3">
+        <Icon className="w-4 h-4 text-amber-400" />
+        <h3 className="text-xs font-semibold text-amber-400 uppercase tracking-widest">{label}</h3>
+      </div>
+    </div>
   );
 }
 
@@ -200,23 +338,36 @@ function Sel({ value, onChange, options, placeholder }: {
 
 const EMPTY_PARCEL = {
   tractNumber: "", parcelId: "", legalDescription: "", acreage: "",
-  classification: "trust", status: "active", county: "", state: "TX",
+  classification: "", status: "active", county: "", state: "TX",
   plssDescription: "", ownerType: "tribal", acquiredDate: "", acquisitionSource: "",
   biaTractNumber: "", lat: "", lng: "", notes: "",
+  internalTribalStatus: "tribal_government_land", federalAdminStatus: "none",
+  jurisdictionalStatus: "exclusive_tribal", beneficiaryStewType: "", protectionRestrictionStatus: "",
+  tribalCodeRef: "", tribalCourtOrderNum: "", protectedStatusBasis: "", restrictionBasis: "",
+  enforcementAuthority: "", federalLawCrossRef: "", stewardshipPurpose: "",
+  culturalSignificance: "", historicalOccupancy: "",
 };
 
-function ParcelModal({ parcel, onClose, onSaved }: {
-  parcel?: Parcel; onClose: () => void; onSaved: () => void;
-}) {
+function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState(parcel ? {
     tractNumber: parcel.tract_number ?? "", parcelId: parcel.parcel_id ?? "",
     legalDescription: parcel.legal_description ?? "", acreage: parcel.acreage ?? "",
-    classification: parcel.classification ?? "trust", status: parcel.status ?? "active",
+    classification: parcel.classification ?? "", status: parcel.status ?? "active",
     county: parcel.county ?? "", state: parcel.state ?? "TX",
     plssDescription: parcel.plss_description ?? "", ownerType: parcel.owner_type ?? "tribal",
     acquiredDate: parcel.acquired_date ?? "", acquisitionSource: parcel.acquisition_source ?? "",
     biaTractNumber: parcel.bia_tract_number ?? "", lat: parcel.lat ?? "", lng: parcel.lng ?? "",
     notes: parcel.notes ?? "",
+    internalTribalStatus: parcel.internal_tribal_status ?? "tribal_government_land",
+    federalAdminStatus: parcel.federal_admin_status ?? "none",
+    jurisdictionalStatus: parcel.jurisdictional_status ?? "exclusive_tribal",
+    beneficiaryStewType: parcel.beneficiary_stewardship_type ?? "",
+    protectionRestrictionStatus: parcel.protection_restriction_status ?? "",
+    tribalCodeRef: parcel.tribal_code_ref ?? "", tribalCourtOrderNum: parcel.tribal_court_order_num ?? "",
+    protectedStatusBasis: parcel.protected_status_basis ?? "", restrictionBasis: parcel.restriction_basis ?? "",
+    enforcementAuthority: parcel.enforcement_authority ?? "", federalLawCrossRef: parcel.federal_law_cross_ref ?? "",
+    stewardshipPurpose: parcel.stewardship_purpose ?? "",
+    culturalSignificance: parcel.cultural_significance ?? "", historicalOccupancy: parcel.historical_occupancy ?? "",
   } : { ...EMPTY_PARCEL });
   const [saving, setSaving] = useState(false);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -226,47 +377,102 @@ function ParcelModal({ parcel, onClose, onSaved }: {
     setSaving(true);
     try {
       const url = parcel ? `/api/land/parcels/${parcel.id}` : "/api/land/parcels";
-      const method = parcel ? "PUT" : "POST";
-      const res = await authFetch(url, { method, body: JSON.stringify(form) });
+      const res = await authFetch(url, { method: parcel ? "PUT" : "POST", body: JSON.stringify(form) });
       if (!res.ok) throw new Error(await res.text());
       onSaved();
     } finally { setSaving(false); }
   }
 
   return (
-    <Modal title={parcel ? "Edit Parcel" : "Register New Parcel"} onClose={onClose}>
+    <Modal title={parcel ? "Edit Parcel" : "Register Land Parcel"} subtitle="Mathias El Tribe — Sovereign Land Registry" onClose={onClose}>
       <div className="grid grid-cols-2 gap-4">
-        <Field label="Tract Number"><Input value={form.tractNumber} onChange={set("tractNumber")} placeholder="e.g. TX-2024-001" /></Field>
-        <Field label="Parcel ID"><Input value={form.parcelId} onChange={set("parcelId")} placeholder="County parcel ID" /></Field>
-        <Field label="Classification">
-          <Sel value={form.classification} onChange={v => setForm(f => ({ ...f, classification: v }))}
-            options={CLASSIFICATIONS.map(c => ({ value: c, label: c.replace(/_/g, " ") }))} />
-        </Field>
+        <SectionDivider icon={Landmark} label="Parcel Identification" />
+        <Field label="Tract Number"><Input value={form.tractNumber} onChange={set("tractNumber")} placeholder="e.g. MET-2024-001" /></Field>
+        <Field label="Parcel ID"><Input value={form.parcelId} onChange={set("parcelId")} placeholder="County/internal identifier" /></Field>
         <Field label="Status">
           <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
             options={PARCEL_STATUSES.map(s => ({ value: s, label: s }))} />
         </Field>
         <Field label="Acreage"><Input type="number" step="0.0001" value={form.acreage} onChange={set("acreage")} placeholder="0.0000" /></Field>
-        <Field label="Owner Type">
-          <Sel value={form.ownerType} onChange={v => setForm(f => ({ ...f, ownerType: v }))}
-            options={[{ value: "tribal", label: "Tribal" }, { value: "individual", label: "Individual" }, { value: "fractional", label: "Fractional" }]} />
-        </Field>
-        <Field label="County"><Input value={form.county} onChange={set("county")} placeholder="County name" /></Field>
-        <Field label="State"><Input value={form.state} onChange={set("state")} placeholder="TX" /></Field>
         <div className="col-span-2">
-          <Field label="Legal Description"><Textarea value={form.legalDescription} onChange={set("legalDescription")} placeholder="Full legal description of the parcel" className="resize-none h-20" /></Field>
+          <Field label="Legal Description"><Textarea value={form.legalDescription} onChange={set("legalDescription")} placeholder="Full legal description" className="resize-none h-16" /></Field>
         </div>
         <Field label="PLSS Description"><Input value={form.plssDescription} onChange={set("plssDescription")} placeholder="e.g. T2N R3E S14 NW¼" /></Field>
-        <Field label="BIA Tract Number"><Input value={form.biaTractNumber} onChange={set("biaTractNumber")} placeholder="BIA tract identifier" /></Field>
-        <Field label="Acquisition Source">
-          <Sel value={form.acquisitionSource} onChange={v => setForm(f => ({ ...f, acquisitionSource: v }))}
-            options={ACQUISITION_TYPES.map(t => ({ value: t, label: t.replace(/_/g, " ") }))} placeholder="Select source" />
+        <Field label="BIA Tract Number"><Input value={form.biaTractNumber} onChange={set("biaTractNumber")} placeholder="BIA tract (if applicable)" /></Field>
+        <Field label="County"><Input value={form.county} onChange={set("county")} placeholder="County name" /></Field>
+        <Field label="State"><Input value={form.state} onChange={set("state")} placeholder="TX" /></Field>
+        <Field label="Latitude"><Input value={form.lat} onChange={set("lat")} placeholder="30.2672" /></Field>
+        <Field label="Longitude"><Input value={form.lng} onChange={set("lng")} placeholder="-97.7431" /></Field>
+
+        {/* ── METC Title 4 Tribal Code Authority ── */}
+        <SectionDivider icon={Scale} label="METC Title 4 — Tribal Code Authority" />
+
+        <Field label="Internal Tribal Status">
+          <Sel value={form.internalTribalStatus} onChange={v => setForm(f => ({ ...f, internalTribalStatus: v }))}
+            options={INTERNAL_TRIBAL_STATUSES} placeholder="Select status" />
+        </Field>
+        <Field label="Jurisdictional Status">
+          <Sel value={form.jurisdictionalStatus} onChange={v => setForm(f => ({ ...f, jurisdictionalStatus: v }))}
+            options={JURISDICTIONAL_STATUSES} placeholder="Select jurisdiction" />
+        </Field>
+        <Field label="Federal Administrative Status">
+          <Sel value={form.federalAdminStatus} onChange={v => setForm(f => ({ ...f, federalAdminStatus: v }))}
+            options={FEDERAL_ADMIN_STATUSES} />
+        </Field>
+        <Field label="Beneficiary / Stewardship Type">
+          <Sel value={form.beneficiaryStewType} onChange={v => setForm(f => ({ ...f, beneficiaryStewType: v }))}
+            options={BENEFICIARY_TYPES} placeholder="Select type" />
+        </Field>
+        <Field label="Protection / Restriction Status">
+          <Sel value={form.protectionRestrictionStatus} onChange={v => setForm(f => ({ ...f, protectionRestrictionStatus: v }))}
+            options={PROTECTION_STATUSES} placeholder="Select status" />
+        </Field>
+        <Field label="Stewardship Purpose">
+          <Sel value={form.stewardshipPurpose} onChange={v => setForm(f => ({ ...f, stewardshipPurpose: v }))}
+            options={BENEFICIARY_TYPES} placeholder="Select purpose" />
+        </Field>
+        <Field label="METC Title 4 Section Reference">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
+            options={METC_TITLE4_SECTIONS} placeholder="Select code section" />
+        </Field>
+        <Field label="Federal Law Cross-Reference">
+          <Sel value={form.federalLawCrossRef} onChange={v => setForm(f => ({ ...f, federalLawCrossRef: v }))}
+            options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
+        </Field>
+        <div className="col-span-2">
+          <Field label="Tribal Court Order Number"><Input value={form.tribalCourtOrderNum} onChange={set("tribalCourtOrderNum")} placeholder="e.g. MET-SC-2024-015" /></Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Protected Status Basis"><Textarea value={form.protectedStatusBasis} onChange={set("protectedStatusBasis")} placeholder="Basis for protected status under tribal law, treaty, or federal law…" className="resize-none h-16" /></Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Restriction Basis"><Textarea value={form.restrictionBasis} onChange={set("restrictionBasis")} placeholder="Basis for any restriction on alienation or use…" className="resize-none h-14" /></Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Enforcement Authority"><Input value={form.enforcementAuthority} onChange={set("enforcementAuthority")} placeholder="e.g. Mathias El Tribe Supreme Court / Chief Justice & Trustee" /></Field>
+        </div>
+
+        {/* ── Historical & Cultural Context ── */}
+        <SectionDivider icon={BookOpen} label="Historical & Cultural Context" />
+        <div className="col-span-2">
+          <Field label="Cultural Significance"><Textarea value={form.culturalSignificance} onChange={set("culturalSignificance")} placeholder="Cultural, ceremonial, or spiritual significance of this land…" className="resize-none h-16" /></Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Historical Occupancy / Traditional Stewardship"><Textarea value={form.historicalOccupancy} onChange={set("historicalOccupancy")} placeholder="Treaties, ancestral territories, historical occupancy record, removals, traditional stewardship history…" className="resize-none h-14" /></Field>
+        </div>
+
+        {/* ── Acquisition & Notes ── */}
+        <SectionDivider icon={FileText} label="Acquisition & Notes" />
+        <Field label="Owner Type">
+          <Sel value={form.ownerType} onChange={v => setForm(f => ({ ...f, ownerType: v }))}
+            options={[{ value: "tribal", label: "Tribal" }, { value: "individual", label: "Individual Member" }, { value: "fractional", label: "Fractional" }]} />
         </Field>
         <Field label="Date Acquired"><Input type="date" value={form.acquiredDate} onChange={set("acquiredDate")} /></Field>
-        <Field label="Latitude"><Input value={form.lat} onChange={set("lat")} placeholder="e.g. 30.2672" /></Field>
-        <Field label="Longitude"><Input value={form.lng} onChange={set("lng")} placeholder="e.g. -97.7431" /></Field>
         <div className="col-span-2">
-          <Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} placeholder="Internal notes" className="resize-none h-16" /></Field>
+          <Field label="Acquisition Source / Method"><Input value={form.acquisitionSource} onChange={set("acquisitionSource")} placeholder="e.g. Treaty restoration, purchase, donation…" /></Field>
+        </div>
+        <div className="col-span-2">
+          <Field label="Internal Notes"><Textarea value={form.notes} onChange={set("notes")} placeholder="Internal notes" className="resize-none h-14" /></Field>
         </div>
       </div>
       <div className="flex justify-end gap-2 mt-5">
@@ -287,9 +493,7 @@ const EMPTY_LEASE = {
   annualRent: "", paymentFrequency: "annual", status: "active", biaLeaseNumber: "", description: "",
 };
 
-function LeaseModal({ lease, parcels, onClose, onSaved }: {
-  lease?: Lease; parcels: Parcel[]; onClose: () => void; onSaved: () => void;
-}) {
+function LeaseModal({ lease, parcels, onClose, onSaved }: { lease?: Lease; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState(lease ? {
     parcelId: String(lease.parcel_id ?? ""), leaseType: lease.lease_type ?? "agricultural",
     lesseeName: lease.lessee_name ?? "", startDate: lease.start_date?.split("T")[0] ?? "",
@@ -298,22 +502,19 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: {
     biaLeaseNumber: lease.bia_lease_number ?? "", description: lease.description ?? "",
   } : { ...EMPTY_LEASE });
   const [saving, setSaving] = useState(false);
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
     setSaving(true);
     try {
-      const url = lease ? `/api/land/leases/${lease.id}` : "/api/land/leases";
-      const method = lease ? "PUT" : "POST";
-      const res = await authFetch(url, { method, body: JSON.stringify(form) });
+      const res = await authFetch(lease ? `/api/land/leases/${lease.id}` : "/api/land/leases", { method: lease ? "PUT" : "POST", body: JSON.stringify(form) });
       if (!res.ok) throw new Error(await res.text());
       onSaved();
     } finally { setSaving(false); }
   }
 
   return (
-    <Modal title={lease ? "Edit Lease" : "Record New Lease"} onClose={onClose}>
+    <Modal title={lease ? "Edit Lease" : "Record Tribal Land Lease"} onClose={onClose}>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <Field label="Parcel">
@@ -330,9 +531,7 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: {
           <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
             options={[{ value: "active", label: "Active" }, { value: "pending", label: "Pending" }, { value: "expired", label: "Expired" }, { value: "terminated", label: "Terminated" }]} />
         </Field>
-        <div className="col-span-2">
-          <Field label="Lessee Name"><Input value={form.lesseeName} onChange={set("lesseeName")} placeholder="Lessee / tenant name" /></Field>
-        </div>
+        <div className="col-span-2"><Field label="Lessee Name"><Input value={form.lesseeName} onChange={set("lesseeName")} placeholder="Lessee / tenant name" /></Field></div>
         <Field label="Start Date"><Input type="date" value={form.startDate} onChange={set("startDate")} /></Field>
         <Field label="End Date"><Input type="date" value={form.endDate} onChange={set("endDate")} /></Field>
         <Field label="Annual Rent ($)"><Input type="number" step="0.01" value={form.annualRent} onChange={set("annualRent")} placeholder="0.00" /></Field>
@@ -340,12 +539,8 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: {
           <Sel value={form.paymentFrequency} onChange={v => setForm(f => ({ ...f, paymentFrequency: v }))}
             options={[{ value: "annual", label: "Annual" }, { value: "semi-annual", label: "Semi-Annual" }, { value: "quarterly", label: "Quarterly" }, { value: "monthly", label: "Monthly" }]} />
         </Field>
-        <div className="col-span-2">
-          <Field label="BIA Lease Number"><Input value={form.biaLeaseNumber} onChange={set("biaLeaseNumber")} placeholder="BIA assigned lease number" /></Field>
-        </div>
-        <div className="col-span-2">
-          <Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Lease terms, conditions, permitted use…" className="resize-none h-20" /></Field>
-        </div>
+        <div className="col-span-2"><Field label="BIA Lease Number (if applicable)"><Input value={form.biaLeaseNumber} onChange={set("biaLeaseNumber")} placeholder="BIA assigned lease number" /></Field></div>
+        <div className="col-span-2"><Field label="Description / Terms"><Textarea value={form.description} onChange={set("description")} placeholder="Lease terms, conditions, permitted use, tribal restrictions…" className="resize-none h-20" /></Field></div>
       </div>
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -360,14 +555,9 @@ function LeaseModal({ lease, parcels, onClose, onSaved }: {
 
 // ── Asset Modal ───────────────────────────────────────────────────────────────
 
-const EMPTY_ASSET = {
-  parcelId: "", assetType: "building", name: "", description: "",
-  estimatedValue: "", conditionRating: "good", yearBuilt: "", notes: "",
-};
+const EMPTY_ASSET = { parcelId: "", assetType: "building", name: "", description: "", estimatedValue: "", conditionRating: "good", yearBuilt: "", notes: "" };
 
-function AssetModal({ asset, parcels, onClose, onSaved }: {
-  asset?: Asset; parcels: Parcel[]; onClose: () => void; onSaved: () => void;
-}) {
+function AssetModal({ asset, parcels, onClose, onSaved }: { asset?: Asset; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
   const [form, setForm] = useState(asset ? {
     parcelId: String(asset.parcel_id ?? ""), assetType: asset.asset_type ?? "building",
     name: asset.name ?? "", description: asset.description ?? "",
@@ -375,22 +565,19 @@ function AssetModal({ asset, parcels, onClose, onSaved }: {
     yearBuilt: String(asset.year_built ?? ""), notes: asset.notes ?? "",
   } : { ...EMPTY_ASSET });
   const [saving, setSaving] = useState(false);
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
     setSaving(true);
     try {
-      const url = asset ? `/api/land/assets/${asset.id}` : "/api/land/assets";
-      const method = asset ? "PUT" : "POST";
-      const res = await authFetch(url, { method, body: JSON.stringify(form) });
+      const res = await authFetch(asset ? `/api/land/assets/${asset.id}` : "/api/land/assets", { method: asset ? "PUT" : "POST", body: JSON.stringify(form) });
       if (!res.ok) throw new Error(await res.text());
       onSaved();
     } finally { setSaving(false); }
   }
 
   return (
-    <Modal title={asset ? "Edit Asset" : "Record New Asset"} onClose={onClose}>
+    <Modal title={asset ? "Edit Asset" : "Record Asset / Resource"} onClose={onClose}>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
           <Field label="Parcel">
@@ -400,24 +587,17 @@ function AssetModal({ asset, parcels, onClose, onSaved }: {
           </Field>
         </div>
         <Field label="Asset Type">
-          <Sel value={form.assetType} onChange={v => setForm(f => ({ ...f, assetType: v }))}
-            options={ASSET_TYPES.map(t => ({ value: t.value, label: t.label }))} />
+          <Sel value={form.assetType} onChange={v => setForm(f => ({ ...f, assetType: v }))} options={ASSET_TYPES.map(t => ({ value: t.value, label: t.label }))} />
         </Field>
         <Field label="Condition">
           <Sel value={form.conditionRating} onChange={v => setForm(f => ({ ...f, conditionRating: v }))}
-            options={CONDITIONS.map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))} />
+            options={["excellent", "good", "fair", "poor"].map(c => ({ value: c, label: c.charAt(0).toUpperCase() + c.slice(1) }))} />
         </Field>
-        <div className="col-span-2">
-          <Field label="Name / Title"><Input value={form.name} onChange={set("name")} placeholder="e.g. Main Administration Building" /></Field>
-        </div>
+        <div className="col-span-2"><Field label="Name / Title"><Input value={form.name} onChange={set("name")} placeholder="e.g. Administration Building" /></Field></div>
         <Field label="Estimated Value ($)"><Input type="number" step="0.01" value={form.estimatedValue} onChange={set("estimatedValue")} placeholder="0.00" /></Field>
         <Field label="Year Built"><Input type="number" value={form.yearBuilt} onChange={set("yearBuilt")} placeholder="e.g. 1998" /></Field>
-        <div className="col-span-2">
-          <Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Physical description, permitted uses, deed restrictions…" className="resize-none h-20" /></Field>
-        </div>
-        <div className="col-span-2">
-          <Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} placeholder="Maintenance history, encumbrances, contacts…" className="resize-none h-14" /></Field>
-        </div>
+        <div className="col-span-2"><Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Physical description, deed restrictions, permitted uses…" className="resize-none h-16" /></Field></div>
+        <div className="col-span-2"><Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
       </div>
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -430,72 +610,250 @@ function AssetModal({ asset, parcels, onClose, onSaved }: {
   );
 }
 
-// ── Pipeline Modal ────────────────────────────────────────────────────────────
+// ── Encumbrance Modal ─────────────────────────────────────────────────────────
 
-const EMPTY_PIPELINE = {
-  name: "", description: "", acreage: "", county: "", state: "TX", estimatedCost: "",
-  acquisitionType: "fee_to_trust", stage: "identified", biaCaseNumber: "",
-  priority: "medium", targetDate: "", notes: "",
+const EMPTY_ENC = {
+  parcelId: "", encumbranceType: "lien", title: "", description: "", source: "",
+  dateIdentified: "", status: "active", federalLawImplicated: "", tribalCodeRef: "",
+  voidAbInitio: false, resolutionNotes: "",
 };
 
-function PipelineModal({ entry, onClose, onSaved }: {
-  entry?: PipelineEntry; onClose: () => void; onSaved: () => void;
-}) {
-  const [form, setForm] = useState(entry ? {
-    name: entry.name ?? "", description: entry.description ?? "",
-    acreage: entry.acreage ?? "", county: entry.county ?? "", state: entry.state ?? "TX",
-    estimatedCost: entry.estimated_cost ?? "", acquisitionType: entry.acquisition_type ?? "fee_to_trust",
-    stage: entry.stage ?? "identified", biaCaseNumber: entry.bia_case_number ?? "",
-    priority: entry.priority ?? "medium", targetDate: entry.target_date ?? "", notes: entry.notes ?? "",
-  } : { ...EMPTY_PIPELINE });
+function EncumbranceModal({ enc, parcels, onClose, onSaved }: { enc?: Encumbrance; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(enc ? {
+    parcelId: String(enc.parcel_id ?? ""), encumbranceType: enc.encumbrance_type ?? "lien",
+    title: enc.title ?? "", description: enc.description ?? "", source: enc.source ?? "",
+    dateIdentified: enc.date_identified ?? "", status: enc.status ?? "active",
+    federalLawImplicated: enc.federal_law_implicated ?? "",
+    tribalCodeRef: enc.tribal_code_ref ?? "",
+    voidAbInitio: enc.void_ab_initio ?? false, resolutionNotes: enc.resolution_notes ?? "",
+  } : { ...EMPTY_ENC });
   const [saving, setSaving] = useState(false);
-  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
-    setForm(f => ({ ...f, [k]: e.target.value }));
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
 
   async function save() {
-    if (!form.name.trim()) return;
     setSaving(true);
     try {
-      const url = entry ? `/api/land/pipeline/${entry.id}` : "/api/land/pipeline";
-      const method = entry ? "PUT" : "POST";
-      const res = await authFetch(url, { method, body: JSON.stringify(form) });
+      const res = await authFetch(enc ? `/api/land/encumbrances/${enc.id}` : "/api/land/encumbrances", { method: enc ? "PUT" : "POST", body: JSON.stringify(form) });
       if (!res.ok) throw new Error(await res.text());
       onSaved();
     } finally { setSaving(false); }
   }
 
   return (
-    <Modal title={entry ? "Edit Acquisition Entry" : "Add to Acquisition Pipeline"} onClose={onClose}>
+    <Modal title={enc ? "Edit Encumbrance" : "Record Encumbrance / Interference"} subtitle="Document threats to sovereign land authority" onClose={onClose}>
       <div className="grid grid-cols-2 gap-4">
         <div className="col-span-2">
-          <Field label="Name / Identifier *"><Input value={form.name} onChange={set("name")} placeholder="e.g. East Meadow 40-Acre Tract" /></Field>
+          <Field label="Parcel">
+            <Sel value={form.parcelId} onChange={v => setForm(f => ({ ...f, parcelId: v }))}
+              options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || `#${p.id}`} — ${p.legal_description?.slice(0, 50) ?? ""}` }))}
+              placeholder="Select parcel" />
+          </Field>
         </div>
-        <Field label="Acquisition Type">
-          <Sel value={form.acquisitionType} onChange={v => setForm(f => ({ ...f, acquisitionType: v }))}
-            options={ACQUISITION_TYPES.map(t => ({ value: t, label: t.replace(/_/g, " ") }))} />
+        <Field label="Encumbrance Type">
+          <Sel value={form.encumbranceType} onChange={v => setForm(f => ({ ...f, encumbranceType: v }))}
+            options={ENCUMBRANCE_TYPES} />
+        </Field>
+        <Field label="Status">
+          <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[{ value: "active", label: "Active" }, { value: "contested", label: "Contested" }, { value: "void_ab_initio", label: "Declared Void Ab Initio" }, { value: "resolved", label: "Resolved" }]} />
+        </Field>
+        <div className="col-span-2"><Field label="Title / Identifier"><Input value={form.title} onChange={set("title")} placeholder="Brief title for this encumbrance or interference" /></Field></div>
+        <div className="col-span-2"><Field label="Source / Actor"><Input value={form.source} onChange={set("source")} placeholder="Who or what entity created this encumbrance" /></Field></div>
+        <Field label="Date Identified"><Input type="date" value={form.dateIdentified} onChange={set("dateIdentified")} /></Field>
+        <Field label="Federal Law Implicated">
+          <Sel value={form.federalLawImplicated} onChange={v => setForm(f => ({ ...f, federalLawImplicated: v }))}
+            options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
+        </Field>
+        <Field label="METC Title 4 Authority">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
+            options={METC_TITLE4_SECTIONS} placeholder="Select code section" />
+        </Field>
+        <div className="col-span-2 flex items-center gap-3 py-1">
+          <input type="checkbox" id="voidAbInitio" checked={form.voidAbInitio}
+            onChange={e => setForm(f => ({ ...f, voidAbInitio: e.target.checked }))}
+            className="w-4 h-4 accent-amber-500" />
+          <label htmlFor="voidAbInitio" className="text-sm font-medium text-amber-300">
+            Declare Void Ab Initio — Unauthorized interference with no legal effect under METC Title 4
+          </label>
+        </div>
+        <div className="col-span-2"><Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Describe the encumbrance, interference, or obstruction in detail…" className="resize-none h-20" /></Field></div>
+        <div className="col-span-2"><Field label="Resolution Notes / Tribal Response"><Textarea value={form.resolutionNotes} onChange={set("resolutionNotes")} placeholder="Tribal response, enforcement actions taken, resolution steps…" className="resize-none h-16" /></Field></div>
+      </div>
+      <div className="flex justify-end gap-2 mt-5">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving} className={`${form.voidAbInitio ? "bg-red-700 hover:bg-red-800" : "bg-amber-600 hover:bg-amber-700"} text-white`}>
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {enc ? "Save Changes" : form.voidAbInitio ? "Record & Declare Void Ab Initio" : "Record Encumbrance"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Notice Modal ──────────────────────────────────────────────────────────────
+
+const NOTICE_TEMPLATES: Record<string, string> = {
+  federal_review: `To Whom It May Concern:\n\nPursuant to the sovereign authority of the Mathias El Tribe and METC Title 4, this notice is hereby issued to inform you that the following land is subject to federal Indian law review under 25 U.S.C. §177 and applicable tribal law.\n\nNo action affecting this land shall be taken without explicit tribal and informed consent.\n\nIssued by authority of the Chief Justice & Trustee\nMathias El Tribe Supreme Court`,
+  jurisdictional_review: `JURISDICTIONAL REVIEW NOTICE\n\nPursuant to METC Title 4, §9 (Jurisdictional Review Triggers), you are hereby notified that the Mathias El Tribe asserts exclusive tribal jurisdiction over the referenced land.\n\nAny conflicting jurisdictional claims are subject to review by the Mathias El Tribe Supreme Court pursuant to METC Title 4, §10.\n\nThis notice is issued as a matter of sovereign record.`,
+  anti_alienation: `ANTI-ALIENATION ENFORCEMENT NOTICE\n\nPursuant to METC Title 4, §4 (Inherent Anti-Alienation Right), you are hereby notified that this land is subject to the tribe's inherent and non-waivable right against alienation.\n\nAny attempt to alienate, encumber, sell, tax, or otherwise interfere with this land without explicit tribal sovereign consent is without legal force or effect.\n\nViolations are subject to enforcement under METC Title 4, §6.`,
+  void_ab_initio: `VOID AB INITIO DECLARATION\n\nPursuant to METC Title 4, §5 (Void Ab Initio — Unauthorized Interference), the Mathias El Tribe hereby declares that the following action(s) affecting tribal land are void ab initio — of no legal effect from their inception.\n\nThis declaration is issued under the sovereign authority of the Mathias El Tribe and shall be recorded in the sovereign land registry.`,
+};
+
+const EMPTY_NOTICE = {
+  parcelId: "", noticeType: "federal_review", title: "", content: "",
+  issuedDate: new Date().toISOString().split("T")[0], effectiveDate: "",
+  servedTo: "", serviceMethod: "certified", status: "draft",
+  tribalCodeRef: "", federalLawRef: "", courtOrderRef: "", enforcementAction: "",
+};
+
+function NoticeModal({ notice, parcels, onClose, onSaved }: { notice?: Notice; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(notice ? {
+    parcelId: String(notice.parcel_id ?? ""), noticeType: notice.notice_type ?? "federal_review",
+    title: notice.title ?? "", content: notice.content ?? "",
+    issuedDate: notice.issued_date ?? new Date().toISOString().split("T")[0],
+    effectiveDate: notice.effective_date ?? "", servedTo: notice.served_to ?? "",
+    serviceMethod: notice.service_method ?? "certified", status: notice.status ?? "draft",
+    tribalCodeRef: notice.tribal_code_ref ?? "", federalLawRef: notice.federal_law_ref ?? "",
+    courtOrderRef: notice.court_order_ref ?? "", enforcementAction: notice.enforcement_action ?? "",
+  } : { ...EMPTY_NOTICE });
+  const [saving, setSaving] = useState(false);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  function loadTemplate() {
+    const tmpl = NOTICE_TEMPLATES[form.noticeType];
+    if (tmpl) setForm(f => ({ ...f, content: tmpl }));
+  }
+
+  async function save() {
+    setSaving(true);
+    try {
+      const res = await authFetch(notice ? `/api/land/notices/${notice.id}` : "/api/land/notices", { method: notice ? "PUT" : "POST", body: JSON.stringify(form) });
+      if (!res.ok) throw new Error(await res.text());
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title={notice ? "Edit Notice" : "Generate Sovereign Notice"} subtitle="METC Title 4 — Notice & Service Protocols" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <Field label="Parcel">
+            <Sel value={form.parcelId} onChange={v => setForm(f => ({ ...f, parcelId: v }))}
+              options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || `#${p.id}`} — ${p.legal_description?.slice(0, 50) ?? ""}` }))}
+              placeholder="Select parcel (optional — leave blank for general notice)" />
+          </Field>
+        </div>
+        <Field label="Notice Type">
+          <Sel value={form.noticeType} onChange={v => setForm(f => ({ ...f, noticeType: v }))}
+            options={NOTICE_TYPES} />
+        </Field>
+        <Field label="Status">
+          <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[{ value: "draft", label: "Draft" }, { value: "issued", label: "Issued" }, { value: "served", label: "Served" }, { value: "acknowledged", label: "Acknowledged" }, { value: "unacknowledged", label: "Unacknowledged" }]} />
+        </Field>
+        <div className="col-span-2"><Field label="Title / Subject"><Input value={form.title} onChange={set("title")} placeholder="Brief subject of this notice" /></Field></div>
+        <div className="col-span-2">
+          <div className="flex items-center justify-between mb-1">
+            <label className="text-xs font-medium text-muted-foreground">Notice Content</label>
+            {NOTICE_TEMPLATES[form.noticeType] && (
+              <button onClick={loadTemplate} className="text-xs text-amber-400 hover:text-amber-300 underline">Load template</button>
+            )}
+          </div>
+          <Textarea value={form.content} onChange={set("content")} placeholder="Full text of the notice…" className="resize-none h-36" />
+        </div>
+        <Field label="METC Title 4 Authority">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
+            options={METC_TITLE4_SECTIONS} placeholder="Select code section" />
+        </Field>
+        <Field label="Federal Law Reference">
+          <Sel value={form.federalLawRef} onChange={v => setForm(f => ({ ...f, federalLawRef: v }))}
+            options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
+        </Field>
+        <div className="col-span-2"><Field label="Tribal Court Order Reference"><Input value={form.courtOrderRef} onChange={set("courtOrderRef")} placeholder="e.g. MET-SC-2024-015" /></Field></div>
+        <div className="col-span-2"><Field label="Served To / Recipient(s)"><Input value={form.servedTo} onChange={set("servedTo")} placeholder="Name(s) / entity / county recorder / federal agency" /></Field></div>
+        <Field label="Service Method">
+          <Sel value={form.serviceMethod} onChange={v => setForm(f => ({ ...f, serviceMethod: v }))}
+            options={[{ value: "certified", label: "Certified Mail" }, { value: "personal", label: "Personal Service" }, { value: "electronic", label: "Electronic" }, { value: "posted", label: "Posted / Published" }, { value: "mail", label: "Regular Mail" }]} />
+        </Field>
+        <Field label="Issued Date"><Input type="date" value={form.issuedDate} onChange={set("issuedDate")} /></Field>
+        <Field label="Effective Date"><Input type="date" value={form.effectiveDate} onChange={set("effectiveDate")} /></Field>
+        <div className="col-span-2"><Field label="Enforcement Action / Response"><Textarea value={form.enforcementAction} onChange={set("enforcementAction")} placeholder="Any enforcement action taken or planned…" className="resize-none h-14" /></Field></div>
+      </div>
+      <div className="flex justify-end gap-2 mt-5">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {notice ? "Save Changes" : "Issue Notice"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Stewardship Modal ─────────────────────────────────────────────────────────
+
+const EMPTY_STEW = {
+  name: "", description: "", acreage: "", county: "", state: "TX", estimatedCost: "",
+  acquisitionType: "tribal_governmental_administration", stage: "identified",
+  biaCaseNumber: "", priority: "medium", targetDate: "", notes: "",
+  stewardshipPurpose: "", culturalNotes: "", tribalCodeRef: "", jurisdictionalStatus: "exclusive_tribal",
+};
+
+function StewardshipModal({ entry, onClose, onSaved }: { entry?: StewardshipEntry; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(entry ? {
+    name: entry.name ?? "", description: entry.description ?? "", acreage: entry.acreage ?? "",
+    county: entry.county ?? "", state: entry.state ?? "TX", estimatedCost: entry.estimated_cost ?? "",
+    acquisitionType: entry.acquisition_type ?? "tribal_governmental_administration",
+    stage: entry.stage ?? "identified", biaCaseNumber: entry.bia_case_number ?? "",
+    priority: entry.priority ?? "medium", targetDate: entry.target_date ?? "", notes: entry.notes ?? "",
+    stewardshipPurpose: entry.stewardship_purpose ?? "", culturalNotes: entry.cultural_notes ?? "",
+    tribalCodeRef: entry.tribal_code_ref ?? "", jurisdictionalStatus: entry.jurisdictional_status ?? "exclusive_tribal",
+  } : { ...EMPTY_STEW });
+  const [saving, setSaving] = useState(false);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    if (!form.name.trim()) return;
+    setSaving(true);
+    try {
+      const res = await authFetch(entry ? `/api/land/pipeline/${entry.id}` : "/api/land/pipeline", { method: entry ? "PUT" : "POST", body: JSON.stringify(form) });
+      if (!res.ok) throw new Error(await res.text());
+      onSaved();
+    } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title={entry ? "Edit Stewardship Entry" : "Add to Stewardship Pipeline"} subtitle="Land Status & Stewardship — METC Title 4" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2"><Field label="Name / Identifier *"><Input value={form.name} onChange={set("name")} placeholder="e.g. East Meadow Traditional Territory" /></Field></div>
+        <Field label="Stewardship / Acquisition Type">
+          <Sel value={form.acquisitionType} onChange={v => setForm(f => ({ ...f, acquisitionType: v }))} options={STEWARDSHIP_TYPES} />
         </Field>
         <Field label="Current Stage">
-          <Sel value={form.stage} onChange={v => setForm(f => ({ ...f, stage: v }))}
-            options={PIPELINE_STAGES.map(s => ({ value: s.value, label: s.label }))} />
+          <Sel value={form.stage} onChange={v => setForm(f => ({ ...f, stage: v }))} options={STEWARDSHIP_STAGES.map(s => ({ value: s.value, label: s.label }))} />
+        </Field>
+        <Field label="Stewardship Purpose">
+          <Sel value={form.stewardshipPurpose} onChange={v => setForm(f => ({ ...f, stewardshipPurpose: v }))} options={BENEFICIARY_TYPES} placeholder="Select purpose" />
+        </Field>
+        <Field label="Jurisdictional Status">
+          <Sel value={form.jurisdictionalStatus} onChange={v => setForm(f => ({ ...f, jurisdictionalStatus: v }))} options={JURISDICTIONAL_STATUSES} />
+        </Field>
+        <Field label="METC Title 4 Authority">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))} options={METC_TITLE4_SECTIONS} placeholder="Select section" />
         </Field>
         <Field label="Priority">
           <Sel value={form.priority} onChange={v => setForm(f => ({ ...f, priority: v }))}
-            options={PRIORITIES.map(p => ({ value: p, label: p.charAt(0).toUpperCase() + p.slice(1) }))} />
+            options={[{ value: "high", label: "High" }, { value: "medium", label: "Medium" }, { value: "low", label: "Low" }]} />
         </Field>
-        <Field label="Target Completion"><Input type="date" value={form.targetDate} onChange={set("targetDate")} /></Field>
         <Field label="Acreage"><Input type="number" step="0.0001" value={form.acreage} onChange={set("acreage")} placeholder="0.0000" /></Field>
         <Field label="Estimated Cost ($)"><Input type="number" step="0.01" value={form.estimatedCost} onChange={set("estimatedCost")} placeholder="0.00" /></Field>
         <Field label="County"><Input value={form.county} onChange={set("county")} placeholder="County name" /></Field>
         <Field label="State"><Input value={form.state} onChange={set("state")} placeholder="TX" /></Field>
-        <div className="col-span-2">
-          <Field label="BIA Case Number"><Input value={form.biaCaseNumber} onChange={set("biaCaseNumber")} placeholder="BIA case / application number" /></Field>
-        </div>
-        <div className="col-span-2">
-          <Field label="Description"><Textarea value={form.description} onChange={set("description")} placeholder="Background, purpose, sovereign interest, cultural significance…" className="resize-none h-20" /></Field>
-        </div>
-        <div className="col-span-2">
-          <Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} placeholder="Contacts, obstacles, next steps…" className="resize-none h-14" /></Field>
-        </div>
+        <Field label="Target Completion"><Input type="date" value={form.targetDate} onChange={set("targetDate")} /></Field>
+        <div className="col-span-2"><Field label="BIA / Federal Case Number (if applicable)"><Input value={form.biaCaseNumber} onChange={set("biaCaseNumber")} /></Field></div>
+        <div className="col-span-2"><Field label="Description / Sovereign Interest"><Textarea value={form.description} onChange={set("description")} placeholder="Background, sovereign purpose, cultural significance, community need…" className="resize-none h-20" /></Field></div>
+        <div className="col-span-2"><Field label="Cultural Notes"><Textarea value={form.culturalNotes} onChange={set("culturalNotes")} placeholder="Ancestral connection, traditional territory notes, ceremonial significance…" className="resize-none h-16" /></Field></div>
+        <div className="col-span-2"><Field label="Internal Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
       </div>
       <div className="flex justify-end gap-2 mt-5">
         <Button variant="outline" onClick={onClose}>Cancel</Button>
@@ -512,32 +870,39 @@ function PipelineModal({ entry, onClose, onSaved }: {
 
 function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
   const expiring = leases.filter(l => l.status === "active" && l.end_date && daysUntil(l.end_date) <= 180 && daysUntil(l.end_date) > 0);
-
   const totalAc = stats.totalAcreage || 1;
   const breakdown = [
-    { label: "Trust Land", ac: stats.trustAcreage, color: "bg-emerald-600" },
-    { label: "Allotment", ac: stats.allotmentAcreage, color: "bg-amber-600" },
+    { label: "Tribal Government", ac: stats.govAcreage, color: "bg-amber-600" },
+    { label: "Trust Stewardship", ac: stats.trustAcreage, color: "bg-emerald-600" },
+    { label: "Protected Tribal", ac: stats.protectedAcreage, color: "bg-blue-600" },
+    { label: "Beneficiary", ac: stats.beneficiaryAcreage, color: "bg-teal-600" },
+    { label: "Sacred / Cultural", ac: stats.sacredAcreage, color: "bg-rose-700" },
     { label: "Restricted", ac: stats.restrictedAcreage, color: "bg-violet-600" },
-    { label: "Fee Land", ac: stats.feeAcreage, color: "bg-slate-500" },
   ];
 
   return (
     <div className="space-y-6">
-      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <StatCard icon={Landmark} label="Total Parcels" value={String(stats.totalParcels)} sub={`${stats.activeParcels} active`} />
         <StatCard icon={MapPin} label="Total Acreage" value={fmtAcres(stats.totalAcreage)} sub={`${fmtAcres(stats.trustAcreage)} in trust`} accent="text-emerald-400" />
-        <StatCard icon={FileText} label="Active Leases" value={String(stats.activeLeases)} sub={stats.expiringSoon > 0 ? `${stats.expiringSoon} expiring soon` : "All current"} accent={stats.expiringSoon > 0 ? "text-amber-400" : undefined} />
-        <StatCard icon={DollarSign} label="Est. Annual Revenue" value={fmtDollar(stats.annualRevenue)} sub="From active leases" accent="text-emerald-400" />
-        <StatCard icon={TrendingUp} label="In Acquisition Pipeline" value={String(stats.activePipeline)} sub={fmtAcres(stats.pipelineAcreage) + " targeted"} accent="text-blue-400" />
+        <StatCard icon={ShieldCheck} label="Exclusive Jurisdiction" value={String(stats.exclusiveJurisdiction)} sub={`${stats.contestedParcels} contested`} accent="text-amber-400" />
+        <StatCard icon={DollarSign} label="Est. Annual Revenue" value={fmtDollar(stats.annualRevenue)} sub={`${stats.activeLeases} active leases`} accent="text-emerald-400" />
+        <StatCard icon={ShieldAlert} label="Active Encumbrances" value={String(stats.activeEncumbrances)} sub={stats.voidAbInitioCount > 0 ? `${stats.voidAbInitioCount} void ab initio` : "None declared void"} accent={stats.activeEncumbrances > 0 ? "text-red-400" : undefined} />
+        <StatCard icon={ScrollText} label="Active Notices" value={String(stats.activeNotices)} sub="Issued / in service" accent={stats.activeNotices > 0 ? "text-amber-400" : undefined} />
+        <StatCard icon={TrendingUp} label="Stewardship Pipeline" value={String(stats.activePipeline)} sub={fmtAcres(stats.pipelineAcreage) + " targeted"} accent="text-blue-400" />
         <StatCard icon={AlertTriangle} label="Disputed Parcels" value={String(stats.disputedParcels)} sub="Requiring attention" accent={stats.disputedParcels > 0 ? "text-red-400" : undefined} />
       </div>
 
       <div className="bg-background/60 border border-border rounded-lg p-4">
-        <h3 className="text-sm font-semibold text-foreground mb-3">Land Classification Breakdown</h3>
+        <div className="flex items-center gap-2 mb-4">
+          <Scale className="w-4 h-4 text-amber-400" />
+          <h3 className="text-sm font-semibold text-foreground">Tribal Land Status Breakdown</h3>
+          <span className="text-xs text-muted-foreground ml-1">— METC Title 4 Authority</span>
+        </div>
         <div className="space-y-3">
           {breakdown.map(b => (
             <div key={b.label} className="flex items-center gap-3">
-              <span className="text-xs text-muted-foreground w-24 shrink-0">{b.label}</span>
+              <span className="text-xs text-muted-foreground w-32 shrink-0">{b.label}</span>
               <div className="flex-1 h-3 bg-muted rounded-full overflow-hidden">
                 <div className={`h-full ${b.color} rounded-full transition-all`} style={{ width: `${Math.min(100, (b.ac / totalAc) * 100)}%` }} />
               </div>
@@ -546,6 +911,16 @@ function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
           ))}
         </div>
       </div>
+
+      {stats.voidAbInitioCount > 0 && (
+        <div className="bg-red-950/30 border border-red-700/40 rounded-lg p-4">
+          <div className="flex items-center gap-2">
+            <Gavel className="w-4 h-4 text-red-400" />
+            <p className="text-sm font-semibold text-red-400">{stats.voidAbInitioCount} Void Ab Initio Declaration{stats.voidAbInitioCount !== 1 ? "s" : ""} on Record</p>
+          </div>
+          <p className="text-xs text-muted-foreground mt-1 ml-6">Unauthorized interference declared of no legal force or effect — METC Title 4, §5</p>
+        </div>
+      )}
 
       {expiring.length > 0 && (
         <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg p-4">
@@ -558,15 +933,13 @@ function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
               return (
                 <div key={l.id} className="flex items-center justify-between text-sm py-1.5 border-b border-amber-900/30 last:border-0">
                   <div>
-                    <span className="text-foreground font-medium">{l.lessee_name || "Unknown Lessee"}</span>
+                    <span className="text-foreground font-medium">{l.lessee_name || "Unknown"}</span>
                     <span className="text-muted-foreground ml-2 text-xs capitalize">{l.lease_type}</span>
                     {l.tract_number && <span className="text-muted-foreground ml-2 text-xs">· {l.tract_number}</span>}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-muted-foreground">{new Date(l.end_date).toLocaleDateString()}</span>
-                    <span className={`text-xs font-semibold ${d <= 30 ? "text-red-400" : d <= 90 ? "text-amber-400" : "text-yellow-500"}`}>
-                      {d} days
-                    </span>
+                    <span className={`text-xs font-semibold ${d <= 30 ? "text-red-400" : d <= 90 ? "text-amber-400" : "text-yellow-500"}`}>{d}d</span>
                   </div>
                 </div>
               );
@@ -583,29 +956,30 @@ function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
 function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () => void }) {
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [editing, setEditing] = useState<Parcel | null>(null);
-  const [filterClass, setFilterClass] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [filterInternal, setFilterInternal] = useState("");
+  const [filterJuris, setFilterJuris] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
 
   const filtered = parcels.filter(p =>
-    (!filterClass || p.classification === filterClass) &&
-    (!filterStatus || p.status === filterStatus)
+    (!filterStatus || p.status === filterStatus) &&
+    (!filterInternal || p.internal_tribal_status === filterInternal) &&
+    (!filterJuris || p.jurisdictional_status === filterJuris)
   );
 
-  async function deleteParcel(id: number) {
+  async function del(id: number) {
     if (!confirm("Permanently remove this parcel record?")) return;
     setDeleting(id);
-    try {
-      await authFetch(`/api/land/parcels/${id}`, { method: "DELETE" });
-      onRefresh();
-    } finally { setDeleting(null); }
+    try { await authFetch(`/api/land/parcels/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
   }
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        <Sel value={filterClass} onChange={setFilterClass}
-          options={CLASSIFICATIONS.map(c => ({ value: c, label: c.replace(/_/g, " ") }))} placeholder="All Classifications" />
+        <Sel value={filterInternal} onChange={setFilterInternal}
+          options={INTERNAL_TRIBAL_STATUSES} placeholder="All Tribal Statuses" />
+        <Sel value={filterJuris} onChange={setFilterJuris}
+          options={JURISDICTIONAL_STATUSES} placeholder="All Jurisdictions" />
         <Sel value={filterStatus} onChange={setFilterStatus}
           options={PARCEL_STATUSES.map(s => ({ value: s, label: s }))} placeholder="All Statuses" />
         <div className="ml-auto">
@@ -619,12 +993,12 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
-              <th className="text-left px-4 py-2.5">Tract / Parcel</th>
+              <th className="text-left px-4 py-2.5">Tract / Authority</th>
               <th className="text-left px-4 py-2.5">Legal Description</th>
               <th className="text-right px-4 py-2.5">Acreage</th>
-              <th className="text-left px-4 py-2.5">Classification</th>
-              <th className="text-left px-4 py-2.5">County / State</th>
-              <th className="text-left px-4 py-2.5">Status</th>
+              <th className="text-left px-4 py-2.5">Tribal Status</th>
+              <th className="text-left px-4 py-2.5">Jurisdiction</th>
+              <th className="text-left px-4 py-2.5">Location</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
@@ -636,26 +1010,44 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
               <tr key={p.id} className="border-t border-border hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
                   <div className="font-medium text-foreground">{p.tract_number || "—"}</div>
-                  {p.bia_tract_number && <div className="text-xs text-muted-foreground">BIA: {p.bia_tract_number}</div>}
+                  {p.tribal_code_ref && <div className="text-[10px] text-amber-500 mt-0.5">{p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>}
+                  {p.tribal_court_order_num && <div className="text-[10px] text-muted-foreground">Order: {p.tribal_court_order_num}</div>}
                 </td>
-                <td className="px-4 py-3 max-w-[240px]">
-                  <p className="text-foreground truncate">{p.legal_description || "—"}</p>
-                  {p.plss_description && <p className="text-xs text-muted-foreground">{p.plss_description}</p>}
+                <td className="px-4 py-3 max-w-[200px]">
+                  <p className="text-foreground truncate text-xs">{p.legal_description || "—"}</p>
+                  {p.protection_restriction_status && (
+                    <p className="text-[10px] text-violet-400 mt-0.5 truncate">
+                      {PROTECTION_STATUSES.find(s => s.value === p.protection_restriction_status)?.label.split("(")[0].trim()}
+                    </p>
+                  )}
                 </td>
-                <td className="px-4 py-3 text-right font-mono text-foreground">{p.acreage ? fmt(Number(p.acreage)) : "—"}</td>
+                <td className="px-4 py-3 text-right font-mono text-foreground text-xs">{p.acreage ? Number(p.acreage).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}</td>
                 <td className="px-4 py-3">
-                  <Badge label={p.classification.replace(/_/g, " ")} className={classColor(p.classification)} />
+                  {p.internal_tribal_status ? (
+                    <Badge
+                      label={INTERNAL_TRIBAL_STATUSES.find(s => s.value === p.internal_tribal_status)?.label.split(" ").slice(0, 3).join(" ") ?? p.internal_tribal_status}
+                      className={internalStatusColor(p.internal_tribal_status)}
+                    />
+                  ) : <span className="text-muted-foreground text-xs">—</span>}
+                  {p.federal_admin_status && p.federal_admin_status !== "none" && (
+                    <div className="mt-0.5">
+                      <Badge label={FEDERAL_ADMIN_STATUSES.find(s => s.value === p.federal_admin_status)?.label.split(" ").slice(0, 3).join(" ") ?? p.federal_admin_status} className="bg-slate-600 text-slate-100" />
+                    </div>
+                  )}
                 </td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">{[p.county, p.state].filter(Boolean).join(", ") || "—"}</td>
                 <td className="px-4 py-3">
-                  <span className={`text-xs capitalize ${p.status === "active" ? "text-emerald-400" : p.status === "disputed" ? "text-red-400" : "text-muted-foreground"}`}>
-                    {p.status}
-                  </span>
+                  {p.jurisdictional_status ? (
+                    <span className={`text-xs font-medium ${jurisdictionColor(p.jurisdictional_status)}`}>
+                      {JURISDICTIONAL_STATUSES.find(s => s.value === p.jurisdictional_status)?.label.split(" ").slice(0, 2).join(" ")}
+                    </span>
+                  ) : <span className="text-muted-foreground text-xs">—</span>}
+                  {p.status === "disputed" && <div className="text-[10px] text-red-400 mt-0.5">⚠ Disputed</div>}
                 </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{[p.county, p.state].filter(Boolean).join(", ") || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setEditing(p); setModal("edit"); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => deleteParcel(p.id)} disabled={deleting === p.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                    <button onClick={() => del(p.id)} disabled={deleting === p.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                       {deleting === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   </div>
@@ -668,11 +1060,7 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
       <p className="text-xs text-muted-foreground">{filtered.length} parcel{filtered.length !== 1 ? "s" : ""} · {fmtAcres(filtered.reduce((a, p) => a + Number(p.acreage || 0), 0))} total</p>
 
       {(modal === "add" || modal === "edit") && (
-        <ParcelModal
-          parcel={modal === "edit" ? editing ?? undefined : undefined}
-          onClose={() => setModal(null)}
-          onSaved={() => { setModal(null); onRefresh(); }}
-        />
+        <ParcelModal parcel={modal === "edit" ? editing ?? undefined : undefined} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />
       )}
     </div>
   );
@@ -694,13 +1082,10 @@ function LeasesTab({ leases, parcels, onRefresh }: { leases: Lease[]; parcels: P
     return true;
   });
 
-  async function deleteLease(id: number) {
+  async function del(id: number) {
     if (!confirm("Remove this lease record?")) return;
     setDeleting(id);
-    try {
-      await authFetch(`/api/land/leases/${id}`, { method: "DELETE" });
-      onRefresh();
-    } finally { setDeleting(null); }
+    try { await authFetch(`/api/land/leases/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
   }
 
   return (
@@ -708,9 +1093,7 @@ function LeasesTab({ leases, parcels, onRefresh }: { leases: Lease[]; parcels: P
       <div className="flex items-center gap-3">
         <div className="flex gap-1 bg-muted/40 rounded-lg p-1 text-xs">
           {(["all", "active", "expiring", "expired"] as const).map(f => (
-            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 rounded-md capitalize transition-colors ${filter === f ? "bg-background text-foreground font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
-              {f}
-            </button>
+            <button key={f} onClick={() => setFilter(f)} className={`px-3 py-1 rounded-md capitalize transition-colors ${filter === f ? "bg-background text-foreground font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>{f}</button>
           ))}
         </div>
         <div className="ml-auto">
@@ -719,12 +1102,11 @@ function LeasesTab({ leases, parcels, onRefresh }: { leases: Lease[]; parcels: P
           </Button>
         </div>
       </div>
-
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
-              <th className="text-left px-4 py-2.5">Parcel / Tract</th>
+              <th className="text-left px-4 py-2.5">Parcel</th>
               <th className="text-left px-4 py-2.5">Lessee</th>
               <th className="text-left px-4 py-2.5">Type</th>
               <th className="text-left px-4 py-2.5">Term</th>
@@ -734,36 +1116,29 @@ function LeasesTab({ leases, parcels, onRefresh }: { leases: Lease[]; parcels: P
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">No leases found.</td></tr>
-            )}
+            {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">No leases found.</td></tr>}
             {filtered.map(l => {
               const d = l.end_date ? daysUntil(l.end_date) : null;
               return (
                 <tr key={l.id} className="border-t border-border hover:bg-muted/20 transition-colors">
-                  <td className="px-4 py-3 text-foreground font-medium">{l.tract_number || `Parcel #${l.parcel_id}`}</td>
+                  <td className="px-4 py-3 text-foreground font-medium text-sm">{l.tract_number || `Parcel #${l.parcel_id}`}</td>
                   <td className="px-4 py-3">
                     <div className="text-foreground">{l.lessee_name || "—"}</div>
                     {l.bia_lease_number && <div className="text-xs text-muted-foreground">BIA: {l.bia_lease_number}</div>}
                   </td>
-                  <td className="px-4 py-3 capitalize text-muted-foreground">{l.lease_type}</td>
+                  <td className="px-4 py-3 capitalize text-muted-foreground text-xs">{l.lease_type}</td>
                   <td className="px-4 py-3 text-xs text-muted-foreground">
-                    {l.start_date ? new Date(l.start_date).toLocaleDateString("en-US", { year: "2-digit", month: "short", day: "numeric" }) : "—"}
-                    {" → "}
+                    {l.start_date ? new Date(l.start_date).toLocaleDateString("en-US", { year: "2-digit", month: "short", day: "numeric" }) : "—"}{" → "}
                     {l.end_date ? new Date(l.end_date).toLocaleDateString("en-US", { year: "2-digit", month: "short", day: "numeric" }) : "Open"}
                     {d !== null && d <= 90 && d > 0 && <span className="ml-1.5 text-amber-400 font-semibold">({d}d)</span>}
                     {d !== null && d <= 0 && <span className="ml-1.5 text-red-400 font-semibold">(expired)</span>}
                   </td>
-                  <td className="px-4 py-3 text-right font-mono text-emerald-400">
-                    {l.annual_rent ? `$${Number(l.annual_rent).toLocaleString()}` : "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <span className={`text-xs capitalize font-medium ${leaseStatusColor(l.status)}`}>{l.status}</span>
-                  </td>
+                  <td className="px-4 py-3 text-right font-mono text-emerald-400 text-sm">{l.annual_rent ? `$${Number(l.annual_rent).toLocaleString()}` : "—"}</td>
+                  <td className="px-4 py-3"><span className={`text-xs capitalize font-medium ${leaseStatusColor(l.status)}`}>{l.status}</span></td>
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-1">
                       <button onClick={() => { setEditing(l); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
-                      <button onClick={() => deleteLease(l.id)} disabled={deleting === l.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                      <button onClick={() => del(l.id)} disabled={deleting === l.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                         {deleting === l.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                       </button>
                     </div>
@@ -774,19 +1149,7 @@ function LeasesTab({ leases, parcels, onRefresh }: { leases: Lease[]; parcels: P
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {filtered.length} lease{filtered.length !== 1 ? "s" : ""}
-        {filter === "all" || filter === "active" ? ` · $${leases.filter(l => l.status === "active").reduce((a, l) => a + Number(l.annual_rent || 0), 0).toLocaleString()} annual revenue` : ""}
-      </p>
-
-      {modal && (
-        <LeaseModal
-          lease={editing ?? undefined}
-          parcels={parcels}
-          onClose={() => { setModal(false); setEditing(null); }}
-          onSaved={() => { setModal(false); setEditing(null); onRefresh(); }}
-        />
-      )}
+      {modal && <LeaseModal lease={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
     </div>
   );
 }
@@ -800,17 +1163,14 @@ function AssetsTab({ assets, parcels, onRefresh }: { assets: Asset[]; parcels: P
   const [deleting, setDeleting] = useState<number | null>(null);
 
   const filtered = assets.filter(a => !filterType || a.asset_type === filterType);
+  const totalValue = filtered.reduce((a, x) => a + Number(x.estimated_value || 0), 0);
+  const conditionColor = (c: string) => ({ excellent: "text-emerald-400", good: "text-green-400", fair: "text-amber-400", poor: "text-red-400" }[c] ?? "text-muted-foreground");
 
-  async function deleteAsset(id: number) {
+  async function del(id: number) {
     if (!confirm("Remove this asset record?")) return;
     setDeleting(id);
-    try {
-      await authFetch(`/api/land/assets/${id}`, { method: "DELETE" });
-      onRefresh();
-    } finally { setDeleting(null); }
+    try { await authFetch(`/api/land/assets/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
   }
-
-  const totalValue = filtered.reduce((a, x) => a + Number(x.estimated_value || 0), 0);
 
   function AssetIcon({ type }: { type: string }) {
     const found = ASSET_TYPES.find(t => t.value === type);
@@ -818,23 +1178,16 @@ function AssetsTab({ assets, parcels, onRefresh }: { assets: Asset[]; parcels: P
     return <Icon className="w-4 h-4" />;
   }
 
-  const conditionColor = (c: string) => ({
-    excellent: "text-emerald-400", good: "text-green-400",
-    fair: "text-amber-400", poor: "text-red-400",
-  }[c] ?? "text-muted-foreground");
-
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap gap-2 items-center">
-        <Sel value={filterType} onChange={setFilterType}
-          options={ASSET_TYPES.map(t => ({ value: t.value, label: t.label }))} placeholder="All Asset Types" />
+        <Sel value={filterType} onChange={setFilterType} options={ASSET_TYPES.map(t => ({ value: t.value, label: t.label }))} placeholder="All Asset Types" />
         <div className="ml-auto">
           <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Record Asset
           </Button>
         </div>
       </div>
-
       <div className="rounded-lg border border-border overflow-hidden">
         <table className="w-full text-sm">
           <thead>
@@ -844,38 +1197,30 @@ function AssetsTab({ assets, parcels, onRefresh }: { assets: Asset[]; parcels: P
               <th className="text-left px-4 py-2.5">Parcel</th>
               <th className="text-left px-4 py-2.5">Condition</th>
               <th className="text-right px-4 py-2.5">Est. Value</th>
-              <th className="text-right px-4 py-2.5">Yr. Built</th>
+              <th className="text-right px-4 py-2.5">Yr</th>
               <th className="px-4 py-2.5" />
             </tr>
           </thead>
           <tbody>
-            {filtered.length === 0 && (
-              <tr><td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">No assets recorded. Click "Record Asset" to begin.</td></tr>
-            )}
+            {filtered.length === 0 && <tr><td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">No assets recorded.</td></tr>}
             {filtered.map(a => (
               <tr key={a.id} className="border-t border-border hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-amber-400"><AssetIcon type={a.asset_type} /></span>
-                    <div>
-                      <div className="text-foreground font-medium">{a.name || "—"}</div>
-                      {a.description && <div className="text-xs text-muted-foreground truncate max-w-[180px]">{a.description}</div>}
-                    </div>
+                    <div><div className="text-foreground font-medium">{a.name || "—"}</div>
+                      {a.description && <div className="text-xs text-muted-foreground truncate max-w-[160px]">{a.description}</div>}</div>
                   </div>
                 </td>
-                <td className="px-4 py-3 text-muted-foreground text-xs capitalize">{a.asset_type?.replace(/_/g, " ")}</td>
-                <td className="px-4 py-3 text-muted-foreground text-xs">{a.tract_number || `#${a.parcel_id}`}</td>
-                <td className="px-4 py-3">
-                  <span className={`text-xs capitalize ${conditionColor(a.condition_rating)}`}>{a.condition_rating || "—"}</span>
-                </td>
-                <td className="px-4 py-3 text-right font-mono text-foreground">
-                  {a.estimated_value ? `$${Number(a.estimated_value).toLocaleString()}` : "—"}
-                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground capitalize">{a.asset_type?.replace(/_/g, " ")}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{a.tract_number || `#${a.parcel_id}`}</td>
+                <td className="px-4 py-3"><span className={`text-xs capitalize ${conditionColor(a.condition_rating)}`}>{a.condition_rating || "—"}</span></td>
+                <td className="px-4 py-3 text-right font-mono text-foreground text-sm">{a.estimated_value ? `$${Number(a.estimated_value).toLocaleString()}` : "—"}</td>
                 <td className="px-4 py-3 text-right text-muted-foreground text-xs">{a.year_built || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     <button onClick={() => { setEditing(a); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
-                    <button onClick={() => deleteAsset(a.id)} disabled={deleting === a.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                    <button onClick={() => del(a.id)} disabled={deleting === a.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                       {deleting === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                     </button>
                   </div>
@@ -885,80 +1230,238 @@ function AssetsTab({ assets, parcels, onRefresh }: { assets: Asset[]; parcels: P
           </tbody>
         </table>
       </div>
-      <p className="text-xs text-muted-foreground">
-        {filtered.length} asset{filtered.length !== 1 ? "s" : ""}
-        {totalValue > 0 ? ` · ${fmtDollar(totalValue)} total estimated value` : ""}
-      </p>
-
-      {modal && (
-        <AssetModal
-          asset={editing ?? undefined}
-          parcels={parcels}
-          onClose={() => { setModal(false); setEditing(null); }}
-          onSaved={() => { setModal(false); setEditing(null); onRefresh(); }}
-        />
-      )}
+      <p className="text-xs text-muted-foreground">{filtered.length} asset{filtered.length !== 1 ? "s" : ""}{totalValue > 0 ? ` · $${totalValue.toLocaleString()} total estimated value` : ""}</p>
+      {modal && <AssetModal asset={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
     </div>
   );
 }
 
-// ── Pipeline Tab ──────────────────────────────────────────────────────────────
+// ── Encumbrances Tab ──────────────────────────────────────────────────────────
 
-function PipelineTab({ pipeline, onRefresh }: { pipeline: PipelineEntry[]; onRefresh: () => void }) {
+function EncumbrancesTab({ encumbrances, parcels, onRefresh }: { encumbrances: Encumbrance[]; parcels: Parcel[]; onRefresh: () => void }) {
   const [modal, setModal] = useState(false);
-  const [editing, setEditing] = useState<PipelineEntry | null>(null);
+  const [editing, setEditing] = useState<Encumbrance | null>(null);
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
-  const [filterStage, setFilterStage] = useState("");
 
-  const filtered = pipeline.filter(e => !filterStage || e.stage === filterStage);
+  const filtered = encumbrances.filter(e =>
+    (!filterType || e.encumbrance_type === filterType) &&
+    (!filterStatus || e.status === filterStatus)
+  );
 
-  async function deleteEntry(id: number) {
-    if (!confirm("Remove this acquisition entry?")) return;
+  const voidCount = filtered.filter(e => e.void_ab_initio).length;
+
+  async function del(id: number) {
+    if (!confirm("Remove this encumbrance record?")) return;
     setDeleting(id);
-    try {
-      await authFetch(`/api/land/pipeline/${id}`, { method: "DELETE" });
-      onRefresh();
-    } finally { setDeleting(null); }
+    try { await authFetch(`/api/land/encumbrances/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
   }
 
-  async function advanceStage(entry: PipelineEntry) {
-    const stages = PIPELINE_STAGES.filter(s => s.value !== "cancelled").map(s => s.value);
-    const idx = stages.indexOf(entry.stage);
-    if (idx < 0 || idx >= stages.length - 1) return;
-    const nextStage = stages[idx + 1];
-    await authFetch(`/api/land/pipeline/${entry.id}`, {
-      method: "PUT",
-      body: JSON.stringify({ ...entry, stage: nextStage }),
-    });
-    onRefresh();
-  }
-
-  function stageInfo(s: string) {
-    return PIPELINE_STAGES.find(x => x.value === s) ?? PIPELINE_STAGES[0];
-  }
-
-  const priorityColor = (p: string) => ({ high: "text-red-400", medium: "text-amber-400", low: "text-slate-400" }[p] ?? "");
+  const statusColor = (s: string) => ({
+    active: "text-red-400", contested: "text-amber-400",
+    void_ab_initio: "text-violet-400", resolved: "text-emerald-400",
+  }[s] ?? "text-muted-foreground");
 
   return (
     <div className="space-y-4">
+      {voidCount > 0 && (
+        <div className="bg-red-950/30 border border-red-700/40 rounded-lg px-4 py-3 flex items-center gap-3">
+          <Gavel className="w-4 h-4 text-red-400 shrink-0" />
+          <p className="text-sm text-red-300 font-medium">{voidCount} encumbrance{voidCount !== 1 ? "s" : ""} declared <span className="font-bold">Void Ab Initio</span> — unauthorized, no legal force or effect — METC Title 4, §5</p>
+        </div>
+      )}
       <div className="flex flex-wrap gap-2 items-center">
-        <Sel value={filterStage} onChange={setFilterStage}
-          options={PIPELINE_STAGES.map(s => ({ value: s.value, label: s.label }))} placeholder="All Stages" />
+        <Sel value={filterType} onChange={setFilterType} options={ENCUMBRANCE_TYPES} placeholder="All Types" />
+        <Sel value={filterStatus} onChange={setFilterStatus}
+          options={[{ value: "active", label: "Active" }, { value: "contested", label: "Contested" }, { value: "void_ab_initio", label: "Void Ab Initio" }, { value: "resolved", label: "Resolved" }]}
+          placeholder="All Statuses" />
         <div className="ml-auto">
-          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
-            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add to Pipeline
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-red-800 hover:bg-red-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Record Encumbrance
           </Button>
         </div>
       </div>
 
-      <div className="hidden md:flex gap-1 mb-2">
-        {PIPELINE_STAGES.filter(s => s.value !== "cancelled").map((s, i, arr) => (
-          <div key={s.value} className="flex items-center gap-1 flex-1">
-            <div className="flex-1 text-center">
-              <div className={`text-[10px] font-bold uppercase tracking-wide px-2 py-1 rounded ${s.color} text-white`}>{s.label}</div>
-              <div className="text-[10px] text-muted-foreground mt-0.5">
-                {pipeline.filter(e => e.stage === s.value).length}
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground text-sm border border-border rounded-lg">
+            No encumbrances or interference logged. Use this section to track liens, foreclosure attempts, tax assessments, administrative obstruction, and jurisdictional conflicts.
+          </div>
+        )}
+        {filtered.map(e => (
+          <div key={e.id} className={`rounded-lg border p-4 transition-colors ${e.void_ab_initio ? "border-red-700/50 bg-red-950/20" : "border-border bg-background/60 hover:border-amber-700/40"}`}>
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  {e.void_ab_initio && (
+                    <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold bg-red-700 text-white uppercase tracking-wide">
+                      <Gavel className="w-3 h-3" /> VOID AB INITIO
+                    </span>
+                  )}
+                  <span className="font-semibold text-foreground">{e.title || "Untitled"}</span>
+                  <Badge label={ENCUMBRANCE_TYPES.find(t => t.value === e.encumbrance_type)?.label ?? e.encumbrance_type} className="bg-muted text-muted-foreground" />
+                  <span className={`text-xs font-medium capitalize ${statusColor(e.status)}`}>{e.status?.replace(/_/g, " ")}</span>
+                </div>
+                {e.tract_number && <p className="text-xs text-muted-foreground mt-1">Parcel: {e.tract_number}</p>}
+                {e.description && <p className="text-sm text-muted-foreground mt-1.5 line-clamp-2">{e.description}</p>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                  {e.source && <span>Source: {e.source}</span>}
+                  {e.date_identified && <span>Identified: {new Date(e.date_identified).toLocaleDateString()}</span>}
+                  {e.tribal_code_ref && <span className="text-amber-500">{e.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</span>}
+                  {e.federal_law_implicated && <span className="text-blue-400">{FEDERAL_LAW_REFS.find(f => f.value === e.federal_law_implicated)?.label.split("—")[0].trim()}</span>}
+                </div>
+                {e.resolution_notes && (
+                  <div className="mt-2 text-xs bg-muted/30 rounded px-2 py-1.5 text-muted-foreground">
+                    <span className="text-foreground font-medium">Tribal response:</span> {e.resolution_notes}
+                  </div>
+                )}
               </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => { setEditing(e); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => del(e.id)} disabled={deleting === e.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                  {deleting === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal && <EncumbranceModal enc={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+    </div>
+  );
+}
+
+// ── Notices Tab ───────────────────────────────────────────────────────────────
+
+function NoticesTab({ notices, parcels, onRefresh }: { notices: Notice[]; parcels: Parcel[]; onRefresh: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Notice | null>(null);
+  const [filterType, setFilterType] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const filtered = notices.filter(n =>
+    (!filterType || n.notice_type === filterType) &&
+    (!filterStatus || n.status === filterStatus)
+  );
+
+  async function del(id: number) {
+    if (!confirm("Remove this notice?")) return;
+    setDeleting(id);
+    try { await authFetch(`/api/land/notices/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
+  }
+
+  const statusColor = (s: string) => ({
+    draft: "text-muted-foreground", issued: "text-amber-400",
+    served: "text-blue-400", acknowledged: "text-emerald-400", unacknowledged: "text-red-400",
+  }[s] ?? "text-muted-foreground");
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filterType} onChange={setFilterType} options={NOTICE_TYPES} placeholder="All Notice Types" />
+        <Sel value={filterStatus} onChange={setFilterStatus}
+          options={[{ value: "draft", label: "Draft" }, { value: "issued", label: "Issued" }, { value: "served", label: "Served" }, { value: "acknowledged", label: "Acknowledged" }, { value: "unacknowledged", label: "Unacknowledged" }]}
+          placeholder="All Statuses" />
+        <div className="ml-auto">
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Generate Notice
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground text-sm border border-border rounded-lg">
+            No notices on record. Generate a Notice of Federal Review, Jurisdictional Review Notice, Anti-Alienation Enforcement Notice, or other sovereign notice.
+          </div>
+        )}
+        {filtered.map(n => (
+          <div key={n.id} className="bg-background/60 border border-border rounded-lg p-4 hover:border-amber-700/40 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <ScrollText className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                  <span className="font-semibold text-foreground">{n.title || NOTICE_TYPES.find(t => t.value === n.notice_type)?.label}</span>
+                  <Badge label={NOTICE_TYPES.find(t => t.value === n.notice_type)?.label.split(" ").slice(0, 3).join(" ") ?? n.notice_type} className="bg-amber-900/40 text-amber-200" />
+                  <span className={`text-xs font-medium capitalize ${statusColor(n.status)}`}>{n.status}</span>
+                </div>
+                {n.tract_number && <p className="text-xs text-muted-foreground mt-1">Parcel: {n.tract_number}</p>}
+                {n.content && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2 font-mono leading-relaxed">{n.content.substring(0, 200)}…</p>}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
+                  {n.served_to && <span>To: {n.served_to}</span>}
+                  {n.service_method && <span>Via: {n.service_method.replace(/_/g, " ")}</span>}
+                  {n.issued_date && <span>Issued: {new Date(n.issued_date).toLocaleDateString()}</span>}
+                  {n.effective_date && <span>Effective: {new Date(n.effective_date).toLocaleDateString()}</span>}
+                  {n.tribal_code_ref && <span className="text-amber-500">{n.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</span>}
+                  {n.federal_law_ref && <span className="text-blue-400">{FEDERAL_LAW_REFS.find(f => f.value === n.federal_law_ref)?.label.split("—")[0].trim()}</span>}
+                </div>
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => { setEditing(n); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => del(n.id)} disabled={deleting === n.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                  {deleting === n.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {modal && <NoticeModal notice={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+    </div>
+  );
+}
+
+// ── Stewardship Pipeline Tab ──────────────────────────────────────────────────
+
+function StewardshipTab({ pipeline, onRefresh }: { pipeline: StewardshipEntry[]; onRefresh: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<StewardshipEntry | null>(null);
+  const [filterStage, setFilterStage] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const filtered = pipeline.filter(e => !filterStage || e.stage === filterStage);
+
+  async function del(id: number) {
+    if (!confirm("Remove this stewardship entry?")) return;
+    setDeleting(id);
+    try { await authFetch(`/api/land/pipeline/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
+  }
+
+  async function advance(entry: StewardshipEntry) {
+    const stages = STEWARDSHIP_STAGES.filter(s => s.value !== "cancelled").map(s => s.value);
+    const idx = stages.indexOf(entry.stage);
+    if (idx < 0 || idx >= stages.length - 1) return;
+    await authFetch(`/api/land/pipeline/${entry.id}`, { method: "PUT", body: JSON.stringify({ ...entry, stage: stages[idx + 1] }) });
+    onRefresh();
+  }
+
+  function stageInfo(s: string) { return STEWARDSHIP_STAGES.find(x => x.value === s) ?? STEWARDSHIP_STAGES[0]; }
+  const priorityColor = (p: string) => ({ high: "text-red-400", medium: "text-amber-400", low: "text-slate-400" }[p] ?? "");
+
+  return (
+    <div className="space-y-4">
+      <div className="text-xs text-muted-foreground bg-muted/30 border border-border rounded-lg px-3 py-2">
+        Track all land under active stewardship consideration — including land already stewarded, protected, beneficiary-held, jurisdictionally disputed, or culturally protected, in addition to formal acquisition processes.
+      </div>
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filterStage} onChange={setFilterStage} options={STEWARDSHIP_STAGES.map(s => ({ value: s.value, label: s.label }))} placeholder="All Stages" />
+        <div className="ml-auto">
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Entry
+          </Button>
+        </div>
+      </div>
+
+      <div className="hidden md:flex gap-1 overflow-x-auto pb-1">
+        {STEWARDSHIP_STAGES.filter(s => s.value !== "cancelled").map((s, i, arr) => (
+          <div key={s.value} className="flex items-center gap-1 min-w-fit">
+            <div className="text-center">
+              <div className={`text-[9px] font-bold uppercase tracking-wide px-2 py-1 rounded ${s.color} text-white`}>{s.label}</div>
+              <div className="text-[9px] text-muted-foreground mt-0.5">{pipeline.filter(e => e.stage === s.value).length}</div>
             </div>
             {i < arr.length - 1 && <ChevronRight className="w-3 h-3 text-muted-foreground shrink-0" />}
           </div>
@@ -968,12 +1471,12 @@ function PipelineTab({ pipeline, onRefresh }: { pipeline: PipelineEntry[]; onRef
       <div className="space-y-3">
         {filtered.length === 0 && (
           <div className="text-center py-12 text-muted-foreground text-sm border border-border rounded-lg">
-            No acquisition entries. Click "Add to Pipeline" to track land acquisition efforts.
+            No stewardship entries. Add land under stewardship consideration — including existing protected, stewarded, or culturally significant land.
           </div>
         )}
         {filtered.map(e => {
           const si = stageInfo(e.stage);
-          const stages = PIPELINE_STAGES.filter(s => s.value !== "cancelled").map(s => s.value);
+          const stages = STEWARDSHIP_STAGES.filter(s => s.value !== "cancelled").map(s => s.value);
           const isLast = stages.indexOf(e.stage) >= stages.length - 1;
           return (
             <div key={e.id} className="bg-background/60 border border-border rounded-lg p-4 hover:border-amber-700/40 transition-colors">
@@ -983,25 +1486,27 @@ function PipelineTab({ pipeline, onRefresh }: { pipeline: PipelineEntry[]; onRef
                     <h3 className="font-semibold text-foreground">{e.name}</h3>
                     <span className={`text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded text-white ${si.color}`}>{si.label}</span>
                     <span className={`text-xs font-medium capitalize ${priorityColor(e.priority)}`}>{e.priority} priority</span>
+                    {e.jurisdictional_status && <span className={`text-xs ${jurisdictionColor(e.jurisdictional_status)}`}>{JURISDICTIONAL_STATUSES.find(s => s.value === e.jurisdictional_status)?.label.split(" ").slice(0, 2).join(" ")}</span>}
                   </div>
                   {e.description && <p className="text-sm text-muted-foreground mt-1 line-clamp-2">{e.description}</p>}
+                  {e.cultural_notes && <p className="text-xs text-rose-300/70 mt-1 line-clamp-1 italic">{e.cultural_notes}</p>}
                   <div className="flex flex-wrap gap-x-4 gap-y-1 mt-2 text-xs text-muted-foreground">
                     {e.acreage && <span><MapPin className="w-3 h-3 inline mr-0.5" />{fmtAcres(Number(e.acreage))}</span>}
                     {e.county && <span>{[e.county, e.state].filter(Boolean).join(", ")}</span>}
                     {e.estimated_cost && <span><DollarSign className="w-3 h-3 inline mr-0.5" />Est. {fmtDollar(Number(e.estimated_cost))}</span>}
-                    {e.bia_case_number && <span>BIA: {e.bia_case_number}</span>}
+                    {e.tribal_code_ref && <span className="text-amber-500">{e.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</span>}
                     {e.target_date && <span>Target: {new Date(e.target_date).toLocaleDateString()}</span>}
-                    <span className="capitalize">{e.acquisition_type?.replace(/_/g, " ")}</span>
+                    <span className="capitalize">{STEWARDSHIP_TYPES.find(t => t.value === e.acquisition_type)?.label ?? e.acquisition_type?.replace(/_/g, " ")}</span>
                   </div>
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   {!isLast && e.stage !== "cancelled" && (
-                    <button onClick={() => advanceStage(e)} title="Advance to next stage" className="p-1.5 rounded hover:bg-amber-600/20 text-amber-500 hover:text-amber-400 text-xs font-medium flex items-center gap-1">
+                    <button onClick={() => advance(e)} title="Advance stage" className="p-1.5 rounded hover:bg-amber-600/20 text-amber-500 hover:text-amber-400">
                       <ArrowRight className="w-3.5 h-3.5" />
                     </button>
                   )}
                   <button onClick={() => { setEditing(e); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
-                  <button onClick={() => deleteEntry(e.id)} disabled={deleting === e.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                  <button onClick={() => del(e.id)} disabled={deleting === e.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                     {deleting === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
                   </button>
                 </div>
@@ -1010,14 +1515,7 @@ function PipelineTab({ pipeline, onRefresh }: { pipeline: PipelineEntry[]; onRef
           );
         })}
       </div>
-
-      {modal && (
-        <PipelineModal
-          entry={editing ?? undefined}
-          onClose={() => { setModal(false); setEditing(null); }}
-          onSaved={() => { setModal(false); setEditing(null); onRefresh(); }}
-        />
-      )}
+      {modal && <StewardshipModal entry={editing ?? undefined} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
     </div>
   );
 }
@@ -1025,144 +1523,99 @@ function PipelineTab({ pipeline, onRefresh }: { pipeline: PipelineEntry[]; onRef
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const TABS = [
-  { id: "overview",  label: "Overview",           icon: BarChart3 },
-  { id: "parcels",   label: "Land Registry",       icon: Landmark },
-  { id: "leases",    label: "Leases",              icon: FileText },
-  { id: "assets",    label: "Assets & Resources",  icon: Building2 },
-  { id: "pipeline",  label: "Acquisition Pipeline", icon: TrendingUp },
+  { id: "overview",      label: "Overview",              icon: BarChart3 },
+  { id: "parcels",       label: "Land Registry",         icon: Landmark },
+  { id: "leases",        label: "Leases",                icon: FileText },
+  { id: "assets",        label: "Assets & Resources",    icon: Building2 },
+  { id: "encumbrances",  label: "Encumbrances",          icon: ShieldAlert },
+  { id: "notices",       label: "Notices & Enforcement", icon: ScrollText },
+  { id: "stewardship",   label: "Stewardship Pipeline",  icon: TrendingUp },
 ];
+
+const EMPTY_STATS: Stats = {
+  totalParcels: 0, totalAcreage: 0, govAcreage: 0, trustAcreage: 0, protectedAcreage: 0,
+  sacredAcreage: 0, beneficiaryAcreage: 0, restrictedAcreage: 0, activeParcels: 0,
+  disputedParcels: 0, exclusiveJurisdiction: 0, contestedParcels: 0,
+  totalLeases: 0, activeLeases: 0, annualRevenue: 0, expiringSoon: 0,
+  pipelineCount: 0, activePipeline: 0, pipelineAcreage: 0,
+  activeEncumbrances: 0, voidAbInitioCount: 0, activeNotices: 0,
+};
 
 export default function LandPage() {
   const [tab, setTab] = useState("overview");
   const qc = useQueryClient();
 
-  const statsQ = useQuery<Stats>({
-    queryKey: ["land-stats"],
-    queryFn: async () => {
-      const token = await getCurrentBearerToken();
-      const r = await fetch("/api/land/stats", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-  });
+  async function q<T>(url: string): Promise<T> {
+    const token = await getCurrentBearerToken();
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    if (!r.ok) throw new Error(await r.text());
+    return r.json();
+  }
 
-  const parcelsQ = useQuery<Parcel[]>({
-    queryKey: ["land-parcels"],
-    queryFn: async () => {
-      const token = await getCurrentBearerToken();
-      const r = await fetch("/api/land/parcels", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-  });
-
-  const leasesQ = useQuery<Lease[]>({
-    queryKey: ["land-leases"],
-    queryFn: async () => {
-      const token = await getCurrentBearerToken();
-      const r = await fetch("/api/land/leases", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-  });
-
-  const assetsQ = useQuery<Asset[]>({
-    queryKey: ["land-assets"],
-    queryFn: async () => {
-      const token = await getCurrentBearerToken();
-      const r = await fetch("/api/land/assets", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-  });
-
-  const pipelineQ = useQuery<PipelineEntry[]>({
-    queryKey: ["land-pipeline"],
-    queryFn: async () => {
-      const token = await getCurrentBearerToken();
-      const r = await fetch("/api/land/pipeline", { headers: { Authorization: `Bearer ${token}` } });
-      if (!r.ok) throw new Error(await r.text());
-      return r.json();
-    },
-  });
+  const statsQ = useQuery<Stats>({ queryKey: ["land-stats"], queryFn: () => q("/api/land/stats") });
+  const parcelsQ = useQuery<Parcel[]>({ queryKey: ["land-parcels"], queryFn: () => q("/api/land/parcels") });
+  const leasesQ = useQuery<Lease[]>({ queryKey: ["land-leases"], queryFn: () => q("/api/land/leases") });
+  const assetsQ = useQuery<Asset[]>({ queryKey: ["land-assets"], queryFn: () => q("/api/land/assets") });
+  const encQ = useQuery<Encumbrance[]>({ queryKey: ["land-encumbrances"], queryFn: () => q("/api/land/encumbrances") });
+  const noticesQ = useQuery<Notice[]>({ queryKey: ["land-notices"], queryFn: () => q("/api/land/notices") });
+  const pipelineQ = useQuery<StewardshipEntry[]>({ queryKey: ["land-pipeline"], queryFn: () => q("/api/land/pipeline") });
 
   const refresh = useCallback((keys?: string[]) => {
-    const all = ["land-stats", "land-parcels", "land-leases", "land-assets", "land-pipeline"];
-    (keys ?? all).forEach(k => qc.invalidateQueries({ queryKey: [k] }));
+    (keys ?? ["land-stats", "land-parcels", "land-leases", "land-assets", "land-encumbrances", "land-notices", "land-pipeline"]).forEach(k => qc.invalidateQueries({ queryKey: [k] }));
   }, [qc]);
 
-  const stats = statsQ.data ?? {
-    totalParcels: 0, totalAcreage: 0, trustAcreage: 0, feeAcreage: 0,
-    allotmentAcreage: 0, restrictedAcreage: 0, activeParcels: 0, disputedParcels: 0,
-    totalLeases: 0, activeLeases: 0, annualRevenue: 0, expiringSoon: 0,
-    pipelineCount: 0, activePipeline: 0, pipelineAcreage: 0,
-  };
-
   const loading = statsQ.isLoading || parcelsQ.isLoading;
+  const stats = statsQ.data ?? EMPTY_STATS;
 
   return (
-    <div className="max-w-6xl mx-auto space-y-6 p-6">
+    <div className="max-w-6xl mx-auto space-y-5 p-6">
       <div className="border-b border-amber-700/30 pb-4">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-600/20 border border-amber-600/40 flex items-center justify-center">
+        <div className="flex items-start gap-3">
+          <div className="w-9 h-9 rounded-lg bg-amber-600/20 border border-amber-600/40 flex items-center justify-center shrink-0">
             <Landmark className="w-5 h-5 text-amber-400" />
           </div>
-          <div>
+          <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">Land & Asset Management</h1>
-            <p className="text-sm text-muted-foreground">Tribal land registry, lease management, and acquisition pipeline</p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Mathias El Tribe — Indigenous Governance & Stewardship Infrastructure · <span className="text-amber-500">METC Title 4 Authority</span>
+            </p>
           </div>
-          {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground ml-auto" />}
+          {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mt-1" />}
+          {(stats.activeEncumbrances > 0 || stats.contestedParcels > 0) && (
+            <div className="flex items-center gap-1.5 bg-red-950/40 border border-red-700/40 rounded px-2.5 py-1">
+              <ShieldAlert className="w-3.5 h-3.5 text-red-400" />
+              <span className="text-xs text-red-300 font-medium">
+                {[stats.activeEncumbrances > 0 && `${stats.activeEncumbrances} encumbrance${stats.activeEncumbrances !== 1 ? "s" : ""}`,
+                  stats.contestedParcels > 0 && `${stats.contestedParcels} contested`].filter(Boolean).join(" · ")}
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       <div className="flex gap-1 bg-muted/30 rounded-lg p-1 overflow-x-auto">
         {TABS.map(t => {
           const Icon = t.icon;
+          const alert = (t.id === "encumbrances" && stats.activeEncumbrances > 0) || (t.id === "notices" && stats.activeNotices > 0);
           return (
-            <button
-              key={t.id}
-              onClick={() => setTab(t.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors ${
-                tab === t.id
-                  ? "bg-background text-amber-400 font-medium shadow-sm"
-                  : "text-muted-foreground hover:text-foreground"
-              }`}
-            >
+            <button key={t.id} onClick={() => setTab(t.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-md text-sm whitespace-nowrap transition-colors relative ${tab === t.id ? "bg-background text-amber-400 font-medium shadow-sm" : "text-muted-foreground hover:text-foreground"}`}>
               <Icon className="w-3.5 h-3.5" />
               {t.label}
+              {alert && <span className="w-1.5 h-1.5 rounded-full bg-red-500 absolute top-1.5 right-1" />}
             </button>
           );
         })}
       </div>
 
       <div>
-        {tab === "overview" && <OverviewTab stats={stats} leases={leasesQ.data ?? []} />}
-        {tab === "parcels" && (
-          <ParcelsTab
-            parcels={parcelsQ.data ?? []}
-            onRefresh={() => refresh(["land-parcels", "land-stats"])}
-          />
-        )}
-        {tab === "leases" && (
-          <LeasesTab
-            leases={leasesQ.data ?? []}
-            parcels={parcelsQ.data ?? []}
-            onRefresh={() => refresh(["land-leases", "land-stats"])}
-          />
-        )}
-        {tab === "assets" && (
-          <AssetsTab
-            assets={assetsQ.data ?? []}
-            parcels={parcelsQ.data ?? []}
-            onRefresh={() => refresh(["land-assets"])}
-          />
-        )}
-        {tab === "pipeline" && (
-          <PipelineTab
-            pipeline={pipelineQ.data ?? []}
-            onRefresh={() => refresh(["land-pipeline", "land-stats"])}
-          />
-        )}
+        {tab === "overview"     && <OverviewTab stats={stats} leases={leasesQ.data ?? []} />}
+        {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} />}
+        {tab === "leases"       && <LeasesTab leases={leasesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-leases", "land-stats"])} />}
+        {tab === "assets"       && <AssetsTab assets={assetsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-assets"])} />}
+        {tab === "encumbrances" && <EncumbrancesTab encumbrances={encQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-encumbrances", "land-stats"])} />}
+        {tab === "notices"      && <NoticesTab notices={noticesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-notices", "land-stats"])} />}
+        {tab === "stewardship"  && <StewardshipTab pipeline={pipelineQ.data ?? []} onRefresh={() => refresh(["land-pipeline", "land-stats"])} />}
       </div>
     </div>
   );

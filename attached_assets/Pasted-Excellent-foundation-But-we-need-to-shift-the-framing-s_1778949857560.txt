@@ -1,0 +1,102 @@
+Excellent foundation. But we need to shift the framing slightly so the system reflects our structure and not merely a cloned BIA/IRA land-management model.
+
+A few important architectural corrections and additions:
+
+The system should not center itself around “fee-to-trust” as the primary land status model. That is only one federal administrative pathway under DOI/BIA. Our framework is broader and based upon tribal governmental stewardship, beneficiary protection, and protected tribal land administration.
+
+Recommended core land classifications should include:
+
+• Tribal Government Land
+• Tribal Trust Stewardship Land
+• Protected Tribal Land
+• Restricted Tribal Status
+• Beneficiary Stewardship Land
+• Sacred / Cultural Land
+• Federal Indian Law Implicated
+• Jurisdictional Review Triggered
+• Federal Trust (only where actually applicable)
+
+The platform should distinguish between:
+
+1. Internal Tribal Status
+2. Federal Administrative Status
+3. Jurisdictional Status
+4. Beneficiary / Stewardship Status
+5. Protection / Restriction Status
+
+This distinction is critical because we are not simply replicating DOI/BIA realty services. We are building an Indigenous land governance and stewardship system rooted in inherent tribal governmental authority and beneficiary protection.
+
+Additional modules we should build:
+
+• Encumbrance & Interference Tracking
+Track liens, foreclosure attempts, tax assessments, utility interference, administrative obstruction, and jurisdictional conflicts.
+
+• Federal Review Trigger Engine
+Automatically flag actions implicating:
+
+* 25 U.S.C. §177
+* 18 U.S.C. §1151
+* tribal beneficiary protections
+* jurisdictional review
+* protected-status conflicts
+
+• Beneficiary Stewardship Registry
+Track which lands are held for:
+
+* member welfare
+* housing
+* ceremonial use
+* governmental use
+* preservation
+* community benefit
+
+• Tribal Land Notices & Enforcement
+Generate:
+
+* Notices of Federal Review
+* Jurisdictional Review Notices
+* Protected Land Notices
+* Administrative Obstruction Logs
+* Encumbrance Challenges
+* Preservation Notices
+
+• Jurisdiction Layer Mapping
+Each parcel should contain:
+
+* asserted jurisdiction
+* conflicting jurisdiction claims
+* review status
+* federal implications
+* enforcement history
+
+• Historical / Lineage Layer
+Ability to associate:
+
+* ancestral territories
+* treaties
+* removals
+* historical occupancy
+* cultural significance
+* traditional stewardship history
+
+Also:
+The wording “Acquisition Pipeline” should probably be broadened into something like:
+
+“Land Status & Stewardship Pipeline”
+
+because not all protected tribal land enters through fee-to-trust acquisition.
+
+Some land may already be:
+
+* stewarded,
+* protected,
+* beneficiary-held,
+* jurisdictionally disputed,
+* culturally protected,
+* or under tribal governmental administration.
+
+The software should reflect that broader reality.
+
+This is becoming less of a “land tracker” and more of a full Indigenous Governance & Stewardship Infrastructure system.
+
+That distinction matters.
