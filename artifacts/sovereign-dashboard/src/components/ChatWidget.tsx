@@ -34,6 +34,8 @@ interface ChatMessage {
   actions?: ChatAction[];
   intakeReport?: ChatIntakeReport;
   azureTokensUsed?: number;
+  isLetter?: boolean;
+  letterTitle?: string;
   timestamp: Date;
 }
 
@@ -62,6 +64,8 @@ const QUICK_PROMPTS = [
   { label: "My Documents", message: "What documents can I get from the office?" },
 ];
 
+type LetterDraftState = "idle" | "form" | "loading";
+
 const INTENT_MESSAGES: Record<string, string> = {
   ICWA_GUIDE: "What are my rights under ICWA?",
   TRUST_LAND: "What protections does trust land have?",
@@ -82,6 +86,11 @@ export function ChatWidget() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
+
+  const [letterDraftState, setLetterDraftState] = useState<LetterDraftState>("idle");
+  const [letterPurpose, setLetterPurpose] = useState("");
+  const [letterRecipient, setLetterRecipient] = useState("");
+  const [copiedLetterId, setCopiedLetterId] = useState<string | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -178,6 +187,42 @@ export function ChatWidget() {
     setOpen(true);
     if (messages.length === 0) {
       setTimeout(() => sendMessage("hello"), 200);
+    }
+  };
+
+  const draftLetter = async () => {
+    if (!letterPurpose.trim()) return;
+    setLetterDraftState("loading");
+    try {
+      const res = await fetch("/api/ki/draft-letter", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(user ? { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } : {}),
+        },
+        body: JSON.stringify({ purpose: letterPurpose.trim(), recipient: letterRecipient.trim() || undefined }),
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error ?? "Failed to generate letter");
+      addMessage({
+        role: "assistant",
+        content: data.letterText,
+        tier: "azure_openai",
+        tierLabel: "Sovereign Office",
+        isLetter: true,
+        letterTitle: `Letter — ${data.purpose.substring(0, 50)}${data.purpose.length > 50 ? "…" : ""}`,
+      });
+      setLetterDraftState("idle");
+      setLetterPurpose("");
+      setLetterRecipient("");
+    } catch {
+      addMessage({
+        role: "assistant",
+        content: "Unable to generate the letter. Please try again or use the Drafts tool for complex documents.",
+        tier: "hard_default",
+        tierLabel: "Sovereign Office",
+      });
+      setLetterDraftState("idle");
     }
   };
 
@@ -424,6 +469,23 @@ export function ChatWidget() {
                       {p.label}
                     </button>
                   ))}
+                  {user && (
+                    <button
+                      onClick={() => setLetterDraftState("form")}
+                      style={{
+                        background: "#7c2d12",
+                        color: "#fef3c7",
+                        border: "none",
+                        borderRadius: 16,
+                        padding: "5px 12px",
+                        fontSize: 12,
+                        cursor: "pointer",
+                        fontFamily: "'Georgia', serif",
+                      }}
+                    >
+                      ✉ Draft a Letter
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -465,7 +527,7 @@ export function ChatWidget() {
                         width: 28,
                         height: 28,
                         borderRadius: "50%",
-                        background: TIER_COLORS[msg.tier ?? "hard_default"] ?? "#374151",
+                        background: msg.isLetter ? "#7c2d12" : (TIER_COLORS[msg.tier ?? "hard_default"] ?? "#374151"),
                         color: "#fff",
                         display: "flex",
                         alignItems: "center",
@@ -475,24 +537,94 @@ export function ChatWidget() {
                         marginBottom: 2,
                       }}
                     >
-                      {TIER_ICONS[msg.tier ?? "hard_default"] ?? "○"}
+                      {msg.isLetter ? "✉" : (TIER_ICONS[msg.tier ?? "hard_default"] ?? "○")}
                     </div>
                   )}
 
                   <div
                     style={{
                       maxWidth: "82%",
-                      background: msg.role === "user" ? "#1a3a2a" : "#fff",
+                      background: msg.role === "user" ? "#1a3a2a" : (msg.isLetter ? "#fffbf0" : "#fff"),
                       color: msg.role === "user" ? "#f0e8d0" : "#1a1a2e",
                       borderRadius: msg.role === "user" ? "14px 14px 4px 14px" : "14px 14px 14px 4px",
                       padding: "10px 13px",
                       lineHeight: 1.6,
                       boxShadow: "0 1px 3px rgba(0,0,0,0.08)",
                       fontSize: 13.5,
-                      border: msg.role === "assistant" ? "1px solid #e5e7eb" : "none",
+                      border: msg.role === "assistant" ? (msg.isLetter ? "1px solid #d97706" : "1px solid #e5e7eb") : "none",
                     }}
                   >
+                    {/* Letter header badge */}
+                    {msg.isLetter && msg.letterTitle && (
+                      <div style={{
+                        fontSize: 10,
+                        fontWeight: 700,
+                        color: "#7c2d12",
+                        letterSpacing: 0.8,
+                        textTransform: "uppercase",
+                        marginBottom: 8,
+                        paddingBottom: 6,
+                        borderBottom: "1px solid #fde68a",
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 4,
+                      }}>
+                        <span>✉</span>
+                        <span>Tribal Letter Draft</span>
+                      </div>
+                    )}
+
                     {msg.role === "assistant" ? formatContent(msg.content) : msg.content}
+
+                    {/* Copy button for letters */}
+                    {msg.isLetter && (
+                      <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+                        <button
+                          onClick={() => {
+                            navigator.clipboard.writeText(msg.content).then(() => {
+                              setCopiedLetterId(msg.id);
+                              setTimeout(() => setCopiedLetterId(null), 2000);
+                            });
+                          }}
+                          style={{
+                            background: copiedLetterId === msg.id ? "#166534" : "#1a3a2a",
+                            color: "#f0e8d0",
+                            border: "none",
+                            borderRadius: 6,
+                            padding: "4px 10px",
+                            fontSize: 11,
+                            cursor: "pointer",
+                            fontFamily: "'Georgia', serif",
+                            fontWeight: 600,
+                          }}
+                        >
+                          {copiedLetterId === msg.id ? "✓ Copied" : "Copy Letter"}
+                        </button>
+                        <button
+                          onClick={() => {
+                            const blob = new Blob([msg.content], { type: "text/plain" });
+                            const url = URL.createObjectURL(blob);
+                            const a = document.createElement("a");
+                            a.href = url;
+                            a.download = `tribal-letter-${Date.now()}.txt`;
+                            a.click();
+                            URL.revokeObjectURL(url);
+                          }}
+                          style={{
+                            background: "#fff",
+                            color: "#374151",
+                            border: "1px solid #d1d5db",
+                            borderRadius: 6,
+                            padding: "4px 10px",
+                            fontSize: 11,
+                            cursor: "pointer",
+                            fontFamily: "'Georgia', serif",
+                          }}
+                        >
+                          Download
+                        </button>
+                      </div>
+                    )}
 
                     {/* Tier Label */}
                     {msg.role === "assistant" && msg.tierLabel && (
@@ -638,6 +770,86 @@ export function ChatWidget() {
             <div ref={messagesEndRef} />
           </div>
 
+          {/* Letter Draft Form — slides in above input */}
+          {letterDraftState !== "idle" && (
+            <div style={{
+              padding: "10px 12px",
+              borderTop: "1px solid #fde68a",
+              background: "#fffbf0",
+              flexShrink: 0,
+            }}>
+              <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 8 }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: "#7c2d12", letterSpacing: 0.5, textTransform: "uppercase" }}>
+                  ✉ Draft a Letter
+                </span>
+                <button
+                  onClick={() => { setLetterDraftState("idle"); setLetterPurpose(""); setLetterRecipient(""); }}
+                  style={{ background: "none", border: "none", cursor: "pointer", color: "#9ca3af", fontSize: 14 }}
+                >✕</button>
+              </div>
+              <textarea
+                value={letterPurpose}
+                onChange={e => setLetterPurpose(e.target.value)}
+                placeholder="What should this letter accomplish? (e.g. Notify county of tribal jurisdiction over my property, Request federal welfare benefits, Respond to eviction notice)"
+                rows={3}
+                disabled={letterDraftState === "loading"}
+                style={{
+                  width: "100%",
+                  resize: "none",
+                  border: "1px solid #d97706",
+                  borderRadius: 6,
+                  padding: "7px 9px",
+                  fontSize: 12,
+                  fontFamily: "'Georgia', serif",
+                  outline: "none",
+                  lineHeight: 1.5,
+                  background: "#fff",
+                  color: "#1a1a2e",
+                  boxSizing: "border-box",
+                  marginBottom: 6,
+                }}
+              />
+              <input
+                value={letterRecipient}
+                onChange={e => setLetterRecipient(e.target.value)}
+                placeholder="Addressed to (optional — e.g. County Assessor, Housing Authority)"
+                disabled={letterDraftState === "loading"}
+                style={{
+                  width: "100%",
+                  border: "1px solid #d1d5db",
+                  borderRadius: 6,
+                  padding: "6px 9px",
+                  fontSize: 12,
+                  fontFamily: "'Georgia', serif",
+                  outline: "none",
+                  background: "#fff",
+                  color: "#1a1a2e",
+                  boxSizing: "border-box",
+                  marginBottom: 8,
+                }}
+              />
+              <button
+                onClick={draftLetter}
+                disabled={!letterPurpose.trim() || letterDraftState === "loading"}
+                style={{
+                  width: "100%",
+                  background: !letterPurpose.trim() || letterDraftState === "loading" ? "#9ca3af" : "#7c2d12",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 6,
+                  padding: "7px 12px",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: !letterPurpose.trim() || letterDraftState === "loading" ? "not-allowed" : "pointer",
+                  fontFamily: "'Georgia', serif",
+                  letterSpacing: 0.3,
+                }}
+              >
+                {letterDraftState === "loading" ? "Drafting letter…" : "Generate Letter"}
+              </button>
+            </div>
+          )}
+
           {/* Input Area */}
           <div
             style={{
@@ -661,7 +873,7 @@ export function ChatWidget() {
                 onKeyDown={handleKeyDown}
                 placeholder="Ask about your rights, ICWA, trust land, welfare, filings..."
                 rows={1}
-                disabled={loading}
+                disabled={loading || letterDraftState === "loading"}
                 style={{
                   flex: 1,
                   resize: "none",
@@ -683,9 +895,31 @@ export function ChatWidget() {
                   el.style.height = Math.min(el.scrollHeight, 80) + "px";
                 }}
               />
+              {user && letterDraftState === "idle" && (
+                <button
+                  onClick={() => setLetterDraftState("form")}
+                  title="Draft a Letter"
+                  style={{
+                    background: "#7c2d12",
+                    color: "#fef3c7",
+                    border: "none",
+                    borderRadius: 8,
+                    width: 36,
+                    height: 36,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontSize: 15,
+                    flexShrink: 0,
+                  }}
+                >
+                  ✉
+                </button>
+              )}
               <button
                 onClick={() => sendMessage(input)}
-                disabled={loading || !input.trim()}
+                disabled={loading || !input.trim() || letterDraftState === "loading"}
                 style={{
                   background: loading || !input.trim() ? "#9ca3af" : "#1a3a2a",
                   color: "#fff",

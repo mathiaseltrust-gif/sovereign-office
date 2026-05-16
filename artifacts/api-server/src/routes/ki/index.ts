@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kiConversationsTable, profilesTable } from "@workspace/db";
-import { eq, desc, and } from "drizzle-orm";
+import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable } from "@workspace/db";
+import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
@@ -177,7 +177,8 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     }
   }
 
-  const [recentDiary, savedKnowledge, intelContext] = await Promise.all([
+  const now30 = new Date(Date.now() + 30 * 86400000);
+  const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
       .from(kiConversationsTable)
       .where(and(eq(kiConversationsTable.userId, userId), eq(kiConversationsTable.isDiary, true)))
@@ -192,7 +193,55 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       .orderBy(desc(kiConversationsTable.createdAt))
       .limit(KNOWLEDGE_LIMIT + 5),
     getCompanionIntelContext(userId).catch(() => ""),
+    // Upcoming calendar events (next 30 days)
+    db.select({ title: calendarEventsTable.title, date: calendarEventsTable.date, type: calendarEventsTable.type, description: calendarEventsTable.description })
+      .from(calendarEventsTable)
+      .where(and(gte(calendarEventsTable.date, new Date()), lte(calendarEventsTable.date, now30)))
+      .orderBy(calendarEventsTable.date)
+      .limit(8),
+    // Member's personal important dates
+    db.select({ personName: importantDatesTable.personName, relation: importantDatesTable.relation, dateType: importantDatesTable.dateType, month: importantDatesTable.month, day: importantDatesTable.day, year: importantDatesTable.year })
+      .from(importantDatesTable)
+      .where(eq(importantDatesTable.addedByUserId, userId))
+      .limit(12),
+    // Member's family tree entries
+    db.select({ fullName: familyLineageTable.fullName, birthYear: familyLineageTable.birthYear, deathYear: familyLineageTable.deathYear, isDeceased: familyLineageTable.isDeceased, notes: familyLineageTable.notes, generationalPosition: familyLineageTable.generationalPosition })
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.addedByMemberId, userId))
+      .limit(20),
   ]);
+
+  // ── Calendar context ──
+  const calendarContext = upcomingEvents.length > 0
+    ? "\n\nUPCOMING TRIBAL CALENDAR (next 30 days):\n" +
+      upcomingEvents.map(e => {
+        const d = new Date(e.date);
+        const ds = `${d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}`;
+        return `• ${ds} — ${e.title}${e.description ? ` (${e.description.substring(0, 80)})` : ""}`;
+      }).join("\n")
+    : "";
+
+  const importantDatesContext = memberImportantDates.length > 0
+    ? "\n\nTHIS MEMBER'S IMPORTANT DATES (saved to their calendar):\n" +
+      memberImportantDates.map(d => {
+        const MONTHS_SHORT = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"];
+        const typeEmoji: Record<string, string> = { birthday: "🎂", wedding: "💍", memorial: "🕯️", anniversary: "🌹", adoption: "🤝", custom: "⭐" };
+        const label = d.dateType === "custom" ? "Important Date" : d.dateType.charAt(0).toUpperCase() + d.dateType.slice(1);
+        return `• ${d.personName}${d.relation ? ` (${d.relation})` : ""} — ${typeEmoji[d.dateType] ?? "⭐"} ${label} on ${MONTHS_SHORT[d.month - 1]} ${d.day}${d.year ? `, ${d.year}` : ""}`;
+      }).join("\n")
+    : "";
+
+  // ── Family tree context ──
+  const familyContext = memberLineage.length > 0
+    ? "\n\nFAMILY TREE (entries this member has submitted):\n" +
+      memberLineage.map(row => {
+        const relation = row.notes ? (row.notes.match(/Relationship:\s*(\w+)/i)?.[1] ?? null) : null;
+        const gen = row.generationalPosition != null ? `Gen ${row.generationalPosition}` : null;
+        const life = row.birthYear ? (row.deathYear ? `${row.birthYear}–${row.deathYear}` : `b. ${row.birthYear}`) : (row.deathYear ? `d. ${row.deathYear}` : null);
+        const parts = [relation, gen, life, row.isDeceased ? "deceased" : null].filter(Boolean);
+        return `• ${row.fullName}${parts.length ? ` (${parts.join(", ")})` : ""}`;
+      }).join("\n")
+    : "";
 
   const diaryContext = recentDiary.length > 0
     ? "\n\nRecent journal reflections from this member (most recent first):\n" +
@@ -260,7 +309,7 @@ THE MEMBER:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
-${rightsContext}${landContext}
+${rightsContext}${landContext}${familyContext}${importantDatesContext}${calendarContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}
 
@@ -675,6 +724,72 @@ router.post("/review", requireAuth, async (req, res, next) => {
 
     logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya document review stored");
     res.json({ reply: result.content, tokens: result.usage?.totalTokens });
+  } catch (err) { next(err); }
+});
+
+// ── POST /ki/draft-letter — generate a formal tribal letter with full member context ──
+router.post("/draft-letter", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.status(400).json({ error: "No user session" }); return; }
+
+    const { purpose, recipient, additionalContext } = req.body as {
+      purpose: string;
+      recipient?: string;
+      additionalContext?: string;
+    };
+    if (!purpose || typeof purpose !== "string" || !purpose.trim()) {
+      res.status(400).json({ error: "purpose is required" });
+      return;
+    }
+
+    const tokenUser = {
+      email: req.user!.email,
+      name: req.user!.name ?? req.user!.email,
+      roles: req.user!.roles ?? [],
+    };
+
+    const systemPrompt = await buildKayaSystemPrompt(userId, tokenUser);
+
+    const recipientLine = recipient?.trim() || "To Whom It May Concern";
+    const letterPrompt = [
+      `Draft a complete, formal tribal letter for this member.`,
+      `Purpose / What this letter must accomplish: ${purpose.trim()}`,
+      `Addressed to: ${recipientLine}`,
+      additionalContext?.trim() ? `Additional context from the member: ${additionalContext.trim()}` : "",
+      `Today's date: ${today()}`,
+      ``,
+      `Requirements:`,
+      `• Use the member's full legal name and tribal enrollment number in the signature block`,
+      `• Open with the Mathias El Tribe letterhead line`,
+      `• State the date and recipient clearly`,
+      `• Body should address the purpose with authority, citing applicable tribal and federal law where relevant`,
+      `• Include a reservation-of-rights clause if the letter involves any legal matter`,
+      `• Close with the member's title, role, and tribal affiliation`,
+      `• Output ONLY the finished letter — no commentary, no preamble, no explanation outside the letter itself`,
+    ].filter(Boolean).join("\n");
+
+    logger.info({ userId, purpose: purpose.substring(0, 80) }, "KI draft-letter request");
+
+    const result = await callAzureOpenAI(
+      systemPrompt,
+      letterPrompt,
+      { maxTokens: 1400, temperature: 0.65 },
+    );
+
+    // Save to conversation history so COMPANION remembers drafting this letter
+    const now = new Date();
+    await db.insert(kiConversationsTable).values([
+      { userId, role: "user", content: `[Letter Draft Request] Purpose: ${purpose.substring(0, 200)}`, isDiary: false, createdAt: now },
+      { userId, role: "assistant", content: result.content, isDiary: false, createdAt: now },
+    ]);
+
+    res.json({
+      letterText: result.content,
+      purpose: purpose.trim(),
+      recipient: recipientLine,
+      generatedAt: now.toISOString(),
+    });
   } catch (err) { next(err); }
 });
 
