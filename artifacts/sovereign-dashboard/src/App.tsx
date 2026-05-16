@@ -7,6 +7,7 @@ import { AuthProvider, useAuth, roleLandingPath } from "@/components/auth-provid
 import { Layout } from "@/components/layout";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
+import { ClipToCompanion } from "@/components/ClipToCompanion";
 
 const Login = lazy(() => import("@/pages/login"));
 const MicrosoftCallback = lazy(() => import("@/pages/MicrosoftCallback"));
@@ -429,6 +430,7 @@ function AuthenticatedLayout() {
         </Suspense>
       )}
       <AuthGatedChatWidget />
+      <ClipToCompanion />
       <SessionExpiryWarning />
       <Toaster />
     </>
