@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { Download, Printer, Upload, User, ShieldCheck, Feather } from "lucide-react";
+import { Download, Printer, Upload, User, ShieldCheck } from "lucide-react";
 
 interface GatewayData {
   identity: {
@@ -236,11 +236,11 @@ export default function TribalIdPage() {
           className="relative flex items-center justify-between px-4 py-3"
           style={{ background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
-          {/* Left seal — Office of the Chief Justice & Trustee (slightly smaller than tribal seal) */}
+          {/* Left seal — Office of the Chief Justice & Trustee */}
           <img
             src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
             alt="Office of the Chief Justice & Trustee"
-            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
+            style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }}
           />
 
           {/* Center title */}
@@ -264,7 +264,7 @@ export default function TribalIdPage() {
             <img
               src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
               alt="Tribal Seal"
-              style={{ width: 52, height: 52, objectFit: "contain" }}
+              style={{ width: 80, height: 80, objectFit: "contain" }}
             />
             {idNumber && (
               <div className="text-center">
@@ -297,12 +297,17 @@ export default function TribalIdPage() {
             />
           </svg>
 
-          {/* Feather watermark — far right, full-height, low opacity */}
+          {/* Tribal seal watermark — right/center of fields area, behind bloodline & status */}
           <div
-            className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none select-none"
-            style={{ opacity: 0.07 }}
+            className="absolute pointer-events-none select-none"
+            style={{ right: "8%", top: "50%", transform: "translateY(-50%)", opacity: 0.13, zIndex: 1 }}
           >
-            <Feather className="w-32 h-32 text-amber-300" strokeWidth={0.8} />
+            <img
+              src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
+              alt=""
+              aria-hidden="true"
+              style={{ width: 210, height: 210, objectFit: "contain" }}
+            />
           </div>
 
           {/* Photo — left side */}
