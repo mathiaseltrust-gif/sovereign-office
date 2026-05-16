@@ -73,6 +73,7 @@ const AncestorMemorialPage = lazy(() => import("@/pages/ancestor-memorial"));
 const LegalProvisionsPage = lazy(() => import("@/pages/legal-provisions"));
 const JournalPage = lazy(() => import("@/pages/journal"));
 const AncestralTimelinePage = lazy(() => import("@/pages/ancestral-timeline"));
+const SduDefinitionsPage = lazy(() => import("@/pages/sdu-definitions"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -307,6 +308,9 @@ function AppRouter() {
       </Route>
       <Route path="/iee">
         {() => <ProtectedRoute component={IeePage} />}
+      </Route>
+      <Route path="/sdu/definitions">
+        {() => <ProtectedRoute component={SduDefinitionsPage} />}
       </Route>
       <Route path="/sdu">
         {() => <ProtectedRoute component={SduPage} />}

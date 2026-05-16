@@ -180,6 +180,7 @@ export default function SduPage() {
             </CardHeader>
             <CardContent className="grid grid-cols-2 md:grid-cols-3 gap-3">
               {[
+                { href: "/sdu/definitions", label: "Definition Literacy" },
                 { href: "/profile", label: "Member Enrollment" },
                 { href: "/law", label: "Law Library" },
                 { href: "/business-canvas", label: "Business Education" },
