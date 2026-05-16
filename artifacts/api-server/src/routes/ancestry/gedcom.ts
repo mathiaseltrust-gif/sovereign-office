@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
 import { gedcomImportBatchesTable, gedcomStagingTable, familyLineageTable } from "@workspace/db";
-import { eq, desc, sql } from "drizzle-orm";
+import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { parseGedcom, resolveRelationships } from "../../lib/gedcom-parser";
 import { logger } from "../../lib/logger";
@@ -262,39 +262,112 @@ router.get("/staging", requireAuth, requireAdminOrTrustee, async (req, res, next
   } catch (err) { next(err); }
 });
 
+// ── Merge helper ──────────────────────────────────────────────────────────────
+// Enriches an existing family_lineage record with missing fields from a staged
+// GEDCOM record. Only overwrites NULL / empty fields — never destroys existing data.
+
+type StagedRow = typeof gedcomStagingTable.$inferSelect;
+
+async function mergeIntoExisting(staged: StagedRow, ancestorId: number): Promise<{ id: number; fullName: string }> {
+  const [existing] = await db.select().from(familyLineageTable)
+    .where(eq(familyLineageTable.id, ancestorId)).limit(1);
+
+  if (!existing) throw new Error(`Ancestor ${ancestorId} not found`);
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  const updates: Record<string, any> = { updatedAt: new Date() };
+
+  if (!existing.firstName && staged.givenName)  updates.firstName = staged.givenName;
+  if (!existing.lastName  && staged.surname)    updates.lastName  = staged.surname;
+  if (!existing.birthYear && staged.birthYear)  updates.birthYear = staged.birthYear;
+  if (!existing.deathYear && staged.deathYear)  updates.deathYear = staged.deathYear;
+  if (!existing.gender    && staged.gender)     updates.gender    = staged.gender;
+  if (!existing.isDeceased && (staged.deathYear || staged.deathDate)) updates.isDeceased = true;
+
+  // Merge notes — append GEDCOM details without overwriting
+  const gedcomNote = [
+    staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
+    staged.deathPlace  ? `Death place: ${staged.deathPlace}`  : null,
+    staged.notes       ? staged.notes                          : null,
+    (staged.sourceRecords as string[])?.length
+      ? `GEDCOM sources: ${(staged.sourceRecords as string[]).join("; ")}`
+      : null,
+  ].filter(Boolean).join("\n");
+
+  if (gedcomNote) {
+    updates.notes = existing.notes
+      ? `${existing.notes}\n\n[GEDCOM enrichment]\n${gedcomNote}`
+      : gedcomNote;
+  }
+
+  // Merge lineage tags (deduplicated union)
+  const existingTags = (existing.lineageTags as string[]) ?? [];
+  const incomingTags = (staged.censusLabels as string[]) ?? [];
+  updates.lineageTags = [...new Set([...existingTags, ...incomingTags, "gedcom-enriched"])];
+
+  await db.update(familyLineageTable).set(updates).where(eq(familyLineageTable.id, ancestorId));
+
+  return { id: existing.id, fullName: existing.fullName };
+}
+
 // ── POST /api/ancestry/gedcom/staging/:id/approve ────────────────────────────
-// Move a staged individual to official family_lineage table.
+// For match_type === "new" (or ?force=new): inserts a new family_lineage record.
+// For exact / probable / possible with a matchedAncestorId: merges missing fields
+// into the existing record rather than creating a duplicate.
 router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
+    const forceNew = req.query.force === "new";
+
     const [staged] = await db.select().from(gedcomStagingTable).where(eq(gedcomStagingTable.id, id)).limit(1);
     if (!staged) { res.status(404).json({ error: "Staged record not found" }); return; }
     if (staged.status === "approved") { res.status(409).json({ error: "Already approved" }); return; }
 
-    const isDeceased = !!staged.deathYear || !!staged.deathDate;
+    const shouldMerge = !forceNew && staged.matchType !== "new" && !!staged.matchedAncestorId;
+    let resultId: number;
+    let resultName: string;
 
-    const [created] = await db.insert(familyLineageTable).values({
-      firstName: staged.givenName ?? undefined,
-      lastName: staged.surname ?? undefined,
-      fullName: staged.fullName,
-      birthYear: staged.birthYear ?? undefined,
-      deathYear: staged.deathYear ?? undefined,
-      gender: staged.gender ?? undefined,
-      notes: [staged.notes, (staged.sourceRecords as string[])?.length ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : ""].filter(Boolean).join("\n\n") || undefined,
-      lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
-      sourceType: "gedcom",
-      isDeceased,
-      isAncestor: isDeceased || true,
-      pendingReview: staged.matchType !== "new",
-    }).returning();
+    if (shouldMerge) {
+      // ── Merge path: enrich existing record with missing GEDCOM data ──────────
+      const merged = await mergeIntoExisting(staged, staged.matchedAncestorId!);
+      resultId   = merged.id;
+      resultName = merged.fullName;
+    } else {
+      // ── Insert path: create a new lineage record ──────────────────────────────
+      const isDeceased = !!staged.deathYear || !!staged.deathDate;
+      const noteText = [
+        staged.notes,
+        staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
+        staged.deathPlace  ? `Death place: ${staged.deathPlace}`  : null,
+        (staged.sourceRecords as string[])?.length
+          ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
+      ].filter(Boolean).join("\n\n") || undefined;
+
+      const [created] = await db.insert(familyLineageTable).values({
+        firstName: staged.givenName ?? undefined,
+        lastName:  staged.surname   ?? undefined,
+        fullName:  staged.fullName,
+        birthYear: staged.birthYear ?? undefined,
+        deathYear: staged.deathYear ?? undefined,
+        gender:    staged.gender    ?? undefined,
+        notes:     noteText,
+        lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
+        sourceType:  "gedcom",
+        isDeceased,
+        isAncestor:    true,
+        pendingReview: staged.matchType !== "new",
+      }).returning();
+
+      resultId   = created.id;
+      resultName = created.fullName;
+    }
 
     await db.update(gedcomStagingTable).set({
-      status: "approved",
-      matchedAncestorId: created.id,
-      matchedAncestorName: created.fullName,
+      status:              "approved",
+      matchedAncestorId:   resultId,
+      matchedAncestorName: resultName,
     }).where(eq(gedcomStagingTable.id, id));
 
-    // Update batch approved count
     if (staged.batchId) {
       await db.execute(sql`
         UPDATE gedcom_import_batches
@@ -303,7 +376,7 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
       `);
     }
 
-    res.json({ approved: true, ancestorId: created.id, fullName: created.fullName });
+    res.json({ approved: true, merged: shouldMerge, ancestorId: resultId, fullName: resultName });
   } catch (err) { next(err); }
 });
 
@@ -329,56 +402,84 @@ router.post("/staging/:id/reject", requireAuth, requireAdminOrTrustee, async (re
 });
 
 // ── POST /api/ancestry/gedcom/staging/bulk-approve ───────────────────────────
-// Approve all pending "new" records in a batch
+// Bulk action for pending records in a batch.
+// - matchTypes "new"                  → inserts new family_lineage records
+// - matchTypes "exact"/"probable"/"possible" → merges missing fields into existing
+// Pass matchTypes=["new"] to approve new-only; ["exact","probable","possible"] to merge all duplicates.
 router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (req, res, next) => {
   try {
     const { batchId, matchTypes } = req.body as { batchId?: number; matchTypes?: string[] };
     const types = matchTypes ?? ["new"];
 
-    const pending = await db.select().from(gedcomStagingTable).where(
-      sql`batch_id = ${batchId ?? null} AND status = 'pending' AND match_type = ANY(${sql`ARRAY[${sql.raw(types.map(t => `'${t}'`).join(","))}]::text[]`})`
-    );
+    const conditions = [
+      eq(gedcomStagingTable.status, "pending"),
+      inArray(gedcomStagingTable.matchType, types),
+      ...(batchId ? [eq(gedcomStagingTable.batchId, batchId)] : []),
+    ];
+
+    const pending = await db.select().from(gedcomStagingTable).where(and(...conditions));
 
     if (pending.length === 0) {
-      res.json({ approved: 0, message: "No matching pending records found" });
+      res.json({ approved: 0, merged: 0, message: "No matching pending records found" });
       return;
     }
 
     let approved = 0;
+    let merged = 0;
+
     for (const staged of pending) {
       try {
-        const isDeceased = !!staged.deathYear || !!staged.deathDate;
-        await db.insert(familyLineageTable).values({
-          firstName: staged.givenName ?? undefined,
-          lastName: staged.surname ?? undefined,
-          fullName: staged.fullName,
-          birthYear: staged.birthYear ?? undefined,
-          deathYear: staged.deathYear ?? undefined,
-          gender: staged.gender ?? undefined,
-          notes: staged.notes ?? undefined,
-          lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
-          sourceType: "gedcom",
-          isDeceased,
-          isAncestor: true,
-          pendingReview: false,
-        });
-        await db.update(gedcomStagingTable).set({ status: "approved" }).where(eq(gedcomStagingTable.id, staged.id));
-        approved++;
+        const shouldMerge = staged.matchType !== "new" && !!staged.matchedAncestorId;
+
+        if (shouldMerge) {
+          await mergeIntoExisting(staged, staged.matchedAncestorId!);
+          await db.update(gedcomStagingTable).set({
+            status: "approved",
+          }).where(eq(gedcomStagingTable.id, staged.id));
+          merged++;
+        } else {
+          const isDeceased = !!staged.deathYear || !!staged.deathDate;
+          const noteText = [
+            staged.notes,
+            staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
+            staged.deathPlace  ? `Death place: ${staged.deathPlace}`  : null,
+            (staged.sourceRecords as string[])?.length
+              ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
+          ].filter(Boolean).join("\n\n") || undefined;
+
+          await db.insert(familyLineageTable).values({
+            firstName:   staged.givenName ?? undefined,
+            lastName:    staged.surname   ?? undefined,
+            fullName:    staged.fullName,
+            birthYear:   staged.birthYear ?? undefined,
+            deathYear:   staged.deathYear ?? undefined,
+            gender:      staged.gender    ?? undefined,
+            notes:       noteText,
+            lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
+            sourceType:  "gedcom",
+            isDeceased,
+            isAncestor:    true,
+            pendingReview: false,
+          });
+          await db.update(gedcomStagingTable).set({ status: "approved" }).where(eq(gedcomStagingTable.id, staged.id));
+          approved++;
+        }
       } catch {
-        // skip individual errors
+        // skip individual failures so one bad record doesn't block the rest
       }
     }
 
-    if (batchId) {
+    const total = approved + merged;
+    if (batchId && total > 0) {
       await db.execute(sql`
         UPDATE gedcom_import_batches
-        SET approved_count = approved_count + ${approved},
-            pending_count = GREATEST(pending_count - ${approved}, 0)
+        SET approved_count = approved_count + ${total},
+            pending_count  = GREATEST(pending_count - ${total}, 0)
         WHERE id = ${batchId}
       `);
     }
 
-    res.json({ approved, total: pending.length });
+    res.json({ approved, merged, total, matchTypes: types });
   } catch (err) { next(err); }
 });
 

@@ -68,11 +68,11 @@ interface StagedRecord {
 
 // ── Match type config ─────────────────────────────────────────────────────────
 
-const MATCH_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }>; description: string }> = {
-  exact:    { label: "Exact Match",    color: "text-red-700 dark:text-red-300",    bg: "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800",    icon: XCircle,      description: "Same name + birth year — likely duplicate" },
-  probable: { label: "Probable Match", color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800", icon: AlertTriangle, description: "Similar name + close birth year — review before approving" },
-  possible: { label: "Possible Match", color: "text-yellow-700 dark:text-yellow-300", bg: "bg-yellow-50 dark:bg-yellow-950/40 border-yellow-200 dark:border-yellow-800", icon: AlertTriangle, description: "Partial name match — may be a different person" },
-  new:      { label: "New Record",     color: "text-green-700 dark:text-green-300",  bg: "bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800",  icon: CheckCircle,  description: "No match found — safe to approve" },
+const MATCH_CONFIG: Record<string, { label: string; color: string; bg: string; icon: React.ComponentType<{ className?: string }>; description: string; action: "approve" | "merge" }> = {
+  exact:    { label: "Exact Match",    color: "text-red-700 dark:text-red-300",     bg: "bg-red-50 dark:bg-red-950/40 border-red-200 dark:border-red-800",     icon: XCircle,      description: "Same name + birth year — GEDCOM details will be merged into the existing record", action: "merge" },
+  probable: { label: "Probable Match", color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-950/40 border-amber-200 dark:border-amber-800", icon: AlertTriangle, description: "Similar name + close birth year — merges missing details; or add as a separate new record", action: "merge" },
+  possible: { label: "Possible Match", color: "text-yellow-700 dark:text-yellow-300", bg: "bg-yellow-50 dark:bg-yellow-950/40 border-yellow-200 dark:border-yellow-800", icon: AlertTriangle, description: "Partial name match — merges missing details; or add as a separate new record", action: "merge" },
+  new:      { label: "New Record",     color: "text-green-700 dark:text-green-300",  bg: "bg-green-50 dark:bg-green-950/40 border-green-200 dark:border-green-800",  icon: CheckCircle,  description: "No existing match — will be added to the lineage registry", action: "approve" },
 };
 
 // ── Dropzone ──────────────────────────────────────────────────────────────────
@@ -134,17 +134,20 @@ function GedcomDropzone({ onImport, isImporting }: { onImport: (file: File) => v
 
 // ── Staged record row ─────────────────────────────────────────────────────────
 
-function StagedRow({ record, onApprove, onReject, approving, rejecting }: {
+function StagedRow({ record, onApprove, onApproveNew, onReject, approving, approvingNew, rejecting }: {
   record: StagedRecord;
   onApprove: (id: number) => void;
+  onApproveNew: (id: number) => void;
   onReject: (id: number) => void;
   approving: boolean;
+  approvingNew: boolean;
   rejecting: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const cfg = MATCH_CONFIG[record.matchType] ?? MATCH_CONFIG.new;
   const Icon = cfg.icon;
   const isActioned = record.status !== "pending";
+  const isMergeAction = cfg.action === "merge";
 
   return (
     <div className={`rounded-lg border transition-all ${isActioned ? "opacity-50" : ""} ${cfg.bg}`}>
@@ -171,7 +174,7 @@ function StagedRow({ record, onApprove, onReject, approving, rejecting }: {
             </span>
             {record.matchedAncestorName && (
               <span className="text-[10px] text-muted-foreground">
-                → matches <span className="font-medium">{record.matchedAncestorName}</span>
+                → {isMergeAction ? "enriches" : "matches"} <span className="font-medium">{record.matchedAncestorName}</span>
               </span>
             )}
             {record.censusLabels.length > 0 && record.censusLabels.map(l => (
@@ -181,14 +184,14 @@ function StagedRow({ record, onApprove, onReject, approving, rejecting }: {
             ))}
             {record.status !== "pending" && (
               <span className={`text-[10px] font-bold px-1.5 py-0.5 rounded ${record.status === "approved" ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                {record.status.toUpperCase()}
+                {record.status === "approved" && isMergeAction ? "MERGED" : record.status.toUpperCase()}
               </span>
             )}
           </div>
         </div>
 
         {/* Actions */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-1.5 shrink-0">
           <Button
             variant="ghost"
             size="sm"
@@ -209,14 +212,28 @@ function StagedRow({ record, onApprove, onReject, approving, rejecting }: {
                 <XCircle className="h-3 w-3 mr-1" />
                 Skip
               </Button>
+              {isMergeAction && (record.matchType === "probable" || record.matchType === "possible") && (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs border-green-400 text-green-700 hover:bg-green-50"
+                  disabled={approvingNew}
+                  onClick={() => onApproveNew(record.id)}
+                >
+                  <CheckCircle className="h-3 w-3 mr-1" />
+                  Add new
+                </Button>
+              )}
               <Button
                 size="sm"
-                className="h-7 text-xs bg-green-600 hover:bg-green-700 text-white"
+                className={`h-7 text-xs text-white ${isMergeAction
+                  ? "bg-blue-600 hover:bg-blue-700"
+                  : "bg-green-600 hover:bg-green-700"}`}
                 disabled={approving}
                 onClick={() => onApprove(record.id)}
               >
-                <CheckCircle className="h-3 w-3 mr-1" />
-                Approve
+                <GitMerge className="h-3 w-3 mr-1" />
+                {isMergeAction ? "Merge" : "Approve"}
               </Button>
             </>
           )}
@@ -275,9 +292,25 @@ export default function GedcomImportPage() {
 
   // ── Mutations ────────────────────────────────────────────────────────────────
   const approveMut = useMutation({
-    mutationFn: (id: number) => authFetch(`/api/ancestry/gedcom/staging/${id}/approve`, { method: "POST" }).then((r: Response) => r.json()),
-    onSuccess: () => { qc.invalidateQueries({ queryKey: ["gedcom-staging"] }); qc.invalidateQueries({ queryKey: ["gedcom-batches"] }); },
-    onError: () => toast({ title: "Approve failed", variant: "destructive" }),
+    mutationFn: (id: number) =>
+      authFetch(`/api/ancestry/gedcom/staging/${id}/approve`, { method: "POST" }).then((r: Response) => r.json()),
+    onSuccess: (data: { merged?: boolean; fullName?: string }) => {
+      toast({ title: data.merged ? `Merged into ${data.fullName}` : "Record approved" });
+      qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
+      qc.invalidateQueries({ queryKey: ["gedcom-batches"] });
+    },
+    onError: () => toast({ title: "Action failed", variant: "destructive" }),
+  });
+
+  const approveNewMut = useMutation({
+    mutationFn: (id: number) =>
+      authFetch(`/api/ancestry/gedcom/staging/${id}/approve?force=new`, { method: "POST" }).then((r: Response) => r.json()),
+    onSuccess: (data: { fullName?: string }) => {
+      toast({ title: `Added ${data.fullName ?? "record"} as new ancestor` });
+      qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
+      qc.invalidateQueries({ queryKey: ["gedcom-batches"] });
+    },
+    onError: () => toast({ title: "Action failed", variant: "destructive" }),
   });
 
   const rejectMut = useMutation({
@@ -286,20 +319,25 @@ export default function GedcomImportPage() {
     onError: () => toast({ title: "Skip failed", variant: "destructive" }),
   });
 
-  interface BulkApproveResult { approved: number }
-  const bulkApproveMut = useMutation<BulkApproveResult, Error, string[]>({
+  interface BulkResult { approved: number; merged: number; total: number }
+  const bulkApproveMut = useMutation<BulkResult, Error, string[]>({
     mutationFn: (matchTypes: string[]) =>
       authFetch("/api/ancestry/gedcom/staging/bulk-approve", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ batchId: selectedBatchId, matchTypes }),
-      }).then((r: Response) => r.json() as Promise<BulkApproveResult>),
-    onSuccess: (data: BulkApproveResult) => {
-      toast({ title: `Approved ${data.approved} records` });
+      }).then((r: Response) => r.json() as Promise<BulkResult>),
+    onSuccess: (data: BulkResult, matchTypes: string[]) => {
+      const isNew = matchTypes.includes("new") && !matchTypes.some(t => t !== "new");
+      if (isNew) {
+        toast({ title: `Added ${data.approved} new ancestors to lineage` });
+      } else {
+        toast({ title: `Merged ${data.merged} records into existing ancestors` });
+      }
       qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
       qc.invalidateQueries({ queryKey: ["gedcom-batches"] });
     },
-    onError: () => toast({ title: "Bulk approve failed", variant: "destructive" }),
+    onError: () => toast({ title: "Bulk action failed", variant: "destructive" }),
   });
 
   const deleteBatchMut = useMutation({
@@ -473,6 +511,17 @@ export default function GedcomImportPage() {
                     Approve all new ({newCount})
                   </Button>
                 )}
+                {(exactCount + probCount + possCount) > 0 && (
+                  <Button
+                    size="sm"
+                    className="gap-1.5 bg-blue-600 hover:bg-blue-700 text-white"
+                    disabled={bulkApproveMut.isPending}
+                    onClick={() => bulkApproveMut.mutate(["exact", "probable", "possible"])}
+                  >
+                    <GitMerge className="h-3.5 w-3.5" />
+                    Merge all matches ({exactCount + probCount + possCount})
+                  </Button>
+                )}
                 <div className="relative flex-1 min-w-[160px] max-w-xs">
                   <Search className="absolute left-2.5 top-2 h-3.5 w-3.5 text-muted-foreground" />
                   <Input
@@ -534,8 +583,10 @@ export default function GedcomImportPage() {
                       key={r.id}
                       record={r}
                       onApprove={id => approveMut.mutate(id)}
+                      onApproveNew={id => approveNewMut.mutate(id)}
                       onReject={id => rejectMut.mutate(id)}
                       approving={approveMut.isPending && approveMut.variables === r.id}
+                      approvingNew={approveNewMut.isPending && approveNewMut.variables === r.id}
                       rejecting={rejectMut.isPending && rejectMut.variables === r.id}
                     />
                   ))}
