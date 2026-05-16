@@ -297,16 +297,16 @@ export default function TribalIdPage() {
             />
           </svg>
 
-          {/* Tribal seal watermark — right/center of fields area, behind bloodline & status */}
+          {/* Tribal insignia watermark — chief-justice seal (feather design), behind bloodline & status fields */}
           <div
             className="absolute pointer-events-none select-none"
-            style={{ right: "8%", top: "50%", transform: "translateY(-50%)", opacity: 0.13, zIndex: 1 }}
+            style={{ right: "4%", top: "50%", transform: "translateY(-50%)", opacity: 0.22, zIndex: 1 }}
           >
             <img
-              src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
+              src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
               alt=""
               aria-hidden="true"
-              style={{ width: 210, height: 210, objectFit: "contain" }}
+              style={{ width: 300, height: 300, objectFit: "contain" }}
             />
           </div>
 
