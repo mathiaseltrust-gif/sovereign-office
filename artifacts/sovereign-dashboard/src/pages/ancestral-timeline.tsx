@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useParams, Link } from "wouter";
 import { Button } from "@/components/ui/button";
@@ -13,7 +13,7 @@ import { getCurrentBearerToken } from "@/components/auth-provider";
 import {
   ArrowLeft, PlusCircle, Flame, Scale, AlertTriangle, BookOpen,
   MapPin, Users, FileText, Layers, Shield, Eye, X, ChevronDown, ChevronUp,
-  Gavel, TrendingDown, Fingerprint, Building2,
+  Gavel, TrendingDown, Fingerprint, Building2, ShieldAlert, HandHeart,
 } from "lucide-react";
 
 /* ─────────── types ─────────── */
@@ -315,14 +315,128 @@ const VIOLATION_META: Record<string, { label: string; icon: typeof Gavel; color:
 };
 
 /* ─────────── RightsAnalysisPanel ─────────── */
-function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancestor; historicalEvents: HistoricalEvent[] }) {
+type ConsentState = "idle" | "accepted" | "declined";
+
+function RightsAnalysisConsentGate({
+  ancestor,
+  onAccept,
+  onDecline,
+}: {
+  ancestor: Ancestor;
+  onAccept: () => void;
+  onDecline: () => void;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const firstName = ancestor.firstName ?? "this ancestor";
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2 pb-2 border-b border-violet-800/40">
+        <div className="w-2 h-2 rounded-full bg-violet-500"></div>
+        <h2 className="text-sm font-bold text-violet-300 tracking-wide uppercase">Rights Violation Analysis</h2>
+        <span className="text-xs text-violet-700 ml-1">Federal trust, canons of construction, and temporal legal record</span>
+      </div>
+
+      {/* Consent card */}
+      <div className="rounded-xl border border-violet-700/40 bg-gradient-to-b from-slate-900/80 to-violet-950/30 overflow-hidden">
+        {/* Header */}
+        <div className="flex items-center gap-3 p-5 border-b border-violet-800/30">
+          <div className="w-10 h-10 rounded-full bg-violet-900/60 border border-violet-700/50 flex items-center justify-center flex-shrink-0">
+            <HandHeart className="w-5 h-5 text-violet-300" />
+          </div>
+          <div>
+            <p className="text-sm font-semibold text-violet-100">Before You Continue</p>
+            <p className="text-xs text-violet-400/70">This section contains heavy historical content. Take a moment.</p>
+          </div>
+        </div>
+
+        {/* Body */}
+        <div className="p-5 space-y-4">
+          <p className="text-sm text-slate-200/80 leading-relaxed">
+            The Rights Violation Analysis for <span className="text-violet-200 font-medium">{firstName}</span> documents
+            the specific laws and government actions that affected Indigenous peoples — including your ancestor — during each era they lived through.
+          </p>
+          <p className="text-sm text-slate-300/70 leading-relaxed">
+            This includes accounts of <span className="text-amber-300/90">forced removal</span>,{" "}
+            <span className="text-amber-300/90">identity erasure</span>,{" "}
+            <span className="text-amber-300/90">broken treaties</span>, and{" "}
+            <span className="text-amber-300/90">loss of land and rights</span> — named
+            precisely, tied to specific laws, and connected to your family's lineage.
+          </p>
+          <p className="text-sm text-slate-300/60 leading-relaxed">
+            Some members find this section clarifying and empowering. Others find it heavy — especially when seeing it
+            connected to a specific ancestor they know personally. Both responses are valid, and both are understandable.
+          </p>
+
+          {/* What it is / why it exists — expandable */}
+          <button
+            className="flex items-center gap-2 text-xs text-violet-400/70 hover:text-violet-300 transition-colors"
+            onClick={() => setExpanded(v => !v)}
+          >
+            {expanded ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
+            {expanded ? "Show less" : "Why does this section exist?"}
+          </button>
+
+          {expanded && (
+            <div className="rounded-lg bg-violet-950/40 border border-violet-800/20 p-4 space-y-2.5 text-xs text-violet-200/60 leading-relaxed">
+              <p>
+                This analysis exists to name what happened — not as grievance for its own sake, but as documentation.
+                When you can see the exact legal mechanism by which a right was diminished or an identity was erased,
+                you can also see how to name it, challenge it, and reclaim it.
+              </p>
+              <p>
+                Each era is mapped to the laws in force at the time. The Indian Canons of Construction —
+                interpretive rules that courts are required to apply in favor of Indigenous peoples —
+                are shown alongside each documented violation, so you can see the legal counter-argument
+                that already exists in federal law.
+              </p>
+              <p>
+                This is your history. It belongs to you. The purpose of putting it here is to restore context —
+                not to define you by what was taken, but to equip you with the full picture of what is owed.
+              </p>
+            </div>
+          )}
+
+          {/* Grounding reminder */}
+          <div className="rounded-lg bg-slate-800/40 border border-slate-700/30 p-3 flex items-start gap-2.5">
+            <Shield className="w-3.5 h-3.5 text-green-400 mt-0.5 flex-shrink-0" />
+            <p className="text-xs text-slate-400/80 leading-relaxed">
+              You do not have to read this today. Your choice will be remembered for{" "}
+              <span className="text-slate-300">{firstName}</span>.
+              You can always come back to this section when you feel ready.
+            </p>
+          </div>
+
+          {/* Actions */}
+          <div className="flex flex-col sm:flex-row gap-3 pt-1">
+            <Button
+              className="flex-1 bg-violet-700 hover:bg-violet-600 text-white text-sm"
+              onClick={onAccept}
+            >
+              <Eye className="w-4 h-4 mr-2" />
+              I'm ready to see this
+            </Button>
+            <Button
+              variant="outline"
+              className="flex-1 border-slate-600/50 text-slate-400 hover:text-slate-200 hover:border-slate-500 text-sm"
+              onClick={onDecline}
+            >
+              Not right now
+            </Button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function RightsAnalysisFull({ ancestor, historicalEvents }: { ancestor: Ancestor; historicalEvents: HistoricalEvent[] }) {
   const [openEraIdx, setOpenEraIdx] = useState<number | null>(null);
   const [openViolation, setOpenViolation] = useState<string | null>(null);
 
   const eras = getAncestorEras(ancestor.birthYear, ancestor.deathYear);
   const firstName = ancestor.firstName ?? "this ancestor";
 
-  /* aggregate violation types across ancestor's eras */
   const violationsByType: Record<string, { era: string; event: string; legalBasis: string; canon: string; }[]> = {};
   eras.forEach(era => {
     era.violations.forEach(v => {
@@ -346,9 +460,9 @@ function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancesto
           <div>
             <p className="text-xs font-semibold text-violet-300 mb-1">COMPANION Rights Analysis — How to Read This Section</p>
             <p className="text-xs text-violet-200/70 leading-relaxed">
-              This analysis takes <span className="text-violet-200">{ancestor.fullName}</span>'s birth-to-death window and applies the law <em>as it existed at each point in time</em>. 
-              The Indian Canons of Construction — the interpretive rules courts use to resolve ambiguity in favor of Indigenous peoples — are applied to each documented violation. 
-              The purpose is not historical grievance for its own sake: it is to equip members to see the precise legal mechanism by which each generation's rights were diminished, 
+              This analysis takes <span className="text-violet-200">{ancestor.fullName}</span>'s birth-to-death window and applies the law <em>as it existed at each point in time</em>.
+              The Indian Canons of Construction — the interpretive rules courts use to resolve ambiguity in favor of Indigenous peoples — are applied to each documented violation.
+              The purpose is not historical grievance for its own sake: it is to equip members to see the precise legal mechanism by which each generation's rights were diminished,
               so that pattern cannot repeat. What was owed then is still owed now.
             </p>
           </div>
@@ -383,13 +497,10 @@ function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancesto
 
                 {isOpen && (
                   <div className="border-t border-violet-900/40 p-4 space-y-4">
-                    {/* Rights in force */}
                     <div className="rounded-lg bg-violet-950/30 border border-violet-800/20 p-3">
                       <p className="text-[10px] font-semibold text-violet-400 uppercase tracking-wider mb-1.5">Rights in Force During This Era</p>
                       <p className="text-xs text-violet-200/70 leading-relaxed">{era.trustRightsInForce}</p>
                     </div>
-
-                    {/* Violations */}
                     <div className="space-y-3">
                       {era.violations.map((v, vi) => {
                         const meta = VIOLATION_META[v.type];
@@ -415,8 +526,6 @@ function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancesto
                         );
                       })}
                     </div>
-
-                    {/* Continuing impact */}
                     <div className="rounded-lg bg-green-950/20 border border-green-800/20 p-3">
                       <p className="text-[10px] font-semibold text-green-400 uppercase tracking-wider mb-1.5">Continuing Impact on Present-Day Rights</p>
                       <p className="text-xs text-green-200/70 leading-relaxed">{era.continuingImpact}</p>
@@ -473,7 +582,7 @@ function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancesto
         </div>
       )}
 
-      {/* Indian Canons of Construction — full reference */}
+      {/* Indian Canons of Construction */}
       <div className="rounded-xl border border-slate-700/40 bg-slate-900/60 p-4">
         <p className="text-xs font-bold text-slate-400 uppercase tracking-wide mb-3">Indian Canons of Construction — Applied Throughout This Analysis</p>
         <div className="space-y-2">
@@ -496,6 +605,65 @@ function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancesto
         </div>
       </div>
     </div>
+  );
+}
+
+function RightsAnalysisPanel({ ancestor, historicalEvents }: { ancestor: Ancestor; historicalEvents: HistoricalEvent[] }) {
+  const storageKey = `rights-analysis-consent-${ancestor.id}`;
+  const [consent, setConsent] = useState<ConsentState>("idle");
+
+  useEffect(() => {
+    const stored = localStorage.getItem(storageKey);
+    if (stored === "accepted") setConsent("accepted");
+    else if (stored === "declined") setConsent("declined");
+    else setConsent("idle");
+  }, [storageKey]);
+
+  function accept() {
+    localStorage.setItem(storageKey, "accepted");
+    setConsent("accepted");
+  }
+  function decline() {
+    localStorage.setItem(storageKey, "declined");
+    setConsent("declined");
+  }
+  function revisit() {
+    localStorage.removeItem(storageKey);
+    setConsent("idle");
+  }
+
+  if (consent === "accepted") {
+    return <RightsAnalysisFull ancestor={ancestor} historicalEvents={historicalEvents} />;
+  }
+
+  if (consent === "declined") {
+    return (
+      <div className="rounded-xl border border-slate-700/30 bg-slate-900/40 p-5 flex items-center gap-4">
+        <div className="w-9 h-9 rounded-full bg-slate-800 border border-slate-700/50 flex items-center justify-center flex-shrink-0">
+          <ShieldAlert className="w-4 h-4 text-slate-500" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <p className="text-sm text-slate-400 font-medium">Rights Violation Analysis — skipped for now</p>
+          <p className="text-xs text-slate-500/70 mt-0.5 leading-relaxed">
+            Take your time. This section will be here whenever you are ready to return to it.
+          </p>
+        </div>
+        <button
+          className="text-xs text-violet-400/70 hover:text-violet-300 underline underline-offset-2 transition-colors flex-shrink-0"
+          onClick={revisit}
+        >
+          I'm ready now
+        </button>
+      </div>
+    );
+  }
+
+  return (
+    <RightsAnalysisConsentGate
+      ancestor={ancestor}
+      onAccept={accept}
+      onDecline={decline}
+    />
   );
 }
 
