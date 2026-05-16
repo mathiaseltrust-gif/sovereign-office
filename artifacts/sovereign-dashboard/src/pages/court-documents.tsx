@@ -26,6 +26,13 @@ interface GweLetter {
 }
 
 interface Template { id: string; name: string; documentType: string; category: string; troSensitive: boolean; emergencyEligible: boolean }
+interface TemplateSuggestion {
+  templateId: string;
+  label: string;
+  hint: string;
+  priority: "IMMEDIATE" | "THIS_WEEK" | "THIS_MONTH";
+  actionLabel: string;
+}
 interface CourtDoc {
   id: number; templateId: string; templateName: string; documentType: string; title: string;
   caseNumber: string | null; court: string | null; status: string; troSensitive: boolean;
@@ -242,6 +249,18 @@ function useTemplates() {
   });
 }
 
+function useSuggestedTemplates() {
+  return useQuery<TemplateSuggestion[]>({
+    queryKey: ["court-doc-suggestions"],
+    queryFn: async () => {
+      const r = await fetch("/api/court/documents/suggested", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      if (!r.ok) return [];
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+}
+
 function useCourtDocs() {
   return useQuery<CourtDoc[]>({
     queryKey: ["court-docs"],
@@ -271,6 +290,7 @@ export default function CourtDocumentsPage() {
   const queryClient = useQueryClient();
   const { data: templates, isLoading: templatesLoading } = useTemplates();
   const { data: docs, isLoading: docsLoading } = useCourtDocs();
+  const { data: suggestions } = useSuggestedTemplates();
 
   const [selectedTemplate, setSelectedTemplate] = useState("__none__");
   const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("tribal");
@@ -368,6 +388,41 @@ export default function CourtDocumentsPage() {
           <Card>
             <CardHeader><CardTitle className="text-base">Generate Court Document</CardTitle></CardHeader>
             <CardContent className="space-y-5">
+
+              {/* Suggested for You */}
+              {suggestions && suggestions.length > 0 && (
+                <div className="rounded-md border border-amber-500/30 bg-amber-500/5 p-3">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <span className="text-xs font-bold text-amber-500 uppercase tracking-widest">Suggested for You</span>
+                    <span className="text-xs text-muted-foreground">— based on your intelligence picture</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {suggestions.map(s => (
+                      <button
+                        key={s.templateId}
+                        type="button"
+                        onClick={() => setSelectedTemplate(s.templateId)}
+                        className={`flex flex-col text-left px-3 py-2 rounded border text-sm transition-all max-w-[260px] ${
+                          selectedTemplate === s.templateId
+                            ? "border-amber-500 bg-amber-500/20 ring-1 ring-amber-500/40"
+                            : "border-amber-500/40 hover:border-amber-500/70 hover:bg-amber-500/10"
+                        }`}
+                      >
+                        <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
+                          {s.priority === "IMMEDIATE" && (
+                            <span className="text-[10px] font-bold bg-red-700 text-white px-1.5 py-0.5 rounded">IMMEDIATE</span>
+                          )}
+                          {s.priority === "THIS_WEEK" && (
+                            <span className="text-[10px] font-bold bg-orange-600 text-white px-1.5 py-0.5 rounded">THIS WEEK</span>
+                          )}
+                          <span className="text-xs font-semibold text-amber-600">{s.label}</span>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground leading-snug line-clamp-2">{s.hint}</p>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {/* Template */}
               <div>

@@ -602,6 +602,43 @@ function buildSummaryForCompanion(
       "You are not describing options — you are telling them what the law requires and what they must do. " +
       "Speak with authority. They deserve a counselor who knows the law.",
     );
+
+    // Document drafting navigator — Kaya knows exactly which documents to surface and where
+    const DRAFT_MAP: Record<string, Array<{ template: string; nav: string }>> = {
+      ISSUE_NFR: [{ template: "Notice of Federal Review (NFR)", nav: "Court Documents → select 'NFR'" }],
+      FILE_ICWA_NOTICE: [
+        { template: "ICWA Notice of Proceeding", nav: "Court Documents → select 'ICWA Notice'" },
+        { template: "TRO — ICWA Child Welfare", nav: "Court Documents → select 'TRO ICWA'" },
+      ],
+      FILE_JURISDICTIONAL_STATEMENT: [{ template: "Jurisdictional Statement", nav: "Court Documents → select 'Jurisdictional Statement'" }],
+      ISSUE_CEASE_DESIST: [{ template: "Protective Order", nav: "Court Documents → select 'Protective Order'" }],
+      ASSERT_SOVEREIGN_IDENTITY: [{ template: "Notice of Federal Review (NFR)", nav: "Court Documents → select 'NFR'" }],
+      GENERATE_STATUS_AFFIRMATION: [{ template: "Jurisdictional Statement", nav: "Court Documents → select 'Jurisdictional Statement'" }],
+      FILE_TRUST_RESPONSIBILITY_COMPLAINT: [{ template: "Trust Deed", nav: "Court Documents → select 'Trust Deed'" }],
+    };
+
+    const draftHints: string[] = [];
+    const draftSeen = new Set<string>();
+    for (const action of picture.actionQueue.slice(0, 6)) {
+      const mappings = DRAFT_MAP[action.action];
+      if (!mappings) continue;
+      for (const m of mappings) {
+        if (draftSeen.has(m.template)) continue;
+        draftSeen.add(m.template);
+        draftHints.push(`  [${action.priority}] Draft: "${m.template}" — Navigate to: ${m.nav}`);
+      }
+    }
+
+    if (draftHints.length > 0) {
+      lines.push("");
+      lines.push("DOCUMENT DRAFTING NAVIGATOR:");
+      lines.push("These documents are ready to draft based on this member's active situation.");
+      lines.push("When relevant situations arise in conversation, proactively say:");
+      lines.push(`  "You can draft this right now — go to Court Documents and select [Template Name]."`);
+      lines.push("Name the template explicitly. Be specific — not 'draft a document' but 'draft the [Name].'" );
+      lines.push("");
+      for (const hint of draftHints) lines.push(hint);
+    }
   }
 
   lines.push("═══════════════════════════════════════════════");

@@ -16,6 +16,72 @@ router.get("/templates", requireAuth, async (_req, res, next) => {
   }
 });
 
+const ACTION_TEMPLATE_SUGGESTIONS: Record<string, Array<{ templateId: string; label: string; hint: string }>> = {
+  ISSUE_NFR: [
+    { templateId: "NFR", label: "Notice of Federal Review", hint: "Issue a formal NFR to compel federal review of unauthorized debt collection or encumbrance activity." },
+  ],
+  FILE_ICWA_NOTICE: [
+    { templateId: "ICWA_NOTICE", label: "ICWA Notice of Proceeding", hint: "Mandatory federal filing — must be served on the tribe before any hearing affecting an Indian child." },
+    { templateId: "TRO_ICWA", label: "TRO — ICWA Child Welfare", hint: "Emergency TRO under ICWA to halt unauthorized child removal or placement immediately." },
+  ],
+  FILE_JURISDICTIONAL_STATEMENT: [
+    { templateId: "JURISDICTIONAL_STATEMENT", label: "Jurisdictional Statement", hint: "Assert federal and tribal jurisdiction over this matter and formally preempt any state authority." },
+  ],
+  ISSUE_CEASE_DESIST: [
+    { templateId: "PROTECTIVE_ORDER", label: "Protective Order", hint: "Issue a sovereign protective order halting all unauthorized collection, reporting, or encumbrance activity." },
+    { templateId: "NFR", label: "Notice of Federal Review", hint: "Formal NFR to accompany the cease and desist — places all adverse parties on federal notice." },
+  ],
+  ASSERT_SOVEREIGN_IDENTITY: [
+    { templateId: "NFR", label: "Notice of Federal Review", hint: "Assert sovereign status through formal federal notice served on all active adverse parties simultaneously." },
+    { templateId: "JURISDICTIONAL_STATEMENT", label: "Jurisdictional Statement", hint: "Formal jurisdictional assertion for any active proceeding — establishes the record." },
+  ],
+  GENERATE_STATUS_AFFIRMATION: [
+    { templateId: "JURISDICTIONAL_STATEMENT", label: "Jurisdictional Statement", hint: "Formally assert and document sovereign status across all active matters of record." },
+  ],
+  FILE_TRUST_RESPONSIBILITY_COMPLAINT: [
+    { templateId: "TRUST_DEED", label: "Trust Deed", hint: "Establish the trust instrument as the foundation for federal trust responsibility enforcement before the BIA." },
+  ],
+};
+
+router.get("/suggested", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId;
+    if (!userId) { res.json([]); return; }
+
+    const { getIntelligencePicture } = await import("../../sovereign/intelligence-accumulator");
+    const picture = await getIntelligencePicture(userId);
+
+    if (!picture || picture.actionQueue.length === 0) { res.json([]); return; }
+
+    const seen = new Set<string>();
+    const suggestions: Array<{
+      templateId: string;
+      label: string;
+      hint: string;
+      priority: string;
+      actionLabel: string;
+    }> = [];
+
+    for (const action of picture.actionQueue) {
+      const mappings = ACTION_TEMPLATE_SUGGESTIONS[action.action];
+      if (!mappings) continue;
+      for (const m of mappings) {
+        if (seen.has(m.templateId)) continue;
+        seen.add(m.templateId);
+        suggestions.push({
+          templateId: m.templateId,
+          label: m.label,
+          hint: m.hint,
+          priority: action.priority,
+          actionLabel: action.label,
+        });
+      }
+    }
+
+    res.json(suggestions);
+  } catch (err) { next(err); }
+});
+
 router.get("/", requireAuth, async (_req, res, next) => {
   try {
     const docs = await listCourtDocuments();
