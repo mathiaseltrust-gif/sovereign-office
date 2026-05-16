@@ -12,6 +12,24 @@ const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 *
 
 const router = Router();
 
+/**
+ * Convert a possibly-relative photo URL to an absolute URL the server can fetch.
+ * data: URLs are returned unchanged. Relative paths (starting with /) are
+ * prefixed with the Replit dev domain or localhost fallback.
+ */
+function resolvePhotoUrl(url: string | null | undefined): string | undefined {
+  if (!url) return undefined;
+  if (url.startsWith("data:")) return url;
+  if (url.startsWith("/") || url.startsWith("./")) {
+    const stripQuery = url.split("?")[0]; // drop cache-busting ?v= param
+    const domain = process.env.REPLIT_DEV_DOMAIN
+      ? `https://${process.env.REPLIT_DEV_DOMAIN}`
+      : `http://localhost:${process.env.PORT ?? 3000}`;
+    return `${domain}${stripQuery}`;
+  }
+  return url;
+}
+
 router.post("/tribal-id/generate", requireAuth, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId ?? 0;
@@ -36,7 +54,7 @@ router.post("/tribal-id/generate", requireAuth, async (req, res, next) => {
       role: gateway.identity.role,
       orgAffiliations: gateway.orgAffiliations.map((o) => `${o.org} — ${o.role}`),
       expirationDate: expirationDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-      profilePhotoUrl: gateway.profilePhoto ?? (req.body?.profilePhotoUrl as string | undefined),
+      profilePhotoUrl: resolvePhotoUrl(gateway.profilePhoto ?? (req.body?.profilePhotoUrl as string | undefined)),
       verificationUrl: `${process.env.APP_URL ?? "https://sovereign.mathiasel.tribe"}/api/identity/verify/${gateway.identity.userId}`,
       tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber ?? undefined,
       tribalIdNumber: gateway.identity.tribalIdNumber ?? undefined,
@@ -73,7 +91,7 @@ router.get("/tribal-id/:userId", requireAuth, async (req, res, next) => {
       role: gateway.identity.role,
       orgAffiliations: gateway.orgAffiliations.map((o) => `${o.org} — ${o.role}`),
       expirationDate: expirationDate.toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" }),
-      profilePhotoUrl: gateway.profilePhoto ?? undefined,
+      profilePhotoUrl: resolvePhotoUrl(gateway.profilePhoto),
       verificationUrl: `${process.env.APP_URL ?? "https://sovereign.mathiasel.tribe"}/api/identity/verify/${gateway.identity.userId}`,
       tribalEnrollmentNumber: gateway.identity.tribalEnrollmentNumber ?? undefined,
       tribalIdNumber: gateway.identity.tribalIdNumber ?? undefined,
