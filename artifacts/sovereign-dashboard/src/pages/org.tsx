@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { getCurrentBearerToken } from "@/components/auth-provider";
+import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 
 type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical";
 type AccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
@@ -129,7 +130,8 @@ export default function OrgOverviewPage() {
           <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Your Organizations</h2>
           <div className="grid sm:grid-cols-2 gap-4">
             {accessible.map((org) => (
-              <Card key={org.id} className={`${ORG_COLOR_CLASSES[org.color] ?? ORG_COLOR_CLASSES.zinc} border`}>
+              <div key={org.id} className="space-y-2">
+              <Card className={`${ORG_COLOR_CLASSES[org.color] ?? ORG_COLOR_CLASSES.zinc} border`}>
                 <CardHeader className="pb-2 pt-4">
                   <div className="flex items-start justify-between gap-2">
                     <div>
@@ -163,6 +165,8 @@ export default function OrgOverviewPage() {
                   </Link>
                 </CardContent>
               </Card>
+              <OrgDocumentsPanel orgId={org.id} orgName={org.name} />
+              </div>
             ))}
           </div>
         </div>
