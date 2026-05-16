@@ -1,8 +1,10 @@
 /**
  * GEDCOM 5.5/5.5.1 parser
  * Handles UTF-8, UTF-8 BOM, ANSEL, and ASCII/Latin-1 encodings.
+ * Also handles ZIP-compressed GEDCOM files (Ancestry.com exports .ged as ZIP).
  * Extracts INDI and FAM records into a structured intermediate format.
  */
+import AdmZip from "adm-zip";
 
 export interface GedcomIndividual {
   gedcomId: string;
@@ -33,6 +35,24 @@ export interface GedcomParseResult {
   families: GedcomFamily[];
   encoding: string;
   errors: string[];
+}
+
+// ── ZIP extraction ────────────────────────────────────────────────────────────
+// Ancestry.com exports .ged files as ZIP archives containing the real GEDCOM.
+
+function maybeUnzip(buf: Buffer): Buffer {
+  // ZIP files start with PK\x03\x04
+  if (buf[0] === 0x50 && buf[1] === 0x4b && buf[2] === 0x03 && buf[3] === 0x04) {
+    const zip = new AdmZip(buf);
+    const entries = zip.getEntries();
+    // Find the first .ged entry, or fall back to the first text-like entry
+    const gedEntry = entries.find(e => e.entryName.toLowerCase().endsWith(".ged"))
+      ?? entries.find(e => !e.isDirectory);
+    if (gedEntry) {
+      return gedEntry.getData();
+    }
+  }
+  return buf;
 }
 
 // ── Encoding detection + decode ───────────────────────────────────────────────
@@ -113,20 +133,10 @@ function extractCensusLabels(text: string): string[] {
 // ── Main parser ───────────────────────────────────────────────────────────────
 
 export function parseGedcom(fileBuffer: Buffer): GedcomParseResult {
-  const { text, encoding } = decodeBuffer(fileBuffer);
+  const unzipped = maybeUnzip(fileBuffer);
+  const { text, encoding } = decodeBuffer(unzipped);
   const lines = text.split(/\r\n|\r|\n/);
   const errors: string[] = [];
-
-  // ── DEBUG: log first 30 lines and their parse results ─────────────────────
-  const debugSample = lines.slice(0, 30);
-  console.error("[GEDCOM-DEBUG] fileSize=" + fileBuffer.length + " totalLines=" + lines.length + " encoding=" + encoding);
-  for (let di = 0; di < debugSample.length; di++) {
-    const raw = debugSample[di];
-    const hex = Buffer.from(raw, "latin1").toString("hex").slice(0, 60);
-    const gl = parseLine(raw);
-    console.error(`[GEDCOM-DEBUG] L${di}: parsed=${gl ? `level=${gl.level} xref=${gl.xref} tag=${gl.tag}` : "NULL"} hex=${hex} text="${raw.slice(0, 60)}"`);
-  }
-  // ── END DEBUG ──────────────────────────────────────────────────────────────
 
   const individuals = new Map<string, GedcomIndividual>();
   const families = new Map<string, GedcomFamily>();
