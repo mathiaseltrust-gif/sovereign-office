@@ -216,7 +216,7 @@ const TRUST_LAND_PROTECTION: MemberRight = {
   category: "land",
   citation: "25 U.S.C. §§ 5108–5110; Indian Land Consolidation Act, 25 U.S.C. § 2201",
   plainLanguage:
-    "Land held in trust by the United States for a tribe or individual Indian cannot be taxed by the state, cannot be alienated without federal approval, and is immune from most state-law judgments and liens. The federal government has an affirmative duty to prevent loss of trust land.",
+    "Land held in trust for a tribe or individual Indian cannot be taxed by the state, cannot be alienated without explicit tribal and informed consent, and is immune from most state-law judgments and liens. Any purported alienation without explicit tribal and informed consent is void — the federal government holds a fiduciary duty to protect trust land, but that duty is derivative of and subordinate to tribal sovereignty.",
   watchFor:
     "County assessors may attempt to assess property taxes on trust land. Creditors may try to attach liens. Courts may issue orders affecting trust land. All of these require BIA involvement and in many cases federal court jurisdiction.",
   status: "applicable",

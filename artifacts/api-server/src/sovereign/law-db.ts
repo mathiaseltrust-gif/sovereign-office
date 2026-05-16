@@ -79,7 +79,7 @@ const FEDERAL_LAWS = [
   {
     title: "Nonintercourse Act (Indian Trade and Intercourse Act)",
     citation: "25 U.S.C. § 177",
-    body: "No purchase or grant of lands from any Indian nation or tribe shall be valid unless made by treaty or convention entered into pursuant to the Constitution. All alienations of Indian land without federal approval are void. This statute protects against unauthorized transfers of Indian land. Any mortgage, lien, or commercial encumbrance placed on restricted Indian land without federal approval is void ab initio under this Act.",
+    body: "No purchase or grant of lands from any Indian nation or tribe shall be valid unless made by treaty or convention entered into pursuant to the Constitution. All alienations of Indian land without explicit tribal and informed consent are void. This statute protects against unauthorized transfers of Indian land. Any mortgage, lien, or commercial encumbrance placed on restricted Indian land without explicit tribal and informed consent is void ab initio — any purported federal action contrary to the Tribe's informed consent would itself be ultra vires.",
     tags: ["trust-land", "alienation", "nonintercourse", "land-transfer", "debt-invalidation", "admin-process", "credit-protection"],
   },
   {

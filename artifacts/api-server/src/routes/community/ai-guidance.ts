@@ -194,7 +194,7 @@ const FALLBACK_ANSWERS: Record<string, { answer: string; citations: string[] }> 
   },
   trust: {
     answer:
-      "The federal trust responsibility means the United States has a fiduciary duty to Indian tribes and individual Indians with respect to trust lands, trust funds, and natural resources. This duty is enforceable in federal courts. The government must act in the best interests of Indians when administering trust assets. Tribal lands held in trust are immune from state taxation and cannot be alienated without federal approval.",
+      "The federal trust responsibility means the United States holds a fiduciary duty to Indian tribes and individual Indians with respect to trust lands, trust funds, and natural resources. This duty is enforceable in federal courts. The government must act in the best interests of Indians when administering trust assets — and that duty is derivative of and subordinate to tribal sovereignty. Tribal lands held in trust are immune from state taxation and cannot be alienated without explicit tribal and informed consent. Any purported federal action to convey or encumber tribal land without such consent is ultra vires and void.",
     citations: [
       "United States v. Mitchell, 463 U.S. 206 (1983)",
       "25 U.S.C. § 177 (Nonintercourse Act)",

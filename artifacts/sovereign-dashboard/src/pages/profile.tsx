@@ -336,11 +336,11 @@ const LAND_STATUS_EXPLANATIONS: Record<string, { headline: string; logic: string
   restricted: {
     headline: "Restricted Indian Land — Anti-Alienation in Force",
     logic: [
-      "Restricted Indian land is land where the owner holds fee title but the land cannot be sold, mortgaged, or transferred without federal consent — similar to trust land in practical effect.",
+      "Restricted Indian land is land where the owner holds fee title but the land cannot be sold, mortgaged, or transferred without explicit tribal and informed consent — similar to trust land in practical effect.",
       "The restrictions may arise from allotment law, tribal ordinance, or specific federal statute. They run with the land — they cannot be waived by a private agreement.",
-      "State and local governments have no jurisdiction to lift these restrictions. Only Congress or the Secretary of the Interior can modify or remove them.",
+      "State and local governments have no jurisdiction to lift these restrictions. Any purported federal action to modify or remove them without explicit tribal and informed consent would be ultra vires and void.",
     ],
-    protections: ["Cannot be sold without federal consent", "Cannot be mortgaged without approval", "State courts cannot order forced sale", "Restrictions run with the land permanently until federally removed"],
+    protections: ["Cannot be sold without explicit tribal and informed consent", "Cannot be mortgaged without explicit tribal and informed consent", "State courts cannot order forced sale", "Restrictions run with the land permanently — only the Tribe may consent to modification"],
   },
 };
 

@@ -34,7 +34,7 @@ const TEMPLATE_CATALOG: TemplateInfo[] = [
     title: "Deed of Trust — Indian Trust Land",
     category: "Land Instruments",
     icon: Landmark,
-    description: "Conveys Indian trust land between parties, subject to federal restrictions on alienation under the Non-Intercourse Act.",
+    description: "Conveys Indian trust land between parties, subject to anti-alienation protections requiring explicit tribal and informed consent under the Non-Intercourse Act.",
     law: "25 U.S.C. § 177",
     partyFields: ["Grantor", "Grantee", "Beneficiary"],
     needsLand: true,

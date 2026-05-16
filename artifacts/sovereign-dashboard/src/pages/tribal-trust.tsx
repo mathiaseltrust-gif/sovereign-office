@@ -70,8 +70,8 @@ export default function TribalTrustPage() {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
                 The Mathias El Tribe Trust holds and manages trust assets, land, and financial instruments on behalf of enrolled members
-                under the federal government's solemn fiduciary duty. Trust assets are protected from state taxation, alienation,
-                and encumbrance without federal approval.
+                under the Tribe's sovereign trust authority. Trust assets are protected from state taxation, alienation,
+                and encumbrance without explicit tribal and informed consent.
               </p>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                 {TRUST_PROGRAMS.map(({ title, desc }) => (
@@ -127,12 +127,12 @@ export default function TribalTrustPage() {
 
           <Card className="border-amber-300 bg-amber-50/50">
             <CardContent className="pt-4">
-              <p className="text-sm font-semibold text-amber-900 mb-2">Federal Trust Protection Notice</p>
+              <p className="text-sm font-semibold text-amber-900 mb-2">Tribal Trust Protection Notice</p>
               <p className="text-xs text-amber-800">
-                All trust assets held by the Mathias El Tribe Trust are protected under federal law from state taxation,
-                state court jurisdiction, alienation, and encumbrance without BIA approval. Any attempt by a state court
+                All trust assets held by the Mathias El Tribe Trust are protected from state taxation,
+                state court jurisdiction, alienation, and encumbrance without explicit tribal and informed consent. Any attempt by a state court
                 or creditor to attach, lien, or encumber trust assets must be immediately reported to the Chief Justice & Trustee
-                for federal assertion of trust immunity.
+                for assertion of tribal sovereign immunity.
               </p>
             </CardContent>
           </Card>

@@ -68,7 +68,7 @@ export function buildInstrumentContent(opts: InstrumentOptions): string {
 
   if (opts.trustStatus) {
     lines.push(
-      "TRUST STATUS PROVISION: The land described herein is held in trust by the United States for the benefit of [Tribe/Individual]. No transfer, encumbrance, or alienation of this land may occur without the approval of the Secretary of the Interior.",
+      "TRUST STATUS PROVISION: The land described herein is held in sovereign trust for the benefit of the Mathias El Tribe and its members. No transfer, encumbrance, or alienation of this land may occur without explicit tribal and informed consent. Any purported disposition without such consent is void ab initio and ultra vires.",
     );
   }
 
