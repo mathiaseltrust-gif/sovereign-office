@@ -30,12 +30,12 @@ interface OrgDocument {
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
-  ein_letter: "EIN Assignment Letter",
+  ein_letter: "EIN / Entity ID Letter",
   tax_exempt_cert: "Tax-Exempt Determination Letter",
   "527_reg": "§ 527 Political Organization Filing",
   "501c3_cert": "501(c)(3) Determination Letter",
   tribal_license: "Tribal Business License",
-  articles: "Articles / Charter Documents",
+  articles: "Tribal Charter / Articles of Organization",
   general: "Organizational Document",
 };
 
@@ -206,7 +206,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm uppercase tracking-widest">Tax ID &amp; Organization Documents</CardTitle>
+          <CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle>
           <span className="text-xs text-muted-foreground">{expanded ? "▲ collapse" : "▼ expand"}</span>
         </div>
       </CardHeader>
@@ -218,15 +218,18 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
           ) : (
             <div className="space-y-2">
               <Label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">
-                Employer Identification Number (EIN / Tax ID)
+                Entity / Organization ID
               </Label>
+              <p className="text-[11px] text-muted-foreground -mt-1">
+                EIN, tribal entity number, charter number, IEE registration, or federal recognition number.
+              </p>
               {editingEin && isElevated ? (
                 <div className="flex gap-2 items-center">
                   <Input
                     value={einInput}
                     onChange={(e) => setEinInput(e.target.value)}
-                    placeholder="XX-XXXXXXX"
-                    className="font-mono text-sm h-8 max-w-[180px]"
+                    placeholder="e.g. 85-1234567 or MET-IEE-001"
+                    className="font-mono text-sm h-8 max-w-[220px]"
                   />
                   <Button size="sm" className="h-8 text-xs" onClick={() => patchProfile.mutate({ ein: einInput })} disabled={patchProfile.isPending}>
                     Save
@@ -247,14 +250,14 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                       className="h-7 text-xs"
                       onClick={() => { setEinInput(profile?.ein ?? ""); setEditingEin(true); }}
                     >
-                      {profile?.ein ? "Edit" : "Add EIN"}
+                      {profile?.ein ? "Edit" : "Add ID"}
                     </Button>
                   )}
                 </div>
               )}
               {profile?.ein && (
                 <p className="text-xs text-muted-foreground">
-                  Used for: bank accounts, grant applications, tax-exempt purchases, vendor agreements, and IRS filings.
+                  On file — used for bank accounts, grant applications, vendor agreements, and federal program access.
                 </p>
               )}
             </div>
@@ -285,7 +288,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                     <Input
                       value={uploadLabel}
                       onChange={(e) => setUploadLabel(e.target.value)}
-                      placeholder="e.g. IRS EIN Letter 2024"
+                      placeholder="e.g. Tribal Charter 2024 or EIN Letter"
                       className="h-8 text-sm"
                     />
                   </div>
@@ -325,7 +328,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
               <div className="space-y-2">{[1, 2].map((i) => <Skeleton key={i} className="h-14" />)}</div>
             ) : !docs || docs.length === 0 ? (
               <div className="rounded-md border border-dashed p-4 text-center text-xs text-muted-foreground">
-                No documents uploaded yet.{isElevated ? " Use the button above to add exempt status or EIN documents." : ""}
+                No documents uploaded yet.{isElevated ? " Upload charter, entity ID letters, or exempt status documents above." : ""}
               </div>
             ) : (
               <div className="space-y-2">
