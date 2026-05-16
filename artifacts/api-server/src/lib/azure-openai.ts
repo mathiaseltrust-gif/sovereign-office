@@ -53,7 +53,7 @@ export async function callAzureOpenAI(
   const client = getAzureOpenAIClient();
   if (!client) throw new Error("Azure OpenAI not configured");
 
-  const { maxTokens = 2000, temperature = 0.2, timeoutMs = 20000 } = options;
+  const { maxTokens = 2000, temperature = 0.2, timeoutMs = 90000 } = options;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

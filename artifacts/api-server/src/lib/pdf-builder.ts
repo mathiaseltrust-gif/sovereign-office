@@ -811,42 +811,81 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   const helvetica = await pdfDoc.embedFont(StandardFonts.Helvetica);
   const helveticaBold = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
 
-  // Background — deep maroon matching the on-screen ID card (#6B0000 → #9B1A1A gradient approximated as flat)
-  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.42, 0.10, 0.03) });
+  const GOLD = rgb(0.9, 0.82, 0.4);
+  const WHITE = rgb(1, 1, 1);
+  const MUTED = rgb(0.65, 0.62, 0.55);
+  const LINE_H = 20;
 
-  // Inner card area — near-black body matching the screen card's #0A0400 body
+  // ── Outer background — deep maroon ────────────────────────────────────────
+  page.drawRectangle({ x: 0, y: 0, width, height, color: rgb(0.42, 0.10, 0.03) });
+  // Inner dark body with gold border
   page.drawRectangle({ x: 8, y: 8, width: width - 16, height: height - 16,
     borderColor: rgb(0.6, 0.5, 0.2), borderWidth: 0.8, color: rgb(0.04, 0.016, 0.00) });
 
-  // -- Logo panel (left 130pt wide) — darker maroon to match header band
-  const LOGO_PANEL_W = 130;
-  page.drawRectangle({ x: 8, y: 8, width: LOGO_PANEL_W, height: height - 16, color: rgb(0.22, 0.04, 0.04) });
+  // ── HEADER BAND — matches the on-screen card header ───────────────────────
+  const HEADER_H = 64;
+  const HEADER_Y = height - 8 - HEADER_H; // bottom of header band = 324 for 396pt page
+  page.drawRectangle({ x: 8, y: HEADER_Y, width: width - 16, height: HEADER_H, color: rgb(0.16, 0.03, 0.03) });
+  // Gold divider line between header and body
+  page.drawLine({ start: { x: 8, y: HEADER_Y }, end: { x: width - 8, y: HEADER_Y },
+    thickness: 0.9, color: rgb(0.7, 0.55, 0.22) });
 
-  // Full-color tribal seal — centered in logo panel, fills most of it
-  const seal = await embedColorSeal(pdfDoc);
-  if (seal) {
-    const sealSize = 100;
-    const sealX = 8 + (LOGO_PANEL_W - sealSize) / 2;
-    const sealY = (height - sealSize) / 2 + 10;
-    page.drawImage(seal, { x: sealX, y: sealY, width: sealSize, height: sealSize });
+  // Tribal seal — right side of header (matches on-screen card right seal)
+  const headerSeal = await embedColorSeal(pdfDoc);
+  const HS = 46;
+  const hsX = width - 8 - HS - 8;   // right-aligned with margin
+  const hsY = HEADER_Y + (HEADER_H - HS) / 2; // vertically centered in header
+  if (headerSeal) {
+    page.drawImage(headerSeal, { x: hsX, y: hsY, width: HS, height: HS });
   }
 
-  page.drawText("MATHIAS EL", { x: 8 + (LOGO_PANEL_W - helveticaBold.widthOfTextAtSize("MATHIAS EL", 7)) / 2, y: height - 32, size: 7, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
-  page.drawText("TRIBE", { x: 8 + (LOGO_PANEL_W - helveticaBold.widthOfTextAtSize("TRIBE", 7)) / 2, y: height - 42, size: 7, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
+  // NO. 001 to left of seal, vertically centered upper half
+  const idDisplay = input.tribalIdNumber ? `NO. ${input.tribalIdNumber}` : `ID-${String(input.userId).padStart(6, "0")}`;
+  const idW = helveticaBold.widthOfTextAtSize(idDisplay, 13);
+  page.drawText(idDisplay, { x: hsX - idW - 6, y: HEADER_Y + HEADER_H - 22, size: 13, font: helveticaBold, color: GOLD });
+  page.drawText(`Exp: ${input.expirationDate}`, {
+    x: hsX - helvetica.widthOfTextAtSize(`Exp: ${input.expirationDate}`, 5.5) - 6,
+    y: HEADER_Y + HEADER_H - 35, size: 5.5, font: helvetica, color: MUTED });
 
-  // SSML enrollment number at bottom of logo panel
+  // Center title block
+  const hCenterX = 8 + (width - 16) / 2;
+  const t1 = "MATHIAS EL TRIBE";
+  const t2 = "SOVEREIGN IDENTITY DOCUMENT";
+  const t3 = "Office of the Chief Justice & Trustee  |  Mathias El Tribe";
+  page.drawText(t1, { x: hCenterX - helveticaBold.widthOfTextAtSize(t1, 11) / 2,
+    y: HEADER_Y + 44, size: 11, font: helveticaBold, color: GOLD });
+  page.drawText(t2, { x: hCenterX - helveticaBold.widthOfTextAtSize(t2, 7.5) / 2,
+    y: HEADER_Y + 29, size: 7.5, font: helveticaBold, color: rgb(0.88, 0.80, 0.55) });
+  page.drawText(t3, { x: hCenterX - helvetica.widthOfTextAtSize(t3, 5.5) / 2,
+    y: HEADER_Y + 16, size: 5.5, font: helvetica, color: MUTED });
+
+  // ── PHOTO COLUMN — left 148pt of body ─────────────────────────────────────
+  const PANEL_W = 148;
+  // Soft vertical divider between photo column and fields
+  page.drawLine({ start: { x: 8 + PANEL_W, y: 22 }, end: { x: 8 + PANEL_W, y: HEADER_Y - 1 },
+    thickness: 0.5, color: rgb(0.5, 0.42, 0.18) });
+
+  // Enrollment number at the very bottom of the panel
   const ssmEl = input.tribalEnrollmentNumber ?? `SSMEL${String(input.userId).padStart(2, "0")}`;
   const ssmElW = helveticaBold.widthOfTextAtSize(ssmEl, 8);
-  page.drawText(ssmEl, { x: 8 + (LOGO_PANEL_W - ssmElW) / 2, y: 22, size: 8, font: helveticaBold, color: rgb(0.9, 0.82, 0.4) });
-  page.drawText("ENROLLMENT NO.", { x: 8 + (LOGO_PANEL_W - helvetica.widthOfTextAtSize("ENROLLMENT NO.", 5.5)) / 2, y: 14, size: 5.5, font: helvetica, color: rgb(0.65, 0.60, 0.40) });
+  page.drawText(ssmEl, { x: 8 + (PANEL_W - ssmElW) / 2, y: 36, size: 8, font: helveticaBold, color: GOLD });
+  const enrollLbl = "ENROLLMENT NO.";
+  page.drawText(enrollLbl, { x: 8 + (PANEL_W - helvetica.widthOfTextAtSize(enrollLbl, 5.5)) / 2,
+    y: 26, size: 5.5, font: helvetica, color: MUTED });
 
-  // Profile photo area (above SSMEL, below seal)
+  // Large photo — centered in panel, taking up most of the left column
+  const phW = 104; const phH = 130;
+  const phX = 8 + (PANEL_W - phW) / 2;
+  // Center vertically in the body area (between footer text and header band)
+  const bodyH = HEADER_Y - 22;
+  const phY = 22 + (bodyH - phH) / 2;
+
   if (input.profilePhotoUrl) {
     try {
       let photoBytes: Uint8Array | null = null;
       if (input.profilePhotoUrl.startsWith("data:")) {
-        const base64 = input.profilePhotoUrl.split(",")[1];
-        if (base64) photoBytes = new Uint8Array(Buffer.from(base64, "base64"));
+        const b64 = input.profilePhotoUrl.split(",")[1];
+        if (b64) photoBytes = new Uint8Array(Buffer.from(b64, "base64"));
       } else {
         const resp = await fetch(input.profilePhotoUrl);
         const buf = await resp.arrayBuffer();
@@ -854,50 +893,33 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
       }
       if (photoBytes) {
         const photoImg = await pdfDoc.embedPng(photoBytes).catch(() => pdfDoc.embedJpg(photoBytes!));
-        const phW = 50; const phH = 55;
-        const phX = 8 + (LOGO_PANEL_W - phW) / 2;
-        const phY = 42;
-        page.drawRectangle({ x: phX - 1, y: phY - 1, width: phW + 2, height: phH + 2, color: rgb(0.9, 0.82, 0.4) });
+        // Gold border frame around photo
+        page.drawRectangle({ x: phX - 2, y: phY - 2, width: phW + 4, height: phH + 4, color: GOLD });
         page.drawImage(photoImg, { x: phX, y: phY, width: phW, height: phH });
       }
-    } catch { /* no photo, skip */ }
-  } else {
-    // Photo placeholder
-    const phW = 50; const phH = 55;
-    const phX = 8 + (LOGO_PANEL_W - phW) / 2;
-    const phY = 42;
-    page.drawRectangle({ x: phX, y: phY, width: phW, height: phH, borderColor: rgb(0.5, 0.45, 0.25), borderWidth: 0.6, color: rgb(0.12, 0.16, 0.30) });
-    page.drawText("PHOTO", { x: phX + (phW - helvetica.widthOfTextAtSize("PHOTO", 6)) / 2, y: phY + phH / 2 - 3, size: 6, font: helvetica, color: rgb(0.5, 0.5, 0.5) });
+    } catch { /* no photo — fall through to placeholder */ }
   }
 
-  // -- Right main content area ----------------------------------------------
-  const cx = LOGO_PANEL_W + 20;
+  // Placeholder shown when no photo available (or photo failed to load)
+  if (!input.profilePhotoUrl) {
+    page.drawRectangle({ x: phX, y: phY, width: phW, height: phH,
+      borderColor: rgb(0.5, 0.45, 0.25), borderWidth: 0.8, color: rgb(0.10, 0.12, 0.25) });
+    page.drawText("PHOTO", { x: phX + (phW - helvetica.widthOfTextAtSize("PHOTO", 8)) / 2,
+      y: phY + phH / 2 - 4, size: 8, font: helvetica, color: rgb(0.45, 0.45, 0.45) });
+  }
+
+  // ── FIELDS — right of photo column ────────────────────────────────────────
+  const cx = 8 + PANEL_W + 18;
   const cw = width - cx - 14;
-  const GOLD = rgb(0.9, 0.82, 0.4);
-  const WHITE = rgb(1, 1, 1);
-  const MUTED = rgb(0.65, 0.62, 0.55); // warm gray — reads well on maroon/dark
-  const LINE_H = 20;
 
-  // Header strip
-  page.drawText("SOVEREIGN IDENTITY DOCUMENT", { x: cx, y: height - 30, size: 7.5, font: helveticaBold, color: GOLD });
-  page.drawText("Office of the Chief Justice & Trustee  |  Mathias El Tribe", { x: cx, y: height - 42, size: 6, font: helvetica, color: MUTED });
+  let fy = HEADER_Y - 16; // just below the header band
 
-  // Tribal ID Number badge
-  const idDisplay = input.tribalIdNumber ? `NO. ${input.tribalIdNumber}` : `ID-${String(input.userId).padStart(6, "0")}`;
-  const idW = helveticaBold.widthOfTextAtSize(idDisplay, 14);
-  const idX = width - idW - 18;
-  page.drawText(idDisplay, { x: idX, y: height - 28, size: 14, font: helveticaBold, color: GOLD });
-  page.drawText(`Exp: ${input.expirationDate}`, { x: idX, y: height - 41, size: 6, font: helvetica, color: MUTED });
-
-  page.drawLine({ start: { x: cx, y: height - 48 }, end: { x: width - 14, y: height - 48 }, thickness: 0.5, color: rgb(0.6, 0.5, 0.2) });
-
-  // Identity fields
-  let fy = height - 66;
   function drawIdField(label: string, value: string, size = 9.5, bold = false) {
     if (!value) return;
     page.drawText(label.toUpperCase(), { x: cx, y: fy, size: 5.5, font: helvetica, color: MUTED });
     fy -= 10;
-    page.drawText(value.substring(0, 52), { x: cx, y: fy, size, font: bold ? timesBold : timesRoman, color: bold ? WHITE : rgb(0.9, 0.9, 0.95) });
+    page.drawText(value.substring(0, 52), { x: cx, y: fy, size,
+      font: bold ? timesBold : timesRoman, color: bold ? WHITE : rgb(0.9, 0.9, 0.95) });
     fy -= LINE_H;
   }
 
@@ -917,27 +939,29 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
   page.drawRectangle({ x: cx, y: fy - 4, width: plW, height: 14, color: rgb(pr, pg, pb) });
   page.drawText(plLabel, { x: cx + 5, y: fy - 1, size: 6.5, font: helveticaBold, color: rgb(1,1,1) });
 
-  // -- Right sub-column (lineage + QR) --------------------------------------
+  // ── Right sub-column (lineage + affiliations + QR) ─────────────────────────
   const rx2 = cx + cw / 2 + 4;
-  let ry = height - 66;
+  let ry = HEADER_Y - 16;
 
   page.drawText("LINEAGE SUMMARY", { x: rx2, y: ry, size: 5.5, font: helvetica, color: MUTED });
   ry -= 10;
   const linWords = input.lineageSummary.substring(0, 120);
-  page.drawText(linWords, { x: rx2, y: ry, size: 7.5, font: timesRoman, color: rgb(0.85, 0.85, 0.92), maxWidth: cw / 2 - 10, lineHeight: 11 });
+  page.drawText(linWords, { x: rx2, y: ry, size: 7.5, font: timesRoman,
+    color: rgb(0.85, 0.85, 0.92), maxWidth: cw / 2 - 10, lineHeight: 11 });
   ry -= Math.ceil(linWords.length / 22) * 11 + 8;
 
   if (input.orgAffiliations.length > 0) {
     page.drawText("AFFILIATIONS", { x: rx2, y: ry, size: 5.5, font: helvetica, color: MUTED });
     ry -= 10;
     for (const aff of input.orgAffiliations.slice(0, 4)) {
-      page.drawText(`• ${aff.substring(0, 32)}`, { x: rx2, y: ry, size: 7, font: timesRoman, color: rgb(0.85, 0.85, 0.92) });
+      page.drawText(`• ${aff.substring(0, 32)}`, { x: rx2, y: ry, size: 7,
+        font: timesRoman, color: rgb(0.85, 0.85, 0.92) });
       ry -= 10;
     }
   }
 
-  // QR code
-  const qrSize = 62;
+  // QR code — bottom right
+  const qrSize = 60;
   const qrX = width - qrSize - 14;
   const qrY = 24;
   page.drawRectangle({ x: qrX - 2, y: qrY - 2, width: qrSize + 4, height: qrSize + 4, color: rgb(1,1,1) });
@@ -947,15 +971,15 @@ export async function buildTribalIdPdf(input: TribalIdPdfInput): Promise<TribalI
     const qrImg = await pdfDoc.embedPng(new Uint8Array(qrBuf));
     page.drawImage(qrImg, { x: qrX, y: qrY, width: qrSize, height: qrSize });
   } catch {
-    page.drawText("VERIFY", { x: qrX + 12, y: qrY + qrSize / 2 - 4, size: 7, font: helveticaBold, color: rgb(0.3,0.3,0.3) });
+    page.drawText("VERIFY", { x: qrX + 10, y: qrY + qrSize / 2 - 4, size: 7, font: helveticaBold, color: rgb(0.3,0.3,0.3) });
   }
   page.drawText("scan to verify", { x: qrX + 4, y: qrY - 10, size: 5.5, font: helvetica, color: MUTED });
 
-  // Bottom bar — very dark maroon strip
+  // ── Bottom citation bar ────────────────────────────────────────────────────
   page.drawRectangle({ x: 8, y: 8, width: width - 16, height: 14, color: rgb(0.10, 0.02, 0.02) });
   page.drawText(
     "Issued under inherent sovereign authority of the Mathias El Tribe  |  Federal Trust Responsibility applies  |  Worcester v. Georgia, 31 U.S. 515 (1832)",
-    { x: LOGO_PANEL_W + 16, y: 12, size: 4.8, font: helvetica, color: rgb(0.55, 0.55, 0.65) }
+    { x: 8 + PANEL_W + 16, y: 12, size: 4.8, font: helvetica, color: rgb(0.55, 0.55, 0.65) }
   );
 
   const pdfBytes = await pdfDoc.save();
