@@ -1,0 +1,70 @@
+Yes. The best option is to build the filter engine yourself, but use existing open datasets as the historical overlay.
+
+Best practical stack:
+
+1. Family/member database
+Use your existing member tree as the core.
+
+2. Historical event database
+Import public timeline datasets for:
+
+* treaties
+* removal acts
+* allotment
+* census category changes
+* Racial Integrity Act / state racial laws
+* Indian Citizenship Act
+* boarding school era
+* termination / relocation era
+* ICWA / ISDEAA / IHCIA
+
+Good source layers to pull from:
+
+* National Archives treaty catalog — digitized treaties by date/tribe  ￼
+* IDA Treaties Explorer — treaty/land cession timelines and maps  ￼
+* Library of Congress Native American law/treaty guides  ￼
+* NPS / Library of Virginia / Encyclopedia Virginia for the Racial Integrity Act and Plecker-era reclassification history  ￼
+
+3. Filter logic
+The engine asks:
+
+Was this ancestor alive during this event?
+Were they located in the affected state/territory/county?
+Did the law affect racial classification, land, movement, custody, citizenship, or tribal status?
+
+Example filter:
+
+Show ancestors potentially affected by the Virginia Racial Integrity Act
+
+* ancestor birth/death overlaps 1924–1979
+* location includes Virginia or connected records
+* census/birth/death records show Indian/colored/mulatto/free person/color category shifts
+
+Best application option:
+Use Gramps Web or GEDCOM-style ancestry data as the genealogy base, then build a custom Replit dashboard around it. Gramps Web is open-source and built for collaborative family history databases  ￼. Your Replit app can be the custom “intelligence layer” on top.
+
+Core database tables:
+
+Table	Purpose
+Ancestors	people, dates, places
+Member Tree	relationships
+Historical Events	laws, treaties, removals
+Locations	state, county, territory
+Classifications	census/racial/legal labels
+Exposure Matches	ancestor + event overlap
+Evidence	records, photos, documents
+Narrative Notes	AI-generated explanation
+
+The feature name could be:
+
+Ancestral Exposure Filter
+
+or
+
+Continuity Impact Engine
+
+The logic statement for Replit:
+
+Create a filterable ancestral timeline engine that compares each ancestor’s lifespan, location, records, and classification labels against historical laws, treaties, removals, racial classification systems, census practices, and federal Indian law events. The system should identify possible exposure, not make final legal conclusions. It should show continuity, disruption, reclassification, and survival through evidence-based timeline overlays.
+
+That is the cleanest and safest build.
