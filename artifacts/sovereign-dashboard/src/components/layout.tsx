@@ -10,7 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
-  GraduationCap, BookOpenCheck, Landmark,
+  GraduationCap, BookOpenCheck, Landmark, Fingerprint,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -79,6 +79,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/family-governance",  label: "Family Governance",     icon: Users },
         { href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
+        { href: "/ancestral-exposure",   label: "Exposure Filter",        highlight: true, icon: Fingerprint },
         { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
         { href: "/complaints",           label: "Complaints",             icon: MessageSquare },
         { href: "/medical-notes",        label: "Medical Notes",          icon: Stethoscope },

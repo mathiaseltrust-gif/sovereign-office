@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useState } from "react";
 import { useParams, Link } from "wouter";
+import { useQuery } from "@tanstack/react-query";
 import { 
   useGetCommunityMember, 
   getGetCommunityMemberQueryKey 
@@ -11,13 +12,151 @@ import {
   FileText, 
   Users, 
   Network,
-  Info
+  Info,
+  Fingerprint,
+  ChevronDown,
+  ChevronUp,
+  AlertTriangle,
+  BookOpen,
+  Eye,
+  MapPin,
+  Layers,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+
+// ─── Exposure Panel ────────────────────────────────────────────────────────────
+
+type ExposureMatch = {
+  event_id: number; title: string; short_name: string; category: string;
+  year_start: number; year_end: number | null; significance: string;
+  description: string; legal_citation: string; impact_types: string[];
+  location_match: boolean;
+};
+
+const EXP_CAT: Record<string, { color: string; bg: string; border: string; icon: React.ComponentType<{ className?: string }> }> = {
+  federal_law:          { color: "text-indigo-600 dark:text-indigo-300", bg: "bg-indigo-50 dark:bg-indigo-950/50", border: "border-indigo-200 dark:border-indigo-700/40", icon: BookOpen },
+  racial_classification:{ color: "text-orange-600 dark:text-orange-300", bg: "bg-orange-50 dark:bg-orange-950/50", border: "border-orange-200 dark:border-orange-700/40", icon: Eye },
+  removal:              { color: "text-red-600 dark:text-red-300",    bg: "bg-red-50 dark:bg-red-950/50",    border: "border-red-200 dark:border-red-700/40",    icon: AlertTriangle },
+  census:               { color: "text-yellow-700 dark:text-yellow-300", bg: "bg-yellow-50 dark:bg-yellow-950/50", border: "border-yellow-200 dark:border-yellow-700/40", icon: FileText },
+  allotment:            { color: "text-amber-700 dark:text-amber-300", bg: "bg-amber-50 dark:bg-amber-950/50", border: "border-amber-200 dark:border-amber-700/40", icon: MapPin },
+  boarding_school:      { color: "text-rose-600 dark:text-rose-300",  bg: "bg-rose-50 dark:bg-rose-950/50",  border: "border-rose-200 dark:border-rose-700/40",  icon: Shield },
+  territory:            { color: "text-teal-600 dark:text-teal-300",  bg: "bg-teal-50 dark:bg-teal-950/50",  border: "border-teal-200 dark:border-teal-700/40",  icon: MapPin },
+};
+const EXP_FALLBACK = { color: "text-muted-foreground", bg: "bg-muted/30", border: "border-border", icon: Layers };
+
+const SIG_DOT: Record<string, string> = { critical: "bg-red-500", high: "bg-amber-400", moderate: "bg-gray-400" };
+
+function ExposurePanel({ memberId, birthYear, deathYear }: { memberId: number; birthYear?: number | null; deathYear?: number | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const [showAll, setShowAll] = useState(false);
+  const hasYears = birthYear != null || deathYear != null;
+
+  const { data, isLoading } = useQuery<ExposureMatch[]>({
+    queryKey: ["community-exposure", memberId],
+    queryFn: async () => {
+      const res = await fetch(`/api/ancestry/exposure/matches/${memberId}`);
+      if (!res.ok) return [];
+      return res.json();
+    },
+    enabled: hasYears,
+  });
+
+  if (!hasYears) return null;
+  const matches = data ?? [];
+  if (!isLoading && matches.length === 0) return null;
+
+  const critical = matches.filter(m => m.significance === "critical");
+  const visible = showAll ? matches : matches.slice(0, 4);
+
+  return (
+    <Card className="overflow-hidden">
+      <button
+        onClick={() => setExpanded(x => !x)}
+        className="w-full text-left"
+      >
+        <CardHeader className="bg-amber-50 dark:bg-amber-950/20 border-b border-amber-200 dark:border-amber-800/30 pb-3 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Fingerprint className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+              <CardTitle className="text-sm font-semibold text-amber-800 dark:text-amber-300">Historical Exposure Analysis</CardTitle>
+              {isLoading && <span className="text-xs text-muted-foreground">Loading…</span>}
+              {!isLoading && matches.length > 0 && (
+                <span className="text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-300 border border-amber-300 dark:border-amber-700 px-1.5 py-0.5 rounded-full">
+                  {matches.length} events
+                </span>
+              )}
+              {!isLoading && critical.length > 0 && (
+                <span className="text-[10px] font-semibold bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-300 border border-red-300 dark:border-red-700 px-1.5 py-0.5 rounded-full">
+                  {critical.length} critical
+                </span>
+              )}
+            </div>
+            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </div>
+          {!expanded && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Historical laws and events this ancestor may have lived through based on their documented lifespan.
+            </p>
+          )}
+        </CardHeader>
+      </button>
+
+      {expanded && (
+        <CardContent className="p-4 space-y-2">
+          {isLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+              <Skeleton className="h-14 w-full" />
+            </div>
+          )}
+          {!isLoading && visible.map(ev => {
+            const m = EXP_CAT[ev.category] ?? EXP_FALLBACK;
+            const Icon = m.icon;
+            return (
+              <div key={ev.event_id} className={`rounded-lg border p-3 ${m.bg} ${m.border}`}>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <Icon className={`h-3.5 w-3.5 shrink-0 ${m.color}`} />
+                    <span className={`text-xs font-semibold ${m.color}`}>{ev.short_name || ev.title}</span>
+                    <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${SIG_DOT[ev.significance] ? "" : ""}`}>
+                      <span className={`w-1.5 h-1.5 rounded-full ${SIG_DOT[ev.significance] ?? "bg-gray-400"}`} />
+                      <span className="text-muted-foreground capitalize">{ev.significance}</span>
+                    </span>
+                  </div>
+                  <span className="text-[10px] text-muted-foreground shrink-0">
+                    {ev.year_start}{ev.year_end && ev.year_end !== ev.year_start ? `–${ev.year_end}` : ""}
+                  </span>
+                </div>
+                {ev.description && (
+                  <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed line-clamp-3">{ev.description}</p>
+                )}
+                {ev.legal_citation && (
+                  <p className="text-[10px] text-muted-foreground/50 font-mono mt-1">{ev.legal_citation}</p>
+                )}
+              </div>
+            );
+          })}
+          {!isLoading && matches.length > 4 && (
+            <button
+              onClick={() => setShowAll(x => !x)}
+              className="w-full text-xs text-muted-foreground hover:text-foreground py-1.5 border border-dashed border-border rounded-lg transition-colors"
+            >
+              {showAll ? `Show fewer` : `Show ${matches.length - 4} more events`}
+            </button>
+          )}
+          <p className="text-[10px] text-muted-foreground/60 pt-1">
+            Exposure is determined by temporal overlap between documented lifespan and historical event date ranges. This is a research tool — consult archival records for confirmation.
+          </p>
+        </CardContent>
+      )}
+    </Card>
+  );
+}
 
 const SEAL_URL = `${import.meta.env.BASE_URL}tribal-seal.png`;
 
@@ -385,6 +524,15 @@ export default function MemberDetail() {
           )}
         </div>
       </div>
+
+      {/* Historical Exposure Analysis — shown for ancestors and deceased members with known years */}
+      {(member.isAncestor || member.isDeceased || member.deathYear) && (
+        <ExposurePanel
+          memberId={id}
+          birthYear={member.birthYear}
+          deathYear={member.deathYear}
+        />
+      )}
     </div>
   );
 }

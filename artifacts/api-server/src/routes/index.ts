@@ -69,6 +69,7 @@ import agentRouter from "./agent/index";
 import kiRouter from "./ki/index";
 import donateRouter from "./donate";
 import landRouter from "./land/index";
+import ancestryExposureRouter from "./ancestry/exposure";
 
 const router: IRouter = Router();
 
@@ -143,5 +144,6 @@ router.use("/agent", agentRouter);
 router.use("/kaya", kiRouter);
 router.use("/donate", donateRouter);
 router.use("/land", landRouter);
+router.use("/ancestry/exposure", ancestryExposureRouter);
 
 export default router;
