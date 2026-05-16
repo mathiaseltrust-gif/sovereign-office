@@ -1,5 +1,6 @@
 import { useState, useRef } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { removeBackground } from "@imgly/background-removal";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -126,9 +127,22 @@ export default function TribalIdPage() {
     onError: (e) => toast({ title: "Upload failed", description: (e as Error).message, variant: "destructive" }),
   });
 
-  const handlePhotoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handlePhotoSelect = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) photoMutation.mutate(file);
+    if (!file) return;
+    try {
+      const objectUrl = URL.createObjectURL(file);
+      let processedBlob: Blob;
+      try {
+        processedBlob = await removeBackground(objectUrl);
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+      const processedFile = new File([processedBlob], "profile.png", { type: "image/png" });
+      photoMutation.mutate(processedFile);
+    } catch {
+      photoMutation.mutate(file);
+    }
   };
 
   function triggerDownload(blob: Blob, filename: string) {
@@ -238,16 +252,31 @@ export default function TribalIdPage() {
               Mathias El Tribe
             </h2>
             <p className="text-[10px] tracking-[0.35em] font-semibold text-white/75 uppercase mt-0.5">
-              Official Member ID
+              Sovereign Identity Document
+            </p>
+            <p className="text-[8px] tracking-wide text-white/50 mt-0.5">
+              Office of the Chief Justice &amp; Trustee
             </p>
           </div>
 
-          {/* Right seal — Tribal */}
-          <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
-            alt="Tribal Seal"
-            style={{ width: 60, height: 60, objectFit: "contain", flexShrink: 0 }}
-          />
+          {/* Right — tribal seal + ID number */}
+          <div className="flex flex-col items-center gap-1 flex-shrink-0">
+            <img
+              src={`${import.meta.env.BASE_URL}tribal-seal.png?v=4`}
+              alt="Tribal Seal"
+              style={{ width: 52, height: 52, objectFit: "contain" }}
+            />
+            {idNumber && (
+              <div className="text-center">
+                <p className="text-[13px] font-bold tracking-wider leading-none" style={{ color: "rgba(230,200,100,1)", fontFamily: "Georgia, serif" }}>
+                  NO.&nbsp;{idNumber}
+                </p>
+                {data.expiryDate && (
+                  <p className="text-[7px] text-white/50 mt-0.5">Exp: {formatCardDate(data.expiryDate)}</p>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* ── CARD BODY ── diamond + photo + fields */}
@@ -332,7 +361,7 @@ export default function TribalIdPage() {
                 large
               />
               <div className="grid grid-cols-2 gap-x-5 gap-y-2.5">
-                {ssmel && <IdField label="ID #" value={ssmel} />}
+                {idNumber && <IdField label="ID #" value={`NO. ${idNumber}`} />}
                 {(data.bloodline ?? data.tribalNations?.[0]) && (
                   <IdField label="Tribal Bloodline" value={data.bloodline ?? data.tribalNations?.[0] ?? ""} />
                 )}
