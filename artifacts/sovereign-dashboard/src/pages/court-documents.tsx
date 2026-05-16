@@ -360,11 +360,17 @@ export default function CourtDocumentsPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
-  const downloadPdf = async (id: number) => {
-    const r = await fetch(`/api/court/documents/${id}/pdf`, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+  const downloadPdf = async (id: number, mode: "electronic" | "print" = "electronic") => {
+    const url = `/api/court/documents/${id}/pdf${mode === "print" ? "?mode=print" : ""}`;
+    const r = await fetch(url, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
     if (!r.ok) { toast({ title: "Error", description: "PDF not available.", variant: "destructive" }); return; }
     const blob = await r.blob();
-    window.open(URL.createObjectURL(blob));
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = mode === "print" ? `court-doc-${id}-print.pdf` : `court-doc-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(objUrl);
   };
 
   return (
@@ -606,7 +612,12 @@ export default function CourtDocumentsPage() {
                     </div>
                     <div className="flex items-center gap-2 ml-4 shrink-0">
                       <Badge variant="outline" className="text-xs">{doc.status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => downloadPdf(doc.id)}>PDF</Button>
+                      <Button size="sm" variant="outline" onClick={() => downloadPdf(doc.id, "electronic")} title="Download with electronic seal">
+                        PDF
+                      </Button>
+                      <Button size="sm" variant="outline" className="text-muted-foreground border-dashed" onClick={() => downloadPdf(doc.id, "print")} title="Download for physical stamp — seal placeholder included">
+                        Print &amp; Sign
+                      </Button>
                     </div>
                   </CardContent>
                 </Card>

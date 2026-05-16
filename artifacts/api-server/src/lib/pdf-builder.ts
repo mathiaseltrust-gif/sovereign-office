@@ -620,6 +620,8 @@ export interface CourtDocumentPdfInput {
   doctrinesApplied: string[];
   lawRefs: Array<{ citation: string; title: string }>;
   caseDetails?: Record<string, string>;
+  /** "electronic" (default) renders the tribal seal; "print" renders a ghost outline box in the identical position for wet-seal registration */
+  signingMode?: "electronic" | "print";
 }
 
 export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promise<PdfResult> {
@@ -665,8 +667,43 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
     color: input.emergencyOrder ? rgb(0.65, 0.1, 0.1) : rgb(0.1, 0.1, 0.4),
   });
 
-  // Tribal seal - centered in the court document header
-  if (sealImage) drawSeal(page, sealImage, 52, CONTENT_TOP_Y + 46);
+  // Tribal seal — position is fixed at this slot in both modes so wet-seal registration is consistent
+  const SEAL_SIZE = 52;
+  const sealSlotX = (PAGE_W - SEAL_SIZE) / 2;
+  const sealSlotY = CONTENT_TOP_Y + 46;
+
+  if (input.signingMode === "print") {
+    // Ghost outline box — exact same position/dimensions as the electronic seal slot
+    page.drawRectangle({
+      x: sealSlotX,
+      y: sealSlotY,
+      width: SEAL_SIZE,
+      height: SEAL_SIZE,
+      borderColor: rgb(0.72, 0.72, 0.72),
+      borderWidth: 0.6,
+      color: rgb(0.97, 0.97, 0.97),
+    });
+    const placeholderLabel = "OFFICE SEAL";
+    const plW = timesRoman.widthOfTextAtSize(placeholderLabel, 7);
+    page.drawText(placeholderLabel, {
+      x: sealSlotX + (SEAL_SIZE - plW) / 2,
+      y: sealSlotY + SEAL_SIZE / 2 + 2,
+      size: 7,
+      font: timesRoman,
+      color: rgb(0.72, 0.72, 0.72),
+    });
+    const subLabel = "Chief Justice & Trustee";
+    const subW = timesRoman.widthOfTextAtSize(subLabel, 5.5);
+    page.drawText(subLabel, {
+      x: sealSlotX + (SEAL_SIZE - subW) / 2,
+      y: sealSlotY + SEAL_SIZE / 2 - 8,
+      size: 5.5,
+      font: timesRoman,
+      color: rgb(0.78, 0.78, 0.78),
+    });
+  } else {
+    if (sealImage) drawSeal(page, sealImage, SEAL_SIZE, sealSlotY);
+  }
 
   drawCentered(page, input.documentType.toUpperCase().replace(/_/g, " "), CONTENT_TOP_Y + 40, timesBold, FONT_SMALL_SIZE + 1, rgb(0.1, 0.1, 0.4));
   drawCentered(page, input.title.toUpperCase(), CONTENT_TOP_Y + 22, timesBold, FONT_TITLE_SIZE);
@@ -749,7 +786,10 @@ export async function buildCourtDocumentPdf(input: CourtDocumentPdfInput): Promi
   currentY = sigY + 60;
 
   page.drawLine({ start: { x: MARGIN_LEFT, y: currentY - 8 }, end: { x: PAGE_W - MARGIN_RIGHT, y: currentY - 8 }, thickness: 0.5, color: rgb(0.3, 0.3, 0.3) });
-  page.drawText("SIGNATURE BLOCK", { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
+  const sigBlockLabel = input.signingMode === "print"
+    ? "SIGNATURE BLOCK — PRINT & SIGN  (apply wet seal to outlined box above, then sign below)"
+    : "SIGNATURE BLOCK — ISSUED BY OFFICE OF CHIEF JUSTICE & TRUSTEE";
+  page.drawText(sigBlockLabel, { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesBold, color: rgb(0.3, 0.3, 0.3) });
   currentY -= LINE_HEIGHT_BODY + 4;
 
   const sigLines = input.signatureBlock.split("\n");

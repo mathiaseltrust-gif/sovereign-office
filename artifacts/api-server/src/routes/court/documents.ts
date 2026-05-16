@@ -113,6 +113,8 @@ router.get("/:id/pdf", async (req, res, next) => {
       res.status(404).json({ error: "Court document not found" });
       return;
     }
+    const rawMode = req.query.mode;
+    const signingMode: "electronic" | "print" = rawMode === "print" ? "print" : "electronic";
     const pdfResult = await buildCourtDocumentPdf({
       id: doc.id,
       title: doc.title,
@@ -126,6 +128,7 @@ router.get("/:id/pdf", async (req, res, next) => {
       doctrinesApplied: (doc.doctrinesApplied as string[]) ?? [],
       lawRefs: (doc.lawRefs as Array<{ citation: string; title: string }>) ?? [],
       caseDetails: (doc.caseDetails as Record<string, string>) ?? {},
+      signingMode,
     });
     await db
       .update(courtDocumentsTable)
