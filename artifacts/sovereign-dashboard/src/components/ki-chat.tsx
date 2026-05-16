@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import ReactMarkdown from "react-markdown";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
@@ -1134,7 +1135,26 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                           {msg.role === "assistant" && (
                             <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1">COMPANION</p>
                           )}
-                          <p className="text-sm text-white/88 leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                          <div className="text-sm text-white/88 leading-relaxed companion-markdown">
+                            <ReactMarkdown
+                              components={{
+                                p: ({ children }) => <p className="mb-1.5 last:mb-0 leading-relaxed">{children}</p>,
+                                strong: ({ children }) => <strong className="font-bold text-white">{children}</strong>,
+                                em: ({ children }) => <em className="italic text-white/90">{children}</em>,
+                                h1: ({ children }) => <p className="text-base font-bold text-amber-300/90 mb-1 mt-2 first:mt-0">{children}</p>,
+                                h2: ({ children }) => <p className="text-sm font-bold text-amber-300/80 mb-1 mt-2 first:mt-0">{children}</p>,
+                                h3: ({ children }) => <p className="text-sm font-semibold text-white/95 mb-0.5 mt-1.5 first:mt-0">{children}</p>,
+                                ul: ({ children }) => <ul className="pl-4 mb-1.5 space-y-0.5 list-disc marker:text-amber-400/60">{children}</ul>,
+                                ol: ({ children }) => <ol className="pl-4 mb-1.5 space-y-0.5 list-decimal marker:text-amber-400/60">{children}</ol>,
+                                li: ({ children }) => <li className="leading-relaxed">{children}</li>,
+                                code: ({ children }) => <code className="px-1 py-0.5 rounded text-[11px] font-mono text-amber-200/90" style={{ background: "rgba(255,200,100,0.10)" }}>{children}</code>,
+                                blockquote: ({ children }) => <blockquote className="border-l-2 border-amber-500/40 pl-3 my-1.5 text-white/70 italic">{children}</blockquote>,
+                                hr: () => <hr className="border-white/10 my-2" />,
+                              }}
+                            >
+                              {msg.content}
+                            </ReactMarkdown>
+                          </div>
                           <p className="text-[9px] text-white/25 mt-1 text-right">{formatTime(msg.createdAt)}</p>
                         </div>
 
