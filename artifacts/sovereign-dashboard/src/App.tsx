@@ -76,6 +76,7 @@ const AncestralTimelinePage = lazy(() => import("@/pages/ancestral-timeline"));
 const SduDefinitionsPage = lazy(() => import("@/pages/sdu-definitions"));
 const LandPage = lazy(() => import("@/pages/land"));
 const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
+const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -434,6 +435,9 @@ function AppRouter() {
       </Route>
       <Route path="/ancestral-exposure">
         {() => <ProtectedRoute component={AncestralExposurePage} />}
+      </Route>
+      <Route path="/gedcom-import">
+        {() => <ProtectedRoute component={GedcomImportPage} />}
       </Route>
 
       <Route component={NotFound} />

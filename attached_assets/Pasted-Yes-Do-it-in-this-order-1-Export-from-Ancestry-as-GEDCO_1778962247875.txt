@@ -1,0 +1,80 @@
+Yes. Do it in this order:
+
+1. Export from Ancestry as GEDCOM
+
+In Ancestry, go to:
+
+Trees → select your tree → Tree Settings → Manage your tree → Export tree → Download GEDCOM
+
+GEDCOM is the standard genealogy export format. It usually includes names, relationships, birth/death dates, places, spouses, parents, children, and notes. Attached Ancestry media/documents may not come with the GEDCOM, so those may need to be downloaded separately or synced through software like Family Tree Maker or RootsMagic.  ￼
+
+2. Tell Replit not to import directly into your live ancestor table
+
+Use a staging table first.
+
+Import flow:
+
+GEDCOM file → Staging Ancestors → Deduplication Review → Official Ancestors Table
+
+That prevents duplicate entries.
+
+3. Minimum fields your ancestor database needs
+
+Tell Replit to create/import these fields:
+
+Field	Purpose
+ancestry_id / gedcom_id	original GEDCOM person ID
+full_name	ancestor name
+given_name	first/middle names
+surname	family name
+birth_date	full date if known
+birth_year	fallback year
+birth_place	city/county/state
+death_date	full date if known
+death_place	location
+gender	if available
+father_id	relationship
+mother_id	relationship
+spouse_ids	marriage links
+children_ids	descendants
+census_labels	Indian, colored, mulatto, etc.
+source_records	record references
+notes	oral history / comments
+confidence_score	match certainty
+duplicate_group_id	dedupe tracking
+
+4. Deduplication rule
+
+Tell Replit:
+
+Do not create a new ancestor if another record has the same or highly similar name, same approximate birth year, and overlapping parent/spouse relationships. Instead, flag it as a possible duplicate for review.
+
+Matching logic:
+
+Match Type	Example
+exact	same full name + birth year
+probable	similar name + same spouse/parent
+possible	same name + nearby birth year/location
+new	no meaningful match
+
+5. Replit instruction to paste
+
+Use this:
+
+Build a GEDCOM import system for the ancestor database. Imported GEDCOM records must first go into a staging table, not directly into the official ancestor table. Each person should retain their GEDCOM ID, full name, birth/death dates, birth/death places, spouse, parent, child relationships, notes, sources, and any available record references. Before creating a new official ancestor record, compare the staged person against existing ancestors using name similarity, birth year range, birth place, parents, spouses, and children. If there is a likely match, flag the record as a possible duplicate instead of importing it automatically. Provide an admin review screen where I can merge, reject, or approve each staged record.
+
+Then add:
+
+The ancestor database must support historical timeline matching by lifespan and location, so every ancestor should store birth date, death date, known residence locations, census years, racial/classification labels, tribal/community notes, and source evidence.
+
+6. Best setup
+
+For now, your best structure is:
+
+Ancestry GEDCOM → Replit importer → PostgreSQL/Supabase database → timeline engine
+
+That gives you enough structure to later filter:
+
+“Show ancestors alive in Virginia between 1924 and 1979 who had census labels affected by racial classification laws.”
+
+That is the path.
