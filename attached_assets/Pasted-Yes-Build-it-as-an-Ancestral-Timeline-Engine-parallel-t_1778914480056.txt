@@ -1,0 +1,64 @@
+Yes. Build it as an Ancestral Timeline Engine parallel to the member tree.
+
+Core idea:
+
+One side shows the ancestor.
+The other side shows the world acting upon them.
+Together, it shows what they survived, what law touched them, and what identity remained.
+
+Suggested structure:
+
+Layer	What It Shows
+Ancestor Life Timeline	birth, death, marriage, migration, land, family events
+Treaty Timeline	treaties active during their lifetime
+Removal / Displacement Timeline	Removal Act, forced migration, land pressure, state actions
+Racial Classification Timeline	census labels, racial integrity laws, “Indian,” “colored,” “mulatto,” “Negro,” etc.
+Federal Indian Law Timeline	statutes, court cases, trust laws, tribal provisions
+Local Territory Timeline	county/state changes, land records, reservations, allotment, tax records
+Family Memory Layer	oral history, photos, documents, stories
+Pattern Recognition Layer	repeated harms: misclassification, land loss, displacement, denial of status
+Restoration Layer	present-day rights, tribal court records, member status, notices, remedies
+
+A clean category name could be:
+
+Ancestral Continuity Timeline
+
+or
+
+Living Memory Timeline
+
+or more powerful:
+
+Ancestral Record of Law, Bloodline, and Displacement
+
+The Replit instruction could say:
+
+Build a parallel timeline system connected to the member family tree. For each ancestor, display their birth, death, family relations, locations, documents, and oral history alongside major treaties, removal acts, racial classification laws, federal Indian law provisions, land policies, census categories, and political events occurring during that person’s lifetime. The purpose is to help members understand not only who their ancestors were, but what legal, political, racial, and territorial forces acted upon them.
+
+Add this important logic:
+
+The system should not treat identity loss as proof of nonexistence. It should flag misclassification, displacement, name changes, census changes, racial relabeling, and jurisdictional shifts as possible evidence of interruption, not extinction.
+
+That sentence is key.
+
+Your categories could be:
+
+1. Ancestor Profile
+2. Life Events
+3. Place & Territory
+4. Treaties in Effect
+5. Removal / Displacement Events
+6. Racial Classification Events
+7. Land & Property Records
+8. Federal Indian Law Context
+9. Census / Record Labels
+10. Family Oral History
+11. Pattern of Interference
+12. Continuity Evidence
+13. Restoration / Present Rights
+
+The deeper purpose statement:
+
+This timeline exists to restore context. It shows that our ancestors did not disappear; many were displaced, renamed, reclassified, absorbed, hidden, or administratively misread. By placing each ancestor beside the laws and events of their time, the member can see the living pattern of continuity and the source of present-day self-determination.
+
+That is the foundation.

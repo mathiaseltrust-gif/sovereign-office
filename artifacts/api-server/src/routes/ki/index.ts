@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable } from "@workspace/db";
+import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable, legalProvisionsTable } from "@workspace/db";
 import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
@@ -178,7 +178,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   }
 
   const now30 = new Date(Date.now() + 30 * 86400000);
-  const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault] = await Promise.all([
+  const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault, activeProvisions] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
       .from(kiConversationsTable)
       .where(and(eq(kiConversationsTable.userId, userId), eq(kiConversationsTable.isDiary, true)))
@@ -214,6 +214,11 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       .from(profileVaultTable)
       .where(eq(profileVaultTable.userId, userId))
       .limit(1),
+    // Active Office Provisions — issued by the Chief Justice & Trustee
+    db.select({ title: legalProvisionsTable.title, category: legalProvisionsTable.category, purpose: legalProvisionsTable.purpose, content: legalProvisionsTable.content, keyStatutes: legalProvisionsTable.keyStatutes, companionCategories: legalProvisionsTable.companionCategories })
+      .from(legalProvisionsTable)
+      .where(eq(legalProvisionsTable.status, "active"))
+      .orderBy(legalProvisionsTable.category),
   ]);
 
   // ── Calendar context ──
@@ -259,6 +264,17 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   const profileCompletenessContext = missingVaultFields.length > 0
     ? `\n\nPROFILE COMPLETENESS — This member's secure vault is missing the following fields: ${missingVaultFields.join(", ")}. If it feels natural in the conversation, gently offer to help them complete their profile. Never pressure — just open the door: "I noticed your profile is missing a few things — would you like to add them?" Direct them to their Profile page to fill in missing information.`
     : `\n\nPROFILE COMPLETENESS — This member's profile vault appears complete.`;
+
+  // ── Office Provisions context ──
+  const provisionsContext = activeProvisions.length > 0
+    ? "\n\nOFFICE PROVISIONS — Issued by the Office of the Chief Justice & Trustee:\n" +
+      "These are the formal legal education frameworks this Office has authorized COMPANION to teach. Apply them when relevant. Always present as education, not individualized legal advice.\n\n" +
+      activeProvisions.map(p => {
+        const statutes = (p.keyStatutes as string[] | null) ?? [];
+        const cats = (p.companionCategories as string[] | null) ?? [];
+        return `[PROVISION: ${p.title.toUpperCase()}]\nPurpose: ${p.purpose}\n${p.content}${statutes.length > 0 ? `\nKey Citations: ${statutes.join(" | ")}` : ""}${cats.length > 0 ? `\nTopics: ${cats.join(", ")}` : ""}`;
+      }).join("\n\n---\n\n")
+    : "";
 
   const diaryContext = recentDiary.length > 0
     ? "\n\nRecent journal reflections from this member (most recent first):\n" +
@@ -328,6 +344,7 @@ ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
 ${rightsContext}${landContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
 ${SOVEREIGN_LAW_FOUNDATION}
+${provisionsContext}
 ${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}
 
 ROAD GOVERNOR — COMPANION OPERATING INSTRUCTIONS:

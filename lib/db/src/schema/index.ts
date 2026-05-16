@@ -33,3 +33,4 @@ export * from "./journal-entries";
 export * from "./org-documents";
 export * from "./protective-orders";
 export * from "./sovereign-documents";
+export * from "./legal-provisions";

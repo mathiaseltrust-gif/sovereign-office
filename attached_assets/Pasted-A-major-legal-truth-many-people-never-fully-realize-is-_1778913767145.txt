@@ -1,0 +1,290 @@
+A major legal truth many people never fully realize is that a large portion of federal Indian law protections are not dependent on whether a person “feels recognized” by a state agency or appears on a narrow administrative list. Many protections are tied to statutory definitions, treaty obligations, trust responsibilities, ancestry/community status, or eligibility classifications written directly into federal law.
+
+From your perspective, one of the strongest educational categories your Companion system could teach is:
+
+“Rights that exist whether or not you were properly informed of them.”
+
+Not in the sense that ignorance automatically voids everything — but in the sense that many protections are already operative by law and can be invoked once understood.
+
+Some foundational frameworks and categories you could build into the platform:
+
+⸻
+
+1. Federal Indian Status & Eligibility Frameworks
+
+These are broad federal definitions that often extend beyond narrow BIA-list assumptions.
+
+ISDEAA — Indian Self-Determination and Education Assistance Act
+
+Indian Self-Determination and Education Assistance Act
+
+Key concept:
+Congress used broad language tied to tribal communities and federally acknowledged tribal relationships.
+
+Core provision:
+
+* 25 U.S.C. § 5304(e)
+
+Useful Companion category:
+
+* “Self-Determination Rights”
+* “Community Governance”
+* “Tribal Administration”
+
+⸻
+
+IHCIA — Indian Health Care Improvement Act
+
+Indian Health Care Improvement Act
+
+Very important because it uses broad “Indian” definitions tied to:
+
+* descendants
+* communities
+* urban Indians
+* eligibility systems
+* tribal relations
+
+Key provisions:
+
+* 25 U.S.C. § 1603
+* Urban Indian definitions
+* Indian Health Program eligibility
+
+Companion categories:
+
+* “Health Rights”
+* “Urban Indian Protections”
+* “Federal Trust Health Obligations”
+
+⸻
+
+Snyder Act
+
+Snyder Act
+
+One of the deepest foundations.
+
+This is the broad appropriations and trust-responsibility statute for:
+
+* “benefit”
+* “care”
+* “assistance of Indians throughout the United States”
+
+Your system could treat this as:
+
+* “Foundational Federal Trust Responsibility”
+
+⸻
+
+2. Child & Family Protection Frameworks
+
+ICWA — Indian Child Welfare Act
+
+Indian Child Welfare Act
+
+Extremely important because it acknowledges:
+
+* tribal political identity
+* family/community continuity
+* protection against forced assimilation structures
+
+Useful Companion categories:
+
+* “Family Integrity”
+* “Kinship Rights”
+* “Cultural Continuity”
+* “Child Protection”
+
+⸻
+
+Violence Against Women Act (VAWA Tribal Provisions)
+
+Violence Against Women Act
+
+Important because Congress acknowledged tribal court authority and enforcement powers.
+
+Useful categories:
+
+* “Protective Orders”
+* “Tribal Court Enforcement”
+* “Interjurisdictional Recognition”
+
+⸻
+
+3. Land & Jurisdiction Frameworks
+
+Non-Intercourse Act
+
+Nonintercourse Act
+
+Foundational for:
+
+* land protections
+* restrictions on alienation
+* federal approval requirements
+
+Categories:
+
+* “Protected Land Interests”
+* “Restricted Land”
+* “Federal Protection Against Unlawful Encumbrance”
+
+⸻
+
+Indian Country Definition
+
+Indian Country
+
+Your Companion system could teach:
+
+* jurisdiction layers
+* territorial classifications
+* federal/tribal/state distinctions
+
+Categories:
+
+* “Jurisdiction Mapping”
+* “Protected Territory”
+* “Federal Indian Country”
+
+⸻
+
+4. Civil Rights & Constitutional Protection Frameworks
+
+Indian Civil Rights Act (ICRA)
+
+Indian Civil Rights Act
+
+Often overlooked.
+
+Protects:
+
+* due process concepts
+* tribal civil liberties structures
+* procedural safeguards
+
+Categories:
+
+* “Civil Liberties”
+* “Tribal Due Process”
+* “Rights Within Tribal Governance”
+
+⸻
+
+Religious Freedom Protections
+
+RFRA
+
+Religious Freedom Restoration Act
+
+AIRFA
+
+American Indian Religious Freedom Act
+
+Companion categories:
+
+* “Ceremonial Rights”
+* “Spiritual Practices”
+* “Protected Religious Exercise”
+
+⸻
+
+5. Healthcare & Benefits Election Rights
+
+Medicaid AI/AN Protections
+
+Medicaid American Indian and Alaska Native Protections
+
+Important because these protections often apply based on eligibility classification and federal definitions — not simply narrow recognition assumptions.
+
+Categories:
+
+* “Managed Care Opt-Out Rights”
+* “Fee-for-Service Election”
+* “AI/AN Healthcare Rights”
+
+⸻
+
+6. Education & Cultural Preservation
+
+Native American Languages Act
+
+Native American Languages Act
+
+Native American Graves Protection and Repatriation Act (NAGPRA)
+
+Native American Graves Protection and Repatriation Act
+
+Categories:
+
+* “Language Restoration”
+* “Ancestral Preservation”
+* “Cultural Property Rights”
+
+⸻
+
+7. Self-Executing Concepts Your Companion Could Teach
+
+This is where your “POW mentally vs free through knowledge” idea becomes educational rather than purely rhetorical.
+
+Your system could explain concepts like:
+
+* Rights unknown are often rights unused.
+* Administrative silence does not necessarily extinguish statutory protections.
+* Agencies operate through classifications, but classifications can be challenged.
+* Many federal protections attach through law itself.
+* Jurisdiction often depends on consent, status, territory, or congressional limits.
+* Tribal powers are generally understood as inherent and retained, not created by states.
+* Trust responsibilities can exist independently from administrative convenience structures.
+
+That becomes:
+
+* “Legal Literacy”
+* “Jurisdiction Awareness”
+* “Rights Activation Through Knowledge”
+* “Administrative Classification Review”
+
+⸻
+
+8. Companion Framework Categories You Could Build
+
+Here’s a clean structure for your Replit system:
+
+Category	Purpose
+Federal Indian Definitions	Broad statutory definitions
+Trust Responsibility	Federal obligations
+Land & Territory	Jurisdiction and protected land
+Family & Kinship	ICWA / continuity
+Health Rights	IHCIA / Medicaid
+Tribal Governance	ISDEAA / ICRA
+Civil Liberties	RFRA / due process
+Cultural Continuity	language, repatriation
+Administrative Review	classification challenges
+Notice & Remedy	templates and procedural guidance
+Jurisdiction Mapping	federal/tribal/state overlap
+Treaty & Historical Rights	treaty frameworks
+Protected Status Review	eligibility and classification analysis
+Community Stewardship	governance and trustee ethics
+
+⸻
+
+9. A Very Important Safeguard for the System
+
+One thing your Companion should consistently distinguish:
+
+* educational/legal-information guidance
+    vs.
+* unauthorized individualized legal representation
+
+That distinction protects both the platform and the users.
+
+So instead of:
+
+“You are definitely exempt.”
+
+The Companion could say:
+
+“These federal provisions may apply depending on your status, community relationship, eligibility, ancestry, location, or jurisdictional circumstances. Review and formal analysis may be appropriate.”
+
+That keeps the system grounded, responsible, and credible while still empowering people with knowledge.

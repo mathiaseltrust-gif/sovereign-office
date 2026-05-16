@@ -1,0 +1,196 @@
+What you are describing is essentially a:
+
+Language, Definition, and Jurisdiction Literacy System
+
+And honestly, that may become one of the most important parts of SDU because most people are not defeated by force first — they are defeated by definitions they never learned to examine.
+
+Not “word games” in a manipulative sense alone, but:
+
+* jurisdiction through language,
+* classification through terminology,
+* authority through framing,
+* and limitation through administrative narrowing.
+
+Your instinct is correct that this should probably begin with a foundational explanation block before definitions appear. Otherwise people may read definitions mechanically without understanding why definitions matter.
+
+A strong framing concept for SDU could be:
+
+⸻
+
+Why Definitions Matter
+
+Words determine:
+
+* jurisdiction,
+* eligibility,
+* classification,
+* authority,
+* protection,
+* obligation,
+* and access to remedies.
+
+A single change in definition can alter:
+
+* whether a people are protected,
+* whether land is treated as protected,
+* whether benefits attach,
+* whether jurisdiction applies,
+* or whether a community is treated as continuing or nonexistent.
+
+Many legal conflicts are not fought openly through force first, but through interpretation, classification, and administrative narrowing.
+
+For this reason, understanding definitions is part of self-determination, legal literacy, and historical comprehension.
+
+⸻
+
+Then your SDU section can become interactive.
+
+Suggested Structure
+
+1. Foundational Meaning Layer
+
+Start with:
+
+* ordinary meaning,
+* historical meaning,
+* dictionary meaning,
+* treaty-era meaning.
+
+Example sources:
+
+* Noah Webster’s American Dictionary of the English Language
+* Black’s Law Dictionary
+* treaty terminology
+* constitutional-era usage
+
+This is important because it shows:
+
+language before modern administrative narrowing.
+
+⸻
+
+2. Federal Statutory Definition Layer
+
+Then show:
+
+Provision	Definition Scope
+25 U.S.C. § 5304(e)	broad tribal definition
+25 U.S.C. § 1603	broad Indian healthcare definitions
+Snyder Act	“Indians throughout the United States”
+ICWA	tribal child/family definitions
+Medicaid AI/AN provisions	eligibility protections
+ICRA	tribal governance definitions
+
+This becomes:
+
+“Congressional operational definitions.”
+
+⸻
+
+3. Administrative Definition Layer
+
+Then distinguish:
+
+Type	Purpose
+Congressional statute	law enacted by Congress
+Agency regulation	implementation mechanism
+Administrative list	recordkeeping / funding administration
+Internal guidance	agency interpretation
+
+This is where you can carefully explain:
+
+* administrative systems are not always identical to the full scope of federal Indian law,
+* and agencies sometimes use narrower operational criteria for specific programs.
+
+That framing is more durable and educational than simply saying:
+
+“the list is fake.”
+
+Instead:
+
+“Administrative lists serve administrative purposes and do not necessarily exhaust the full scope of federal Indian statutory language, historical continuity, treaty history, or Indigenous identity.”
+
+That distinction is extremely important for credibility.
+
+⸻
+
+4. Parallel Definition Comparison Tool
+
+This part would be incredibly powerful in SDU.
+
+Example UI:
+
+Word	Common Understanding	Legal Meaning	Administrative Meaning	Historical Meaning
+Indian	race label	political/legal classification	eligibility category	Indigenous nationhood
+Tribe	social group	self-governing political community	recognized entity	kinship nation
+Recognition	acknowledgment	confirmation of relationship	agency process	continued existence
+Jurisdiction	control	lawful authority	agency territory	relational governance
+
+This teaches:
+
+“Words can operate differently depending on who is defining them.”
+
+⸻
+
+5. Pattern Recognition Engine
+
+Your AI Companion could help members identify:
+
+* narrowing language,
+* circular definitions,
+* hidden assumptions,
+* administrative substitution,
+* undefined terms,
+* jurisdictional presumptions,
+* and contradictory definitions across agencies.
+
+Example:
+
+“This document uses ‘federally recognized tribe’ without defining whether it refers to:
+
+1. the Part 83 administrative process,
+2. statutory tribal eligibility,
+3. treaty relationship,
+4. political community,
+    or 5. program administration.”
+
+That is powerful educationally.
+
+⸻
+
+6. A Very Important Framing Principle
+
+I would avoid framing this as:
+
+“Everything was a conspiracy through words.”
+
+Instead frame it as:
+
+“Language systems shape perception, classification, and legal outcomes. Understanding definitions allows individuals and communities to better understand history, governance, and the operation of law.”
+
+That keeps SDU grounded, educational, and intellectually serious.
+
+⸻
+
+7. Your Deeper SDU Insight
+
+What you are really teaching is:
+
+* the difference between:
+    * identity,
+    * classification,
+    * eligibility,
+    * administration,
+    * and existence.
+
+That distinction alone can transform how people understand themselves and their history.
+
+Because many communities were not erased physically first —
+they were:
+
+* renamed,
+* reclassified,
+* administratively absorbed,
+* or interpreted through narrower frameworks over time.
+
+That is a legitimate historical and legal literacy discussion.
