@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 
 const INSTRUMENT_TYPES = [
+  { value: "will_and_trust", label: "Will & Trust Instrument" },
   { value: "trust_instrument", label: "Trust Instrument" },
   { value: "deed_of_trust", label: "Deed of Trust" },
   { value: "land_trust", label: "Land Trust" },
