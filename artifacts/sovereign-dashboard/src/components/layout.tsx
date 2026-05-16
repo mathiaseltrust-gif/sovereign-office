@@ -10,6 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
+  GraduationCap, BookOpenCheck,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -243,6 +244,12 @@ const ORG_ITEMS: NavItemDef[] = [
   { href: "/iee",              label: "Indian Economic Enterprises",icon: Briefcase },
 ];
 
+// ── Education section ──────────────────────────────────────────────────────────
+const EDU_ITEMS: NavItemDef[] = [
+  { href: "/sdu",             label: "Self Determination University", icon: GraduationCap },
+  { href: "/sdu/definitions", label: "Sovereign Definitions",        icon: BookOpenCheck },
+];
+
 // ── Components ────────────────────────────────────────────────────────────────
 
 function NavItem({ item, location }: { item: NavItemDef; location: string }) {
@@ -347,6 +354,13 @@ export function Layout({ children }: { children: React.ReactNode }) {
           {showOrgs && (
             <CollapsibleSection
               section={{ id: "orgs", label: "Organizations", defaultOpen: false, items: ORG_ITEMS }}
+              location={location}
+            />
+          )}
+
+          {showOrgs && (
+            <CollapsibleSection
+              section={{ id: "education", label: "Education", defaultOpen: false, items: EDU_ITEMS }}
               location={location}
             />
           )}

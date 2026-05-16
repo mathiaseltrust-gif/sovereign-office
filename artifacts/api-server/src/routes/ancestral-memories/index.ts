@@ -3,8 +3,12 @@ import { db } from "@workspace/db";
 import { ancestralMemoriesTable } from "@workspace/db";
 import { eq, desc, sql } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
+import extractRouter from "./extract";
 
 const router = Router();
+
+// ── POST /api/ancestral-memories/extract — AI intake (voice + document → memory fields)
+router.use("/extract", extractRouter);
 
 // ── GET /api/ancestral-memories ───────────────────────────────────────────────
 // List all memories visible to the current user.
