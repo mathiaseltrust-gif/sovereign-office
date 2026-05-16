@@ -12,6 +12,7 @@ export const importantDatesTable = pgTable("important_dates", {
   customLabel: varchar("custom_label", { length: 200 }),
   notes: text("notes"),
   addedByUserId: integer("added_by_user_id").references(() => usersTable.id, { onDelete: "set null" }),
+  sourceKey: varchar("source_key", { length: 300 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

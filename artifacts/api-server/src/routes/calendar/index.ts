@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { calendarEventsTable, importantDatesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable } from "@workspace/db";
+import { eq, isNotNull } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 
 const router = Router();
@@ -85,11 +85,90 @@ router.get("/important-dates", requireAuth, async (_req, res, next) => {
   }
 });
 
+// ── GET /calendar/suggested-dates — auto-extracted from profile + family tree ──
+router.get("/suggested-dates", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId;
+    if (!userId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    const suggestions: Array<{
+      sourceKey: string;
+      type: string;
+      personName: string;
+      relation: string | null;
+      year: number | null;
+      month: number | null;
+      day: number | null;
+      partial: boolean;
+      source: string;
+    }> = [];
+
+    const [vault, lineageRows, existingDates] = await Promise.all([
+      db.select().from(profileVaultTable).where(eq(profileVaultTable.userId, userId)).limit(1),
+      db.select({
+        id: familyLineageTable.id,
+        fullName: familyLineageTable.fullName,
+        birthYear: familyLineageTable.birthYear,
+        deathYear: familyLineageTable.deathYear,
+        isDeceased: familyLineageTable.isDeceased,
+        notes: familyLineageTable.notes,
+      }).from(familyLineageTable).where(eq(familyLineageTable.addedByMemberId, userId)),
+      db.select({ sourceKey: importantDatesTable.sourceKey })
+        .from(importantDatesTable)
+        .where(isNotNull(importantDatesTable.sourceKey)),
+    ]);
+
+    const addedKeys = new Set(existingDates.map(e => e.sourceKey).filter(Boolean) as string[]);
+
+    // ── Own birthday from profile vault ──
+    const dob = vault[0]?.dateOfBirth;
+    if (dob) {
+      const parts = dob.split("-");
+      const dobKey = `profile_vault:${userId}:birthday`;
+      if (parts.length >= 3 && !addedKeys.has(dobKey)) {
+        const yr = parseInt(parts[0], 10);
+        const mo = parseInt(parts[1], 10);
+        const dy = parseInt(parts[2], 10);
+        if (!isNaN(yr) && !isNaN(mo) && !isNaN(dy)) {
+          suggestions.push({ sourceKey: dobKey, type: "birthday", personName: "Yourself", relation: "Self", year: yr, month: mo, day: dy, partial: false, source: "profile_vault" });
+        }
+      }
+    }
+
+    // ── Family lineage entries ──
+    for (const row of lineageRows) {
+      // Infer relationship from notes field "Relationship: child" pattern
+      let relation: string | null = null;
+      if (row.notes) {
+        const m = row.notes.match(/Relationship:\s*(\w+)/i);
+        if (m) relation = m[1];
+      }
+
+      if (row.birthYear) {
+        const bdKey = `lineage:${row.id}:birthday`;
+        if (!addedKeys.has(bdKey)) {
+          suggestions.push({ sourceKey: bdKey, type: "birthday", personName: row.fullName, relation, year: row.birthYear, month: null, day: null, partial: true, source: "lineage" });
+        }
+      }
+      if (row.deathYear && row.isDeceased) {
+        const memKey = `lineage:${row.id}:memorial`;
+        if (!addedKeys.has(memKey)) {
+          suggestions.push({ sourceKey: memKey, type: "memorial", personName: row.fullName, relation, year: row.deathYear, month: null, day: null, partial: true, source: "lineage" });
+        }
+      }
+    }
+
+    res.json(suggestions);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── POST /calendar/important-dates — save immediately to DB ───────────────────
 router.post("/important-dates", requireAuth, async (req, res, next) => {
   try {
     const user = req.user;
-    const { personName, relation, dateType, month, day, year, customLabel, notes } = req.body as {
+    const { personName, relation, dateType, month, day, year, customLabel, notes, sourceKey } = req.body as {
       personName: string;
       relation?: string;
       dateType?: string;
@@ -98,6 +177,7 @@ router.post("/important-dates", requireAuth, async (req, res, next) => {
       year?: number;
       customLabel?: string;
       notes?: string;
+      sourceKey?: string;
     };
 
     if (!personName || !month || !day) {
@@ -117,6 +197,7 @@ router.post("/important-dates", requireAuth, async (req, res, next) => {
         customLabel: customLabel ?? null,
         notes: notes ?? null,
         addedByUserId: user?.dbId ?? null,
+        sourceKey: sourceKey ?? null,
       })
       .returning();
 

@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getCurrentBearerToken } from "@/components/auth-provider";
-import { Plus, X, CalendarHeart } from "lucide-react";
+import { Plus, X, CalendarHeart, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -32,6 +32,18 @@ interface ImportantDate {
   customLabel: string | null;
   notes: string | null;
   createdAt: string;
+}
+
+interface DateSuggestion {
+  sourceKey: string;
+  type: string;
+  personName: string;
+  relation: string | null;
+  year: number | null;
+  month: number | null;
+  day: number | null;
+  partial: boolean;
+  source: string;
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -107,6 +119,11 @@ async function deleteImportantDate(id: number): Promise<void> {
   const r = await fetch(`/api/calendar/important-dates/${id}`, { method: "DELETE", headers: authHeaders() });
   if (!r.ok) throw new Error("Failed to delete important date");
 }
+async function fetchSuggestedDates(): Promise<DateSuggestion[]> {
+  const r = await fetch("/api/calendar/suggested-dates", { headers: authHeaders() });
+  if (!r.ok) throw new Error("Failed to load suggested dates");
+  return r.json();
+}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -125,6 +142,176 @@ function formatNextOccurrence(month: number, day: number): string {
     next = new Date(today.getFullYear() + 1, month - 1, day);
   }
   return `${MONTHS_SHORT[next.getMonth()]} ${next.getDate()}, ${next.getFullYear()}`;
+}
+
+// ── Date Suggestions Panel ────────────────────────────────────────────────────
+
+const SUGGESTION_TYPE_META: Record<string, { emoji: string; label: string; dateType: string }> = {
+  birthday: { emoji: "🎂", label: "Birthday", dateType: "birthday" },
+  memorial: { emoji: "🕯️", label: "Memorial Day", dateType: "memorial" },
+};
+
+function DateSuggestionsPanel() {
+  const qc = useQueryClient();
+  const [open, setOpen] = useState(true);
+  const [dismissed, setDismissed] = useState<string[]>(() => {
+    try { return JSON.parse(localStorage.getItem("cal_dismissed_suggestions") ?? "[]"); } catch { return []; }
+  });
+  const [partialInputs, setPartialInputs] = useState<Record<string, { month: string; day: string }>>({});
+
+  const { data: suggestions = [], isLoading } = useQuery({
+    queryKey: ["suggested-dates"],
+    queryFn: fetchSuggestedDates,
+    staleTime: 60_000,
+  });
+
+  const addMutation = useMutation({
+    mutationFn: createImportantDate,
+    onSuccess: (_data, vars) => {
+      qc.invalidateQueries({ queryKey: ["important-dates"] });
+      qc.invalidateQueries({ queryKey: ["calendar"] });
+      qc.invalidateQueries({ queryKey: ["suggested-dates"] });
+      const key = (vars as Record<string, unknown>).sourceKey as string | undefined;
+      if (key) dismiss(key);
+    },
+  });
+
+  function dismiss(sourceKey: string) {
+    setDismissed(prev => {
+      const next = [...prev, sourceKey];
+      try { localStorage.setItem("cal_dismissed_suggestions", JSON.stringify(next)); } catch { /* noop */ }
+      return next;
+    });
+  }
+
+  function handleAdd(s: DateSuggestion, month: number, day: number) {
+    const meta = SUGGESTION_TYPE_META[s.type] ?? { emoji: "⭐", label: "Important Date", dateType: "custom" };
+    addMutation.mutate({
+      personName: s.personName,
+      relation: s.relation ?? undefined,
+      dateType: meta.dateType,
+      month,
+      day,
+      year: s.year ?? undefined,
+      sourceKey: s.sourceKey,
+    });
+  }
+
+  const visible = suggestions.filter(s => !dismissed.includes(s.sourceKey));
+
+  if (isLoading) return null;
+  if (visible.length === 0) return null;
+
+  return (
+    <Card className="border-amber-200 dark:border-amber-900 bg-amber-50/40 dark:bg-amber-950/20">
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Sparkles size={14} className="text-amber-500" />
+            <CardTitle className="text-xs uppercase tracking-widest">Suggested Dates</CardTitle>
+            <span className="ml-1 inline-flex items-center justify-center w-4 h-4 rounded-full bg-amber-500 text-white text-[9px] font-bold leading-none">
+              {visible.length}
+            </span>
+          </div>
+          <button onClick={() => setOpen(o => !o)} className="text-muted-foreground hover:text-foreground transition-colors">
+            {open ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
+          </button>
+        </div>
+        {open && (
+          <p className="text-[10px] text-amber-700 dark:text-amber-400 mt-1 leading-relaxed">
+            We found these dates in your profile and family tree. Add them to your calendar so they appear as recurring reminders.
+          </p>
+        )}
+      </CardHeader>
+
+      {open && (
+        <CardContent className="space-y-3 pt-0">
+          {visible.map(s => {
+            const meta = SUGGESTION_TYPE_META[s.type] ?? { emoji: "⭐", label: "Important Date", dateType: "custom" };
+            const inputs = partialInputs[s.sourceKey] ?? { month: "", day: "" };
+            const isPending = addMutation.isPending && (addMutation.variables as Record<string, unknown>)?.sourceKey === s.sourceKey;
+
+            return (
+              <div key={s.sourceKey} className="rounded-lg border border-amber-200/70 dark:border-amber-800/50 bg-white dark:bg-amber-950/10 p-3 space-y-2">
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="text-base leading-none">{meta.emoji}</span>
+                      <span className="text-xs font-semibold truncate">{s.personName}</span>
+                      {s.relation && s.relation !== "Self" && (
+                        <Badge variant="outline" className="text-[9px] px-1 h-4 capitalize">{s.relation}</Badge>
+                      )}
+                      <Badge className="text-[9px] px-1 h-4 bg-amber-100 dark:bg-amber-900 text-amber-700 dark:text-amber-300 border-0">
+                        {meta.label}
+                      </Badge>
+                    </div>
+                    {s.year && (
+                      <p className="text-[10px] text-muted-foreground mt-0.5">
+                        {s.type === "memorial" ? "Passed" : "Born"} {s.year}
+                        {s.source === "profile_vault" ? " · from your profile" : " · from your family tree"}
+                      </p>
+                    )}
+                  </div>
+                  <button onClick={() => dismiss(s.sourceKey)} className="text-muted-foreground hover:text-foreground shrink-0 mt-0.5" title="Skip this suggestion">
+                    <X size={11} />
+                  </button>
+                </div>
+
+                {s.partial ? (
+                  <div className="space-y-2">
+                    <p className="text-[10px] text-muted-foreground">Enter the month and day to add to your calendar:</p>
+                    <div className="flex gap-1.5 items-end">
+                      <div className="flex-1">
+                        <Select
+                          value={inputs.month}
+                          onValueChange={v => setPartialInputs(p => ({ ...p, [s.sourceKey]: { ...inputs, month: v } }))}
+                        >
+                          <SelectTrigger className="h-7 text-[10px]"><SelectValue placeholder="Month" /></SelectTrigger>
+                          <SelectContent>
+                            {MONTH_OPTIONS.map(m => <SelectItem key={m.value} value={m.value} className="text-xs">{m.label}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="w-16">
+                        <Input
+                          type="number" min={1} max={31}
+                          value={inputs.day}
+                          onChange={e => setPartialInputs(p => ({ ...p, [s.sourceKey]: { ...inputs, day: e.target.value } }))}
+                          placeholder="Day"
+                          className="h-7 text-[10px]"
+                        />
+                      </div>
+                      <Button
+                        size="sm"
+                        className="h-7 text-[10px] px-2 bg-amber-600 hover:bg-amber-700 text-white shrink-0"
+                        disabled={!inputs.month || !inputs.day || isPending}
+                        onClick={() => {
+                          const mo = parseInt(inputs.month, 10);
+                          const dy = parseInt(inputs.day, 10);
+                          if (!isNaN(mo) && !isNaN(dy)) handleAdd(s, mo, dy);
+                        }}
+                      >
+                        {isPending ? "Adding…" : "Add"}
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <Button
+                    size="sm"
+                    className="w-full h-7 text-[10px] bg-amber-600 hover:bg-amber-700 text-white"
+                    disabled={isPending}
+                    onClick={() => handleAdd(s, s.month!, s.day!)}
+                  >
+                    {isPending ? "Adding to calendar…" : `Add ${meta.label} to Calendar`}
+                  </Button>
+                )}
+              </div>
+            );
+          })}
+        </CardContent>
+      )}
+    </Card>
+  );
 }
 
 // ── Important Dates Panel ─────────────────────────────────────────────────────
@@ -660,6 +847,9 @@ export default function CalendarPage() {
               )}
             </CardContent>
           </Card>
+
+          {/* Suggested Dates — auto-extracted from profile + family tree */}
+          <DateSuggestionsPanel />
 
           {/* Important Dates panel */}
           <ImportantDatesPanel />
