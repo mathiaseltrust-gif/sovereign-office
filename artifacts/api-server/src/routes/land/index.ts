@@ -591,4 +591,286 @@ router.delete("/pipeline/:id", requireAuth, requireLandWrite, async (req, res, n
   } catch (err) { next(err); }
 });
 
+// ── DEEDS ─────────────────────────────────────────────────────────────────────
+
+router.get("/deeds", requireAuth, async (req, res, next) => {
+  try {
+    const { parcelId } = req.query as Record<string, string>;
+    let q = sql`
+      SELECT d.*, p.tract_number
+      FROM land_deeds d
+      LEFT JOIN land_parcels p ON d.parcel_id = p.id
+      WHERE 1=1
+    `;
+    if (parcelId) q = sql`${q} AND d.parcel_id = ${Number(parcelId)}`;
+    q = sql`${q} ORDER BY d.recording_date DESC NULLS LAST, d.created_at DESC`;
+    const result = await db.execute(q);
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+router.post("/deeds", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const {
+      parcelId, deedType, grantor, grantee, recordingDate, recordingNumber,
+      recordingJurisdiction, instrumentDate, consideration, exemptionBasis,
+      sovereignImmunityClaim, conservationEasement, communityLandUse,
+      tribalCodeRef, federalLawRef, fileKey, fileName, fileUrl, notes, status,
+    } = req.body as Record<string, unknown>;
+    const result = await db.execute(sql`
+      INSERT INTO land_deeds (
+        parcel_id, deed_type, grantor, grantee, recording_date, recording_number,
+        recording_jurisdiction, instrument_date, consideration, exemption_basis,
+        sovereign_immunity_claim, conservation_easement, community_land_use,
+        tribal_code_ref, federal_law_ref, file_key, file_name, file_url, notes, status
+      ) VALUES (
+        ${num(parcelId)}, ${str(deedType) ?? "warranty"}, ${str(grantor)}, ${str(grantee)},
+        ${str(recordingDate) ? sql`${str(recordingDate)}::date` : sql`NULL`},
+        ${str(recordingNumber)}, ${str(recordingJurisdiction)},
+        ${str(instrumentDate) ? sql`${str(instrumentDate)}::date` : sql`NULL`},
+        ${num(consideration)}, ${str(exemptionBasis)},
+        ${bool(sovereignImmunityClaim)}, ${bool(conservationEasement)},
+        ${str(communityLandUse)}, ${str(tribalCodeRef)}, ${str(federalLawRef)},
+        ${str(fileKey)}, ${str(fileName)}, ${str(fileUrl)}, ${str(notes)},
+        ${str(status) ?? "active"}
+      )
+      RETURNING *
+    `);
+    res.status(201).json(result.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.put("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      deedType, grantor, grantee, recordingDate, recordingNumber,
+      recordingJurisdiction, instrumentDate, consideration, exemptionBasis,
+      sovereignImmunityClaim, conservationEasement, communityLandUse,
+      tribalCodeRef, federalLawRef, fileKey, fileName, fileUrl, notes, status,
+    } = req.body as Record<string, unknown>;
+    await db.execute(sql`
+      UPDATE land_deeds SET
+        deed_type = ${str(deedType)},
+        grantor = ${str(grantor)},
+        grantee = ${str(grantee)},
+        recording_date = ${str(recordingDate) ? sql`${str(recordingDate)}::date` : sql`NULL`},
+        recording_number = ${str(recordingNumber)},
+        recording_jurisdiction = ${str(recordingJurisdiction)},
+        instrument_date = ${str(instrumentDate) ? sql`${str(instrumentDate)}::date` : sql`NULL`},
+        consideration = ${num(consideration)},
+        exemption_basis = ${str(exemptionBasis)},
+        sovereign_immunity_claim = ${bool(sovereignImmunityClaim)},
+        conservation_easement = ${bool(conservationEasement)},
+        community_land_use = ${str(communityLandUse)},
+        tribal_code_ref = ${str(tribalCodeRef)},
+        federal_law_ref = ${str(federalLawRef)},
+        file_key = ${str(fileKey)},
+        file_name = ${str(fileName)},
+        file_url = ${str(fileUrl)},
+        notes = ${str(notes)},
+        status = ${str(status)},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `);
+    const updated = await db.execute(sql`SELECT * FROM land_deeds WHERE id = ${id}`);
+    res.json(updated.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.delete("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    await db.execute(sql`DELETE FROM land_deeds WHERE id = ${Number(req.params.id)}`);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── TAX COMPLIANCE ────────────────────────────────────────────────────────────
+
+router.get("/tax-compliance", requireAuth, async (req, res, next) => {
+  try {
+    const { parcelId, status } = req.query as Record<string, string>;
+    let q = sql`
+      SELECT t.*, p.tract_number, p.county
+      FROM land_tax_compliance t
+      LEFT JOIN land_parcels p ON t.parcel_id = p.id
+      WHERE 1=1
+    `;
+    if (parcelId) q = sql`${q} AND t.parcel_id = ${Number(parcelId)}`;
+    if (status) q = sql`${q} AND t.status = ${status}`;
+    q = sql`${q} ORDER BY t.deadline_date ASC NULLS LAST, t.created_at DESC`;
+    const result = await db.execute(q);
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+router.post("/tax-compliance", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const {
+      parcelId, complianceType, jurisdiction, taxYear, deadlineDate,
+      amountAssessed, amountPaid, paymentDate, status,
+      sovereignImmunityClaimed, immunityClaimDate, immunityBasis,
+      exemptionType, exemptionFiledDate, exemptionStatus,
+      appealFiled, appealDate, appealBasis, tribalCodeRef, federalLawRef, notes,
+    } = req.body as Record<string, unknown>;
+    const result = await db.execute(sql`
+      INSERT INTO land_tax_compliance (
+        parcel_id, compliance_type, jurisdiction, tax_year, deadline_date,
+        amount_assessed, amount_paid, payment_date, status,
+        sovereign_immunity_claimed, immunity_claim_date, immunity_basis,
+        exemption_type, exemption_filed_date, exemption_status,
+        appeal_filed, appeal_date, appeal_basis, tribal_code_ref, federal_law_ref, notes
+      ) VALUES (
+        ${num(parcelId)}, ${str(complianceType) ?? "county_tax"}, ${str(jurisdiction)},
+        ${num(taxYear)},
+        ${str(deadlineDate) ? sql`${str(deadlineDate)}::date` : sql`NULL`},
+        ${num(amountAssessed)}, ${num(amountPaid)},
+        ${str(paymentDate) ? sql`${str(paymentDate)}::date` : sql`NULL`},
+        ${str(status) ?? "pending"},
+        ${bool(sovereignImmunityClaimed)},
+        ${str(immunityClaimDate) ? sql`${str(immunityClaimDate)}::date` : sql`NULL`},
+        ${str(immunityBasis)}, ${str(exemptionType)},
+        ${str(exemptionFiledDate) ? sql`${str(exemptionFiledDate)}::date` : sql`NULL`},
+        ${str(exemptionStatus)}, ${bool(appealFiled)},
+        ${str(appealDate) ? sql`${str(appealDate)}::date` : sql`NULL`},
+        ${str(appealBasis)}, ${str(tribalCodeRef)}, ${str(federalLawRef)}, ${str(notes)}
+      )
+      RETURNING *
+    `);
+    res.status(201).json(result.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.put("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      complianceType, jurisdiction, taxYear, deadlineDate,
+      amountAssessed, amountPaid, paymentDate, status,
+      sovereignImmunityClaimed, immunityClaimDate, immunityBasis,
+      exemptionType, exemptionFiledDate, exemptionStatus,
+      appealFiled, appealDate, appealBasis, tribalCodeRef, federalLawRef, notes,
+    } = req.body as Record<string, unknown>;
+    await db.execute(sql`
+      UPDATE land_tax_compliance SET
+        compliance_type = ${str(complianceType)},
+        jurisdiction = ${str(jurisdiction)},
+        tax_year = ${num(taxYear)},
+        deadline_date = ${str(deadlineDate) ? sql`${str(deadlineDate)}::date` : sql`NULL`},
+        amount_assessed = ${num(amountAssessed)},
+        amount_paid = ${num(amountPaid)},
+        payment_date = ${str(paymentDate) ? sql`${str(paymentDate)}::date` : sql`NULL`},
+        status = ${str(status)},
+        sovereign_immunity_claimed = ${bool(sovereignImmunityClaimed)},
+        immunity_claim_date = ${str(immunityClaimDate) ? sql`${str(immunityClaimDate)}::date` : sql`NULL`},
+        immunity_basis = ${str(immunityBasis)},
+        exemption_type = ${str(exemptionType)},
+        exemption_filed_date = ${str(exemptionFiledDate) ? sql`${str(exemptionFiledDate)}::date` : sql`NULL`},
+        exemption_status = ${str(exemptionStatus)},
+        appeal_filed = ${bool(appealFiled)},
+        appeal_date = ${str(appealDate) ? sql`${str(appealDate)}::date` : sql`NULL`},
+        appeal_basis = ${str(appealBasis)},
+        tribal_code_ref = ${str(tribalCodeRef)},
+        federal_law_ref = ${str(federalLawRef)},
+        notes = ${str(notes)},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `);
+    const updated = await db.execute(sql`SELECT * FROM land_tax_compliance WHERE id = ${id}`);
+    res.json(updated.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.delete("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    await db.execute(sql`DELETE FROM land_tax_compliance WHERE id = ${Number(req.params.id)}`);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── MEMBER ASSIGNMENTS ────────────────────────────────────────────────────────
+
+router.get("/assignments", requireAuth, async (req, res, next) => {
+  try {
+    const { parcelId, status } = req.query as Record<string, string>;
+    let q = sql`
+      SELECT a.*, p.tract_number
+      FROM land_member_assignments a
+      LEFT JOIN land_parcels p ON a.parcel_id = p.id
+      WHERE 1=1
+    `;
+    if (parcelId) q = sql`${q} AND a.parcel_id = ${Number(parcelId)}`;
+    if (status) q = sql`${q} AND a.status = ${status}`;
+    q = sql`${q} ORDER BY a.assigned_date DESC NULLS LAST, a.created_at DESC`;
+    const result = await db.execute(q);
+    res.json(result.rows);
+  } catch (err) { next(err); }
+});
+
+router.post("/assignments", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const {
+      parcelId, memberId, memberName, memberEmail, assignmentRole, familyName,
+      stewardFamily, assignedDate, endDate, status, responsibilities,
+      culturalConnection, tribalCodeRef, authorizedBy, notes,
+    } = req.body as Record<string, unknown>;
+    const result = await db.execute(sql`
+      INSERT INTO land_member_assignments (
+        parcel_id, member_id, member_name, member_email, assignment_role, family_name,
+        steward_family, assigned_date, end_date, status, responsibilities,
+        cultural_connection, tribal_code_ref, authorized_by, notes
+      ) VALUES (
+        ${num(parcelId)}, ${str(memberId)}, ${str(memberName)}, ${str(memberEmail)},
+        ${str(assignmentRole) ?? "steward"}, ${str(familyName)}, ${str(stewardFamily)},
+        ${str(assignedDate) ? sql`${str(assignedDate)}::date` : sql`CURRENT_DATE`},
+        ${str(endDate) ? sql`${str(endDate)}::date` : sql`NULL`},
+        ${str(status) ?? "active"}, ${str(responsibilities)},
+        ${str(culturalConnection)}, ${str(tribalCodeRef)}, ${str(authorizedBy)}, ${str(notes)}
+      )
+      RETURNING *
+    `);
+    res.status(201).json(result.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.put("/assignments/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const {
+      memberId, memberName, memberEmail, assignmentRole, familyName,
+      stewardFamily, assignedDate, endDate, status, responsibilities,
+      culturalConnection, tribalCodeRef, authorizedBy, notes,
+    } = req.body as Record<string, unknown>;
+    await db.execute(sql`
+      UPDATE land_member_assignments SET
+        member_id = ${str(memberId)},
+        member_name = ${str(memberName)},
+        member_email = ${str(memberEmail)},
+        assignment_role = ${str(assignmentRole)},
+        family_name = ${str(familyName)},
+        steward_family = ${str(stewardFamily)},
+        assigned_date = ${str(assignedDate) ? sql`${str(assignedDate)}::date` : sql`CURRENT_DATE`},
+        end_date = ${str(endDate) ? sql`${str(endDate)}::date` : sql`NULL`},
+        status = ${str(status)},
+        responsibilities = ${str(responsibilities)},
+        cultural_connection = ${str(culturalConnection)},
+        tribal_code_ref = ${str(tribalCodeRef)},
+        authorized_by = ${str(authorizedBy)},
+        notes = ${str(notes)},
+        updated_at = NOW()
+      WHERE id = ${id}
+    `);
+    const updated = await db.execute(sql`SELECT * FROM land_member_assignments WHERE id = ${id}`);
+    res.json(updated.rows[0]);
+  } catch (err) { next(err); }
+});
+
+router.delete("/assignments/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+  try {
+    await db.execute(sql`DELETE FROM land_member_assignments WHERE id = ${Number(req.params.id)}`);
+    res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
 export default router;
+

@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
@@ -9,6 +9,7 @@ import {
   Plus, X, Edit2, Trash2, AlertTriangle, Clock, DollarSign, TrendingUp,
   Loader2, TreePine, Scale, ScrollText, ShieldAlert, ShieldCheck,
   ArrowRight, MapPin, FileText, BarChart3, ChevronRight, Gavel, BookOpen,
+  Map, FileArchive, CalendarDays, Users, Link2, Calendar, CheckCircle2, XCircle, ExternalLink,
 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -60,6 +61,36 @@ type Notice = {
   content: string; issued_date: string; effective_date: string; served_to: string;
   service_method: string; status: string; tribal_code_ref: string;
   federal_law_ref: string; court_order_ref: string; enforcement_action: string;
+  tract_number?: string;
+};
+
+type Deed = {
+  id: number; parcel_id: number; deed_type: string; grantor: string; grantee: string;
+  recording_date: string; recording_number: string; recording_jurisdiction: string;
+  instrument_date: string; consideration: string; exemption_basis: string;
+  sovereign_immunity_claim: boolean; conservation_easement: boolean;
+  community_land_use: string; tribal_code_ref: string; federal_law_ref: string;
+  file_key: string; file_name: string; file_url: string;
+  notes: string; status: string; tract_number?: string;
+};
+
+type TaxCompliance = {
+  id: number; parcel_id: number; compliance_type: string; jurisdiction: string;
+  tax_year: number; deadline_date: string; amount_assessed: string; amount_paid: string;
+  payment_date: string; status: string;
+  sovereign_immunity_claimed: boolean; immunity_claim_date: string; immunity_basis: string;
+  exemption_type: string; exemption_filed_date: string; exemption_status: string;
+  appeal_filed: boolean; appeal_date: string; appeal_basis: string;
+  tribal_code_ref: string; federal_law_ref: string; notes: string;
+  tract_number?: string; county?: string;
+};
+
+type MemberAssignment = {
+  id: number; parcel_id: number; member_id: string; member_name: string;
+  member_email: string; assignment_role: string; family_name: string;
+  steward_family: string; assigned_date: string; end_date: string;
+  status: string; responsibilities: string; cultural_connection: string;
+  tribal_code_ref: string; authorized_by: string; notes: string;
   tract_number?: string;
 };
 
@@ -1551,13 +1582,868 @@ function StewardshipTab({ pipeline, onRefresh }: { pipeline: StewardshipEntry[];
   );
 }
 
+// ── Map Tab (Leaflet) ─────────────────────────────────────────────────────────
+
+function MapTab({ parcels }: { parcels: Parcel[] }) {
+  const mapRef = useRef<HTMLDivElement>(null);
+  const leafletMap = useRef<unknown>(null);
+  const [filter, setFilter] = useState("");
+
+  const mapParcels = parcels.filter(p => p.lat && p.lng && !isNaN(Number(p.lat)) && !isNaN(Number(p.lng)));
+  const filtered = filter ? mapParcels.filter(p => p.internal_tribal_status === filter) : mapParcels;
+
+  // colour by internal status
+  const markerColor = (s: string) => ({
+    tribal_government_land: "#b45309",
+    tribal_trust_stewardship: "#059669",
+    protected_tribal_land: "#1d4ed8",
+    restricted_tribal_status: "#7c3aed",
+    beneficiary_stewardship: "#0d9488",
+    sacred_cultural_land: "#be123c",
+    federal_indian_law_implicated: "#c2410c",
+    jurisdictional_review: "#dc2626",
+  }[s] ?? "#6b7280");
+
+  useEffect(() => {
+    if (!mapRef.current) return;
+    // dynamic import to avoid SSR issues
+    import("leaflet").then(L => {
+      if (leafletMap.current) {
+        (leafletMap.current as { remove(): void }).remove();
+        leafletMap.current = null;
+      }
+      if (!mapRef.current) return;
+
+      // inject leaflet CSS once
+      if (!document.getElementById("leaflet-css")) {
+        const link = document.createElement("link");
+        link.id = "leaflet-css";
+        link.rel = "stylesheet";
+        link.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+        document.head.appendChild(link);
+      }
+
+      const center: [number, number] = filtered.length > 0
+        ? [filtered.reduce((a, p) => a + Number(p.lat), 0) / filtered.length,
+           filtered.reduce((a, p) => a + Number(p.lng), 0) / filtered.length]
+        : [31.5, -97.5];
+
+      const map = L.map(mapRef.current!).setView(center, filtered.length > 0 ? 10 : 6);
+      leafletMap.current = map;
+
+      L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+        attribution: "© OpenStreetMap contributors",
+        maxZoom: 18,
+      }).addTo(map);
+
+      filtered.forEach(p => {
+        const color = markerColor(p.internal_tribal_status);
+        const icon = L.divIcon({
+          html: `<div style="width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;box-shadow:0 1px 4px rgba(0,0,0,.5)"></div>`,
+          className: "",
+          iconSize: [14, 14],
+          iconAnchor: [7, 7],
+        });
+        const statusLabel = INTERNAL_TRIBAL_STATUSES.find(s => s.value === p.internal_tribal_status)?.label ?? p.internal_tribal_status;
+        const jurisdLabel = JURISDICTIONAL_STATUSES.find(s => s.value === p.jurisdictional_status)?.label ?? p.jurisdictional_status ?? "—";
+        L.marker([Number(p.lat), Number(p.lng)], { icon })
+          .bindPopup(`
+            <div style="font-family:system-ui;min-width:200px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:4px">${p.tract_number || p.parcel_id || "#" + p.id}</div>
+              ${p.legal_description ? `<div style="font-size:11px;color:#666;margin-bottom:6px">${p.legal_description.slice(0, 80)}…</div>` : ""}
+              <div style="font-size:11px"><b>Status:</b> ${statusLabel}</div>
+              <div style="font-size:11px"><b>Jurisdiction:</b> ${jurisdLabel}</div>
+              <div style="font-size:11px"><b>Acreage:</b> ${p.acreage ? Number(p.acreage).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"} ac</div>
+              ${[p.county, p.state].filter(Boolean).length ? `<div style="font-size:11px"><b>Location:</b> ${[p.county, p.state].filter(Boolean).join(", ")}</div>` : ""}
+              ${p.tribal_code_ref ? `<div style="font-size:10px;color:#b45309;margin-top:4px">${p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>` : ""}
+            </div>
+          `)
+          .addTo(map);
+      });
+    });
+
+    return () => {
+      if (leafletMap.current) {
+        (leafletMap.current as { remove(): void }).remove();
+        leafletMap.current = null;
+      }
+    };
+  }, [filtered.length, filter, JSON.stringify(filtered.map(p => p.id))]);
+
+  const noCoords = parcels.length - mapParcels.length;
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filter} onChange={setFilter} options={INTERNAL_TRIBAL_STATUSES} placeholder="All Tribal Statuses" />
+        <span className="text-xs text-muted-foreground ml-auto">
+          {filtered.length} parcels plotted
+          {noCoords > 0 && ` · ${noCoords} missing coordinates`}
+        </span>
+      </div>
+
+      {mapParcels.length === 0 && (
+        <div className="bg-muted/20 border border-border rounded-lg p-8 text-center text-sm text-muted-foreground">
+          <MapPin className="w-8 h-8 mx-auto mb-3 text-amber-400/50" />
+          <p className="font-medium mb-1">No parcels with coordinates</p>
+          <p className="text-xs">Add latitude and longitude when registering parcels to plot them on the map.</p>
+        </div>
+      )}
+
+      {mapParcels.length > 0 && (
+        <>
+          <div ref={mapRef} className="w-full rounded-lg overflow-hidden border border-border" style={{ height: 460 }} />
+          <div className="flex flex-wrap gap-2 text-xs">
+            {INTERNAL_TRIBAL_STATUSES.map(s => (
+              <div key={s.value} className="flex items-center gap-1.5">
+                <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: markerColor(s.value) }} />
+                <span className="text-muted-foreground">{s.label.split(" ").slice(0, 3).join(" ")}</span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+// ── Deed Modal ────────────────────────────────────────────────────────────────
+
+const DEED_TYPES = [
+  { value: "warranty",      label: "Warranty Deed" },
+  { value: "quitclaim",     label: "Quit-Claim Deed" },
+  { value: "trust_deed",    label: "Tribal Trust Deed" },
+  { value: "grant_deed",    label: "Grant Deed" },
+  { value: "conservation",  label: "Conservation Easement" },
+  { value: "community_land",label: "Community Land Grant" },
+  { value: "sovereign_declaration", label: "Sovereign Territorial Declaration" },
+  { value: "treaty_conveyance", label: "Treaty Conveyance Document" },
+];
+
+const COMMUNITY_USES = [
+  { value: "ceremonial",    label: "Ceremonial / Sacred Use" },
+  { value: "housing",       label: "Tribal Housing" },
+  { value: "agriculture",   label: "Community Agriculture" },
+  { value: "government",    label: "Governmental / Administrative" },
+  { value: "conservation",  label: "Conservation / Preservation" },
+  { value: "economic",      label: "Economic Development" },
+  { value: "educational",   label: "Educational / Cultural Center" },
+];
+
+const EMPTY_DEED = {
+  parcelId: "", deedType: "warranty", grantor: "", grantee: "", recordingDate: "",
+  recordingNumber: "", recordingJurisdiction: "", instrumentDate: "", consideration: "",
+  exemptionBasis: "", sovereignImmunityClaim: false, conservationEasement: false,
+  communityLandUse: "", tribalCodeRef: "", federalLawRef: "",
+  fileKey: "", fileName: "", fileUrl: "", notes: "", status: "active",
+};
+
+function DeedModal({ deed, parcels, onClose, onSaved }: { deed?: Deed; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(deed ? {
+    parcelId: String(deed.parcel_id ?? ""), deedType: deed.deed_type ?? "warranty",
+    grantor: deed.grantor ?? "", grantee: deed.grantee ?? "",
+    recordingDate: deed.recording_date?.split("T")[0] ?? "",
+    recordingNumber: deed.recording_number ?? "",
+    recordingJurisdiction: deed.recording_jurisdiction ?? "",
+    instrumentDate: deed.instrument_date?.split("T")[0] ?? "",
+    consideration: deed.consideration ?? "", exemptionBasis: deed.exemption_basis ?? "",
+    sovereignImmunityClaim: deed.sovereign_immunity_claim ?? false,
+    conservationEasement: deed.conservation_easement ?? false,
+    communityLandUse: deed.community_land_use ?? "",
+    tribalCodeRef: deed.tribal_code_ref ?? "", federalLawRef: deed.federal_law_ref ?? "",
+    fileKey: deed.file_key ?? "", fileName: deed.file_name ?? "", fileUrl: deed.file_url ?? "",
+    notes: deed.notes ?? "", status: deed.status ?? "active",
+  } : { ...EMPTY_DEED });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    setSaveErr(null); setSaving(true);
+    try {
+      const res = await authFetch(deed ? `/api/land/deeds/${deed.id}` : "/api/land/deeds", { method: deed ? "PUT" : "POST", body: JSON.stringify(form) });
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
+      onSaved();
+    } catch (e) { setSaveErr(e instanceof Error ? e.message : "Unknown error."); } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title={deed ? "Edit Deed Record" : "Add Deed / Instrument"} subtitle="Sovereign Deed Repository — METC Title 4" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <Field label="Parcel">
+            <Sel value={form.parcelId} onChange={v => setForm(f => ({ ...f, parcelId: v }))}
+              options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || "#" + p.id} — ${p.legal_description?.slice(0, 50) ?? ""}` }))}
+              placeholder="Select parcel" />
+          </Field>
+        </div>
+        <Field label="Deed / Instrument Type">
+          <Sel value={form.deedType} onChange={v => setForm(f => ({ ...f, deedType: v }))} options={DEED_TYPES} />
+        </Field>
+        <Field label="Status">
+          <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[{ value: "active", label: "Active" }, { value: "superseded", label: "Superseded" }, { value: "void", label: "Void" }, { value: "pending", label: "Pending" }]} />
+        </Field>
+        <div className="col-span-2"><Field label="Grantor (From)"><Input value={form.grantor} onChange={set("grantor")} placeholder="Person or entity conveying the land" /></Field></div>
+        <div className="col-span-2"><Field label="Grantee (To)"><Input value={form.grantee} onChange={set("grantee")} placeholder="Person or entity receiving the land (e.g. Mathias El Tribe)" /></Field></div>
+        <Field label="Instrument Date"><Input type="date" value={form.instrumentDate} onChange={set("instrumentDate")} /></Field>
+        <Field label="Recording Date"><Input type="date" value={form.recordingDate} onChange={set("recordingDate")} /></Field>
+        <Field label="Recording Number"><Input value={form.recordingNumber} onChange={set("recordingNumber")} placeholder="County/recorder instrument #" /></Field>
+        <Field label="Recording Jurisdiction"><Input value={form.recordingJurisdiction} onChange={set("recordingJurisdiction")} placeholder="County/recorder office" /></Field>
+        <Field label="Consideration ($)"><Input type="number" step="0.01" value={form.consideration} onChange={set("consideration")} placeholder="0.00 (or exempt)" /></Field>
+        <Field label="Community Land Use">
+          <Sel value={form.communityLandUse} onChange={v => setForm(f => ({ ...f, communityLandUse: v }))} options={COMMUNITY_USES} placeholder="Select use (if applicable)" />
+        </Field>
+
+        <SectionDivider icon={ShieldCheck} label="Exemption & Sovereign Immunity" />
+        <div className="col-span-2 flex flex-col gap-3">
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="d-sovereign-immunity" checked={form.sovereignImmunityClaim}
+              onChange={e => setForm(f => ({ ...f, sovereignImmunityClaim: e.target.checked }))}
+              className="w-4 h-4 accent-amber-500" />
+            <label htmlFor="d-sovereign-immunity" className="text-sm font-medium text-amber-300">
+              Sovereign Immunity Claim — transfer outside state/county jurisdiction under METC T4
+            </label>
+          </div>
+          <div className="flex items-center gap-3">
+            <input type="checkbox" id="d-conservation" checked={form.conservationEasement}
+              onChange={e => setForm(f => ({ ...f, conservationEasement: e.target.checked }))}
+              className="w-4 h-4 accent-emerald-500" />
+            <label htmlFor="d-conservation" className="text-sm font-medium text-emerald-300">
+              Conservation Easement — land use restricted for preservation/cultural protection
+            </label>
+          </div>
+        </div>
+        <div className="col-span-2"><Field label="Exemption Basis"><Textarea value={form.exemptionBasis} onChange={set("exemptionBasis")} placeholder="Basis for tax exemption, transfer fee waiver, or sovereign immunity claim…" className="resize-none h-14" /></Field></div>
+
+        <SectionDivider icon={FileArchive} label="Digital Deed File" />
+        <Field label="File URL (Google Drive, SharePoint, or direct link)">
+          <Input value={form.fileUrl} onChange={set("fileUrl")} placeholder="https://…" />
+        </Field>
+        <Field label="File Name / Description">
+          <Input value={form.fileName} onChange={set("fileName")} placeholder="e.g. Warranty_Deed_MET-2024-001.pdf" />
+        </Field>
+
+        <SectionDivider icon={Scale} label="METC Title 4 Authority" />
+        <Field label="METC Title 4 Reference">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))} options={METC_TITLE4_SECTIONS} placeholder="Select code section" />
+        </Field>
+        <Field label="Federal Law Reference">
+          <Sel value={form.federalLawRef} onChange={v => setForm(f => ({ ...f, federalLawRef: v }))} options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
+        </Field>
+
+        <div className="col-span-2"><Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
+      </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
+      <div className="flex justify-end gap-2 mt-5">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving} className="bg-amber-600 hover:bg-amber-700 text-white">
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {deed ? "Save Changes" : "Record Deed"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Deeds Tab ─────────────────────────────────────────────────────────────────
+
+function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parcel[]; onRefresh: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Deed | null>(null);
+  const [deleting, setDeleting] = useState<number | null>(null);
+  const [filterParcel, setFilterParcel] = useState("");
+
+  const filtered = filterParcel ? deeds.filter(d => String(d.parcel_id) === filterParcel) : deeds;
+  const immunityCount = deeds.filter(d => d.sovereign_immunity_claim).length;
+
+  async function del(id: number) {
+    if (!confirm("Remove this deed record?")) return;
+    setDeleting(id);
+    try { await authFetch(`/api/land/deeds/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
+  }
+
+  return (
+    <div className="space-y-4">
+      {immunityCount > 0 && (
+        <div className="bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3 flex items-center gap-3">
+          <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+          <p className="text-sm text-amber-300 font-medium">{immunityCount} deed{immunityCount !== 1 ? "s" : ""} with active <b>Sovereign Immunity Claim</b> — outside county/state jurisdiction</p>
+        </div>
+      )}
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filterParcel} onChange={setFilterParcel}
+          options={parcels.map(p => ({ value: String(p.id), label: p.tract_number || p.parcel_id || `#${p.id}` }))}
+          placeholder="All Parcels" />
+        <div className="ml-auto">
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Deed
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
+              <th className="text-left px-4 py-2.5">Deed / Instrument</th>
+              <th className="text-left px-4 py-2.5">Grantor → Grantee</th>
+              <th className="text-left px-4 py-2.5">Dates</th>
+              <th className="text-left px-4 py-2.5">Parcel</th>
+              <th className="text-left px-4 py-2.5">Flags</th>
+              <th className="px-4 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr><td colSpan={6} className="text-center py-10 text-muted-foreground text-sm">
+                No deeds recorded. Add warranty deeds, trust deeds, conservation easements, and sovereign declarations.
+              </td></tr>
+            )}
+            {filtered.map(d => (
+              <tr key={d.id} className="border-t border-border hover:bg-muted/20 transition-colors">
+                <td className="px-4 py-3">
+                  <div className="font-medium text-foreground">{DEED_TYPES.find(t => t.value === d.deed_type)?.label ?? d.deed_type}</div>
+                  {d.recording_number && <div className="text-xs text-muted-foreground">#{d.recording_number}</div>}
+                  {d.tribal_code_ref && <div className="text-[10px] text-amber-500">{d.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-xs text-muted-foreground">{d.grantor || "—"}</div>
+                  <div className="text-xs font-medium text-foreground flex items-center gap-1">
+                    <ArrowRight className="w-3 h-3 text-amber-500" />{d.grantee || "—"}
+                  </div>
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  {d.instrument_date && <div>Instr: {new Date(d.instrument_date).toLocaleDateString()}</div>}
+                  {d.recording_date && <div>Rec: {new Date(d.recording_date).toLocaleDateString()}</div>}
+                  {d.recording_jurisdiction && <div className="text-[10px]">{d.recording_jurisdiction}</div>}
+                </td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">{d.tract_number || `#${d.parcel_id}`}</td>
+                <td className="px-4 py-3">
+                  <div className="flex flex-col gap-0.5">
+                    {d.sovereign_immunity_claim && <Badge label="Sovereign Immunity" className="bg-amber-800 text-amber-100" />}
+                    {d.conservation_easement && <Badge label="Conservation" className="bg-emerald-800 text-emerald-100" />}
+                    {d.file_url && (
+                      <a href={d.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300">
+                        <ExternalLink className="w-2.5 h-2.5" />{d.file_name || "View Deed"}
+                      </a>
+                    )}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex items-center gap-1">
+                    <button onClick={() => { setEditing(d); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
+                    <button onClick={() => del(d.id)} disabled={deleting === d.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                      {deleting === d.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                    </button>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-xs text-muted-foreground">{filtered.length} deed record{filtered.length !== 1 ? "s" : ""}</p>
+      {modal && <DeedModal deed={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+    </div>
+  );
+}
+
+// ── Tax Compliance Modal ──────────────────────────────────────────────────────
+
+const TAX_COMPLIANCE_TYPES = [
+  { value: "county_tax",       label: "County Property Tax" },
+  { value: "municipal_tax",    label: "Municipal Tax" },
+  { value: "state_tax",        label: "State Tax" },
+  { value: "special_assessment", label: "Special Assessment" },
+  { value: "exemption_filing", label: "Exemption Filing" },
+  { value: "immunity_claim",   label: "Sovereign Immunity Claim" },
+  { value: "appeal",           label: "Tax Appeal / Challenge" },
+  { value: "annual_review",    label: "Annual Compliance Review" },
+];
+
+const EXEMPTION_TYPES = [
+  { value: "tribal_sovereign",  label: "Tribal Sovereign Immunity" },
+  { value: "nonprofit",         label: "Non-Profit / Charitable" },
+  { value: "agricultural",      label: "Agricultural Use" },
+  { value: "conservation",      label: "Conservation Easement" },
+  { value: "religious",         label: "Religious / Ceremonial Use" },
+  { value: "governmental",      label: "Governmental Use" },
+  { value: "treaty",            label: "Treaty Rights Basis" },
+];
+
+const EMPTY_TAX = {
+  parcelId: "", complianceType: "county_tax", jurisdiction: "", taxYear: String(new Date().getFullYear()),
+  deadlineDate: "", amountAssessed: "", amountPaid: "", paymentDate: "", status: "pending",
+  sovereignImmunityClaimed: false, immunityClaimDate: "", immunityBasis: "",
+  exemptionType: "", exemptionFiledDate: "", exemptionStatus: "",
+  appealFiled: false, appealDate: "", appealBasis: "", tribalCodeRef: "", federalLawRef: "", notes: "",
+};
+
+function TaxModal({ entry, parcels, onClose, onSaved }: { entry?: TaxCompliance; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(entry ? {
+    parcelId: String(entry.parcel_id ?? ""), complianceType: entry.compliance_type ?? "county_tax",
+    jurisdiction: entry.jurisdiction ?? "", taxYear: String(entry.tax_year ?? new Date().getFullYear()),
+    deadlineDate: entry.deadline_date?.split("T")[0] ?? "",
+    amountAssessed: entry.amount_assessed ?? "", amountPaid: entry.amount_paid ?? "",
+    paymentDate: entry.payment_date?.split("T")[0] ?? "", status: entry.status ?? "pending",
+    sovereignImmunityClaimed: entry.sovereign_immunity_claimed ?? false,
+    immunityClaimDate: entry.immunity_claim_date?.split("T")[0] ?? "",
+    immunityBasis: entry.immunity_basis ?? "", exemptionType: entry.exemption_type ?? "",
+    exemptionFiledDate: entry.exemption_filed_date?.split("T")[0] ?? "",
+    exemptionStatus: entry.exemption_status ?? "",
+    appealFiled: entry.appeal_filed ?? false, appealDate: entry.appeal_date?.split("T")[0] ?? "",
+    appealBasis: entry.appeal_basis ?? "", tribalCodeRef: entry.tribal_code_ref ?? "",
+    federalLawRef: entry.federal_law_ref ?? "", notes: entry.notes ?? "",
+  } : { ...EMPTY_TAX });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    setSaveErr(null); setSaving(true);
+    try {
+      const res = await authFetch(entry ? `/api/land/tax-compliance/${entry.id}` : "/api/land/tax-compliance", { method: entry ? "PUT" : "POST", body: JSON.stringify(form) });
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
+      onSaved();
+    } catch (e) { setSaveErr(e instanceof Error ? e.message : "Unknown error."); } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title={entry ? "Edit Tax Compliance" : "Track Tax / Compliance Item"} subtitle="Tax Compliance Calendar — Sovereign Immunity & Exemption Tracking" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <Field label="Parcel">
+            <Sel value={form.parcelId} onChange={v => setForm(f => ({ ...f, parcelId: v }))}
+              options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || "#" + p.id} — ${p.county ?? ""}` }))}
+              placeholder="Select parcel" />
+          </Field>
+        </div>
+        <Field label="Compliance Type">
+          <Sel value={form.complianceType} onChange={v => setForm(f => ({ ...f, complianceType: v }))} options={TAX_COMPLIANCE_TYPES} />
+        </Field>
+        <Field label="Status">
+          <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[
+              { value: "pending", label: "Pending" },
+              { value: "paid", label: "Paid" },
+              { value: "exempt", label: "Exempt" },
+              { value: "immunity_claimed", label: "Immunity Claimed" },
+              { value: "appealing", label: "Under Appeal" },
+              { value: "overdue", label: "Overdue" },
+              { value: "voided", label: "Voided / Void Ab Initio" },
+            ]} />
+        </Field>
+        <Field label="Jurisdiction / Entity"><Input value={form.jurisdiction} onChange={set("jurisdiction")} placeholder="e.g. Travis County Tax Office" /></Field>
+        <Field label="Tax Year"><Input type="number" value={form.taxYear} onChange={set("taxYear")} placeholder={String(new Date().getFullYear())} /></Field>
+        <Field label="Deadline Date"><Input type="date" value={form.deadlineDate} onChange={set("deadlineDate")} /></Field>
+        <Field label="Amount Assessed ($)"><Input type="number" step="0.01" value={form.amountAssessed} onChange={set("amountAssessed")} placeholder="0.00" /></Field>
+        <Field label="Amount Paid ($)"><Input type="number" step="0.01" value={form.amountPaid} onChange={set("amountPaid")} placeholder="0.00" /></Field>
+        <Field label="Payment Date"><Input type="date" value={form.paymentDate} onChange={set("paymentDate")} /></Field>
+
+        <SectionDivider icon={ShieldCheck} label="Sovereign Immunity Claim" />
+        <div className="col-span-2 flex items-center gap-3">
+          <input type="checkbox" id="t-immunity" checked={form.sovereignImmunityClaimed}
+            onChange={e => setForm(f => ({ ...f, sovereignImmunityClaimed: e.target.checked }))}
+            className="w-4 h-4 accent-amber-500" />
+          <label htmlFor="t-immunity" className="text-sm font-medium text-amber-300">
+            Sovereign Immunity Claimed — tribal land not subject to this tax/assessment
+          </label>
+        </div>
+        {form.sovereignImmunityClaimed && (
+          <>
+            <Field label="Immunity Claim Date"><Input type="date" value={form.immunityClaimDate} onChange={set("immunityClaimDate")} /></Field>
+            <div className="col-span-2 col-start-1"><Field label="Immunity Basis"><Textarea value={form.immunityBasis} onChange={set("immunityBasis")} placeholder="Cite METC Title 4 sections, federal Indian law, treaties…" className="resize-none h-14" /></Field></div>
+          </>
+        )}
+
+        <SectionDivider icon={FileText} label="Exemption Filing" />
+        <Field label="Exemption Type">
+          <Sel value={form.exemptionType} onChange={v => setForm(f => ({ ...f, exemptionType: v }))} options={EXEMPTION_TYPES} placeholder="Select (if applicable)" />
+        </Field>
+        <Field label="Exemption Status">
+          <Sel value={form.exemptionStatus} onChange={v => setForm(f => ({ ...f, exemptionStatus: v }))}
+            options={[{ value: "not_filed", label: "Not Filed" }, { value: "filed", label: "Filed" }, { value: "approved", label: "Approved" }, { value: "denied", label: "Denied" }, { value: "appealing", label: "Under Appeal" }]}
+            placeholder="Select status" />
+        </Field>
+        <Field label="Exemption Filed Date"><Input type="date" value={form.exemptionFiledDate} onChange={set("exemptionFiledDate")} /></Field>
+        <div className="col-span-2 flex items-center gap-3">
+          <input type="checkbox" id="t-appeal" checked={form.appealFiled}
+            onChange={e => setForm(f => ({ ...f, appealFiled: e.target.checked }))}
+            className="w-4 h-4 accent-amber-500" />
+          <label htmlFor="t-appeal" className="text-sm font-medium text-foreground">Appeal Filed</label>
+        </div>
+        {form.appealFiled && (
+          <>
+            <Field label="Appeal Date"><Input type="date" value={form.appealDate} onChange={set("appealDate")} /></Field>
+            <div className="col-span-2 col-start-1"><Field label="Appeal Basis"><Textarea value={form.appealBasis} onChange={set("appealBasis")} className="resize-none h-12" /></Field></div>
+          </>
+        )}
+
+        <SectionDivider icon={Scale} label="METC Title 4 Authority" />
+        <Field label="METC Title 4 Reference">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))} options={METC_TITLE4_SECTIONS} placeholder="Select section" />
+        </Field>
+        <Field label="Federal Law Reference">
+          <Sel value={form.federalLawRef} onChange={v => setForm(f => ({ ...f, federalLawRef: v }))} options={FEDERAL_LAW_REFS} placeholder="Select (if applicable)" />
+        </Field>
+        <div className="col-span-2"><Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-12" /></Field></div>
+      </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
+      <div className="flex justify-end gap-2 mt-5">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving} className={`${form.sovereignImmunityClaimed ? "bg-amber-600 hover:bg-amber-700" : "bg-amber-600 hover:bg-amber-700"} text-white`}>
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {entry ? "Save Changes" : "Track Item"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Tax Compliance Tab ────────────────────────────────────────────────────────
+
+function TaxTab({ tax, parcels, onRefresh }: { tax: TaxCompliance[]; parcels: Parcel[]; onRefresh: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<TaxCompliance | null>(null);
+  const [filterStatus, setFilterStatus] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const filtered = filterStatus ? tax.filter(t => t.status === filterStatus) : tax;
+  const today = new Date();
+
+  function daysUntilDate(d: string) { return Math.ceil((new Date(d).getTime() - today.getTime()) / 86_400_000); }
+
+  const overdue = filtered.filter(t => t.deadline_date && daysUntilDate(t.deadline_date) < 0 && t.status === "pending");
+  const dueThisMonth = filtered.filter(t => t.deadline_date && daysUntilDate(t.deadline_date) >= 0 && daysUntilDate(t.deadline_date) <= 30 && t.status === "pending");
+  const immunityCount = filtered.filter(t => t.sovereign_immunity_claimed).length;
+
+  async function del(id: number) {
+    if (!confirm("Remove this tax compliance record?")) return;
+    setDeleting(id);
+    try { await authFetch(`/api/land/tax-compliance/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
+  }
+
+  const statusColor = (s: string) => ({
+    pending: "text-amber-400", paid: "text-emerald-400", exempt: "text-teal-400",
+    immunity_claimed: "text-amber-300", appealing: "text-blue-400",
+    overdue: "text-red-400", voided: "text-violet-400",
+  }[s] ?? "text-muted-foreground");
+
+  const statusIcon = (s: string) => {
+    if (s === "paid" || s === "exempt") return <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />;
+    if (s === "overdue") return <XCircle className="w-3.5 h-3.5 text-red-400" />;
+    if (s === "immunity_claimed") return <ShieldCheck className="w-3.5 h-3.5 text-amber-400" />;
+    return <Calendar className="w-3.5 h-3.5 text-muted-foreground" />;
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-3 gap-3 text-sm">
+        {overdue.length > 0 && (
+          <div className="col-span-3 bg-red-950/30 border border-red-700/40 rounded-lg px-4 py-3 flex items-center gap-3">
+            <AlertTriangle className="w-4 h-4 text-red-400 shrink-0" />
+            <p className="text-sm text-red-300 font-medium">{overdue.length} item{overdue.length !== 1 ? "s" : ""} <b>OVERDUE</b> — deadline passed</p>
+          </div>
+        )}
+        {dueThisMonth.length > 0 && (
+          <div className="col-span-3 bg-amber-950/30 border border-amber-700/40 rounded-lg px-4 py-3 flex items-center gap-3">
+            <Clock className="w-4 h-4 text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-300 font-medium">{dueThisMonth.length} deadline{dueThisMonth.length !== 1 ? "s" : ""} due within 30 days</p>
+          </div>
+        )}
+        {immunityCount > 0 && (
+          <div className="col-span-3 bg-amber-950/20 border border-amber-700/30 rounded-lg px-4 py-3 flex items-center gap-3">
+            <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0" />
+            <p className="text-sm text-amber-200 font-medium">{immunityCount} item{immunityCount !== 1 ? "s" : ""} with <b>Sovereign Immunity</b> claimed — tribal land not subject to these assessments</p>
+          </div>
+        )}
+      </div>
+
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filterStatus} onChange={setFilterStatus}
+          options={[
+            { value: "pending", label: "Pending" }, { value: "paid", label: "Paid" },
+            { value: "exempt", label: "Exempt" }, { value: "immunity_claimed", label: "Immunity Claimed" },
+            { value: "appealing", label: "Appealing" }, { value: "overdue", label: "Overdue" },
+            { value: "voided", label: "Voided" },
+          ]} placeholder="All Statuses" />
+        <div className="ml-auto">
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Track Item
+          </Button>
+        </div>
+      </div>
+
+      <div className="rounded-lg border border-border overflow-hidden">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="bg-muted/40 text-xs text-muted-foreground uppercase tracking-wide">
+              <th className="text-left px-4 py-2.5">Type / Jurisdiction</th>
+              <th className="text-left px-4 py-2.5">Parcel</th>
+              <th className="text-left px-4 py-2.5">Year</th>
+              <th className="text-left px-4 py-2.5">Deadline</th>
+              <th className="text-right px-4 py-2.5">Assessed</th>
+              <th className="text-left px-4 py-2.5">Status</th>
+              <th className="px-4 py-2.5" />
+            </tr>
+          </thead>
+          <tbody>
+            {filtered.length === 0 && (
+              <tr><td colSpan={7} className="text-center py-10 text-muted-foreground text-sm">
+                No tax compliance items. Track county/municipal tax deadlines, sovereign immunity claims, and exemption filings.
+              </td></tr>
+            )}
+            {filtered.map(t => {
+              const d = t.deadline_date ? daysUntilDate(t.deadline_date) : null;
+              const isOverdue = d !== null && d < 0 && t.status === "pending";
+              return (
+                <tr key={t.id} className={`border-t border-border hover:bg-muted/20 transition-colors ${isOverdue ? "bg-red-950/10" : ""}`}>
+                  <td className="px-4 py-3">
+                    <div className="font-medium text-foreground">{TAX_COMPLIANCE_TYPES.find(x => x.value === t.compliance_type)?.label ?? t.compliance_type}</div>
+                    {t.jurisdiction && <div className="text-xs text-muted-foreground">{t.jurisdiction}</div>}
+                    {t.tribal_code_ref && <div className="text-[10px] text-amber-500">{t.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>}
+                  </td>
+                  <td className="px-4 py-3 text-xs text-muted-foreground">{t.tract_number || `#${t.parcel_id}`}{t.county ? ` · ${t.county}` : ""}</td>
+                  <td className="px-4 py-3 text-xs text-foreground">{t.tax_year || "—"}</td>
+                  <td className="px-4 py-3 text-xs">
+                    {t.deadline_date ? (
+                      <div>
+                        <div className={isOverdue ? "text-red-400 font-semibold" : "text-foreground"}>{new Date(t.deadline_date).toLocaleDateString()}</div>
+                        {d !== null && <div className={`text-[10px] ${d < 0 ? "text-red-400" : d <= 30 ? "text-amber-400" : "text-muted-foreground"}`}>
+                          {d < 0 ? `${Math.abs(d)}d overdue` : d === 0 ? "Due today" : `${d}d remaining`}
+                        </div>}
+                      </div>
+                    ) : "—"}
+                  </td>
+                  <td className="px-4 py-3 text-right text-xs">
+                    {t.amount_assessed ? <div className="text-foreground">${Number(t.amount_assessed).toLocaleString()}</div> : "—"}
+                    {t.amount_paid && <div className="text-emerald-400 text-[10px]">Paid: ${Number(t.amount_paid).toLocaleString()}</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1.5">
+                      {statusIcon(t.status)}
+                      <span className={`text-xs font-medium capitalize ${statusColor(t.status)}`}>{t.status.replace(/_/g, " ")}</span>
+                    </div>
+                    {t.sovereign_immunity_claimed && <div className="text-[10px] text-amber-400 mt-0.5 flex items-center gap-1"><ShieldCheck className="w-2.5 h-2.5" />Immunity</div>}
+                    {t.exemption_type && <div className="text-[10px] text-teal-400 mt-0.5">{EXEMPTION_TYPES.find(e => e.value === t.exemption_type)?.label.split(" ").slice(0, 2).join(" ")}</div>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-1">
+                      <button onClick={() => { setEditing(t); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
+                      <button onClick={() => del(t.id)} disabled={deleting === t.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                        {deleting === t.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+      {modal && <TaxModal entry={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+    </div>
+  );
+}
+
+// ── Member Assignment Modal ───────────────────────────────────────────────────
+
+const ASSIGNMENT_ROLES = [
+  { value: "steward",        label: "Land Steward" },
+  { value: "caretaker",      label: "Caretaker / Custodian" },
+  { value: "cultural_keeper",label: "Cultural Keeper" },
+  { value: "family_steward", label: "Steward Family Representative" },
+  { value: "overseer",       label: "Overseer / Supervisor" },
+  { value: "beneficiary",    label: "Beneficiary (Land Benefit)" },
+  { value: "committee",      label: "Land Committee Member" },
+  { value: "trustee",        label: "Trustee Assignment" },
+];
+
+const EMPTY_ASSIGN = {
+  parcelId: "", memberId: "", memberName: "", memberEmail: "", assignmentRole: "steward",
+  familyName: "", stewardFamily: "", assignedDate: new Date().toISOString().split("T")[0],
+  endDate: "", status: "active", responsibilities: "", culturalConnection: "",
+  tribalCodeRef: "", authorizedBy: "", notes: "",
+};
+
+function AssignmentModal({ assignment, parcels, onClose, onSaved }: { assignment?: MemberAssignment; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+  const [form, setForm] = useState(assignment ? {
+    parcelId: String(assignment.parcel_id ?? ""), memberId: assignment.member_id ?? "",
+    memberName: assignment.member_name ?? "", memberEmail: assignment.member_email ?? "",
+    assignmentRole: assignment.assignment_role ?? "steward",
+    familyName: assignment.family_name ?? "", stewardFamily: assignment.steward_family ?? "",
+    assignedDate: assignment.assigned_date?.split("T")[0] ?? new Date().toISOString().split("T")[0],
+    endDate: assignment.end_date?.split("T")[0] ?? "", status: assignment.status ?? "active",
+    responsibilities: assignment.responsibilities ?? "", culturalConnection: assignment.cultural_connection ?? "",
+    tribalCodeRef: assignment.tribal_code_ref ?? "", authorizedBy: assignment.authorized_by ?? "",
+    notes: assignment.notes ?? "",
+  } : { ...EMPTY_ASSIGN });
+  const [saving, setSaving] = useState(false);
+  const [saveErr, setSaveErr] = useState<string | null>(null);
+  const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
+
+  async function save() {
+    if (!form.memberName.trim()) { setSaveErr("Member name is required."); return; }
+    setSaveErr(null); setSaving(true);
+    try {
+      const res = await authFetch(assignment ? `/api/land/assignments/${assignment.id}` : "/api/land/assignments", { method: assignment ? "PUT" : "POST", body: JSON.stringify(form) });
+      if (!res.ok) { const msg = await res.text(); setSaveErr(`Save failed (${res.status}): ${msg}`); return; }
+      onSaved();
+    } catch (e) { setSaveErr(e instanceof Error ? e.message : "Unknown error."); } finally { setSaving(false); }
+  }
+
+  return (
+    <Modal title={assignment ? "Edit Assignment" : "Assign Member / Steward"} subtitle="Member & Steward Assignments — METC Title 4 Land Stewardship" onClose={onClose}>
+      <div className="grid grid-cols-2 gap-4">
+        <div className="col-span-2">
+          <Field label="Parcel">
+            <Sel value={form.parcelId} onChange={v => setForm(f => ({ ...f, parcelId: v }))}
+              options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || "#" + p.id} — ${p.legal_description?.slice(0, 50) ?? ""}` }))}
+              placeholder="Select parcel" />
+          </Field>
+        </div>
+        <Field label="Assignment Role">
+          <Sel value={form.assignmentRole} onChange={v => setForm(f => ({ ...f, assignmentRole: v }))} options={ASSIGNMENT_ROLES} />
+        </Field>
+        <Field label="Status">
+          <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
+            options={[{ value: "active", label: "Active" }, { value: "inactive", label: "Inactive" }, { value: "pending", label: "Pending" }, { value: "revoked", label: "Revoked" }]} />
+        </Field>
+        <div className="col-span-2"><Field label="Member Name *"><Input value={form.memberName} onChange={set("memberName")} placeholder="Full name of member or steward" /></Field></div>
+        <Field label="Member ID (System ID)"><Input value={form.memberId} onChange={set("memberId")} placeholder="Internal member ID (optional)" /></Field>
+        <Field label="Member Email"><Input type="email" value={form.memberEmail} onChange={set("memberEmail")} placeholder="member@tribe.org" /></Field>
+        <Field label="Family Name / Lineage"><Input value={form.familyName} onChange={set("familyName")} placeholder="Family or clan name" /></Field>
+        <Field label="Steward Family Name"><Input value={form.stewardFamily} onChange={set("stewardFamily")} placeholder="Steward family collective name" /></Field>
+        <Field label="Assigned Date"><Input type="date" value={form.assignedDate} onChange={set("assignedDate")} /></Field>
+        <Field label="End Date (if temporary)"><Input type="date" value={form.endDate} onChange={set("endDate")} /></Field>
+        <div className="col-span-2"><Field label="Authorized By"><Input value={form.authorizedBy} onChange={set("authorizedBy")} placeholder="Chief Justice / Council / Trustee who authorized" /></Field></div>
+        <div className="col-span-2"><Field label="Responsibilities"><Textarea value={form.responsibilities} onChange={set("responsibilities")} placeholder="Stewardship duties, land care obligations, reporting requirements…" className="resize-none h-16" /></Field></div>
+        <div className="col-span-2"><Field label="Cultural Connection to Land"><Textarea value={form.culturalConnection} onChange={set("culturalConnection")} placeholder="Ancestral connection, traditional relationship, cultural significance to this member/family…" className="resize-none h-14" /></Field></div>
+
+        <Field label="METC Title 4 Reference">
+          <Sel value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))} options={METC_TITLE4_SECTIONS} placeholder="Select section" />
+        </Field>
+        <div className="col-span-2 col-start-1"><Field label="Notes"><Textarea value={form.notes} onChange={set("notes")} className="resize-none h-10" /></Field></div>
+      </div>
+      {saveErr && <p className="mt-3 text-sm text-red-400 bg-red-900/20 border border-red-700/40 rounded px-3 py-2">{saveErr}</p>}
+      <div className="flex justify-end gap-2 mt-5">
+        <Button variant="outline" onClick={onClose}>Cancel</Button>
+        <Button onClick={save} disabled={saving || !form.memberName.trim()} className="bg-amber-600 hover:bg-amber-700 text-white">
+          {saving && <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" />}
+          {assignment ? "Save Changes" : "Assign Member"}
+        </Button>
+      </div>
+    </Modal>
+  );
+}
+
+// ── Member Assignments Tab ────────────────────────────────────────────────────
+
+function AssignmentsTab({ assignments, parcels, onRefresh }: { assignments: MemberAssignment[]; parcels: Parcel[]; onRefresh: () => void }) {
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<MemberAssignment | null>(null);
+  const [filterParcel, setFilterParcel] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [deleting, setDeleting] = useState<number | null>(null);
+
+  const filtered = assignments.filter(a =>
+    (!filterParcel || String(a.parcel_id) === filterParcel) &&
+    (!filterRole || a.assignment_role === filterRole)
+  );
+
+  async function del(id: number) {
+    if (!confirm("Remove this assignment?")) return;
+    setDeleting(id);
+    try { await authFetch(`/api/land/assignments/${id}`, { method: "DELETE" }); onRefresh(); } finally { setDeleting(null); }
+  }
+
+  const roleColor = (r: string) => ({
+    steward: "bg-emerald-800 text-emerald-100",
+    caretaker: "bg-teal-800 text-teal-100",
+    cultural_keeper: "bg-rose-800 text-rose-100",
+    family_steward: "bg-amber-800 text-amber-100",
+    trustee: "bg-violet-800 text-violet-100",
+  }[r] ?? "bg-muted text-muted-foreground");
+
+  const statusColor = (s: string) => ({
+    active: "text-emerald-400", inactive: "text-muted-foreground",
+    pending: "text-amber-400", revoked: "text-red-400",
+  }[s] ?? "text-muted-foreground");
+
+  return (
+    <div className="space-y-4">
+      <div className="flex flex-wrap gap-2 items-center">
+        <Sel value={filterParcel} onChange={setFilterParcel}
+          options={parcels.map(p => ({ value: String(p.id), label: p.tract_number || p.parcel_id || `#${p.id}` }))}
+          placeholder="All Parcels" />
+        <Sel value={filterRole} onChange={setFilterRole} options={ASSIGNMENT_ROLES} placeholder="All Roles" />
+        <div className="ml-auto">
+          <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
+            <Plus className="w-3.5 h-3.5 mr-1.5" /> Assign Member
+          </Button>
+        </div>
+      </div>
+
+      <div className="space-y-3">
+        {filtered.length === 0 && (
+          <div className="text-center py-12 text-muted-foreground text-sm border border-border rounded-lg">
+            <Users className="w-8 h-8 mx-auto mb-3 text-amber-400/50" />
+            No member assignments yet. Link tribal members and steward families to specific parcels.
+          </div>
+        )}
+        {filtered.map(a => (
+          <div key={a.id} className="bg-background/60 border border-border rounded-lg p-4 hover:border-amber-700/40 transition-colors">
+            <div className="flex items-start justify-between gap-3">
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="font-semibold text-foreground">{a.member_name}</span>
+                  <Badge label={ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role} className={roleColor(a.assignment_role)} />
+                  <span className={`text-xs font-medium capitalize ${statusColor(a.status)}`}>{a.status}</span>
+                </div>
+                {(a.family_name || a.steward_family) && (
+                  <p className="text-xs text-amber-300/70 mt-0.5 italic">
+                    {[a.steward_family, a.family_name].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                <div className="flex flex-wrap gap-x-4 gap-y-1 mt-1.5 text-xs text-muted-foreground">
+                  <span><Landmark className="w-3 h-3 inline mr-0.5" />{a.tract_number || `#${a.parcel_id}`}</span>
+                  {a.member_email && <span><Link2 className="w-3 h-3 inline mr-0.5" />{a.member_email}</span>}
+                  <span><CalendarDays className="w-3 h-3 inline mr-0.5" />Since {new Date(a.assigned_date).toLocaleDateString()}</span>
+                  {a.end_date && <span>Until {new Date(a.end_date).toLocaleDateString()}</span>}
+                  {a.authorized_by && <span>Auth: {a.authorized_by}</span>}
+                </div>
+                {a.responsibilities && <p className="text-xs text-muted-foreground mt-1.5 line-clamp-2">{a.responsibilities}</p>}
+                {a.cultural_connection && <p className="text-xs text-rose-300/60 mt-1 italic line-clamp-1">{a.cultural_connection}</p>}
+                {a.tribal_code_ref && <span className="text-[10px] text-amber-500">{a.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</span>}
+              </div>
+              <div className="flex items-center gap-1 shrink-0">
+                <button onClick={() => { setEditing(a); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
+                <button onClick={() => del(a.id)} disabled={deleting === a.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
+                  {deleting === a.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                </button>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-muted-foreground">{filtered.length} assignment{filtered.length !== 1 ? "s" : ""}</p>
+      {modal && <AssignmentModal assignment={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const TABS = [
   { id: "overview",      label: "Overview",              icon: BarChart3 },
+  { id: "map",           label: "Map View",              icon: Map },
   { id: "parcels",       label: "Land Registry",         icon: Landmark },
   { id: "leases",        label: "Leases",                icon: FileText },
   { id: "assets",        label: "Assets & Resources",    icon: Building2 },
+  { id: "deeds",         label: "Deed Repository",       icon: FileArchive },
+  { id: "tax",           label: "Tax Compliance",        icon: CalendarDays },
+  { id: "assignments",   label: "Member / Stewards",     icon: Users },
   { id: "encumbrances",  label: "Encumbrances",          icon: ShieldAlert },
   { id: "notices",       label: "Notices & Enforcement", icon: ScrollText },
   { id: "stewardship",   label: "Stewardship Pipeline",  icon: TrendingUp },
@@ -1590,9 +2476,16 @@ export default function LandPage() {
   const encQ = useQuery<Encumbrance[]>({ queryKey: ["land-encumbrances"], queryFn: () => q("/api/land/encumbrances") });
   const noticesQ = useQuery<Notice[]>({ queryKey: ["land-notices"], queryFn: () => q("/api/land/notices") });
   const pipelineQ = useQuery<StewardshipEntry[]>({ queryKey: ["land-pipeline"], queryFn: () => q("/api/land/pipeline") });
+  const deedsQ = useQuery<Deed[]>({ queryKey: ["land-deeds"], queryFn: () => q("/api/land/deeds") });
+  const taxQ = useQuery<TaxCompliance[]>({ queryKey: ["land-tax"], queryFn: () => q("/api/land/tax-compliance") });
+  const assignQ = useQuery<MemberAssignment[]>({ queryKey: ["land-assignments"], queryFn: () => q("/api/land/assignments") });
 
   const refresh = useCallback((keys?: string[]) => {
-    (keys ?? ["land-stats", "land-parcels", "land-leases", "land-assets", "land-encumbrances", "land-notices", "land-pipeline"]).forEach(k => qc.invalidateQueries({ queryKey: [k] }));
+    (keys ?? [
+      "land-stats", "land-parcels", "land-leases", "land-assets",
+      "land-encumbrances", "land-notices", "land-pipeline",
+      "land-deeds", "land-tax", "land-assignments",
+    ]).forEach(k => qc.invalidateQueries({ queryKey: [k] }));
   }, [qc]);
 
   const loading = statsQ.isLoading || parcelsQ.isLoading;
@@ -1641,9 +2534,13 @@ export default function LandPage() {
 
       <div>
         {tab === "overview"     && <OverviewTab stats={stats} leases={leasesQ.data ?? []} />}
+        {tab === "map"          && <MapTab parcels={parcelsQ.data ?? []} />}
         {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} />}
         {tab === "leases"       && <LeasesTab leases={leasesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-leases", "land-stats"])} />}
         {tab === "assets"       && <AssetsTab assets={assetsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-assets"])} />}
+        {tab === "deeds"        && <DeedsTab deeds={deedsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-deeds"])} />}
+        {tab === "tax"          && <TaxTab tax={taxQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-tax"])} />}
+        {tab === "assignments"  && <AssignmentsTab assignments={assignQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-assignments"])} />}
         {tab === "encumbrances" && <EncumbrancesTab encumbrances={encQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-encumbrances", "land-stats"])} />}
         {tab === "notices"      && <NoticesTab notices={noticesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-notices", "land-stats"])} />}
         {tab === "stewardship"  && <StewardshipTab pipeline={pipelineQ.data ?? []} onRefresh={() => refresh(["land-pipeline", "land-stats"])} />}
