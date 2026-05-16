@@ -262,6 +262,7 @@ interface MemberRight {
   category: string;
   citation: string;
   plainLanguage: string;
+  logicChain?: string[];
   watchFor: string;
   status: "active" | "applicable" | "verify";
 }
@@ -293,6 +294,113 @@ const CATEGORY_COLORS: Record<string, string> = {
   welfare: "text-sky-700 bg-sky-50 border-sky-200",
   treaty: "text-rose-700 bg-rose-50 border-rose-200",
 };
+
+const TRUST_CASES = [
+  { citation: "Seminole Nation v. United States, 316 U.S. 286 (1942)", point: "Established the federal government must meet 'the most exacting fiduciary standards' — act as a fair and honorable trustee, not just a bureaucrat." },
+  { citation: "Mitchell v. United States, 463 U.S. 206 (1983)", point: "US held liable for mismanaging timber on Indian allotments. The trust duty covers day-to-day management of Indian resources, not just big policy decisions." },
+  { citation: "Cobell v. Salazar, 573 F.3d 808 (D.C. Cir. 2009)", point: "BIA held liable for over 100 years of mismanagement of Individual Indian Money accounts. The duty is real, historical, and enforceable." },
+  { citation: "White Mountain Apache Tribe v. United States, 537 U.S. 465 (2003)", point: "Trust duty extends to government-occupied tribal property. If the US holds or uses tribal assets, it must protect them." },
+  { citation: "Morton v. Ruiz, 415 U.S. 199 (1974)", point: "BIA cannot arbitrarily deny benefits to eligible Indians by creating unpublished eligibility rules. The duty runs to the people, not to an administrative list." },
+  { citation: "United States v. Jicarilla Apache Nation, 564 U.S. 162 (2011)", point: "Confirmed the government acts as a trustee in its dealings with Indian tribes. The trust relationship is foundational to how federal-Indian dealings are analyzed." },
+];
+
+const LAND_STATUS_EXPLANATIONS: Record<string, { headline: string; logic: string[]; protections: string[] }> = {
+  trust: {
+    headline: "Indian Trust Land — Federally Protected",
+    logic: [
+      "Trust land is held by the United States in trust for the tribe or individual Indian. Legal title is in the federal government's name — but the beneficial ownership belongs to you.",
+      "Because the US holds title, the land cannot be taxed by the state, cannot be seized by creditors, and cannot be sold or transferred without explicit federal approval.",
+      "This protection flows from the Non-Intercourse Act (25 U.S.C. § 177, originally 1790) — any land transaction not federally approved is legally voidable.",
+    ],
+    protections: ["No state property tax", "No creditor liens without BIA approval", "No forced sale or foreclosure", "Transfer requires federal approval", "BIA LTRO recording required"],
+  },
+  allotment: {
+    headline: "Indian Allotment — Restricted Federal Supervision",
+    logic: [
+      "An allotment is a parcel of land originally set aside for an individual Indian under the Dawes Act or subsequent legislation. The federal trust relationship still applies.",
+      "Allotments are subject to federal probate through the BIA when the owner passes. Heirs are determined under federal law, not state probate court.",
+      "Transfer of an allotment requires federal approval. Many allotments are still in trust status and carry the same tax and lien protections as tribal trust land.",
+    ],
+    protections: ["Federal probate jurisdiction", "Transfer requires BIA approval", "State tax jurisdiction limited", "Restricted from private foreclosure", "Federal inheritance rules apply"],
+  },
+  fee: {
+    headline: "Fee Simple — Indian Owner, State Jurisdiction Considerations",
+    logic: [
+      "Fee simple means you hold direct title — there is no federal trust wrapper. State property tax, lien, and foreclosure rules generally apply.",
+      "However: if you are an Indian and the land is in or near Indian country, additional federal protections may still apply depending on the history of the parcel.",
+      "If this land was previously allotment or trust land, consult with BIA to determine whether any trust restrictions survive. 'Fee simple' does not automatically mean all Indian land protections are gone.",
+    ],
+    protections: ["State tax generally applies", "Review whether prior trust restrictions survive", "Consult BIA before any transfer", "Assert Indian Canon of Construction if status is ambiguous"],
+  },
+  restricted: {
+    headline: "Restricted Indian Land — Anti-Alienation in Force",
+    logic: [
+      "Restricted Indian land is land where the owner holds fee title but the land cannot be sold, mortgaged, or transferred without federal consent — similar to trust land in practical effect.",
+      "The restrictions may arise from allotment law, tribal ordinance, or specific federal statute. They run with the land — they cannot be waived by a private agreement.",
+      "State and local governments have no jurisdiction to lift these restrictions. Only Congress or the Secretary of the Interior can modify or remove them.",
+    ],
+    protections: ["Cannot be sold without federal consent", "Cannot be mortgaged without approval", "State courts cannot order forced sale", "Restrictions run with the land permanently until federally removed"],
+  },
+};
+
+function TrustResponsibilityBreakdown() {
+  const [expanded, setExpanded] = useState(false);
+  return (
+    <div className="rounded-lg border border-primary/20 bg-primary/5 overflow-hidden">
+      <button
+        onClick={() => setExpanded(v => !v)}
+        className="w-full flex items-start gap-2.5 px-3 py-2.5 hover:bg-primary/10 transition-colors text-left"
+      >
+        <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+        <div className="flex-1">
+          <p className="text-xs font-semibold text-foreground">Federal Indian Trust Responsibility</p>
+          <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
+            The US is your legal fiduciary — this duty is inherent, applies broadly to all American Indians, and is enforceable in federal court regardless of land ownership or BIA-list status.
+          </p>
+        </div>
+        <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 mt-0.5 transition-transform ${expanded ? "rotate-180" : ""}`} />
+      </button>
+      {expanded && (
+        <div className="border-t border-primary/15 px-3 pb-4 pt-3 space-y-4 bg-background/60">
+          <div className="space-y-2.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground">What It Is — Logical Foundation</p>
+            <ol className="space-y-2">
+              {[
+                "In 1831, Chief Justice Marshall described tribes as 'domestic dependent nations' — like a ward to its guardian. That created a legally enforceable relationship: the US assumed responsibility for Indian welfare in exchange for the land and sovereignty tribes gave up.",
+                "Congress codified that duty in 25 U.S.C. § 162a, making the Secretary of the Interior a fiduciary over Indian trust assets — legally required to act in Indians' best interest. That standard has been held to flow through all federal agencies dealing with Indian affairs.",
+                "A fiduciary cannot use their position to harm the beneficiary. When they do, there is legal liability — not just political accountability, but court-enforceable liability.",
+                "Who it applies to: ALL American Indians. Not only those on reservations. Not only members of BIA-recognized tribes. Not only people with a CDIB card or on a specific list. Morton v. Ruiz (1974) confirmed the duty is to the people — not to an administrative roster.",
+                "What you can do with it: when a federal agency denies a benefit, delays action, or takes a position that harms your land or rights, assert the trust responsibility in writing. Put it on the record. That assertion matters — in administrative appeals and in federal court.",
+              ].map((step, i) => (
+                <li key={i} className="flex gap-2.5 text-xs">
+                  <span className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                  <span className="text-foreground leading-relaxed">{step}</span>
+                </li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">Key Cases — How Broadly Courts Have Applied It</p>
+            <div className="space-y-2">
+              {TRUST_CASES.map(({ citation, point }) => (
+                <div key={citation} className="rounded-md border border-border bg-background px-2.5 py-2">
+                  <p className="text-[10px] font-mono text-primary mb-0.5">{citation}</p>
+                  <p className="text-[10px] text-muted-foreground leading-snug">{point}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+          <div className="rounded-md bg-primary/5 border border-primary/20 px-2.5 py-2">
+            <p className="text-[10px] text-primary font-semibold">Enforcement path if violated:</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5 leading-snug">
+              File a formal complaint with the BIA Regional Director citing the breach. Escalate to the DOI Office of the Solicitor. If the trust responsibility is violated regarding money or property, file in the U.S. Court of Federal Claims (28 U.S.C. § 2501 — 6-year statute of limitations).
+            </p>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
 
 function ProtectionsPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
@@ -450,10 +558,28 @@ function ProtectionsPanel() {
                     <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                   </button>
                   {isOpen && (
-                    <div className="px-3 pb-3 space-y-2 border-t border-border bg-muted/20">
-                      <p className="text-[10px] text-muted-foreground mt-2 font-mono">{right.citation}</p>
-                      <p className="text-xs text-foreground leading-relaxed">{right.plainLanguage}</p>
-                      <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2 mt-2">
+                    <div className="px-3 pb-3 space-y-3 border-t border-border bg-muted/20">
+                      {right.logicChain && right.logicChain.length > 0 && (
+                        <div className="mt-2.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">How This Works — Logical Breakdown</p>
+                          <ol className="space-y-2">
+                            {right.logicChain.map((step, i) => (
+                              <li key={i} className="flex gap-2.5 text-xs">
+                                <span className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                                <span className="text-foreground leading-relaxed">{step}</span>
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                      )}
+                      {!right.logicChain && (
+                        <p className="text-xs text-foreground leading-relaxed mt-2">{right.plainLanguage}</p>
+                      )}
+                      <div className="rounded-md border border-border bg-background px-2.5 py-1.5">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Legal Authority</p>
+                        <p className="text-[10px] text-muted-foreground font-mono leading-snug">{right.citation}</p>
+                      </div>
+                      <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2">
                         <ShieldAlert className="h-3.5 w-3.5 text-orange-600 shrink-0 mt-0.5" />
                         <p className="text-[10px] text-orange-800 leading-snug"><strong>Watch for: </strong>{right.watchFor}</p>
                       </div>
@@ -528,10 +654,28 @@ function ProtectionsPanel() {
                       <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground shrink-0 transition-transform ${isOpen ? "rotate-180" : ""}`} />
                     </button>
                     {isOpen && (
-                      <div className="px-3 pb-3 space-y-2 border-t border-rose-100 bg-rose-50/20">
-                        <p className="text-[10px] text-muted-foreground mt-2 font-mono">{right.citation}</p>
-                        <p className="text-xs text-foreground leading-relaxed">{right.plainLanguage}</p>
-                        <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2 mt-2">
+                      <div className="px-3 pb-3 space-y-3 border-t border-rose-100 bg-rose-50/20">
+                        {right.logicChain && right.logicChain.length > 0 && (
+                          <div className="mt-2.5">
+                            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-2">How This Works — Logical Breakdown</p>
+                            <ol className="space-y-2">
+                              {right.logicChain.map((step, i) => (
+                                <li key={i} className="flex gap-2.5 text-xs">
+                                  <span className="shrink-0 w-4 h-4 rounded-full bg-primary/10 text-primary text-[9px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                                  <span className="text-foreground leading-relaxed">{step}</span>
+                                </li>
+                              ))}
+                            </ol>
+                          </div>
+                        )}
+                        {!right.logicChain && (
+                          <p className="text-xs text-foreground leading-relaxed mt-2">{right.plainLanguage}</p>
+                        )}
+                        <div className="rounded-md border border-rose-100 bg-background px-2.5 py-1.5">
+                          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground mb-0.5">Legal Authority</p>
+                          <p className="text-[10px] text-muted-foreground font-mono leading-snug">{right.citation}</p>
+                        </div>
+                        <div className="flex items-start gap-1.5 rounded-md bg-orange-50 border border-orange-200 px-2.5 py-2">
                           <ShieldAlert className="h-3.5 w-3.5 text-orange-600 shrink-0 mt-0.5" />
                           <p className="text-[10px] text-orange-800 leading-snug"><strong>Watch for: </strong>{right.watchFor}</p>
                         </div>
@@ -2240,16 +2384,8 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent className="space-y-4">
 
-          {/* ── Federal Trust Responsibility affirmation ── */}
-          <div className="flex items-start gap-2.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-2.5">
-            <Shield className="h-4 w-4 text-primary shrink-0 mt-0.5" />
-            <div>
-              <p className="text-xs font-semibold text-foreground">Federal Indian Trust Responsibility</p>
-              <p className="text-[10px] text-muted-foreground leading-snug mt-0.5">
-                All members are covered as American Indians under the Federal Indian Trust Responsibility (25 U.S.C. § 162a; Seminole Nation v. United States, 1942). SDU and other federal resources also affirm this protection. This status is inherent — it does not require land ownership.
-              </p>
-            </div>
-          </div>
+          {/* ── Federal Trust Responsibility — full breakdown ── */}
+          <TrustResponsibilityBreakdown />
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-1.5">
@@ -2268,6 +2404,27 @@ export default function ProfilePage() {
                 </SelectContent>
               </Select>
               <p className="text-[10px] text-muted-foreground">Classification auto-populates trust instruments and LEN documents.</p>
+              {landStatus && LAND_STATUS_EXPLANATIONS[landStatus] && (() => {
+                const ex = LAND_STATUS_EXPLANATIONS[landStatus];
+                return (
+                  <div className="rounded-md border border-border bg-muted/30 px-2.5 py-2.5 space-y-2 mt-1">
+                    <p className="text-[10px] font-bold text-foreground">{ex.headline}</p>
+                    <ol className="space-y-1.5">
+                      {ex.logic.map((step, i) => (
+                        <li key={i} className="flex gap-2 text-[10px]">
+                          <span className="shrink-0 w-3.5 h-3.5 rounded-full bg-primary/10 text-primary text-[8px] font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+                          <span className="text-muted-foreground leading-snug">{step}</span>
+                        </li>
+                      ))}
+                    </ol>
+                    <div className="flex flex-wrap gap-1 pt-1 border-t border-border">
+                      {ex.protections.map(p => (
+                        <span key={p} className="text-[9px] rounded-full bg-green-50 border border-green-200 text-green-700 px-1.5 py-0.5 font-medium">✓ {p}</span>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })()}
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="apn-field" className="text-xs font-semibold uppercase tracking-wider">APN (Assessor's Parcel Number)</Label>

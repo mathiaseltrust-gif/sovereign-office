@@ -16,6 +16,7 @@ export interface MemberRight {
   category: "inherent" | "federal" | "land" | "icwa" | "trust" | "welfare" | "treaty";
   citation: string;
   plainLanguage: string;
+  logicChain?: string[];
   watchFor: string;
   status: "active" | "applicable" | "verify";
 }
@@ -48,11 +49,18 @@ const INHERENT_SOVEREIGNTY: MemberRight = {
   id: "inherent_sovereignty",
   name: "Inherent Sovereignty",
   category: "inherent",
-  citation: "Worcester v. Georgia, 31 U.S. 515 (1832); U.S. Constitution, Art. VI",
+  citation: "Worcester v. Georgia, 31 U.S. 515 (1832); Talton v. Mayes, 163 U.S. 376 (1896); U.S. Constitution, Art. VI",
   plainLanguage:
-    "You carry inherent sovereign rights as a member of the Mathias El Tribe. These rights were here before any state law was written. No state law, county ordinance, or local rule can override your tribal standing. Tribal nations are distinct political communities with the right to self-governance.",
+    "Tribal sovereignty is not a right granted by the United States — it is a pre-existing authority that was never surrendered. The Mathias El Tribe governed itself before any state existed. That original authority remains intact unless explicitly and expressly extinguished by Congress. No state law, county ordinance, or court ruling can erase it.",
+  logicChain: [
+    "Tribes existed and governed themselves for thousands of years before any European or American government arrived. That pre-existing governing authority is called inherent sovereignty.",
+    "When tribes entered agreements and treaties with the United States, they retained all governmental powers they did not explicitly give up. Silence is not a surrender — rights not expressly ceded remain with the tribe.",
+    "The Supreme Court confirmed this in Worcester v. Georgia (1832): tribes are 'distinct, independent political communities' and state laws have 'no force' within Indian territory. That has never been overruled.",
+    "Talton v. Mayes (1896) confirmed the corollary: tribal governing powers come from the tribe itself, not from the federal government. The tribe's authority is original, not delegated.",
+    "What this means for you: your tribal identity, your tribal court orders, and your tribe's decisions about its members are not subject to state approval. A state agency cannot override them. A county recorder cannot ignore them.",
+  ],
   watchFor:
-    "Institutions may claim state law applies to you. They may ask for state-issued ID as the only form of validation. They may ignore your tribal court orders. Push back — Worcester doctrine is controlling federal law.",
+    "Institutions may claim state law applies to you or ask for a state-issued ID as the only valid form. They may refuse to recognize your tribal court orders or enrollment documentation. Push back — Worcester doctrine is controlling federal law and has never been overruled.",
   status: "active",
 };
 
@@ -60,11 +68,18 @@ const SELF_EXECUTING_RIGHTS: MemberRight = {
   id: "self_executing",
   name: "Self-Executing Federal Rights",
   category: "inherent",
-  citation: "Supremacy Clause, U.S. Const. Art. VI, cl. 2; McGirt v. Oklahoma, 591 U.S. 894 (2020)",
+  citation: "Supremacy Clause, U.S. Const. Art. VI, cl. 2; McGirt v. Oklahoma, 591 U.S. 894 (2020); Loper Bright Enterprises v. Raimondo, 603 U.S. ___ (2024)",
   plainLanguage:
-    "Key federal Indian law rights are self-executing — they apply automatically without any agency approval, enrollment confirmation, or administrative processing. No agency can issue a memo that extinguishes a self-executing right. Your status and protections exist in law regardless of whether any institution has acknowledged them.",
+    "A self-executing right operates automatically by force of law. It does not need a court order, agency confirmation, enrollment certificate, or any institution's approval to be in effect. Your federal Indian law protections exist whether or not any agency has 'processed' them. The law is already on.",
+  logicChain: [
+    "'Self-executing' is a legal term meaning: the right is effective on its own, directly from the text of the law or treaty — no implementing legislation, no agency action, no approval process required.",
+    "The Supremacy Clause (Art. VI, cl. 2) makes federal law the supreme law of the land. Any state law in conflict with it is automatically void — without any court needing to say so first.",
+    "McGirt v. Oklahoma (2020) proved the power of this principle: the Supreme Court held that the Creek Nation's boundaries had never been legally extinguished — even though no one had enforced that for over 100 years. The law was always in effect. It was self-executing the entire time.",
+    "When an agency tells you to 'get on their list,' 'wait for approval,' or 'come back when enrollment is confirmed,' they are adding a procedural hurdle the law does not require. That is an administrative convenience argument, not a legal requirement.",
+    "Post-Loper Bright (2024), agencies can no longer rely on their own interpretations of ambiguous statutes to justify those hurdles. Courts now review agency interpretations independently — meaning bureaucratic gatekeeping is legally vulnerable to challenge.",
+  ],
   watchFor:
-    "Agencies may claim they cannot help you until you are on their approved list, or until enrollment is 'confirmed.' That is an administrative convenience argument, not a legal requirement. Post-Loper Bright (2024), these arguments are legally vulnerable.",
+    "Agencies may say they cannot help you until you are on an 'approved list' or enrollment is confirmed through their system. That is a procedural obstacle, not a legal one. Your rights do not wait for agency processing.",
   status: "active",
 };
 
@@ -72,11 +87,18 @@ const CANONS_OF_CONSTRUCTION: MemberRight = {
   id: "canons_of_construction",
   name: "Indian Canons of Construction",
   category: "inherent",
-  citation: "Montana v. Blackfeet Tribe, 471 U.S. 759 (1985); Oneida County v. Oneida Indian Nation, 470 U.S. 226 (1985)",
+  citation: "Montana v. Blackfeet Tribe, 471 U.S. 759 (1985); Oneida County v. Oneida Indian Nation, 470 U.S. 226 (1985); Chickasaw Nation v. United States, 534 U.S. 84 (2001)",
   plainLanguage:
-    "When any law, treaty, or statute is ambiguous — meaning it could go either way — it must be read in favor of the tribe and the tribal member. Courts and agencies cannot flip a coin or use ambiguity as an excuse to deny rights. The tie always goes to the Indian.",
+    "When a law, treaty, or statute is ambiguous — meaning it is unclear which way it cuts — it must be resolved in favor of the Indian and the tribe. This is a binding rule of interpretation, not a courtesy. Courts and agencies do not have discretion to break the tie against you. Ambiguity belongs to the Indian.",
+  logicChain: [
+    "Laws are not always clear. Words have multiple meanings. Congress sometimes writes statutes that could be read two ways. Courts need a tie-breaking rule — a principle to decide which reading governs when the text alone does not answer the question.",
+    "For Indian law, that tie-breaker is established: ambiguities in laws and treaties are resolved in favor of the tribe and the tribal member. This is the Indian Canon of Construction — a rule with over 150 years of consistent Supreme Court application.",
+    "The logic behind it: the US drafted the treaties, the statutes, and the regulations — often in English, often under conditions of unequal bargaining power. The party that wrote the document does not get to use its own ambiguity against the other party.",
+    "Montana v. Blackfeet Tribe (1985): 'Statutes are to be construed liberally in favor of the Indians.' Oneida (1985): treaties must be interpreted as the Indians would have understood them at the time of signing — not as the government reinterprets them later.",
+    "What this means practically: if an agency says your situation is 'not clearly covered,' or that a statute 'doesn't specifically' apply to you, that ambiguity is not a reason to deny the right. It is a legal reason to grant it. Name the Canon. Put it on the record.",
+  ],
   watchFor:
-    "Look for situations where an agency says a statute 'doesn't clearly cover' your situation, or that your status is 'ambiguous.' Under the Canons of Construction, that ambiguity resolves in your favor, not theirs.",
+    "Watch for agencies and courts saying a law 'doesn't clearly cover' your situation or that your status is 'ambiguous.' Under the Canons of Construction, that ambiguity resolves in your favor. Name the Canon explicitly in any response.",
   status: "active",
 };
 
@@ -86,11 +108,19 @@ const FEDERAL_TRUST_RESPONSIBILITY: MemberRight = {
   id: "federal_trust",
   name: "Federal Trust Responsibility",
   category: "trust",
-  citation: "25 U.S.C. § 162a; Seminole Nation v. United States, 316 U.S. 286 (1942)",
+  citation: "25 U.S.C. § 162a; Seminole Nation v. United States, 316 U.S. 286 (1942); Mitchell v. United States, 463 U.S. 206 (1983); Cobell v. Salazar, 573 F.3d 808 (D.C. Cir. 2009); Morton v. Ruiz, 415 U.S. 199 (1974)",
   plainLanguage:
-    "The United States holds a legally enforceable fiduciary duty — a trust responsibility — to tribal nations and their members. This means the federal government must act in your interest, not against it. Federal agencies have an affirmative obligation to protect your rights and lands. This is not a favor — it is a legal duty enforceable in federal court.",
+    "The United States is your fiduciary. That is not a metaphor — it is a legal status. A fiduciary must act in the interest of the person they hold trust for. They cannot use their position to harm them. The federal government accepted that duty when it took Indian lands, signed treaties, and assumed control over Indian affairs. That duty is now enforceable in federal court — and when the government fails to meet it, there is legal liability.",
+  logicChain: [
+    "In 1831, Chief Justice Marshall described tribes as 'domestic dependent nations' — like a ward to its guardian. That description created a legal relationship: the US assumed responsibility for Indian welfare in exchange for the land and sovereignty tribes gave up.",
+    "Congress confirmed that duty in statute. 25 U.S.C. § 162a makes the Secretary of the Interior a fiduciary over Indian trust funds — legally required to manage them in Indians' best interest. That same fiduciary standard flows through to agencies across the federal government.",
+    "A fiduciary who acts against the beneficiary's interest is legally liable. Seminole Nation v. United States (1942) held the US to 'the most exacting fiduciary standards' — it must act as 'a fair and honorable' trustee, not merely a bureaucrat following rules.",
+    "Who this applies to: ALL American Indians — not just those on reservations, not just members of BIA-recognized tribes, not just people with a CDIB card. Morton v. Ruiz (1974) confirmed that the government cannot arbitrarily deny benefits to eligible Indians. The duty is to the people, not to an administrative list.",
+    "How broadly courts have read it: Mitchell (1983) — US liable for mismanaging timber on trust allotments. Cobell (2009) — BIA held liable for 100+ years of individual Indian money account mismanagement. White Mountain Apache Tribe (2003) — trust duty extends to government-held tribal property, not just managed funds.",
+    "What this means for you today: when a federal agency denies you a benefit you are entitled to, delays processing your claim, or takes action that harms your land or rights, you have grounds to assert breach of trust responsibility — in writing, on the record, and if necessary in the U.S. Court of Federal Claims.",
+  ],
   watchFor:
-    "Federal agencies sometimes act in ways that conflict with your interests — denying benefits, imposing fees, approving state actions against your land. When they do, that is potentially a breach of the trust responsibility.",
+    "Federal agencies acting against your interest — denying benefits, approving state actions against your land, or failing to act when inaction harms you — are potentially breaching their trust duty. Document it. This is enforceable.",
   status: "active",
 };
 
