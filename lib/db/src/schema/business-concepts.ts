@@ -31,6 +31,22 @@ export const businessBoardMembersTable = pgTable("business_board_members", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const businessVotesTable = pgTable("business_votes", {
+  id: serial("id").primaryKey(),
+  conceptId: integer("concept_id").references(() => businessConceptsTable.id, { onDelete: "set null" }),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  title: text("title").notNull(),
+  description: text("description").notNull().default(""),
+  motionType: varchar("motion_type", { length: 60 }).notNull().default("procedural"),
+  status: varchar("status", { length: 30 }).notNull().default("open"),
+  yesCount: integer("yes_count").notNull().default(0),
+  noCount: integer("no_count").notNull().default(0),
+  abstainCount: integer("abstain_count").notNull().default(0),
+  voteRecords: jsonb("vote_records").default([]),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  closedAt: timestamp("closed_at"),
+});
+
 export const businessDocumentsTable = pgTable("business_documents", {
   id: serial("id").primaryKey(),
   conceptId: integer("concept_id").notNull().references(() => businessConceptsTable.id, { onDelete: "cascade" }),
