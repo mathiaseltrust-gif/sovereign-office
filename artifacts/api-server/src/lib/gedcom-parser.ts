@@ -117,6 +117,17 @@ export function parseGedcom(fileBuffer: Buffer): GedcomParseResult {
   const lines = text.split(/\r\n|\r|\n/);
   const errors: string[] = [];
 
+  // ── DEBUG: log first 30 lines and their parse results ─────────────────────
+  const debugSample = lines.slice(0, 30);
+  console.error("[GEDCOM-DEBUG] fileSize=" + fileBuffer.length + " totalLines=" + lines.length + " encoding=" + encoding);
+  for (let di = 0; di < debugSample.length; di++) {
+    const raw = debugSample[di];
+    const hex = Buffer.from(raw, "latin1").toString("hex").slice(0, 60);
+    const gl = parseLine(raw);
+    console.error(`[GEDCOM-DEBUG] L${di}: parsed=${gl ? `level=${gl.level} xref=${gl.xref} tag=${gl.tag}` : "NULL"} hex=${hex} text="${raw.slice(0, 60)}"`);
+  }
+  // ── END DEBUG ──────────────────────────────────────────────────────────────
+
   const individuals = new Map<string, GedcomIndividual>();
   const families = new Map<string, GedcomFamily>();
 
