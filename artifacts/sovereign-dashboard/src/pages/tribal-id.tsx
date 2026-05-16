@@ -108,6 +108,12 @@ function formatCardDate(iso: string): string {
   return `${(d.getMonth() + 1).toString().padStart(2, "0")}/${d.getDate().toString().padStart(2, "0")}/${d.getFullYear()}`;
 }
 
+function formatDobDisplay(dob: string): string {
+  const ymdhms = dob.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (ymdhms) return `${ymdhms[2]}/${ymdhms[3]}/${ymdhms[1]}`;
+  return formatCardDate(dob);
+}
+
 function IdField({ label, value, large }: { label: string; value: string; large?: boolean }) {
   return (
     <div>
@@ -153,6 +159,19 @@ export default function TribalIdPage() {
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
       if (!r.ok) return [];
+      return r.json();
+    },
+    enabled: !!user,
+    staleTime: 300_000,
+  });
+
+  const { data: vaultData } = useQuery<{ hasDob: boolean; dateOfBirth: string | null }>({
+    queryKey: ["user-vault-id"],
+    queryFn: async () => {
+      const r = await fetch("/api/user/vault", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) return { hasDob: false, dateOfBirth: null };
       return r.json();
     },
     enabled: !!user,
@@ -428,6 +447,9 @@ export default function TribalIdPage() {
                 {idNumber && <IdField label="ID #" value={`NO. ${idNumber}`} />}
                 {(data.bloodline ?? data.tribalNations?.[0]) && (
                   <IdField label="Tribal Bloodline" value={data.bloodline ?? data.tribalNations?.[0] ?? ""} />
+                )}
+                {vaultData?.dateOfBirth && (
+                  <IdField label="Date of Birth" value={formatDobDisplay(vaultData.dateOfBirth)} />
                 )}
                 <IdField label="Role" value={formatRole(data.identity.role)} />
                 <div>

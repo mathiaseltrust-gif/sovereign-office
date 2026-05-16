@@ -22,6 +22,7 @@ router.get("/", requireAuth, async (req, res, next) => {
     res.json({
       hasData: !!row,
       hasDob: !!(row?.dateOfBirth),
+      dateOfBirth: row?.dateOfBirth ?? null,
       hasAddress: !!(row?.address),
       hasEmail: !!(row?.contactEmail),
       hasSsn: !!(row?.ssn),

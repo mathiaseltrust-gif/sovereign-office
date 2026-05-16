@@ -178,7 +178,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   }
 
   const now30 = new Date(Date.now() + 30 * 86400000);
-  const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage] = await Promise.all([
+  const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
       .from(kiConversationsTable)
       .where(and(eq(kiConversationsTable.userId, userId), eq(kiConversationsTable.isDiary, true)))
@@ -209,6 +209,11 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       .from(familyLineageTable)
       .where(eq(familyLineageTable.addedByMemberId, userId))
       .limit(20),
+    // Member's profile vault (for profile completeness guidance)
+    db.select({ dateOfBirth: profileVaultTable.dateOfBirth, address: profileVaultTable.address, contactEmail: profileVaultTable.contactEmail, preferredContact: profileVaultTable.preferredContact })
+      .from(profileVaultTable)
+      .where(eq(profileVaultTable.userId, userId))
+      .limit(1),
   ]);
 
   // ── Calendar context ──
@@ -242,6 +247,18 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
         return `• ${row.fullName}${parts.length ? ` (${parts.join(", ")})` : ""}`;
       }).join("\n")
     : "";
+
+  // ── Profile completeness context ──
+  const vault = memberVault[0] ?? null;
+  const missingVaultFields: string[] = [];
+  if (!vault?.dateOfBirth) missingVaultFields.push("date of birth");
+  if (!vault?.address) missingVaultFields.push("home address");
+  if (!vault?.contactEmail) missingVaultFields.push("contact email");
+  if (!vault?.preferredContact) missingVaultFields.push("preferred contact method");
+
+  const profileCompletenessContext = missingVaultFields.length > 0
+    ? `\n\nPROFILE COMPLETENESS — This member's secure vault is missing the following fields: ${missingVaultFields.join(", ")}. If it feels natural in the conversation, gently offer to help them complete their profile. Never pressure — just open the door: "I noticed your profile is missing a few things — would you like to add them?" Direct them to their Profile page to fill in missing information.`
+    : `\n\nPROFILE COMPLETENESS — This member's profile vault appears complete.`;
 
   const diaryContext = recentDiary.length > 0
     ? "\n\nRecent journal reflections from this member (most recent first):\n" +
@@ -309,7 +326,7 @@ THE MEMBER:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
-${rightsContext}${landContext}${familyContext}${importantDatesContext}${calendarContext}
+${rightsContext}${landContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}
 
