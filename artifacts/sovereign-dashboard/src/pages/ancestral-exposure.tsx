@@ -5,10 +5,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Eye, Scale, AlertTriangle, BookOpen, MapPin, FileText, Layers, Flame,
+  Eye, Scale, AlertTriangle, BookOpen, MapPin, FileText, Layers,
   ShieldAlert, TreePine, Users, Plus, X, Edit2, Trash2, Loader2,
-  ChevronDown, ChevronUp, Search, Filter, Library, BookMarked, Info,
-  ArrowRight, Fingerprint, Building2,
+  ChevronDown, ChevronUp, Search, Library, Info,
+  ArrowRight, Fingerprint,
 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -521,46 +521,57 @@ export default function AncestralExposurePage() {
       )}
 
       {/* Filter bar */}
-      <div className="bg-muted/20 border border-border rounded-xl p-4 space-y-3">
-        <div className="flex items-center gap-2 text-xs text-muted-foreground font-semibold uppercase tracking-wide">
-          <Filter className="w-3.5 h-3.5" /> Filters
-        </div>
-        <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-40 max-w-56">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
-            <input
-              type="text"
-              value={nameSearch}
-              onChange={e => setNameSearch(e.target.value)}
-              placeholder="Search ancestor name…"
-              className="w-full pl-8 pr-3 py-1.5 text-sm bg-muted/30 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-            />
+      {(() => {
+        const hasFilters = nameSearch || category !== "all" || significance !== "all" || impactType !== "all" || stateFilter || locationOnly;
+        const clearAll = () => { setNameSearch(""); setCategory("all"); setSignificance("all"); setImpactType("all"); setStateFilter(""); setLocationOnly(false); };
+        return (
+          <div className="bg-muted/20 border border-border rounded-xl overflow-hidden">
+            {/* Row 1 — name search */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border/60">
+              <div className="relative flex-1">
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+                <input
+                  type="text"
+                  value={nameSearch}
+                  onChange={e => setNameSearch(e.target.value)}
+                  placeholder="Search by ancestor name…"
+                  className="w-full pl-8 pr-3 py-1.5 text-sm bg-background/60 border border-border rounded-md text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                />
+              </div>
+              {hasFilters && (
+                <button
+                  onClick={clearAll}
+                  className="shrink-0 text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 px-2 py-1.5 rounded border border-border hover:border-foreground/30 transition-colors"
+                >
+                  <X className="w-3 h-3" /> Clear filters
+                </button>
+              )}
+            </div>
+
+            {/* Row 2 — narrow filters */}
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2.5">
+              <Sel value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
+              <Sel value={significance} onChange={setSignificance} options={SIGNIFICANCE_OPTIONS} />
+              <Sel value={impactType} onChange={setImpactType} options={IMPACT_OPTIONS} />
+
+              <div className="flex items-center gap-1.5 ml-auto">
+                <input
+                  type="text"
+                  value={stateFilter}
+                  onChange={e => setStateFilter(e.target.value)}
+                  placeholder="State"
+                  maxLength={2}
+                  className="w-16 px-2 py-1.5 text-xs bg-muted/30 border border-border rounded-md text-foreground uppercase placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
+                />
+                <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer whitespace-nowrap">
+                  <input type="checkbox" checked={locationOnly} onChange={e => setLocationOnly(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5" />
+                  Location match
+                </label>
+              </div>
+            </div>
           </div>
-          <Sel value={category} onChange={setCategory} options={CATEGORY_OPTIONS} />
-          <Sel value={significance} onChange={setSignificance} options={SIGNIFICANCE_OPTIONS} />
-          <Sel value={impactType} onChange={setImpactType} options={IMPACT_OPTIONS} />
-          <input
-            type="text"
-            value={stateFilter}
-            onChange={e => setStateFilter(e.target.value)}
-            placeholder="State (e.g. VA)"
-            maxLength={2}
-            className="w-24 px-3 py-1.5 text-sm bg-muted/30 border border-border rounded-md text-foreground uppercase placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-amber-500/50"
-          />
-          <label className="flex items-center gap-2 text-xs text-muted-foreground cursor-pointer">
-            <input type="checkbox" checked={locationOnly} onChange={e => setLocationOnly(e.target.checked)} className="accent-amber-500 w-3.5 h-3.5" />
-            Location match only
-          </label>
-          {(nameSearch || category !== "all" || significance !== "all" || impactType !== "all" || stateFilter || locationOnly) && (
-            <button
-              onClick={() => { setNameSearch(""); setCategory("all"); setSignificance("all"); setImpactType("all"); setStateFilter(""); setLocationOnly(false); }}
-              className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1"
-            >
-              <X className="w-3 h-3" /> Clear
-            </button>
-          )}
-        </div>
-      </div>
+        );
+      })()}
 
       {/* View tabs */}
       <div className="flex items-center gap-1 bg-muted/20 border border-border rounded-lg p-1 w-fit">
