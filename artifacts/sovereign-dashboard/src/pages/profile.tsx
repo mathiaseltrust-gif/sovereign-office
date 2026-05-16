@@ -21,6 +21,7 @@ import {
   Printer, Workflow, ChevronRight, ChevronDown, AlertTriangle, Wifi,
   User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck, MapPin,
   Key, UserCheck, ShieldAlert, Trash2, Clock, Edit2, Feather, Save,
+  Download, CreditCard,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -1167,6 +1168,8 @@ export default function ProfilePage() {
   const [statementEditing, setStatementEditing] = useState(false);
   const [statementSaving, setStatementSaving] = useState(false);
   const [printingId, setPrintingId] = useState<number | null>(null);
+  const [generatingId, setGeneratingId] = useState(false);
+  const [genLetter, setGenLetter] = useState(false);
 
   // ── Succession planning form state ──
   const [succVaultName, setSuccVaultName] = useState("");
@@ -1577,6 +1580,55 @@ export default function ProfilePage() {
     }
   }
 
+  // ── Tribal ID download ──
+  function triggerIdDownload(blob: Blob, filename: string) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 30_000);
+  }
+
+  async function handleDownloadTribalId() {
+    setGeneratingId(true);
+    try {
+      const r = await fetch(`/api/identity/tribal-id/${user!.id}`, {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) throw new Error("Failed to generate Tribal ID");
+      const blob = await r.blob();
+      triggerIdDownload(blob, `tribal-id-${user!.id}.pdf`);
+      toast({ title: "Tribal ID Generated", description: "Your Tribal ID PDF has been downloaded." });
+    } catch (err) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setGeneratingId(false);
+    }
+  }
+
+  async function handleDownloadVerificationLetter() {
+    setGenLetter(true);
+    try {
+      const r = await fetch("/api/identity/verification-letter/generate", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ purpose: "General Identity Verification" }),
+      });
+      if (!r.ok) throw new Error("Failed to generate Verification Letter");
+      const blob = await r.blob();
+      triggerIdDownload(blob, `verification-letter-${user!.id}.pdf`);
+      toast({ title: "Verification Letter Generated", description: "Verification letter PDF downloaded." });
+    } catch (err) {
+      toast({ title: "Error", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setGenLetter(false);
+    }
+  }
+
   // ── Succession vault ──
   const { data: successionStatus, isLoading: successionLoading, refetch: refetchSuccession } = useQuery<SuccessionStatus | null>({
     queryKey: ["hub-succession-vault"],
@@ -1739,6 +1791,78 @@ export default function ProfilePage() {
 
       {/* ── Land Record — parcel, legal description, tribal code, restrictions ── */}
       <LandRecordPanel />
+
+      {/* ── Tribal Identity Document — download card, all members ── */}
+      <Card className="overflow-hidden border-indigo-800/30">
+        <CardContent className="p-0">
+          <div className="flex items-center gap-4 p-4">
+            {/* Seal — role-aware */}
+            <div className="shrink-0 w-14 h-14 rounded-lg border border-indigo-800/30 bg-black/60 flex items-center justify-center overflow-hidden">
+              <img
+                src={
+                  isChief
+                    ? `${import.meta.env.BASE_URL}chief-justice-seal.png`
+                    : `${import.meta.env.BASE_URL}tribal-seal.png`
+                }
+                alt="Seal"
+                className="w-12 h-12 object-contain"
+              />
+            </div>
+
+            {/* Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-bold tracking-widest uppercase text-muted-foreground">
+                {isChief ? "Office of the Chief Justice & Trustee" : "Mathias El Tribe"}
+              </p>
+              <h3 className="text-sm font-serif font-bold text-foreground leading-tight">
+                Sovereign Identity Document
+              </h3>
+              <p className="text-[10px] text-muted-foreground mt-0.5">
+                {fields.legalName || user?.name || "—"}&nbsp;·&nbsp;
+                {isChief ? "Chief Justice & Trustee" : activeRole}
+              </p>
+            </div>
+
+            {/* Right: special badge for chief only */}
+            {isChief && (
+              <div className="shrink-0 hidden sm:flex items-center">
+                <span className="text-[8px] font-bold tracking-widest uppercase px-2 py-1 rounded border border-amber-600/50 text-amber-600 bg-amber-950/30">
+                  Chief Office
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* Action row */}
+          <div className="flex items-center gap-2 px-4 pb-4 flex-wrap">
+            <Button
+              size="sm"
+              className="h-8 gap-1.5 bg-[#1C2B4B] hover:bg-[#243560] text-white text-xs"
+              onClick={handleDownloadTribalId}
+              disabled={generatingId}
+            >
+              {generatingId ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              {generatingId ? "Generating…" : "Download Tribal ID"}
+            </Button>
+            <Button
+              size="sm"
+              variant="outline"
+              className="h-8 gap-1.5 text-xs border-indigo-700/40 text-indigo-700"
+              onClick={handleDownloadVerificationLetter}
+              disabled={genLetter}
+            >
+              {genLetter ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <FileText className="h-3.5 w-3.5" />}
+              {genLetter ? "Generating…" : "Verification Letter"}
+            </Button>
+            <Link href="/tribal-id">
+              <Button size="sm" variant="ghost" className="h-8 gap-1.5 text-xs text-muted-foreground">
+                <CreditCard className="h-3.5 w-3.5" />
+                View Full ID
+              </Button>
+            </Link>
+          </div>
+        </CardContent>
+      </Card>
 
       {/* ── Pipeline Records — compact indicators, office holders only ── */}
       {isOfficeHolder && (

@@ -287,10 +287,14 @@ export default function TribalIdPage() {
           className="relative flex items-center justify-between px-4 py-3"
           style={{ background: "rgba(0,0,0,0.35)", borderBottom: "1px solid rgba(255,255,255,0.12)" }}
         >
-          {/* Left seal — Office of the Chief Justice & Trustee */}
+          {/* Left seal — role-aware: Chief Justice badge for sovereign office, tribal seal for members */}
           <img
-            src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
-            alt="Office of the Chief Justice & Trustee"
+            src={
+              isSovereignOfficeRole(data.identity.role)
+                ? `${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`
+                : `${import.meta.env.BASE_URL}tribal-seal.png?v=4`
+            }
+            alt={isSovereignOfficeRole(data.identity.role) ? "Office of the Chief Justice & Trustee" : "Mathias El Tribe"}
             style={{ width: 80, height: 80, objectFit: "contain", flexShrink: 0 }}
           />
 
@@ -348,13 +352,17 @@ export default function TribalIdPage() {
             />
           </svg>
 
-          {/* Tribal insignia watermark — chief-justice seal (feather design), behind bloodline & status fields */}
+          {/* Tribal insignia watermark — chief-justice seal for sovereign office, tribal seal for members */}
           <div
             className="absolute pointer-events-none select-none"
             style={{ right: "4%", top: "50%", transform: "translateY(-50%)", opacity: 0.22, zIndex: 1 }}
           >
             <img
-              src={`${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`}
+              src={
+                isSovereignOfficeRole(data.identity.role)
+                  ? `${import.meta.env.BASE_URL}chief-justice-seal.png?v=3`
+                  : `${import.meta.env.BASE_URL}tribal-seal.png?v=4`
+              }
               alt=""
               aria-hidden="true"
               style={{ width: 300, height: 300, objectFit: "contain" }}
