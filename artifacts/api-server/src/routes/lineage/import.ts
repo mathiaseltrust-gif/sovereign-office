@@ -1,10 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
-import { familyLineageTable } from "@workspace/db";
+import { familyLineageTable, familyUnitsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { parseLineageCsv, parseGedcom, buildLineageGraph } from "../../sovereign/family-tree-engine";
+import { parseLineageCsv, parseGedcom, parseGedcomFamilies, buildLineageGraph } from "../../sovereign/family-tree-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -37,6 +37,7 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
     const format = isGedcom ? "gedcom" : "csv";
 
     const people = isGedcom ? parseGedcom(text) : parseLineageCsv(text);
+    const rawFamilies = isGedcom ? parseGedcomFamilies(text) : [];
 
     if (people.length === 0) {
       res.status(400).json({
@@ -57,6 +58,7 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
     const errors: string[] = [];
     const lineageIds: number[] = [];
     const nameToId = new Map<string, number>();
+    const gedcomIdToDbId = new Map<string, number>();
 
     for (let i = 0; i < people.length; i++) {
       const person = people[i];
@@ -83,6 +85,7 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
           const newVariants = [...new Set([...existingVariants, ...incomingVariants])];
           await db.update(familyLineageTable).set({ nameVariants: newVariants, updatedAt: new Date() }).where(eq(familyLineageTable.id, existingId));
           nameToId.set(person.fullName.toLowerCase(), existingId);
+          if (person.gedcomId) gedcomIdToDbId.set(person.gedcomId, existingId);
           lineageIds.push(existingId);
           merged++;
           continue;
@@ -118,6 +121,7 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
           .returning();
 
         nameToId.set(person.fullName.toLowerCase(), row.id);
+        if (person.gedcomId) gedcomIdToDbId.set(person.gedcomId, row.id);
         lineageIds.push(row.id);
         created++;
       } catch (err) {
@@ -153,7 +157,65 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
       }
     }
 
-    logger.info({ format, created, merged, skipped, total: people.length }, "Lineage registry import complete");
+    // ── Build family_units from GEDCOM FAM records ───────────────────────────
+    let famCreated = 0;
+    let famSkipped = 0;
+    for (const fam of rawFamilies) {
+      try {
+        const husbandId = fam.husbandGedcomId ? (gedcomIdToDbId.get(fam.husbandGedcomId) ?? null) : null;
+        const wifeId    = fam.wifeGedcomId    ? (gedcomIdToDbId.get(fam.wifeGedcomId)    ?? null) : null;
+        const childDbIds = fam.childGedcomIds
+          .map((gid) => gedcomIdToDbId.get(gid))
+          .filter((id): id is number => id !== undefined);
+
+        if (!husbandId && !wifeId && childDbIds.length === 0) { famSkipped++; continue; }
+
+        const [famRow] = await db.insert(familyUnitsTable).values({
+          gedcomFamId:      fam.gedcomFamId,
+          husbandId:        husbandId ?? undefined,
+          wifeId:           wifeId    ?? undefined,
+          spouseIds:        [],
+          childIds:         childDbIds,
+          relationshipType: "biological",
+          sourceType:       "gedcom",
+        }).returning({ id: familyUnitsTable.id });
+
+        famCreated++;
+
+        // Patch parentIds / childrenIds on individual nodes so the existing
+        // relationship model stays in sync with the FAM record.
+        const parentDbIds = [husbandId, wifeId].filter((id): id is number => id !== null);
+        for (const childId of childDbIds) {
+          const [child] = await db
+            .select({ parentIds: familyLineageTable.parentIds, generationalPosition: familyLineageTable.generationalPosition })
+            .from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+          if (!child) continue;
+          const existingParents = Array.isArray(child.parentIds) ? (child.parentIds as number[]) : [];
+          const newParents = [...new Set([...existingParents, ...parentDbIds.filter((pid) => !existingParents.includes(pid))])];
+          await db.update(familyLineageTable)
+            .set({ parentIds: newParents })
+            .where(eq(familyLineageTable.id, childId));
+        }
+        for (const parentId of parentDbIds) {
+          const [parent] = await db
+            .select({ childrenIds: familyLineageTable.childrenIds })
+            .from(familyLineageTable).where(eq(familyLineageTable.id, parentId)).limit(1);
+          if (!parent) continue;
+          const existingChildren = Array.isArray(parent.childrenIds) ? (parent.childrenIds as number[]) : [];
+          const newChildren = [...new Set([...existingChildren, ...childDbIds.filter((cid) => !existingChildren.includes(cid))])];
+          await db.update(familyLineageTable)
+            .set({ childrenIds: newChildren })
+            .where(eq(familyLineageTable.id, parentId));
+        }
+
+        void famRow;
+      } catch (err) {
+        famSkipped++;
+        logger.warn({ famId: fam.gedcomFamId, err }, "Failed to insert family_unit");
+      }
+    }
+
+    logger.info({ format, created, merged, skipped, total: people.length, famCreated, famSkipped }, "Lineage registry import complete");
 
     res.json({
       format,

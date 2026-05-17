@@ -84,13 +84,30 @@ export const identityNarrativesTable = pgTable("identity_narratives", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+export const familyUnitsTable = pgTable("family_units", {
+  id:               serial("id").primaryKey(),
+  gedcomFamId:      varchar("gedcom_fam_id", { length: 100 }),
+  husbandId:        integer("husband_id").references(() => familyLineageTable.id, { onDelete: "set null" }),
+  wifeId:           integer("wife_id").references(() => familyLineageTable.id, { onDelete: "set null" }),
+  spouseIds:        jsonb("spouse_ids").default([]),
+  childIds:         jsonb("child_ids").default([]),
+  relationshipType: varchar("relationship_type", { length: 50 }).notNull().default("biological"),
+  sourceType:       varchar("source_type", { length: 50 }).notNull().default("manual"),
+  notes:            text("notes"),
+  createdAt:        timestamp("created_at").defaultNow().notNull(),
+  updatedAt:        timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const insertFamilyLineageSchema = createInsertSchema(familyLineageTable).omit({ id: true, createdAt: true, updatedAt: true });
 export const insertAncestralRecordSchema = createInsertSchema(ancestralRecordsTable).omit({ id: true, createdAt: true });
 export const insertIdentityNarrativeSchema = createInsertSchema(identityNarrativesTable).omit({ id: true, createdAt: true, updatedAt: true });
+export const insertFamilyUnitSchema = createInsertSchema(familyUnitsTable).omit({ id: true, createdAt: true, updatedAt: true });
 
 export type FamilyLineage = typeof familyLineageTable.$inferSelect;
 export type AncestralRecord = typeof ancestralRecordsTable.$inferSelect;
 export type IdentityNarrative = typeof identityNarrativesTable.$inferSelect;
+export type FamilyUnit = typeof familyUnitsTable.$inferSelect;
 export type InsertFamilyLineage = z.infer<typeof insertFamilyLineageSchema>;
 export type InsertAncestralRecord = z.infer<typeof insertAncestralRecordSchema>;
 export type InsertIdentityNarrative = z.infer<typeof insertIdentityNarrativeSchema>;
+export type InsertFamilyUnit = z.infer<typeof insertFamilyUnitSchema>;

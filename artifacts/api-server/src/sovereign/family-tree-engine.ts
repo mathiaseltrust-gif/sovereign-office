@@ -23,6 +23,14 @@ export interface ParsedPerson {
   isDeceased?: boolean;
   generationalPosition?: number;
   nameVariants?: string[];
+  gedcomId?: string;
+}
+
+export interface ParsedFamily {
+  gedcomFamId: string;
+  husbandGedcomId: string | null;
+  wifeGedcomId: string | null;
+  childGedcomIds: string[];
 }
 
 export interface LineageGraph {
@@ -177,7 +185,7 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
   }
 
   const result: ParsedPerson[] = [];
-  for (const [, indi] of individuals) {
+  for (const [gedId, indi] of individuals) {
     if (!indi.fullName) continue;
     const person: ParsedPerson = {
       fullName: indi.fullName,
@@ -193,9 +201,48 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
       notes: indi.notes,
       isDeceased: indi.isDeceased,
       generationalPosition: indi.generationalPosition,
+      gedcomId: gedId,
     };
     result.push(person);
   }
+  return result;
+}
+
+export function parseGedcomFamilies(gedText: string): ParsedFamily[] {
+  const lines = gedText.split(/\r?\n/);
+  const result: ParsedFamily[] = [];
+  let current: ParsedFamily | null = null;
+
+  for (const raw of lines) {
+    const trimmed = raw.trim();
+    if (!trimmed) continue;
+    const parts = trimmed.split(/\s+/);
+    const level = parseInt(parts[0] ?? "", 10);
+    if (isNaN(level)) continue;
+
+    const idOrTag = parts[1] ?? "";
+    const rest = parts.slice(2).join(" ");
+
+    if (level === 0) {
+      if (current) result.push(current);
+      if (idOrTag.startsWith("@") && rest === "FAM") {
+        current = { gedcomFamId: idOrTag, husbandGedcomId: null, wifeGedcomId: null, childGedcomIds: [] };
+      } else {
+        current = null;
+      }
+      continue;
+    }
+
+    if (current && level === 1) {
+      const tag = idOrTag;
+      const value = rest;
+      if (tag === "HUSB") current.husbandGedcomId = value;
+      else if (tag === "WIFE") current.wifeGedcomId = value;
+      else if (tag === "CHIL") current.childGedcomIds.push(value);
+    }
+  }
+  if (current) result.push(current);
+
   return result;
 }
 

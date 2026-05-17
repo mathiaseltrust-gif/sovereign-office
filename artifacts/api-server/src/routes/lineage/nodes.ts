@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
+import { familyLineageTable, familyUnitsTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
@@ -836,6 +836,27 @@ router.delete("/:id", requireAuth, requireRole("trustee"), async (req, res, next
     await db.delete(familyLineageTable).where(eq(familyLineageTable.id, id));
     logger.info({ id, adminId: req.user?.dbId }, "Trustee hard-deleted lineage node");
     res.json({ deleted: id });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/lineage/family-units — all FAM records ─────────────────────────
+router.get("/family-units", requireAuth, async (req, res, next) => {
+  try {
+    const familyUnits = await db
+      .select({
+        id:               familyUnitsTable.id,
+        gedcomFamId:      familyUnitsTable.gedcomFamId,
+        husbandId:        familyUnitsTable.husbandId,
+        wifeId:           familyUnitsTable.wifeId,
+        spouseIds:        familyUnitsTable.spouseIds,
+        childIds:         familyUnitsTable.childIds,
+        relationshipType: familyUnitsTable.relationshipType,
+        sourceType:       familyUnitsTable.sourceType,
+      })
+      .from(familyUnitsTable);
+    res.json({ familyUnits });
   } catch (err) {
     next(err);
   }

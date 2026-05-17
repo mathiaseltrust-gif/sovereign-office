@@ -66,6 +66,17 @@ interface Edge {
   isAncestorLine: boolean;
 }
 
+interface FamilyUnit {
+  id: number;
+  gedcomFamId?: string | null;
+  husbandId?: number | null;
+  wifeId?: number | null;
+  spouseIds?: number[] | null;
+  childIds?: number[] | null;
+  relationshipType?: string | null;
+  sourceType?: string | null;
+}
+
 interface LineageRecord {
   id: number;
   fullName: string;
@@ -144,7 +155,7 @@ const H_GAP = 48;
 const V_GAP = 80;
 const CANVAS_PADDING = 60;
 
-function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; totalW: number; totalH: number } {
+function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = []): { positioned: PositionedNode[]; totalW: number; totalH: number } {
   if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
 
   // ── Identify root (lowest gen, or ID 20 if present) ──────────────────────
@@ -157,11 +168,22 @@ function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; to
   const side = new Map<number, "root" | "paternal" | "maternal">();
   side.set(rootNode.id, "root");
 
-  // Build child→parent map for upward traversal
+  // Build child→parent map — seed from node.parentIds, then supplement with FAM records
   const parentOf = new Map<number, number[]>();
   for (const n of nodes) {
     const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
     parentOf.set(n.id, pids);
+  }
+  // FAM records are authoritative for children that have no parentIds set
+  for (const fam of familyUnits) {
+    const famParents = [fam.husbandId, fam.wifeId, ...(Array.isArray(fam.spouseIds) ? fam.spouseIds : [])]
+      .filter((id): id is number => id != null);
+    for (const childId of (Array.isArray(fam.childIds) ? fam.childIds : []) as number[]) {
+      if (!byId.has(childId)) continue;
+      const existing = parentOf.get(childId) ?? [];
+      const extra = famParents.filter((pid) => byId.has(pid) && !existing.includes(pid));
+      if (extra.length > 0) parentOf.set(childId, [...existing, ...extra]);
+    }
   }
 
   // Find direct parents of root — first = paternal, second = maternal
@@ -270,25 +292,37 @@ function computeLayout(nodes: LineageNode[]): { positioned: PositionedNode[]; to
   return { positioned, totalW, totalH };
 }
 
-function buildEdges(positioned: PositionedNode[]): Edge[] {
+function buildEdges(positioned: PositionedNode[], familyUnits: FamilyUnit[] = []): Edge[] {
   const nodeMap = new Map(positioned.map((n) => [n.id, n]));
   const edges: Edge[] = [];
-  for (const node of positioned) {
-    const parentIds = Array.isArray(node.parentIds) ? (node.parentIds as number[]) : [];
-    for (const pid of parentIds) {
-      const parent = nodeMap.get(pid);
-      if (!parent) continue;
-      const isAncestorLine = parent.protectionLevel === "ancestor" || node.protectionLevel === "ancestor";
-      edges.push({
-        key: `${pid}-${node.id}`,
-        x1: parent.x + NODE_W / 2,
-        y1: parent.y + NODE_H,
-        x2: node.x + NODE_W / 2,
-        y2: node.y,
-        isAncestorLine,
-      });
+  const added = new Set<string>();
+
+  function pushEdge(parentId: number, childId: number) {
+    const key = `${parentId}-${childId}`;
+    if (added.has(key)) return;
+    const parent = nodeMap.get(parentId);
+    const child  = nodeMap.get(childId);
+    if (!parent || !child) return;
+    added.add(key);
+    const isAncestorLine = parent.protectionLevel === "ancestor" || child.protectionLevel === "ancestor";
+    edges.push({ key, x1: parent.x + NODE_W / 2, y1: parent.y + NODE_H, x2: child.x + NODE_W / 2, y2: child.y, isAncestorLine });
+  }
+
+  // FAM records first — they are the authoritative parent→child source
+  for (const fam of familyUnits) {
+    const famParents = [fam.husbandId, fam.wifeId, ...(Array.isArray(fam.spouseIds) ? fam.spouseIds : [])]
+      .filter((id): id is number => id != null);
+    for (const childId of (Array.isArray(fam.childIds) ? fam.childIds : []) as number[]) {
+      for (const pid of famParents) pushEdge(pid, childId);
     }
   }
+
+  // Legacy parentIds fallback (for nodes not covered by any FAM record)
+  for (const node of positioned) {
+    const parentIds = Array.isArray(node.parentIds) ? (node.parentIds as number[]) : [];
+    for (const pid of parentIds) pushEdge(pid, node.id);
+  }
+
   return edges;
 }
 
@@ -776,6 +810,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     staleTime: 30_000,
   });
 
+  // FAM (family unit) records — used to connect orphan nodes that belong to a family group
+  const { data: famUnitData } = useQuery<{ familyUnits: FamilyUnit[] }>({
+    queryKey: ["family-units"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/family-units", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      if (!r.ok) return { familyUnits: [] };
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
+  const familyUnits: FamilyUnit[] = famUnitData?.familyUnits ?? [];
+
   const nodes = (() => {
     const base = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
     const selfNodes = (selfData?.nodes ?? []).filter((n) => n.sourceType !== "archived");
@@ -818,19 +864,32 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // ── Separate orphan nodes (no connections to anyone else) from the main tree
   const connectedNodes = useMemo(() => {
     const nodeIdSet = new Set(filteredNodes.map((n) => n.id));
+    // Build set of all node IDs referenced in any FAM record
+    const famConnectedIds = new Set<number>();
+    for (const fam of familyUnits) {
+      const members = [
+        fam.husbandId,
+        fam.wifeId,
+        ...(Array.isArray(fam.spouseIds) ? fam.spouseIds : []),
+        ...(Array.isArray(fam.childIds)  ? fam.childIds  : []),
+      ].filter((id): id is number => id != null);
+      for (const id of members) famConnectedIds.add(id);
+    }
     return filteredNodes.filter((n) => {
       const parents  = (Array.isArray(n.parentIds)    ? n.parentIds    as number[] : []);
       const children = (Array.isArray(n.childrenIds)  ? n.childrenIds  as number[] : []);
-      const hasLink  = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
-      const isUnrelatedGedcom = n.sourceType === "gedcom" && n.generationalPosition === null;
+      const hasDirectLink = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
+      const hasFamLink    = famConnectedIds.has(n.id);
+      const hasLink       = hasDirectLink || hasFamLink;
+      const isUnrelatedGedcom = n.sourceType === "gedcom" && n.generationalPosition === null && !hasFamLink;
       return hasLink && !isUnrelatedGedcom;
     });
-  }, [filteredNodes]);
+  }, [filteredNodes, familyUnits]);
 
   const treeNodes = connectedNodes;
 
-  const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes), [treeNodes]);
-  const edges = useMemo(() => buildEdges(positioned), [positioned]);
+  const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes, familyUnits), [treeNodes, familyUnits]);
+  const edges = useMemo(() => buildEdges(positioned, familyUnits), [positioned, familyUnits]);
 
   const containerRef = useRef<HTMLDivElement>(null);
 
