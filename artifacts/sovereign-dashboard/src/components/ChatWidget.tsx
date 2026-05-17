@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useAuth, getCurrentBearerToken } from "./auth-provider";
+import type { Role } from "./auth-provider";
 import { useLocation } from "wouter";
 
 
@@ -55,14 +56,106 @@ const TIER_ICONS: Record<string, string> = {
   hard_default: "○",
 };
 
-const QUICK_PROMPTS = [
-  { label: "File a Complaint", message: "How do I file a complaint?" },
-  { label: "ICWA Rights", message: "What are my rights under ICWA?" },
-  { label: "Trust Land", message: "What protections does trust land have?" },
-  { label: "Jurisdiction", message: "Who has jurisdiction over Indian Country?" },
-  { label: "Welfare Help", message: "What welfare benefits am I entitled to?" },
-  { label: "My Documents", message: "What documents can I get from the office?" },
+const COMPANION_OPEN_COUNT_KEY = "companion_open_count";
+
+function getCompanionOpenCount(): number {
+  try { return parseInt(localStorage.getItem(COMPANION_OPEN_COUNT_KEY) ?? "0", 10) || 0; } catch { return 0; }
+}
+function incrementCompanionOpenCount(): number {
+  try {
+    const next = getCompanionOpenCount() + 1;
+    localStorage.setItem(COMPANION_OPEN_COUNT_KEY, String(next));
+    return next;
+  } catch { return 1; }
+}
+
+type QuickPrompt = { label: string; message: string };
+
+const ROLE_QUICK_PROMPTS: Record<string, QuickPrompt[]> = {
+  sovereign_admin: [
+    { label: "Governance Readiness", message: "What governance matters need my attention as Chief Justice?" },
+    { label: "Pending Review", message: "What filings or instruments are pending my review?" },
+    { label: "Draft a Notice", message: "Help me draft a sovereign notice or official tribal correspondence." },
+    { label: "Enforce Fiduciary Duty", message: "How do I enforce the federal trust responsibility on a specific matter?" },
+    { label: "Jurisdictional Standing", message: "Advise me on jurisdictional standing for a matter before the office." },
+    { label: "Constitutional Guidance", message: "What does our sovereign authority provide for in this situation?" },
+  ],
+  trustee: [
+    { label: "Fiduciary Obligations", message: "What are my fiduciary obligations as Trustee?" },
+    { label: "Trust Instruments", message: "What trust instruments need my attention?" },
+    { label: "Protect a Beneficiary", message: "How do I protect a beneficiary's rights in a specific matter?" },
+    { label: "Draft a Trust Notice", message: "Help me draft a formal trust notice or beneficiary correspondence." },
+    { label: "Enforce Trust Terms", message: "How do I enforce the terms of a trust instrument?" },
+  ],
+  officer: [
+    { label: "Open Intake Case", message: "Help me open a new intake case and gather the right information." },
+    { label: "Review a Document", message: "Help me review a document for waiver, consent, or jurisdictional language." },
+    { label: "Rights Enforcement", message: "What rights enforcement steps apply in this situation?" },
+    { label: "Draft Agency Notice", message: "Help me draft a notice to an outside agency or institution." },
+    { label: "Compliance Check", message: "Run a compliance check — what legal standards apply here?" },
+  ],
+  elder: [
+    { label: "Document My Lineage", message: "Help me document my lineage for the tribal record." },
+    { label: "Ancestral Protections", message: "What ancestral and treaty protections apply to my family?" },
+    { label: "My Trust Status", message: "Help me understand my trust status and the rights that flow from it." },
+    { label: "Memory Stewardship", message: "What knowledge from my lineage should I add to the Ancestral Memory Bank?" },
+    { label: "Elder Guidance", message: "As an elder, how can I guide younger members in understanding their rights?" },
+  ],
+  medical_provider: [
+    { label: "IHS Eligibility", message: "What are the IHS eligibility standards for Indian patients?" },
+    { label: "IHCIA Coverage", message: "What does IHCIA cover for tribal members I serve?" },
+    { label: "Federal Health Benefits", message: "What federal health benefits apply to members of this Tribe?" },
+    { label: "Patient Rights", message: "What rights do my Indian patients have that I should be protecting?" },
+  ],
+  member: [
+    { label: "Who Am I?", message: "Help me understand who I am as a member of the Mathias El Tribe and what that means." },
+    { label: "My Rights", message: "What rights do I have as a tribal beneficiary under federal law?" },
+    { label: "Trust Responsibility", message: "What is the federal trust responsibility and how does it protect me?" },
+    { label: "What Can I Do Here?", message: "Walk me through everything I can do in this Sovereign Office." },
+    { label: "Enforce My Status", message: "How do I assert and enforce my status as a beneficiary?" },
+    { label: "Protect My Family", message: "How does my tribal membership protect my family?" },
+  ],
+};
+
+const NEW_MEMBER_PROMPTS: QuickPrompt[] = [
+  { label: "Who am I here?", message: "Tell me who I am as a member of the Mathias El Tribe and what that means for my life." },
+  { label: "Trust responsibility", message: "What is the federal trust responsibility — what does it protect me from, and how do I use it?" },
+  { label: "What can I do here?", message: "Walk me through everything I can do in this Sovereign Office — from my rights to my documents to my family tree." },
+  { label: "How do I enforce my rights?", message: "How do I assert and enforce my rights as a tribal beneficiary? Where do I start?" },
+  { label: "My family's protection", message: "How does tribal membership protect my family — my children, my land, my health, my future?" },
 ];
+
+function getQuickPrompts(role: Role, isNew: boolean): QuickPrompt[] {
+  if (isNew) return NEW_MEMBER_PROMPTS;
+  return ROLE_QUICK_PROMPTS[role] ?? ROLE_QUICK_PROMPTS.member;
+}
+
+const ROLE_WELCOME_TEXT: Record<string, { subtitle: string; prompt: string }> = {
+  sovereign_admin: {
+    subtitle: "Chief Justice & Trustee — Sovereign Authority",
+    prompt: "Your office. Your authority. What needs your attention?",
+  },
+  trustee: {
+    subtitle: "Trustee — Fiduciary Authority",
+    prompt: "I hold your record. What trust matter can I help you govern?",
+  },
+  officer: {
+    subtitle: "Duty Officer — Intake & Enforcement",
+    prompt: "Ready to work. Open a case, review a document, or draft a notice.",
+  },
+  elder: {
+    subtitle: "Elder — Ancestral Memory & Guidance",
+    prompt: "Your lineage is held here. What knowledge or protection do you need?",
+  },
+  medical_provider: {
+    subtitle: "Medical Provider — Indian Health Services",
+    prompt: "Ask me about IHS, IHCIA, and the health rights of the members you serve.",
+  },
+  member: {
+    subtitle: "Tribal Member — Beneficiary Rights & Self-Determination",
+    prompt: "I'm here to help you understand who you are, what you're owed, and how to exercise it.",
+  },
+};
 
 type LetterDraftState = "idle" | "form" | "loading";
 
@@ -75,9 +168,10 @@ const INTENT_MESSAGES: Record<string, string> = {
 };
 
 export function ChatWidget() {
-  const { user } = useAuth();
+  const { user, activeRole } = useAuth();
   const [, navigate] = useLocation();
   const [open, setOpen] = useState(false);
+  const [isNewMember, setIsNewMember] = useState(false);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
@@ -186,6 +280,8 @@ export function ChatWidget() {
   const openWithGreeting = () => {
     setOpen(true);
     if (messages.length === 0) {
+      const count = incrementCompanionOpenCount();
+      setIsNewMember(count <= 3);
       setTimeout(() => sendMessage("hello"), 200);
     }
   };
@@ -361,7 +457,7 @@ export function ChatWidget() {
                   Sovereign Office Companion
                 </div>
                 <div style={{ fontSize: 10, opacity: 0.75, marginTop: 1 }}>
-                  Mathias El Tribe · Chief Justice & Trustee
+                  {(ROLE_WELCOME_TEXT[activeRole] ?? ROLE_WELCOME_TEXT.member).subtitle}
                 </div>
               </div>
               {hasRedFlag && (
@@ -388,21 +484,37 @@ export function ChatWidget() {
                 <img
                   src={`${import.meta.env.BASE_URL}tribal-seal.png`}
                   alt="Sovereign Office"
-                  style={{ width: 64, height: 64, objectFit: "contain", marginBottom: 8 }}
+                  style={{ width: 56, height: 56, objectFit: "contain", marginBottom: 8 }}
                 />
-                <div style={{ fontWeight: 600, marginBottom: 4, color: "#374151" }}>
-                  Sovereign Office Assistant
-                </div>
-                <div style={{ fontSize: 13, lineHeight: 1.5, marginBottom: 16 }}>
-                  Federal Indian law guidance, document help, complaints, and rights — ask anything.
-                </div>
+                {isNewMember ? (
+                  <>
+                    <div style={{ fontWeight: 700, marginBottom: 6, color: "#1a3a2a", fontSize: 14 }}>
+                      Welcome to Your Sovereign Office
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.6, marginBottom: 4, color: "#374151", padding: "0 8px" }}>
+                      I am COMPANION — your personal guide through this office. I'm here to help you understand who you are, what you're owed, and how to exercise your rights and freedoms as a member of this Tribe.
+                    </div>
+                    <div style={{ fontSize: 11, color: "#6b7280", marginBottom: 14, fontStyle: "italic" }}>
+                      You are not here to be saved. You are here to govern yourself.
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    <div style={{ fontWeight: 600, marginBottom: 4, color: "#374151" }}>
+                      {(ROLE_WELCOME_TEXT[activeRole] ?? ROLE_WELCOME_TEXT.member).prompt}
+                    </div>
+                    <div style={{ fontSize: 12, lineHeight: 1.5, marginBottom: 14, color: "#6b7280" }}>
+                      Your record is held. I remember what you've shared. Speak freely.
+                    </div>
+                  </>
+                )}
                 <div style={{ display: "flex", flexWrap: "wrap", gap: 6, justifyContent: "center" }}>
-                  {QUICK_PROMPTS.map(p => (
+                  {getQuickPrompts(activeRole, isNewMember).map(p => (
                     <button
                       key={p.label}
                       onClick={() => sendMessage(p.message)}
                       style={{
-                        background: "#1a3a2a",
+                        background: isNewMember ? "#2d4a1a" : "#1a3a2a",
                         color: "#f0e8d0",
                         border: "none",
                         borderRadius: 16,
@@ -817,7 +929,7 @@ export function ChatWidget() {
                 value={input}
                 onChange={e => setInput(e.target.value)}
                 onKeyDown={handleKeyDown}
-                placeholder="Ask about your rights, ICWA, trust land, welfare, filings..."
+                placeholder={activeRole === "sovereign_admin" ? "Govern, enforce, review, advise…" : activeRole === "trustee" ? "Trust matters, instruments, beneficiaries…" : activeRole === "officer" ? "Cases, documents, enforcement, notices…" : "Ask about your rights, status, family, documents…"}
                 rows={1}
                 disabled={loading || letterDraftState === "loading"}
                 style={{

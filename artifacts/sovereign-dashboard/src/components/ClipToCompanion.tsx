@@ -6,6 +6,39 @@ import { Scissors, CheckCircle2 } from "lucide-react";
 const MAX_CLIP_CHARS = 2000;
 const MIN_CLIP_CHARS = 10;
 
+function isInsideEditableArea(target: EventTarget | null): boolean {
+  if (!target || !(target instanceof Element)) return false;
+  return !!(target.closest(
+    'input, textarea, [contenteditable], select, ' +
+    '[role="dialog"], [role="alertdialog"], ' +
+    '[data-radix-dialog-content], [data-radix-alert-dialog-content], ' +
+    '.fixed[role="dialog"], form'
+  ));
+}
+
+function isSelectionInsideEditable(): boolean {
+  const sel = window.getSelection();
+  if (!sel || sel.rangeCount === 0) return false;
+  const range = sel.getRangeAt(0);
+  const container = range.commonAncestorContainer;
+  const el = container instanceof Element ? container : container.parentElement;
+  if (!el) return false;
+  return !!(el.closest(
+    'input, textarea, [contenteditable], select, ' +
+    '[role="dialog"], [role="alertdialog"], ' +
+    '[data-radix-dialog-content], form'
+  ));
+}
+
+function isModalOpen(): boolean {
+  return !!(
+    document.querySelector('[role="dialog"][data-state="open"]') ||
+    document.querySelector('[data-radix-dialog-content]') ||
+    document.querySelector('[data-radix-alert-dialog-content]') ||
+    document.querySelector('.fixed[aria-modal="true"]')
+  );
+}
+
 export function ClipToCompanion() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -18,14 +51,49 @@ export function ClipToCompanion() {
 
   const handleMouseUp = useCallback((e: MouseEvent) => {
     if (btnRef.current?.contains(e.target as Node)) return;
-    const active = document.activeElement;
-    if (active && (active.tagName === "TEXTAREA" || active.tagName === "INPUT")) {
+
+    if (isInsideEditableArea(e.target)) {
       setPos(null);
+      setSelectedText("");
       return;
     }
+
+    const active = document.activeElement;
+    if (active && (
+      active.tagName === "TEXTAREA" ||
+      active.tagName === "INPUT" ||
+      active.tagName === "SELECT" ||
+      active.getAttribute("contenteditable") === "true"
+    )) {
+      setPos(null);
+      setSelectedText("");
+      return;
+    }
+
+    if (isModalOpen()) {
+      setPos(null);
+      setSelectedText("");
+      return;
+    }
+
+    if (isSelectionInsideEditable()) {
+      setPos(null);
+      setSelectedText("");
+      return;
+    }
+
     const sel = window.getSelection();
     const text = sel?.toString().trim() ?? "";
     if (text.length >= MIN_CLIP_CHARS) {
+      const btnLeft = Math.min(e.clientX + 4, window.innerWidth - 200);
+      const btnTop = e.clientY + 14;
+      const companionZoneRight = window.innerWidth - 360;
+      const companionZoneBottom = window.innerHeight - 60;
+      if (btnLeft > companionZoneRight && btnTop > companionZoneBottom - 540) {
+        setPos(null);
+        setSelectedText("");
+        return;
+      }
       setSelectedText(text.substring(0, MAX_CLIP_CHARS));
       setPos({ x: e.clientX, y: e.clientY });
     } else {
