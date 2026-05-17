@@ -50,7 +50,7 @@ export default function Atlas() {
   const [activeSeverities, setActiveSeverities] = useState<string[]>([]);
   const [activePolicies, setActivePolicies] = useState<string[]>([]);
 
-  const events = eventsData as AtlasEvent[];
+  const events = eventsData as unknown as AtlasEvent[];
   
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
