@@ -89,6 +89,37 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
+// ── Self-linked node + immediate family ── always load the caller's own node ──
+router.get("/self", requireAuth, async (req, res, next) => {
+  try {
+    const currentUserId = req.user?.dbId ?? null;
+    if (!currentUserId) { res.json({ nodes: [] }); return; }
+
+    // Find the node linked to the current user's account
+    const [selfNode] = await db
+      .select()
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.linkedProfileUserId, currentUserId))
+      .limit(1);
+
+    if (!selfNode) { res.json({ nodes: [] }); return; }
+
+    // Collect all directly connected node IDs
+    const parentIds   = Array.isArray(selfNode.parentIds)   ? (selfNode.parentIds   as number[]) : [];
+    const childrenIds = Array.isArray(selfNode.childrenIds) ? (selfNode.childrenIds as number[]) : [];
+    const spouseIds   = Array.isArray(selfNode.spouseIds)   ? (selfNode.spouseIds   as number[]) : [];
+    const familyIds   = [...new Set([selfNode.id, ...parentIds, ...childrenIds, ...spouseIds])];
+
+    const familyNodes = familyIds.length > 0
+      ? await db.select().from(familyLineageTable).where(inArray(familyLineageTable.id, familyIds))
+      : [selfNode];
+
+    res.json({ nodes: familyNodes });
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── My submissions — all nodes added by the current user ─────────────────
 router.get("/my", requireAuth, async (req, res, next) => {
   try {

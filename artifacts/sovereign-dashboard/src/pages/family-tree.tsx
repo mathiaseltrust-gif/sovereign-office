@@ -765,7 +765,25 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     },
   });
 
-  const nodes = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
+  // Always load the current user's own node + immediate family regardless of pagination
+  const { data: selfData } = useQuery<{ nodes: LineageNode[] }>({
+    queryKey: ["lineage-nodes-self"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/nodes/self", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      if (!r.ok) return { nodes: [] };
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const nodes = (() => {
+    const base = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
+    const selfNodes = (selfData?.nodes ?? []).filter((n) => n.sourceType !== "archived");
+    if (selfNodes.length === 0) return base;
+    const existingIds = new Set(base.map((n) => n.id));
+    const missing = selfNodes.filter((n) => !existingIds.has(n.id));
+    return missing.length > 0 ? [...base, ...missing] : base;
+  })();
 
   // ── Filter state ─────────────────────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false);
