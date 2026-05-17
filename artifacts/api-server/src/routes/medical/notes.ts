@@ -113,7 +113,6 @@ router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next
       `${MEDICAL_CENTER.toUpperCase()}`,
       `NPI: ${MEDICAL_CENTER_NPI}   Additional NPIs: ${MEDICAL_CENTER_ADDITIONAL_NPIS.join(", ")}`,
       `Director: ${MEDICAL_CENTER_DIRECTOR}`,
-      `Charitable Trust NPI: ${CHARITABLE_TRUST_NPI} · ${CHARITABLE_TRUST_TAXONOMY_LABEL} (${CHARITABLE_TRUST_TAXONOMY})`,
       `Office of the Chief Justice & Trustee — Medical Records`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       ``,

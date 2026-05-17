@@ -284,28 +284,18 @@ export default function MedicalProviderDashboard() {
         </div>
 
         <div className="lg:col-span-1 space-y-4">
-          <div className="rounded-lg border bg-card p-4 space-y-3">
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Institutional Identifiers</p>
-            {MEDICAL_ENTITY_IDS.map((ent) => (
-              <div key={ent.npi} className="space-y-1 border-b last:border-0 pb-2 last:pb-0">
-                <p className="text-xs font-semibold text-foreground">{ent.entity}</p>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">NPI</span>
-                  <span className="font-mono text-xs font-bold text-foreground">{ent.npi}</span>
-                </div>
-                {ent.additionalNpis && (
-                  <p className="text-[10px] text-muted-foreground">
-                    Additional: {ent.additionalNpis.join(", ")}
-                  </p>
-                )}
-                {ent.taxonomyLabel && (
-                  <p className="text-[10px] text-muted-foreground">
-                    {ent.taxonomyLabel} · {ent.taxonomy}
-                  </p>
-                )}
-                <p className="text-[10px] text-muted-foreground leading-tight">{ent.role}</p>
-              </div>
-            ))}
+          <div className="rounded-lg border bg-card p-4 space-y-2">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Medical Center</p>
+            <p className="text-xs font-semibold text-foreground">{MEDICAL_CENTER}</p>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] uppercase tracking-widest text-muted-foreground">NPI</span>
+              <span className="font-mono text-xs font-bold text-foreground">{MEDICAL_CENTER_NPI}</span>
+            </div>
+            {MEDICAL_ENTITY_IDS[0]?.additionalNpis && (
+              <p className="text-[10px] text-muted-foreground">
+                Additional: {MEDICAL_ENTITY_IDS[0].additionalNpis.join(", ")}
+              </p>
+            )}
             <div className="pt-1 border-t">
               <p className="text-[10px] text-muted-foreground">{MEDICAL_CENTER_DIRECTOR_TITLE}</p>
               <p className="text-[10px] font-medium text-foreground">{MEDICAL_CENTER_DIRECTOR}</p>

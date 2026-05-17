@@ -1,3 +1,10 @@
+import {
+  CHARITABLE_TRUST_NAME,
+  CHARITABLE_TRUST_NPI,
+  CHARITABLE_TRUST_TAXONOMY,
+  CHARITABLE_TRUST_TAXONOMY_LABEL,
+} from "../lib/medical-center";
+
 export interface RecorderFormattingRules {
   marginTop: number;
   marginBottom: number;
@@ -86,6 +93,9 @@ export function buildInstrumentContent(opts: InstrumentOptions): string {
 
   lines.push("");
   lines.push("PROTECTED STATUS NOTICE: This document is a recorder-compliant instrument issued under sovereign authority.");
+  lines.push("");
+  lines.push(`CREDENTIAL AUTHORITY: ${CHARITABLE_TRUST_NAME}`);
+  lines.push(`Charitable Trust NPI: ${CHARITABLE_TRUST_NPI} · ${CHARITABLE_TRUST_TAXONOMY_LABEL} (${CHARITABLE_TRUST_TAXONOMY})`);
 
   return lines.join("\n");
 }
