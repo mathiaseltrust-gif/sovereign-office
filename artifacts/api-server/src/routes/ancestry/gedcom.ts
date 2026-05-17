@@ -495,7 +495,7 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
               ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
           ].filter(Boolean).join("\n\n") || undefined;
 
-          await db.insert(familyLineageTable).values({
+          const [bulkCreated] = await db.insert(familyLineageTable).values({
             firstName:   staged.givenName ?? undefined,
             lastName:    staged.surname   ?? undefined,
             fullName:    staged.fullName,
@@ -508,8 +508,12 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
             isDeceased,
             isAncestor:    true,
             pendingReview: false,
-          });
-          await db.update(gedcomStagingTable).set({ status: "approved" }).where(eq(gedcomStagingTable.id, staged.id));
+          }).returning();
+          await db.update(gedcomStagingTable).set({
+            status: "approved",
+            matchedAncestorId:   bulkCreated.id,
+            matchedAncestorName: bulkCreated.fullName,
+          }).where(eq(gedcomStagingTable.id, staged.id));
           approved++;
         }
       } catch {

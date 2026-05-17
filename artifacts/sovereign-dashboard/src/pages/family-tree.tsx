@@ -650,7 +650,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       const parents = (Array.isArray(n.parentIds) ? n.parentIds as number[] : []);
       const children = (Array.isArray(n.childrenIds) ? n.childrenIds as number[] : []);
       const hasLink = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
-      if (hasLink) connected.push(n);
+      // GEDCOM records at gen=0 are from unrelated families in the GEDCOM file —
+      // they may link to each other but are not part of the main McCaster tree.
+      // Treat them as orphans so they don't crowd the root generation row.
+      const isUnrelatedGedcom = n.sourceType === "gedcom" && (n.generationalPosition ?? 0) === 0;
+      if (hasLink && !isUnrelatedGedcom) connected.push(n);
       else orphans.push(n);
     }
     return { connectedNodes: connected, orphanNodes: orphans };
