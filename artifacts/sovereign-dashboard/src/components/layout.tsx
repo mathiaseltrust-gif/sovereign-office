@@ -59,12 +59,11 @@ function getTrusteeNav(): NavSectionDef[] {
       items: [
         { href: "/files",        label: "Files",                    icon: FolderOpen },
         { href: "/filings",      label: "Filings",                  icon: FileText },
+        { href: "/templates",    label: "Document Templates",       highlight: true, icon: FilePen },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
-        { href: "/instrument-wizard", label: "Template Wizard",      icon: Wand2 },
         { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
         { href: "/org",          label: "Organizations",            icon: Building2 },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
-        { href: "/templates",    label: "Templates",                icon: FilePen },
       ],
     },
     {

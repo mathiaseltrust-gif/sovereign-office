@@ -71,11 +71,13 @@ import donateRouter from "./donate";
 import landRouter from "./land/index";
 import ancestryExposureRouter from "./ancestry/exposure";
 import ancestryGedcomRouter from "./ancestry/gedcom";
+import templatesRouter from "./templates/index";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 
+router.use("/templates", templatesRouter);
 router.use("/trust/templates", trustTemplatesRouter);
 router.use("/trust/instruments", trustInstrumentsRouter);
 router.use("/trust/filings", trustFilingsRouter);

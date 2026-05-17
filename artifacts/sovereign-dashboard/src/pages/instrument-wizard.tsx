@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Badge } from "@/components/ui/badge";
@@ -351,6 +351,15 @@ export default function InstrumentWizardPage() {
     trusteeNotes: "",
     saveToProfile: true,
   });
+
+  // Pre-select template from URL param, e.g. /instrument-wizard?key=trust_deed
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const keyParam = params.get("key");
+    if (keyParam && TEMPLATE_CATALOG.some(t => t.key === keyParam)) {
+      setWiz(prev => ({ ...prev, templateKey: keyParam, step: 2 }));
+    }
+  }, []);
 
   const selectedTemplate = TEMPLATE_CATALOG.find(t => t.key === wiz.templateKey) ?? null;
 
