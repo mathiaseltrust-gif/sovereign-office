@@ -1,0 +1,251 @@
+Yes — build the Investigation Detail Page, but frame it correctly.
+
+This is NOT merely a case management page.
+
+It is a:
+Jurisdictional Review, Protections, and Enforcement Workspace.
+
+Purpose:
+Allow officers, reviewers, investigators, trustees, court personnel, and authorized departments to work a matter from intake through review, triggered jurisdiction analysis, protections review, notice generation, enforcement tracking, and final resolution.
+
+This system must integrate:
+- doctrine engines
+- protections libraries
+- rights frameworks
+- statutes
+- tribal law
+- federal Indian law
+- procedural rules
+- triggered jurisdiction analysis
+- enforcement workflows
+- audit history
+- notices
+- evidence
+- timelines
+- remedies
+- document generation
+
+without disrupting the existing ecosystem.
+
+==================================================
+CORE PRINCIPLE
+==================================================
+
+A matter is not simply a “case.”
+
+A matter is:
+an event, action, omission, interference, classification issue, benefit issue, property issue, recording issue, jurisdictional issue, rights issue, procedural issue, or governmental interaction that may trigger:
+- tribal review,
+- federal Indian law implications,
+- trust responsibility review,
+- protections review,
+- jurisdictional conflict analysis,
+- enforcement authority,
+- or administrative response obligations.
+
+==================================================
+INVESTIGATION DETAIL PAGE
+==================================================
+
+Create:
+Matter / Investigation Detail Page
+
+Purpose:
+Allow authorized personnel to manage a matter from start to finish.
+
+==================================================
+SECTIONS
+==================================================
+
+1. Matter Overview
+- Matter Number
+- Status
+- Trigger Level
+- Priority
+- Assigned Officers
+- Dates
+- Related Entities
+- Related Land
+- Related Agencies
+- Related Documents
+
+2. Triggered Jurisdiction Analysis
+This is critical.
+
+Allow the system to identify:
+- tribal jurisdiction triggers
+- federal Indian law triggers
+- trust responsibility implications
+- Indian Country implications
+- treaty implications
+- civil rights implications
+- administrative law implications
+- recording implications
+- tax implications
+- benefit/program implications
+
+Examples:
+- interaction involving tribal land
+- denial involving AI/AN protections
+- interference with tribal documents
+- state action affecting protected land
+- administrative classification conflict
+- recording refusal
+- benefit denial
+- procedural irregularities
+- improper jurisdiction assumption
+
+Display:
+- triggered provisions
+- triggered departments
+- triggered doctrines
+- triggered protections
+- triggered notices
+- triggered remedies
+
+==================================================
+3. Protections & Rights Library
+==================================================
+
+Create expandable protections references tied to the Tribal Department of Justice framework.
+
+Examples:
+- religious protections
+- hair/dress protections
+- ceremonial protections
+- tribal identity protections
+- due process protections
+- trust responsibility protections
+- AI/AN healthcare protections
+- land protections
+- recording protections
+- anti-discrimination protections
+- jurisdictional protections
+- federal supremacy protections
+- treaty protections
+- civil rights protections
+
+Each protection entry may include:
+- title
+- summary
+- statutes
+- case law
+- doctrine notes
+- tribal law references
+- applicable agencies
+- trigger conditions
+- enforcement options
+- related templates/notices
+
+==================================================
+4. Applicable Law / Doctrine Engine
+==================================================
+
+Display:
+- applicable statutes
+- tribal provisions
+- federal Indian law
+- state procedural rules
+- treaties
+- constitutional provisions
+- administrative regulations
+- internal doctrine logic
+
+This section should be assistive only.
+It must NOT replace human review.
+
+==================================================
+5. Timeline / Event Chain
+==================================================
+
+Track:
+- intake
+- notices
+- calls
+- uploads
+- recordings
+- filings
+- deadlines
+- responses
+- violations
+- officer notes
+- generated documents
+- enforcement actions
+
+==================================================
+6. Evidence Section
+==================================================
+
+Allow:
+- uploads
+- screenshots
+- PDFs
+- notices
+- recordings
+- metadata
+- chain-of-custody logging
+
+==================================================
+7. Generated Actions
+==================================================
+
+Allow the system to recommend:
+- Notice of Federal Review
+- jurisdiction review
+- preservation notice
+- protections notice
+- recording challenge
+- benefits escalation
+- DOJ review
+- tribal court escalation
+- federal agency notification
+- administrative remedy pathway
+
+==================================================
+8. Tribal Department of Justice Integration
+==================================================
+
+Create a DOJ-linked framework.
+
+Purpose:
+When certain triggers occur, the system may identify that:
+- departmental review is implicated,
+- protections are implicated,
+- jurisdiction review is implicated,
+- enforcement review is implicated,
+- or intergovernmental review may be required.
+
+This does NOT automatically assert jurisdiction over everything.
+
+It means:
+the matter has crossed thresholds requiring review under tribal law, protections logic, trust responsibility analysis, or federal Indian law implications.
+
+==================================================
+9. Architecture Protection Rule
+==================================================
+
+Nothing in this system may:
+- disrupt existing ecosystem behavior
+- rewrite doctrine
+- override tribal law
+- replace existing NFR logic
+- replace court document systems
+- remove existing electronic stamp/signature systems
+- weaken prior approved implementation
+
+This system is additive only.
+
+==================================================
+10. Existing Stamp/Authority Preservation
+==================================================
+
+Preserve all existing:
+- tribal seal logic
+- electronic signing workflows
+- “By Order of the Mathias El Tribe Supreme Court”
+- date blocks
+- “Office of the Chief Justice and Trustee”
+implementations exactly as currently functioning.
+
+Do not recreate them.
+Reuse them.

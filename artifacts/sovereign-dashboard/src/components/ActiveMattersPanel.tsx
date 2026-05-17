@@ -167,6 +167,11 @@ export function ActiveMattersPanel() {
                   {new Date(m.createdAt).toLocaleDateString()}
                 </span>
               </div>
+              <div className="pt-1">
+                <Link href={`/investigations/${m.id}`}>
+                  <span className="text-[10px] text-primary hover:underline cursor-pointer">Open matter →</span>
+                </Link>
+              </div>
             </div>
           ))
         )}

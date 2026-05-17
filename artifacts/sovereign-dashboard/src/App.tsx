@@ -79,6 +79,7 @@ const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
 const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
 const AtlasAdminPage = lazy(() => import("@/pages/atlas-admin"));
+const InvestigationDetailPage = lazy(() => import("@/pages/investigation-detail"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -446,6 +447,13 @@ function AppRouter() {
       </Route>
       <Route path="/atlas-admin">
         {() => <ProtectedRoute component={AtlasAdminPage} />}
+      </Route>
+      <Route path="/investigations/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <InvestigationDetailPage params={params} />
+          </ProtectedParamRoute>
+        )}
       </Route>
 
       <Route component={NotFound} />
