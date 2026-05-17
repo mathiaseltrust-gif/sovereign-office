@@ -98,9 +98,17 @@ export default function MedicalProviderDashboard() {
 
   return (
     <div data-testid="page-medical-provider" className="space-y-6">
-      <div className="mb-4">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Medical Provider Dashboard</h1>
-        <p className="text-muted-foreground mt-1">{MEDICAL_CENTER} — Tribal Medical Authority</p>
+      <div className="mb-4 flex items-center gap-4">
+        <img
+          src={`${import.meta.env.BASE_URL}medical-center-logo.png`}
+          alt="The Mathias El Tribe Medical Center"
+          className="w-16 h-16 rounded-full object-contain flex-shrink-0"
+          style={{ background: "#000" }}
+        />
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Medical Provider Dashboard</h1>
+          <p className="text-muted-foreground mt-1">{MEDICAL_CENTER} — Tribal Medical Authority</p>
+        </div>
       </div>
 
       {/* Provider credentials header */}

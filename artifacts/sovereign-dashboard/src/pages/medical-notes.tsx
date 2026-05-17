@@ -109,9 +109,17 @@ export default function MedicalNotesPage() {
 
   return (
     <div data-testid="page-medical-notes">
-      <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Medical Notes</h1>
-        <p className="text-muted-foreground mt-1">{MEDICAL_CENTER} — Office of the Chief Justice & Trustee</p>
+      <div className="mb-6 flex items-center gap-4">
+        <img
+          src={`${import.meta.env.BASE_URL}medical-center-logo.png`}
+          alt="The Mathias El Tribe Medical Center"
+          className="w-16 h-16 rounded-full object-contain flex-shrink-0"
+          style={{ background: "#000" }}
+        />
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Medical Notes</h1>
+          <p className="text-muted-foreground mt-1">{MEDICAL_CENTER} — Office of the Chief Justice & Trustee</p>
+        </div>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
