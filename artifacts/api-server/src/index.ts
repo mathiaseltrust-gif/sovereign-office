@@ -3,6 +3,7 @@ import { URL } from "url";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureDocRefColumns } from "./lib/doc-ref";
+import { startDigestProcessor } from "./services/digest-processor";
 import { startRedisSubscriber } from "./lib/sse-manager";
 import { handleWsUpgrade } from "./lib/ws-manager";
 import { resolveUserIdFromToken } from "./auth/entra";
@@ -27,6 +28,7 @@ ensureDocRefColumns().catch((err) => {
 });
 
 startRedisSubscriber();
+startDigestProcessor();
 
 async function resolveWsUserId(req: IncomingMessage): Promise<number | null> {
   try {

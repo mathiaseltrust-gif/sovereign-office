@@ -75,6 +75,22 @@ const migrations = [
     deleted_at TIMESTAMP,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+
+  // email digest queue — stores pending digest emails for daily/weekly delivery
+  `CREATE TABLE IF NOT EXISTS email_digest_queue (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL,
+    email TEXT NOT NULL,
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    severity TEXT,
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSONB DEFAULT '{}',
+    frequency TEXT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    processed_at TIMESTAMP
+  )`,
 ];
 
 async function runMigrations() {

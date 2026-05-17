@@ -40,7 +40,7 @@ export default function ProfilePage() {
 
   const [isLoading, setIsLoading] = useState(true);
   const [isSaving, setIsSaving] = useState(false);
-  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean | string>>({});
   const [apiAvailable, setApiAvailable] = useState(false);
 
   const initials = session?.name?.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2) ?? "?";
@@ -60,7 +60,7 @@ export default function ProfilePage() {
         });
         if (r.ok) {
           const d = await r.json();
-          const prefs = (d.profile?.notificationPreferences ?? {}) as Record<string, boolean>;
+          const prefs = (d.profile?.notificationPreferences ?? {}) as Record<string, boolean | string>;
           setNotifPrefs(prefs);
           setApiAvailable(true);
         } else {
@@ -99,7 +99,7 @@ export default function ProfilePage() {
     }
   };
 
-  const masterEmailOn = notifPrefs.email ?? false;
+  const masterEmailOn = notifPrefs.email === true;
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -213,6 +213,34 @@ export default function ProfilePage() {
               </div>
             )}
 
+            {/* Delivery frequency — shown only when master email is on */}
+            {masterEmailOn && (
+              <div className="space-y-2">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Delivery frequency</p>
+                <div className="flex flex-col gap-1">
+                  {[
+                    { value: "instant", label: "Send immediately", desc: "Each notification emails you right away." },
+                    { value: "daily", label: "Daily digest", desc: "All notifications bundled into one email per day." },
+                    { value: "weekly", label: "Weekly digest", desc: "One summary email at the start of each week." },
+                  ].map(({ value, label, desc }) => (
+                    <label key={value} className="flex items-start gap-2.5 cursor-pointer rounded-md px-2.5 py-2 hover:bg-muted/50 transition-colors">
+                      <input
+                        type="radio"
+                        name="communityEmailDeliveryFrequency"
+                        className="mt-0.5 accent-primary shrink-0"
+                        checked={(notifPrefs.emailDeliveryFrequency ?? "instant") === value}
+                        onChange={() => setNotifPrefs((p) => ({ ...p, emailDeliveryFrequency: value }))}
+                      />
+                      <div>
+                        <p className="text-sm font-medium text-foreground leading-tight">{label}</p>
+                        <p className="text-xs text-muted-foreground">{desc}</p>
+                      </div>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
+
             {/* Email delivery preview — live summary */}
             <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-3 space-y-2">
               <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">Email delivery preview</p>
@@ -222,16 +250,25 @@ export default function ProfilePage() {
                 </p>
               ) : (() => {
                 const enabled = EMAIL_NOTIFICATION_TOGGLES.filter((t) => notifPrefs[t.key] !== false);
+                const freq = notifPrefs.emailDeliveryFrequency ?? "instant";
                 return (
-                  <div className="flex flex-wrap gap-1">
-                    <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">TRO alerts</span>
-                    <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">Red-flag alerts</span>
-                    {enabled.length === 0 ? (
-                      <span className="text-xs text-muted-foreground self-center ml-1">No optional categories selected.</span>
-                    ) : enabled.map((t) => (
-                      <span key={t.key} className="text-[10px] rounded-full bg-blue-100 border border-blue-200 text-blue-800 px-2 py-0.5 font-medium">{t.label}</span>
-                    ))}
-                  </div>
+                  <>
+                    <div className="flex flex-wrap gap-1">
+                      <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">TRO alerts</span>
+                      <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">Red-flag alerts</span>
+                      {enabled.length === 0 ? (
+                        <span className="text-xs text-muted-foreground self-center ml-1">No optional categories selected.</span>
+                      ) : enabled.map((t) => (
+                        <span key={t.key} className="text-[10px] rounded-full bg-blue-100 border border-blue-200 text-blue-800 px-2 py-0.5 font-medium">{t.label}</span>
+                      ))}
+                    </div>
+                    <div className="pt-1 border-t border-blue-100 flex items-center gap-1.5">
+                      <span className="text-[10px] text-blue-600 font-semibold uppercase tracking-wider">Frequency:</span>
+                      <span className="text-[10px] text-blue-700">
+                        {freq === "daily" ? "Daily digest" : freq === "weekly" ? "Weekly digest" : "Send immediately"}
+                      </span>
+                    </div>
+                  </>
                 );
               })()}
             </div>

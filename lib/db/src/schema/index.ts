@@ -38,3 +38,4 @@ export * from "./ancestral-timeline";
 export * from "./gedcom-staging";
 export * from "./tribal-doc-sequences";
 export * from "./direct-messages";
+export * from "./email-digest-queue";

@@ -175,6 +175,45 @@ export interface SendNotificationEmailOptions {
   metadata?: Record<string, unknown>;
 }
 
+export interface SendDigestEmailOptions {
+  to: string;
+  name: string;
+  frequency: "daily" | "weekly";
+  items: Array<{ category: string; severity: string; title: string; message: string }>;
+}
+
+export async function sendDigestEmail(opts: SendDigestEmailOptions): Promise<void> {
+  if (!resend) {
+    logger.debug({ to: opts.to, frequency: opts.frequency }, "Digest email skipped — RESEND_API_KEY or RESEND_FROM_EMAIL not configured");
+    return;
+  }
+
+  const freqLabel = opts.frequency === "weekly" ? "Weekly" : "Daily";
+  const subject = `Your ${freqLabel.toLowerCase()} notification digest`;
+
+  const lines = opts.items
+    .map(
+      (item, i) =>
+        `${i + 1}. [${item.category.replace(/_/g, " ").toUpperCase()}] ${item.title}\n   ${item.message}`,
+    )
+    .join("\n\n");
+
+  const unsubUrl = buildUnsubscribeUrl(opts.to);
+  const text = `Hello ${opts.name},\n\nHere is your ${freqLabel.toLowerCase()} notification digest (${opts.items.length} item${opts.items.length === 1 ? "" : "s"}):\n\n${lines}\n\n---\nTo stop receiving these emails, unsubscribe here: ${unsubUrl}\n`;
+
+  const result = await resend.emails.send({
+    from: RESEND_FROM_EMAIL!,
+    to: opts.to,
+    subject,
+    text,
+    html: text.replace(/\n/g, "<br>").replace(/  /g, "&nbsp;&nbsp;"),
+  });
+  logger.info(
+    { to: opts.to, frequency: opts.frequency, count: opts.items.length, id: result.data?.id },
+    "Digest notification email sent",
+  );
+}
+
 export async function sendNotificationEmail(opts: SendNotificationEmailOptions): Promise<void> {
   if (!resend) {
     logger.debug({ to: opts.to, category: opts.category }, "Email skipped — RESEND_API_KEY or RESEND_FROM_EMAIL not configured");

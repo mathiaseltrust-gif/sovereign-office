@@ -1,5 +1,5 @@
 import { db } from "@workspace/db";
-import { notificationsTable, usersTable, profilesTable } from "@workspace/db";
+import { notificationsTable, usersTable, profilesTable, emailDigestQueueTable } from "@workspace/db";
 import type { InsertNotification } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
@@ -135,25 +135,44 @@ export async function createNotification(input: NotificationInput): Promise<type
 
     // Email delivery — wrapped so failures never interrupt the notification write
     try {
+      const isAlwaysOn = ALWAYS_ON_CATEGORIES.has(input.category);
+
       if (input.userId != null) {
         const userInfo = await getUserEmailPreference(input.userId);
         if (userInfo && shouldSendEmailForCategory(userInfo.notificationPreferences, input.category)) {
-          await sendNotificationEmail({
-            to: userInfo.email,
-            name: userInfo.name,
-            category: input.category,
-            severity: input.severity,
-            title: input.title,
-            message: input.message,
-            metadata: input.metadata,
-          });
+          const freq = isAlwaysOn
+            ? "instant"
+            : String(userInfo.notificationPreferences.emailDeliveryFrequency ?? "instant");
+
+          if (freq === "daily" || freq === "weekly") {
+            await db.insert(emailDigestQueueTable).values({
+              userId: input.userId,
+              email: userInfo.email,
+              name: userInfo.name,
+              category: input.category,
+              severity: input.severity ?? "info",
+              title: input.title,
+              message: input.message,
+              metadata: input.metadata ?? {},
+              frequency: freq,
+            });
+          } else {
+            await sendNotificationEmail({
+              to: userInfo.email,
+              name: userInfo.name,
+              category: input.category,
+              severity: input.severity,
+              title: input.title,
+              message: input.message,
+              metadata: input.metadata,
+            });
+          }
         }
       } else {
         // Broadcast: for non-always-on categories, prefilter at DB level on the
         // master email flag to reduce the result set, then apply per-category JS
         // filter.  Always-on categories (tro_alert, red_flag_alert) skip the
         // master flag check and query all users with a profile.
-        const isAlwaysOn = ALWAYS_ON_CATEGORIES.has(input.category);
         const candidateUsers = await db
           .select({
             id: usersTable.id,
@@ -175,8 +194,27 @@ export async function createNotification(input: NotificationInput): Promise<type
         });
 
         await Promise.all(
-          eligibleUsers.map((u) =>
-            sendNotificationEmail({
+          eligibleUsers.map((u) => {
+            const prefs = (u.notificationPreferences ?? {}) as Record<string, unknown>;
+            const freq = isAlwaysOn
+              ? "instant"
+              : String(prefs.emailDeliveryFrequency ?? "instant");
+
+            if (freq === "daily" || freq === "weekly") {
+              return db.insert(emailDigestQueueTable).values({
+                userId: u.id,
+                email: u.email,
+                name: u.name,
+                category: input.category,
+                severity: input.severity ?? "info",
+                title: input.title,
+                message: input.message,
+                metadata: input.metadata ?? {},
+                frequency: freq,
+              });
+            }
+
+            return sendNotificationEmail({
               to: u.email,
               name: u.name,
               category: input.category,
@@ -184,8 +222,8 @@ export async function createNotification(input: NotificationInput): Promise<type
               title: input.title,
               message: input.message,
               metadata: input.metadata,
-            }),
-          ),
+            });
+          }),
         );
       }
     } catch (emailErr) {
