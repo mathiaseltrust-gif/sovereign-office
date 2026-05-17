@@ -1,6 +1,6 @@
 import { db, pool } from "@workspace/db";
 import { emailDigestQueueTable } from "@workspace/db";
-import { isNull, inArray, isNotNull, eq, and, desc } from "drizzle-orm";
+import { isNull, inArray, isNotNull, eq, and, desc, lt } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
 import { sendDigestEmail } from "./mailer";
@@ -33,9 +33,26 @@ async function withAdvisoryLock(fn: () => Promise<void>): Promise<void> {
   }
 }
 
+const RETENTION_DAYS = 30;
+
+async function cleanupOldDigestEntries(now: Date): Promise<void> {
+  const cutoff = new Date(now.getTime() - RETENTION_DAYS * 24 * 60 * 60 * 1000);
+  await db
+    .delete(emailDigestQueueTable)
+    .where(
+      and(
+        isNotNull(emailDigestQueueTable.processedAt),
+        lt(emailDigestQueueTable.processedAt, cutoff),
+      ),
+    );
+  logger.info({ cutoff }, "Digest queue cleanup: deleted old processed entries");
+}
+
 async function processDigests(): Promise<void> {
   await withAdvisoryLock(async () => {
     const now = new Date();
+
+    await cleanupOldDigestEntries(now);
 
     const pendingItems = await db
       .select()
