@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
-import { eq, desc, ne, or, and, inArray } from "drizzle-orm";
+import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
 import { logger } from "../../lib/logger";
@@ -53,11 +53,17 @@ router.get("/", requireAuth, async (req, res, next) => {
       createdAt: familyLineageTable.createdAt,
     };
 
+    // Sort: highest generational position first, NULLs last (isolated GEDCOM nodes go to end)
+    const ORDER_BY = [
+      sql`generational_position DESC NULLS LAST`,
+      desc(familyLineageTable.createdAt),
+    ] as const;
+
     let nodes;
     if (isChief) {
       // Chief / admin sees everything
       nodes = await db.select(baseSelect).from(familyLineageTable)
-        .orderBy(desc(familyLineageTable.generationalPosition), desc(familyLineageTable.createdAt))
+        .orderBy(...ORDER_BY)
         .limit(limit).offset(offset);
     } else {
       // Regular member: see official nodes + own nodes + tribal nodes from others
@@ -69,7 +75,7 @@ router.get("/", requireAuth, async (req, res, next) => {
             eq(familyLineageTable.visibility, "tribal"),
           )
         )
-        .orderBy(desc(familyLineageTable.generationalPosition), desc(familyLineageTable.createdAt))
+        .orderBy(...ORDER_BY)
         .limit(limit).offset(offset);
 
       // Strip sensitive fields from tribal nodes that belong to other members
