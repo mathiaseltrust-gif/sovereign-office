@@ -302,6 +302,59 @@ async function mergeIntoExisting(staged: StagedRow, ancestorId: number): Promise
   return { id: existing.id, fullName: existing.fullName };
 }
 
+// ── Relationship-linking pass ─────────────────────────────────────────────────
+// After records are approved we know each staging row's matchedAncestorId.
+// Walk every approved row in the batch and resolve GEDCOM IDs → lineage IDs,
+// then write parentIds / childrenIds / spouseIds back to family_lineage.
+// This is what makes GEDCOM-imported nodes appear connected in the family tree.
+async function linkRelationshipsForBatch(batchId: number): Promise<void> {
+  const staged = await db.select().from(gedcomStagingTable).where(
+    and(eq(gedcomStagingTable.batchId, batchId), eq(gedcomStagingTable.status, "approved")),
+  );
+
+  // gedcomId → lineage row id
+  const gToL = new Map<string, number>();
+  for (const r of staged) {
+    if (r.gedcomId && r.matchedAncestorId) gToL.set(r.gedcomId, r.matchedAncestorId);
+  }
+  if (gToL.size === 0) return;
+
+  for (const r of staged) {
+    if (!r.matchedAncestorId) continue;
+
+    const parentIds: number[] = [];
+    if (r.fatherGedcomId) { const id = gToL.get(r.fatherGedcomId); if (id) parentIds.push(id); }
+    if (r.motherGedcomId) { const id = gToL.get(r.motherGedcomId); if (id) parentIds.push(id); }
+
+    const spouseIds: number[] = (Array.isArray(r.spouseGedcomIds) ? r.spouseGedcomIds as string[] : [])
+      .map(g => gToL.get(g)).filter((id): id is number => id !== undefined);
+
+    const childrenIds: number[] = (Array.isArray(r.childrenGedcomIds) ? r.childrenGedcomIds as string[] : [])
+      .map(g => gToL.get(g)).filter((id): id is number => id !== undefined);
+
+    if (parentIds.length === 0 && spouseIds.length === 0 && childrenIds.length === 0) continue;
+
+    const [existing] = await db.select({
+      parentIds: familyLineageTable.parentIds,
+      childrenIds: familyLineageTable.childrenIds,
+      spouseIds: familyLineageTable.spouseIds,
+    }).from(familyLineageTable).where(eq(familyLineageTable.id, r.matchedAncestorId)).limit(1);
+    if (!existing) continue;
+
+    const exP = Array.isArray(existing.parentIds)   ? existing.parentIds   as number[] : [];
+    const exC = Array.isArray(existing.childrenIds) ? existing.childrenIds as number[] : [];
+    const exS = Array.isArray(existing.spouseIds)   ? existing.spouseIds   as number[] : [];
+
+    await db.update(familyLineageTable).set({
+      parentIds:   [...new Set([...exP, ...parentIds])],
+      childrenIds: [...new Set([...exC, ...childrenIds])],
+      spouseIds:   [...new Set([...exS, ...spouseIds])],
+    }).where(eq(familyLineageTable.id, r.matchedAncestorId));
+  }
+
+  logger.info({ batchId, linked: staged.length }, "GEDCOM relationship linking complete");
+}
+
 // ── POST /api/ancestry/gedcom/staging/:id/approve ────────────────────────────
 // For match_type === "new" (or ?force=new): inserts a new family_lineage record.
 // For exact / probable / possible with a matchedAncestorId: merges missing fields
@@ -366,6 +419,9 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
         SET approved_count = approved_count + 1, pending_count = GREATEST(pending_count - 1, 0)
         WHERE id = ${staged.batchId}
       `);
+      // Re-run the full relationship pass for the batch so this node and any
+      // previously-approved siblings now see each other's IDs.
+      await linkRelationshipsForBatch(staged.batchId).catch(() => {});
     }
 
     res.json({ approved: true, merged: shouldMerge, ancestorId: resultId, fullName: resultName });
@@ -531,7 +587,22 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
       `);
     }
 
+    // Wire up parentIds / childrenIds / spouseIds for every approved record in the batch
+    if (batchId) await linkRelationshipsForBatch(batchId).catch(() => {});
+
     res.json({ approved, merged, total, matchTypes: types });
+  } catch (err) { next(err); }
+});
+
+// ── POST /api/ancestry/gedcom/batches/:id/link-relationships ─────────────────
+// Re-run the relationship-linking pass for an already-approved batch.
+// Useful to repair batches approved before this fix was deployed.
+router.post("/batches/:id/link-relationships", requireAuth, requireAdminOrTrustee, async (req, res, next) => {
+  try {
+    const batchId = Number(req.params.id);
+    if (!batchId) { res.status(400).json({ error: "Invalid batch ID" }); return; }
+    await linkRelationshipsForBatch(batchId);
+    res.json({ ok: true, batchId });
   } catch (err) { next(err); }
 });
 

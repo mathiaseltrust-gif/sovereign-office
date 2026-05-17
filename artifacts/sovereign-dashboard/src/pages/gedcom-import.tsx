@@ -374,6 +374,16 @@ export default function GedcomImportPage() {
     },
   });
 
+  const relinkMut = useMutation({
+    mutationFn: (id: number) =>
+      authFetch(`/api/ancestry/gedcom/batches/${id}/link-relationships`, { method: "POST" }).then((r: Response) => r.json()),
+    onSuccess: () => {
+      toast({ title: "Family relationships re-linked — refresh the family tree to see connected nodes" });
+      qc.invalidateQueries({ queryKey: ["gedcom-staging"] });
+    },
+    onError: () => toast({ title: "Re-link failed", variant: "destructive" }),
+  });
+
   // ── File import ──────────────────────────────────────────────────────────────
   const handleImport = async (file: File) => {
     setIsImporting({ filename: file.name });
@@ -581,6 +591,19 @@ export default function GedcomImportPage() {
                   >
                     <GitMerge className="h-3.5 w-3.5" />
                     Merge all matches ({exactCount + probCount + possCount})
+                  </Button>
+                )}
+                {selectedBatchId && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5"
+                    disabled={relinkMut.isPending}
+                    onClick={() => relinkMut.mutate(selectedBatchId)}
+                    title="Re-wire parent/child/spouse connections between approved records in this batch"
+                  >
+                    <GitMerge className="h-3.5 w-3.5" />
+                    {relinkMut.isPending ? "Linking…" : "Re-link relationships"}
                   </Button>
                 )}
                 <div className="relative flex-1 min-w-[160px] max-w-xs">
