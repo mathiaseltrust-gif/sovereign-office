@@ -96,6 +96,12 @@ export interface RecorderMetadata {
   documentType?: string;
   requiresNotary?: boolean;
   filingNumber?: string;
+  /** Tribal identity fields — rendered in recorder header when present */
+  enrollmentNo?: string;
+  tribalIdNo?: string;
+  tribalNation?: string;
+  tribalLandCode?: string;
+  priorInstruments?: string;
 }
 
 export interface PdfBuildInput {
@@ -212,6 +218,26 @@ export async function buildRecorderPdf(input: PdfBuildInput): Promise<PdfResult>
       page.drawText(line.trim(), { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE, font: timesRoman });
       currentY -= 11;
     }
+  }
+
+  // Tribal identity fields — rendered in left column of recorder header when present
+  if (meta.enrollmentNo || meta.tribalIdNo || meta.tribalNation) {
+    currentY -= 3;
+    const parts = [
+      meta.enrollmentNo  ? `Enrollment No.: ${meta.enrollmentNo}` : null,
+      meta.tribalIdNo    ? `Tribal ID: ${meta.tribalIdNo}`        : null,
+      meta.tribalNation  ? `Nation: ${meta.tribalNation}`         : null,
+    ].filter(Boolean).join("  ·  ");
+    page.drawText(parts, { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE - 1, font: timesBold, color: rgb(0.1, 0.1, 0.35) });
+    currentY -= 10;
+  }
+  if (meta.tribalLandCode) {
+    page.drawText(`Tribal Land Code: ${meta.tribalLandCode}`, { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE - 1, font: timesRoman });
+    currentY -= 10;
+  }
+  if (meta.priorInstruments) {
+    page.drawText(`Prior Instruments: ${meta.priorInstruments}`, { x: MARGIN_LEFT, y: currentY, size: FONT_SMALL_SIZE - 2, font: timesItalic, color: rgb(0.3, 0.3, 0.3) });
+    currentY -= 10;
   }
 
   const apn = meta.apn ?? input.land.apn;

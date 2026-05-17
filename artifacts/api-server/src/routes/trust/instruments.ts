@@ -5,6 +5,8 @@ import {
   trustFilingsTable,
   searchIndexTable,
   usersTable,
+  familyLineageTable,
+  profilesTable,
 } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
@@ -374,6 +376,58 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
 
     if (body.pdfInput) {
       pdfInput = { ...pdfInput!, ...body.pdfInput };
+    }
+
+    // Enrich PDF with tribal identity from DB for the authenticated user
+    if (req.user?.dbId && pdfInput) {
+      try {
+        const uid = req.user.dbId;
+        const [[lineage], [prof]] = await Promise.all([
+          db.select({
+            tribalEnrollmentNumber: familyLineageTable.tribalEnrollmentNumber,
+            tribalIdNumber: familyLineageTable.tribalIdNumber,
+            tribalNation: familyLineageTable.tribalNation,
+          }).from(familyLineageTable)
+            .where(eq(familyLineageTable.userId, uid))
+            .orderBy(familyLineageTable.id)
+            .limit(1),
+          db.select().from(profilesTable).where(eq(profilesTable.userId, uid)).limit(1),
+        ]);
+        // Grantor enrollment row in parties
+        if (lineage?.tribalEnrollmentNumber || lineage?.tribalIdNumber) {
+          const enrollLine = [
+            lineage.tribalEnrollmentNumber ? `Enrollment: ${lineage.tribalEnrollmentNumber}` : null,
+            lineage.tribalIdNumber          ? `Tribal ID: ${lineage.tribalIdNumber}`          : null,
+            lineage.tribalNation            ? `Nation: ${lineage.tribalNation}`                : null,
+          ].filter(Boolean).join("  ·  ");
+          if (enrollLine && !pdfInput.parties["Enrollment No."]) {
+            pdfInput.parties = { ...pdfInput.parties, "Enrollment No.": enrollLine };
+          }
+        }
+        // Recorder header identity metadata
+        const rm = pdfInput.recorderMetadata;
+        if (!rm.enrollmentNo && lineage?.tribalEnrollmentNumber) {
+          pdfInput.recorderMetadata = {
+            ...rm,
+            enrollmentNo:  lineage.tribalEnrollmentNumber ?? undefined,
+            tribalIdNo:    lineage.tribalIdNumber         ?? undefined,
+            tribalNation:  lineage.tribalNation           ?? undefined,
+          };
+        }
+        const tribalLandCode = (prof as Record<string, unknown>)?.tribalLandCode as string | undefined;
+        const docNumbers     = (prof as Record<string, unknown>)?.docNumbers     as string[] | undefined;
+        if (tribalLandCode && !pdfInput.recorderMetadata.tribalLandCode) {
+          pdfInput.recorderMetadata = { ...pdfInput.recorderMetadata, tribalLandCode };
+        }
+        if (docNumbers?.length && !pdfInput.recorderMetadata.priorInstruments) {
+          pdfInput.recorderMetadata = {
+            ...pdfInput.recorderMetadata,
+            priorInstruments: docNumbers.map((d) => `Doc. No. ${d}`).join("  ·  "),
+          };
+        }
+      } catch {
+        // Non-fatal — identity enrichment best-effort only
+      }
     }
 
     const isDoctrineInstrument = isDoctrineTemplate(body.templateKey);
