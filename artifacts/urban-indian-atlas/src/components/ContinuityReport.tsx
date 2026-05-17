@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { X, Printer, AlertTriangle, FileText, MapPin, Clock, Users, ShieldAlert, CheckCircle2, PenLine, Trash2 } from "lucide-react";
+import { X, Download, AlertTriangle, FileText, MapPin, Clock, Users, ShieldAlert, CheckCircle2, PenLine, Loader2, Trash2 } from "lucide-react";
 import type { AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
 import { USStateMapSnapshot } from "@/components/USStateMapSnapshot";
 
@@ -448,6 +448,7 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
   const [researcherNotes, setResearcherNotes] = useState<string>(
     () => loadNotes(ancestor.id).researcherNotes
   );
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   useEffect(() => {
     saveNotes(ancestor.id, { eventAnnotations, researcherNotes });
@@ -482,27 +483,62 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
     new Set(contextMatches.flatMap(m => m.statesAffected ?? []))
   ).sort();
 
-  const handlePrint = () => {
-    const html = buildPrintHtml(
-      ancestor,
-      sortedEvents,
-      eraLabel,
-      territorySummary,
-      continuityStatement,
-      caveats,
-      generatedDate,
-      highlightedStates,
-      criticalCount,
-      highCount,
-      highConfCount,
-      locationMatchCount,
-      eventAnnotations,
-      researcherNotes,
-    );
-    const win = window.open("", "_blank", "width=900,height=700");
-    if (!win) return;
-    win.document.write(html);
-    win.document.close();
+  const handleDownloadPdf = async () => {
+    setIsGeneratingPdf(true);
+    let container: HTMLDivElement | null = null;
+    try {
+      const { default: html2pdf } = await import("html2pdf.js");
+
+      const htmlContent = buildPrintHtml(
+        ancestor,
+        sortedEvents,
+        eraLabel,
+        territorySummary,
+        continuityStatement,
+        caveats,
+        generatedDate,
+        highlightedStates,
+        criticalCount,
+        highCount,
+        highConfCount,
+        locationMatchCount,
+        eventAnnotations,
+        researcherNotes,
+      );
+
+      const parser = new DOMParser();
+      const doc = parser.parseFromString(htmlContent, "text/html");
+
+      container = document.createElement("div");
+      container.style.cssText = "position:fixed;left:-9999px;top:0;width:8.5in;background:#fff;";
+
+      const styleEl = document.createElement("style");
+      styleEl.textContent = doc.querySelector("style")?.textContent ?? "";
+      container.appendChild(styleEl);
+
+      const bodyContent = document.createElement("div");
+      bodyContent.innerHTML = doc.body.innerHTML;
+      bodyContent.querySelectorAll("script").forEach(s => s.remove());
+      container.appendChild(bodyContent);
+
+      document.body.appendChild(container);
+
+      const safeName = ancestor.fullName.replace(/[^a-z0-9]+/gi, "-").toLowerCase();
+      const opt = {
+        margin: [0.5, 0.75] as [number, number],
+        filename: `continuity-report-${safeName}.pdf`,
+        image: { type: "jpeg" as const, quality: 0.97 },
+        html2canvas: { scale: 2, useCORS: true, logging: false },
+        jsPDF: { unit: "in", format: "letter", orientation: "portrait" as const },
+      };
+
+      await html2pdf().set(opt).from(container).save();
+    } finally {
+      if (container && document.body.contains(container)) {
+        document.body.removeChild(container);
+      }
+      setIsGeneratingPdf(false);
+    }
   };
 
   return (
@@ -531,12 +567,17 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
               Clear notes
             </button>
             <button
-              onClick={handlePrint}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 text-white text-xs font-medium hover:bg-zinc-700 transition-colors"
-              data-testid="print-report-button"
+              onClick={handleDownloadPdf}
+              disabled={isGeneratingPdf}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 text-white text-xs font-medium hover:bg-zinc-700 transition-colors disabled:opacity-60 disabled:cursor-not-allowed"
+              data-testid="download-pdf-button"
             >
-              <Printer className="w-3.5 h-3.5" />
-              Print / Save PDF
+              {isGeneratingPdf ? (
+                <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              ) : (
+                <Download className="w-3.5 h-3.5" />
+              )}
+              {isGeneratingPdf ? "Generating…" : "Download PDF"}
             </button>
             <button
               onClick={onClose}
@@ -796,7 +837,7 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
                 <PenLine className="w-3.5 h-3.5" /> VIII. Researcher Notes &amp; Citations
               </h2>
               <p className="text-[9.5px] text-zinc-500 leading-relaxed mb-3">
-                Add your own notes, primary source citations, or clarifying context below. These will appear in the printed output. Notes are automatically saved and restored the next time you open this ancestor's report.
+                Add your own notes, primary source citations, or clarifying context below. These will appear in the downloaded PDF. Notes are automatically saved and restored the next time you open this ancestor's report.
               </p>
               <textarea
                 rows={6}
