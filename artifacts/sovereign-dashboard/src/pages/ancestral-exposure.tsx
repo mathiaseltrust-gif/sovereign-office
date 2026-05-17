@@ -8,7 +8,7 @@ import {
   Eye, Scale, AlertTriangle, BookOpen, MapPin, FileText, Layers,
   ShieldAlert, TreePine, Users, Plus, X, Edit2, Trash2, Loader2,
   ChevronDown, ChevronUp, Search, Library, Info,
-  ArrowRight, Fingerprint,
+  ArrowRight, Fingerprint, GanttChart,
 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -57,7 +57,21 @@ const CAT_META: Record<string, { label: string; color: string; bg: string; borde
   territory:            { label: "Territory / Geography",    color: "text-teal-300",   bg: "bg-teal-950/60",   border: "border-teal-700/50",   icon: MapPin },
   treaty:               { label: "Treaty / Political",       color: "text-blue-300",   bg: "bg-blue-950/60",   border: "border-blue-700/50",   icon: Scale },
 };
-const CAT_FALLBACK = { label: "Historical Event", color: "text-muted-foreground", bg: "bg-muted/40", border: "border-border", icon: Layers };
+const CAT_FALLBACK = { label: "Historical Event", color: "text-muted-foreground", bg: "bg-muted/40", border: "border-border", icon: Layers }
+
+// ── Timeline band colors (solid hex + semi-transparent bg for SVG-like rendering) ──
+const CAT_BAND: Record<string, { solid: string; bg: string }> = {
+  federal_law:           { solid: "#6366f1", bg: "rgba(99,102,241,0.22)"   },
+  racial_classification: { solid: "#f97316", bg: "rgba(249,115,22,0.22)"   },
+  removal:               { solid: "#ef4444", bg: "rgba(239,68,68,0.22)"    },
+  census:                { solid: "#eab308", bg: "rgba(234,179,8,0.22)"    },
+  allotment:             { solid: "#f59e0b", bg: "rgba(245,158,11,0.22)"   },
+  boarding_school:       { solid: "#f43f5e", bg: "rgba(244,63,94,0.22)"    },
+  territory:             { solid: "#14b8a6", bg: "rgba(20,184,166,0.22)"   },
+  treaty:                { solid: "#3b82f6", bg: "rgba(59,130,246,0.22)"   },
+};
+const CAT_BAND_FALLBACK = { solid: "#94a3b8", bg: "rgba(148,163,184,0.15)" };
+function catBand(cat: string) { return CAT_BAND[cat] ?? CAT_BAND_FALLBACK; };
 
 const SIG_META: Record<string, { label: string; dot: string; badge: string }> = {
   critical: { label: "Critical", dot: "bg-red-500",   badge: "bg-red-900/60 text-red-200 border-red-700/40" },
@@ -342,6 +356,391 @@ function EventFormModal({ event, onClose, onSaved }: {
   );
 }
 
+// ── Timeline constants ────────────────────────────────────────────────────────
+const TL_MIN_YEAR = 1776;
+const TL_MAX_YEAR = new Date().getFullYear() + 3;
+const TL_RULER_H = 52;
+const TL_ROW_H   = 48;
+const TL_NAME_W  = 210;
+const TL_MIN_BAND_W = 5;
+const TL_NOW = new Date().getFullYear();
+
+// ── Timeline View ─────────────────────────────────────────────────────────────
+function TimelineView({
+  ancestorGroups,
+  allEvents,
+  matches,
+}: {
+  ancestorGroups: AncestorGroup[];
+  allEvents: ExposureEvent[];
+  matches: MatchRow[];
+}) {
+  const [scale, setScale] = useState(3.5);
+  const [hoveredEventId, setHoveredEventId] = useState<number | null>(null);
+  const [selectedEventId, setSelectedEventId] = useState<number | null>(null);
+  const [hoveredAncId, setHoveredAncId]       = useState<number | null>(null);
+
+  const totalW = (TL_MAX_YEAR - TL_MIN_YEAR) * scale;
+  function yearToX(year: number) { return (year - TL_MIN_YEAR) * scale; }
+
+  const rulerStep = scale < 3 ? 50 : 25;
+  const rulerMarks = useMemo<number[]>(() => {
+    const marks: number[] = [];
+    for (let y = Math.ceil(TL_MIN_YEAR / rulerStep) * rulerStep; y <= TL_MAX_YEAR; y += rulerStep)
+      marks.push(y);
+    return marks;
+  }, [rulerStep]);
+
+  const matchedEventIds = useMemo(() => new Set(matches.map(m => m.event_id)), [matches]);
+
+  // Sort events so critical renders last (on top)
+  const sortedEvents = useMemo(
+    () => [...allEvents].sort((a, b) => {
+      const o: Record<string,number> = { moderate: 0, high: 1, critical: 2 };
+      return (o[a.significance] ?? 0) - (o[b.significance] ?? 0);
+    }),
+    [allEvents]
+  );
+
+  const activeEventId = hoveredEventId ?? selectedEventId;
+  const activeEvent   = activeEventId ? allEvents.find(e => e.id === activeEventId) ?? null : null;
+
+  // ── ZOOM LEVELS ──
+  const SCALES = [
+    { s: 2,   label: "1×" },
+    { s: 3.5, label: "2×" },
+    { s: 5,   label: "3×" },
+    { s: 8,   label: "5×" },
+  ];
+
+  return (
+    <div
+      className="rounded-xl border border-border flex flex-col overflow-hidden"
+      style={{ background: "#0a0f1a", maxHeight: "calc(100vh - 340px)", minHeight: 380 }}
+    >
+      {/* ── Controls bar ── */}
+      <div className="flex items-center gap-3 px-4 py-2.5 shrink-0 border-b" style={{ borderColor: "rgba(148,163,184,0.12)" }}>
+        <span className="text-xs text-slate-500">
+          {ancestorGroups.length} ancestor{ancestorGroups.length !== 1 ? "s" : ""} &nbsp;·&nbsp; {matchedEventIds.size} matched event{matchedEventIds.size !== 1 ? "s" : ""}
+        </span>
+        <div className="flex items-center gap-1 ml-auto">
+          <span className="text-[10px] text-slate-600 mr-1">Zoom</span>
+          {SCALES.map(({ s, label }) => (
+            <button
+              key={s}
+              onClick={() => setScale(s)}
+              className="text-[11px] px-2 py-0.5 rounded border transition-colors"
+              style={{
+                borderColor: scale === s ? "#b45309" : "rgba(148,163,184,0.2)",
+                background:  scale === s ? "#92400e" : "transparent",
+                color:       scale === s ? "#fef3c7" : "#94a3b8",
+              }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Info bar (shows hovered or selected event details) ── */}
+      <div
+        className="px-4 py-2.5 shrink-0 border-b flex items-start gap-3 transition-all duration-200"
+        style={{
+          borderColor: "rgba(148,163,184,0.12)",
+          minHeight: 56,
+          background: activeEvent ? catBand(activeEvent.category).bg : "transparent",
+        }}
+      >
+        {activeEvent ? (() => {
+          const m   = catMeta(activeEvent.category);
+          const Icon = m.icon;
+          return (
+            <>
+              <Icon className={`w-4 h-4 shrink-0 mt-0.5 ${m.color}`} />
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-sm font-semibold ${m.color}`}>{activeEvent.title}</span>
+                  <SigBadge significance={activeEvent.significance} />
+                  <span className="text-xs text-slate-500">
+                    {activeEvent.year_start}
+                    {activeEvent.year_end && activeEvent.year_end !== activeEvent.year_start ? `–${activeEvent.year_end}` : ""}
+                  </span>
+                </div>
+                {activeEvent.description && (
+                  <p className="text-xs text-slate-400 mt-0.5 line-clamp-1">{activeEvent.description}</p>
+                )}
+                {activeEvent.legal_citation && (
+                  <p className="text-[10px] text-slate-600 font-mono">{activeEvent.legal_citation}</p>
+                )}
+              </div>
+              {selectedEventId && (
+                <button onClick={() => setSelectedEventId(null)} className="shrink-0 text-slate-600 hover:text-slate-300 transition-colors">
+                  <X className="w-3.5 h-3.5" />
+                </button>
+              )}
+            </>
+          );
+        })() : (
+          <p className="text-xs text-slate-600 self-center">
+            Hover an event band to preview · click to lock · drag ancestor name to filter
+          </p>
+        )}
+      </div>
+
+      {/* ── Scrollable timeline ── */}
+      <div className="overflow-auto flex-1" style={{ overscrollBehavior: "contain" }}>
+        <div style={{ minWidth: TL_NAME_W + totalW, width: "max-content" }}>
+
+          {/* Sticky ruler row */}
+          <div
+            className="flex sticky top-0 z-20"
+            style={{ height: TL_RULER_H, background: "#0a0f1a", borderBottom: "1px solid rgba(148,163,184,0.1)" }}
+          >
+            {/* Name column header */}
+            <div
+              className="shrink-0 flex items-end px-3 pb-2 sticky left-0 z-30"
+              style={{ width: TL_NAME_W, background: "#0a0f1a", borderRight: "1px solid rgba(148,163,184,0.12)" }}
+            >
+              <span className="text-[10px] font-semibold uppercase tracking-widest text-slate-600">Ancestor · Lifespan</span>
+            </div>
+
+            {/* Year ruler with event tabs */}
+            <div className="relative" style={{ width: totalW, flexShrink: 0, height: TL_RULER_H }}>
+              {/* Decade labels + gridlines */}
+              {rulerMarks.map(y => (
+                <div key={y} className="absolute top-0 flex flex-col" style={{ left: yearToX(y) }}>
+                  <span className="text-[10px] text-slate-600 pl-1 pt-1.5 whitespace-nowrap select-none">{y}</span>
+                  <div style={{ flex: 1, width: 1, background: "rgba(148,163,184,0.12)", marginLeft: 0.5 }} />
+                </div>
+              ))}
+
+              {/* "Now" marker in ruler */}
+              <div
+                className="absolute top-0 bottom-0 pointer-events-none"
+                style={{ left: yearToX(TL_NOW), width: 1, background: "rgba(245,158,11,0.35)" }}
+              >
+                <span className="absolute top-1 left-1 text-[8px] text-amber-600 whitespace-nowrap select-none">Now</span>
+              </div>
+
+              {/* Event color tabs at ruler bottom */}
+              {sortedEvents.map(ev => {
+                const band  = catBand(ev.category);
+                const x     = yearToX(ev.year_start);
+                const w     = Math.max(TL_MIN_BAND_W, ((ev.year_end ?? ev.year_start) - ev.year_start + 1) * scale);
+                const isMatched = matchedEventIds.has(ev.id);
+                const isActive  = ev.id === activeEventId;
+                return (
+                  <div
+                    key={ev.id}
+                    className="absolute bottom-0 cursor-pointer transition-all duration-100"
+                    style={{
+                      left: x,
+                      width: w,
+                      height: isActive ? 18 : isMatched ? 10 : 5,
+                      background: isActive ? band.solid : isMatched ? band.solid + "cc" : band.solid + "44",
+                      borderTop: isActive ? `2px solid ${band.solid}` : "none",
+                    }}
+                    onMouseEnter={() => setHoveredEventId(ev.id)}
+                    onMouseLeave={() => setHoveredEventId(null)}
+                    onClick={() => setSelectedEventId(prev => prev === ev.id ? null : ev.id)}
+                    title={ev.short_name || ev.title}
+                  />
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ── Ancestor rows ── */}
+          {ancestorGroups.length === 0 ? (
+            <div className="flex items-center justify-center py-16 text-slate-600">
+              <p className="text-sm">No ancestors matched current filters</p>
+            </div>
+          ) : (
+            ancestorGroups.map(ancestor => {
+              const isHovRow  = hoveredAncId === ancestor.ancestor_id;
+              const birthY    = ancestor.birth_year ?? TL_MIN_YEAR;
+              const deathY    = ancestor.death_year ?? TL_NOW;
+              const barX      = yearToX(birthY);
+              const barW      = Math.max(TL_MIN_BAND_W, yearToX(deathY) - barX);
+              const hasMatch  = ancestor.events.length > 0;
+              const crit      = ancestor.events.filter(e => e.significance === "critical").length;
+              const high      = ancestor.events.filter(e => e.significance === "high").length;
+
+              return (
+                <div
+                  key={ancestor.ancestor_id}
+                  className="flex transition-colors duration-100"
+                  style={{
+                    height: TL_ROW_H,
+                    borderBottom: "1px solid rgba(148,163,184,0.07)",
+                    background: isHovRow ? "rgba(255,255,255,0.025)" : "transparent",
+                  }}
+                  onMouseEnter={() => setHoveredAncId(ancestor.ancestor_id)}
+                  onMouseLeave={() => setHoveredAncId(null)}
+                >
+                  {/* Sticky name column */}
+                  <div
+                    className="shrink-0 flex flex-col justify-center px-3 sticky left-0 z-10"
+                    style={{
+                      width: TL_NAME_W,
+                      background: isHovRow ? "#111827" : "#0a0f1a",
+                      borderRight: "1px solid rgba(148,163,184,0.1)",
+                    }}
+                  >
+                    <p className="text-[11px] font-semibold text-slate-300 truncate">{ancestor.full_name}</p>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      <span className="text-[9px] text-slate-600">
+                        {ancestor.birth_year ?? "?"} – {ancestor.death_year ? ancestor.death_year : "†"}
+                      </span>
+                      {ancestor.tribal_nation && (
+                        <span className="text-[9px] text-amber-700 truncate max-w-[90px]">{ancestor.tribal_nation}</span>
+                      )}
+                    </div>
+                    {hasMatch && (
+                      <div className="flex items-center gap-1 mt-0.5">
+                        {crit > 0 && <span className="text-[8px] font-bold" style={{ color: "#ef4444" }}>● {crit}</span>}
+                        {high > 0 && <span className="text-[8px] font-bold" style={{ color: "#f59e0b" }}>● {high}</span>}
+                        <span className="text-[8px] text-slate-600">{ancestor.events.length} event{ancestor.events.length !== 1 ? "s" : ""}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Timeline lane */}
+                  <div className="relative overflow-hidden" style={{ width: totalW, flexShrink: 0 }}>
+                    {/* Decade grid lines */}
+                    {rulerMarks.map(y => (
+                      <div
+                        key={y}
+                        className="absolute top-0 bottom-0"
+                        style={{ left: yearToX(y), width: 1, background: "rgba(148,163,184,0.06)" }}
+                      />
+                    ))}
+
+                    {/* Event bands — show all events, highlight matched ones */}
+                    {sortedEvents.map(ev => {
+                      const band        = catBand(ev.category);
+                      const isThisMatch = ancestor.events.some(e => e.event_id === ev.id);
+                      const isActive    = ev.id === activeEventId;
+                      const x = yearToX(ev.year_start);
+                      const w = Math.max(TL_MIN_BAND_W, ((ev.year_end ?? ev.year_start) - ev.year_start + 1) * scale);
+                      return (
+                        <div
+                          key={ev.id}
+                          className="absolute top-0 bottom-0 cursor-pointer transition-all duration-100"
+                          style={{
+                            left: x,
+                            width: w,
+                            background: isThisMatch
+                              ? isActive ? band.solid + "55" : band.bg
+                              : isActive ? band.bg.replace("0.22", "0.1") : "transparent",
+                            borderLeft: isActive ? `1px solid ${band.solid}50` : "none",
+                          }}
+                          onMouseEnter={() => setHoveredEventId(ev.id)}
+                          onMouseLeave={() => setHoveredEventId(null)}
+                          onClick={() => setSelectedEventId(prev => prev === ev.id ? null : ev.id)}
+                        />
+                      );
+                    })}
+
+                    {/* Ancestor lifespan bar */}
+                    {(ancestor.birth_year || ancestor.death_year) && (
+                      <div
+                        className="absolute pointer-events-none"
+                        style={{
+                          left: barX,
+                          width: barW,
+                          top: "50%",
+                          transform: "translateY(-50%)",
+                          height: 5,
+                          borderRadius: 9999,
+                          background: hasMatch
+                            ? "linear-gradient(to right, #f59e0b, #d97706)"
+                            : "linear-gradient(to right, #334155, #1e293b)",
+                          opacity: 0.9,
+                          zIndex: 2,
+                          boxShadow: hasMatch ? "0 0 5px rgba(245,158,11,0.35)" : undefined,
+                        }}
+                      />
+                    )}
+
+                    {/* Exposure dots at each matched event */}
+                    {ancestor.events.map(ev => {
+                      const evX   = yearToX(ev.year_start);
+                      const evW   = Math.max(TL_MIN_BAND_W, ((ev.year_end ?? ev.year_start) - ev.year_start + 1) * scale);
+                      const dotX  = evX + evW / 2;
+                      const isAct = ev.event_id === activeEventId;
+                      const col   = ev.significance === "critical" ? "#ef4444" : ev.significance === "high" ? "#f59e0b" : "#94a3b8";
+                      const sz    = isAct ? 10 : 7;
+                      return (
+                        <div
+                          key={ev.event_id}
+                          className="absolute pointer-events-none transition-all duration-150"
+                          style={{
+                            left: dotX - sz / 2,
+                            top: "50%",
+                            transform: "translateY(-50%)",
+                            width: sz,
+                            height: sz,
+                            borderRadius: "50%",
+                            background: col,
+                            border: "1.5px solid rgba(255,255,255,0.45)",
+                            zIndex: 3,
+                            boxShadow: isAct ? `0 0 8px ${col}` : `0 0 3px ${col}70`,
+                          }}
+                        />
+                      );
+                    })}
+
+                    {/* "Now" vertical line */}
+                    <div
+                      className="absolute top-0 bottom-0 pointer-events-none"
+                      style={{ left: yearToX(TL_NOW), width: 1, background: "rgba(245,158,11,0.18)", zIndex: 1 }}
+                    />
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+      </div>
+
+      {/* ── Legend ── */}
+      <div
+        className="flex flex-wrap items-center gap-x-4 gap-y-1 px-4 py-2.5 shrink-0"
+        style={{ borderTop: "1px solid rgba(148,163,184,0.1)", background: "rgba(10,15,26,0.95)" }}
+      >
+        {Object.entries(CAT_META).map(([k, v]) => {
+          const b = catBand(k);
+          return (
+            <div key={k} className="flex items-center gap-1.5">
+              <div className="w-3 h-2 rounded-sm" style={{ background: b.solid, opacity: 0.75 }} />
+              <span className="text-[9px] text-slate-600">{v.label}</span>
+            </div>
+          );
+        })}
+        <div className="ml-auto flex items-center gap-4">
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-1.5 rounded-full" style={{ background: "#d97706" }} />
+            <span className="text-[9px] text-slate-600">Lifespan (matched)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-5 h-1.5 rounded-full" style={{ background: "#334155" }} />
+            <span className="text-[9px] text-slate-600">Lifespan (no match)</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: "#ef4444", border: "1px solid rgba(255,255,255,0.4)" }} />
+            <span className="text-[9px] text-slate-600">Critical</span>
+          </div>
+          <div className="flex items-center gap-1.5">
+            <div className="w-2 h-2 rounded-full" style={{ background: "#f59e0b", border: "1px solid rgba(255,255,255,0.4)" }} />
+            <span className="text-[9px] text-slate-600">High</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
 const CATEGORY_OPTIONS = [
@@ -378,7 +777,7 @@ export default function AncestralExposurePage() {
   const [impactType, setImpactType] = useState("all");
   const [stateFilter, setStateFilter] = useState("");
   const [locationOnly, setLocationOnly] = useState(false);
-  const [view, setView] = useState<"ancestor" | "event" | "library">("ancestor");
+  const [view, setView] = useState<"ancestor" | "event" | "library" | "timeline">("timeline");
   const [addEventModal, setAddEventModal] = useState(false);
   const [editEvent, setEditEvent] = useState<ExposureEvent | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -576,8 +975,9 @@ export default function AncestralExposurePage() {
       {/* View tabs */}
       <div className="flex items-center gap-1 bg-muted/20 border border-border rounded-lg p-1 w-fit">
         {([
-          { id: "ancestor" as const, label: "By Ancestor", icon: Users },
-          { id: "event"    as const, label: "By Event",    icon: Layers },
+          { id: "timeline" as const, label: "Timeline",      icon: GanttChart },
+          { id: "ancestor" as const, label: "By Ancestor",   icon: Users },
+          { id: "event"    as const, label: "By Event",      icon: Layers },
           { id: "library"  as const, label: "Event Library", icon: Library },
         ] as const).map(({ id, label, icon: Icon }) => (
           <button
@@ -596,6 +996,15 @@ export default function AncestralExposurePage() {
           <Loader2 className="w-5 h-5 animate-spin" />
           <span className="text-sm">Analyzing temporal exposure matches…</span>
         </div>
+      )}
+
+      {/* TIMELINE VIEW */}
+      {view === "timeline" && (
+        <TimelineView
+          ancestorGroups={ancestorGroups}
+          allEvents={eventsQ.data ?? []}
+          matches={matches}
+        />
       )}
 
       {/* BY ANCESTOR VIEW */}
