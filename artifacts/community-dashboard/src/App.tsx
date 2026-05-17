@@ -12,6 +12,7 @@ import Forum from "@/pages/forum";
 import ForumPost from "@/pages/forum-post";
 import Announcements from "@/pages/announcements";
 import Admin from "@/pages/admin";
+import University from "@/pages/university";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -34,6 +35,7 @@ function Router() {
         <Route path="/forum/:id" component={ForumPost} />
         <Route path="/announcements" component={Announcements} />
         <Route path="/admin" component={Admin} />
+        <Route path="/university" component={University} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
