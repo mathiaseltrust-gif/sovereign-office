@@ -108,7 +108,7 @@ async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
 export default function Atlas() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
-  const [yearRange, setYearRange] = useState<[number, number]>([1790, 2024]);
+  const [yearRange, setYearRange] = useState<[number, number]>([1790, new Date().getFullYear()]);
   
   const [activeEras, setActiveEras] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<string[]>([]);

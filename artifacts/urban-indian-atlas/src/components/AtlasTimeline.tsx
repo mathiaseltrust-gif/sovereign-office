@@ -22,7 +22,7 @@ export function AtlasTimeline({
 }: AtlasTimelineProps) {
   
   const minYear = 1790;
-  const maxYear = 2024;
+  const maxYear = new Date().getFullYear();
   const span = maxYear - minYear;
 
   const getPosition = (year: number) => {
@@ -66,10 +66,10 @@ export function AtlasTimeline({
         })}
 
         <Slider
-          defaultValue={[1790, 2024]}
+          defaultValue={[1790, new Date().getFullYear()]}
           value={[yearRange[0], yearRange[1]]}
           min={1790}
-          max={2024}
+          max={new Date().getFullYear()}
           step={1}
           onValueChange={(val: any) => setYearRange([val[0], val[1]])}
           className="absolute inset-0"
