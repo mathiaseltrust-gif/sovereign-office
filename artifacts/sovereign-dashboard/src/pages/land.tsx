@@ -9,7 +9,7 @@ import {
   Plus, X, Edit2, Trash2, AlertTriangle, Clock, DollarSign, TrendingUp,
   Loader2, TreePine, Scale, ScrollText, ShieldAlert, ShieldCheck,
   ArrowRight, MapPin, FileText, BarChart3, ChevronRight, Gavel, BookOpen,
-  Map, FileArchive, CalendarDays, Users, Link2, Calendar, CheckCircle2, XCircle, ExternalLink,
+  Map, FileArchive, CalendarDays, Users, Link2, Calendar, CheckCircle2, XCircle, ExternalLink, Search,
 } from "lucide-react";
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -2435,6 +2435,336 @@ function AssignmentsTab({ assignments, parcels, onRefresh }: { assignments: Memb
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 
+// ── Land Templates Tab ────────────────────────────────────────────────────────
+
+const LAND_TEMPLATES = [
+  { key: "trust_deed",              title: "Deed of Trust — Indian Trust Land",       law: "25 U.S.C. §177 · METC T4 §4",       desc: "Conveys Indian trust land subject to anti-alienation protections." },
+  { key: "land_lease",              title: "Lease of Individual Indian Allotment",    law: "25 U.S.C. §415 · BIA Lease Rules",   desc: "Agricultural, surface, or commercial lease on individual allotment." },
+  { key: "trust_land_transfer",     title: "Trust Land Transfer Instrument",          law: "25 U.S.C. §2201 · AIPRA",            desc: "Transfers federal trust land between tribal entities with Secretarial approval." },
+  { key: "trust_land_status_report",title: "Trust Land Status Report (TSR)",          law: "METC T4 §3 · 25 U.S.C. §5301",      desc: "Documents current trust land status for court, agency, or recorder filing." },
+  { key: "trust_land_instrument",   title: "Trust Land Instrument (General Purpose)", law: "METC T4 §3",                         desc: "General-purpose instrument covering conveyance, lease, right-of-way, or protective declaration." },
+  { key: "trust_land_decision_letter", title: "Decision Letter — Trust Land Action",  law: "METC T4 §10 · Admin. Procedure",     desc: "Formal determination letter: approved, denied, conditional, or referred." },
+  { key: "trust_land_intake_form",  title: "Trust Land Intake Form",                  law: "METC T4 §9",                         desc: "Intake and routing form for a trust land matter submitted for review." },
+  { key: "trust_land_probate_summary", title: "Trust Land Probate Summary",           law: "25 U.S.C. §2201 · AIPRA",            desc: "Heirship determination and distribution summary for deceased tribal member." },
+  { key: "encumbrance_review",      title: "Encumbrance Review",                      law: "METC T4 §5 · 25 U.S.C. §177",       desc: "Identifies and challenges unauthorized encumbrances on trust land." },
+  { key: "notice_of_title_defect",  title: "Notice of Title Defect",                  law: "METC T4 §8 · UCC §2-314",            desc: "Formal notice of title defects, adverse claims, or chain-of-title gaps." },
+  { key: "notice_of_federal_review", title: "Notice of Federal Review",               law: "METC T4 §9 · 25 U.S.C. §5301",      desc: "Triggers federal review for jurisdictional or land status matters." },
+];
+
+function LandTemplatesTab() {
+  const [search, setSearch] = useState("");
+
+  const filtered = LAND_TEMPLATES.filter(t =>
+    !search || t.title.toLowerCase().includes(search.toLowerCase()) || t.desc.toLowerCase().includes(search.toLowerCase())
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="flex items-center gap-3">
+        <div className="relative flex-1 max-w-sm">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-muted-foreground" />
+          <input
+            value={search}
+            onChange={e => setSearch(e.target.value)}
+            placeholder="Search land templates…"
+            className="pl-9 pr-3 py-2 w-full bg-background border border-border rounded-md text-sm focus:outline-none focus:ring-1 focus:ring-amber-500"
+          />
+        </div>
+        <a
+          href="/instrument-wizard"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md bg-amber-600 hover:bg-amber-700 text-white text-sm font-medium transition-colors"
+        >
+          <Gavel className="w-3.5 h-3.5" /> Open Wizard
+        </a>
+        <a
+          href="/templates"
+          className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md border border-border text-muted-foreground hover:text-foreground text-sm transition-colors"
+        >
+          <ExternalLink className="w-3.5 h-3.5" /> All Templates
+        </a>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+        {filtered.map(t => (
+          <div key={t.key} className="bg-background border border-border rounded-lg p-4 flex flex-col gap-2 hover:border-amber-600/50 transition-colors">
+            <div className="flex items-start justify-between gap-2">
+              <BookOpen className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+              <span className="text-[10px] font-mono text-muted-foreground bg-muted px-1.5 py-0.5 rounded shrink-0">{t.law}</span>
+            </div>
+            <p className="text-sm font-semibold text-foreground leading-snug">{t.title}</p>
+            <p className="text-xs text-muted-foreground leading-relaxed flex-1">{t.desc}</p>
+            <a
+              href={`/instrument-wizard?key=${t.key}`}
+              className="inline-flex items-center gap-1.5 text-xs font-medium text-amber-400 hover:text-amber-300 mt-1 transition-colors"
+            >
+              <ChevronRight className="w-3.5 h-3.5" /> Generate Document
+            </a>
+          </div>
+        ))}
+        {filtered.length === 0 && (
+          <div className="col-span-3 py-12 text-center text-sm text-muted-foreground">No templates match your search.</div>
+        )}
+      </div>
+
+      <div className="border border-amber-700/30 bg-amber-950/10 rounded-lg p-4 text-xs text-amber-300 space-y-1">
+        <p className="font-semibold uppercase tracking-widest text-[10px] text-amber-500 mb-2">API Access — Bulk Document Generation</p>
+        <p>All templates are available via <code className="bg-amber-900/30 px-1 rounded">POST /api/trust/instruments/templates/generate</code></p>
+        <p className="text-muted-foreground mt-1">Pass <code className="bg-muted px-1 rounded">{"{ templateKey, variables }"}</code> to generate any instrument programmatically.</p>
+      </div>
+    </div>
+  );
+}
+
+// ── Deed Generator Tab ────────────────────────────────────────────────────────
+
+interface DeedCounty {
+  slug: string; name: string; state: string;
+  recorderOffice: string; address: string; phone: string;
+  parcelLabel: string; deedTypes: string[]; hasSampleData: boolean;
+}
+
+const DEED_FORM_DEFAULTS = {
+  grantor: "Mathias El Tribe Sovereign Authority",
+  grantorAddress: "Sovereign Office of the Chief Justice & Trustee",
+  grantee: "Mathias El Tribe Land Trust",
+  granteeAddress: "c/o Office of the Chief Justice",
+  parcelId: "", legalDescription: "", consideration: "Sovereign Trust — No Monetary Consideration (Exempt: 25 U.S.C. §177)",
+  deedType: "Tribal Trust Deed", tractNumber: "", biaTractNumber: "",
+  federalLawRef: "25 U.S.C. §177 — Non-Intercourse Act",
+  tribalCodeRef: "METC Title 4 §3 — Tribal Land Trust Governance",
+  exemptionBasis: "Indian Trust Land — exempt from state transfer tax per 25 U.S.C. §177 and METC Title 4 §4",
+  sovereignImmunity: true,
+};
+
+function DeedGeneratorTab() {
+  const [selectedSlug, setSelectedSlug] = useState<string>("");
+  const [form, setForm] = useState<typeof DEED_FORM_DEFAULTS & { county?: string; state?: string; notaryCounty?: string; notaryState?: string }>(DEED_FORM_DEFAULTS);
+  const [generating, setGenerating] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [sampleLoading, setSampleLoading] = useState(false);
+
+  const countiesQ = useQuery<DeedCounty[]>({
+    queryKey: ["deed-counties"],
+    queryFn: () => authFetch("/api/deed/counties").then(r => r.json()),
+  });
+
+  const counties = countiesQ.data ?? [];
+  const selectedCounty = counties.find(c => c.slug === selectedSlug);
+
+  function setf(k: string) {
+    return (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
+      setForm(f => ({ ...f, [k]: e.target.value }));
+  }
+
+  async function loadSample() {
+    if (!selectedSlug) return;
+    setSampleLoading(true);
+    try {
+      const token = await getCurrentBearerToken();
+      const r = await fetch(`/api/deed/${selectedSlug}`, { headers: { Authorization: `Bearer ${token}` } });
+      if (r.ok) {
+        const html = await r.text();
+        const blob = new Blob([html], { type: "text/html" });
+        window.open(URL.createObjectURL(blob), "_blank");
+      }
+    } finally { setSampleLoading(false); }
+  }
+
+  async function generate(download: boolean) {
+    if (!selectedSlug || !selectedCounty) return;
+    setErr(null);
+    setGenerating(true);
+    try {
+      const token = await getCurrentBearerToken();
+      const body = {
+        ...form,
+        county: form.county || selectedCounty.name,
+        state: form.state || selectedCounty.state,
+        notaryCounty: form.notaryCounty || selectedCounty.name,
+        notaryState: form.notaryState || selectedCounty.state,
+      };
+      const r = await fetch(`/api/deed/${selectedSlug}${download ? "?download=1" : ""}`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      if (!r.ok) { const d = await r.json(); setErr(d.error ?? "Generation failed"); return; }
+      const html = await r.text();
+      if (download) {
+        const blob = new Blob([html], { type: "text/html" });
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(blob);
+        a.download = `deed-${selectedSlug}.html`;
+        a.click();
+      } else {
+        const blob = new Blob([html], { type: "text/html" });
+        window.open(URL.createObjectURL(blob), "_blank");
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : "Unknown error");
+    } finally { setGenerating(false); }
+  }
+
+  const stateGroups = counties.reduce((acc, c) => {
+    (acc[c.state] ??= []).push(c);
+    return acc;
+  }, {} as Record<string, DeedCounty[]>);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
+        {/* Left — county picker + recorder info */}
+        <div className="space-y-4">
+          <div>
+            <label className="text-xs font-semibold uppercase tracking-widest text-muted-foreground block mb-2">1. Select County</label>
+            <select
+              value={selectedSlug}
+              onChange={e => {
+                setSelectedSlug(e.target.value);
+                const c = counties.find(x => x.slug === e.target.value);
+                if (c) setForm(f => ({ ...f, deedType: c.deedTypes[0], county: c.name, state: c.state, notaryCounty: c.name, notaryState: c.state }));
+              }}
+              className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+            >
+              <option value="">— Choose a county —</option>
+              {Object.entries(stateGroups).map(([state, cs]) => (
+                <optgroup key={state} label={`── ${state} ──`}>
+                  {cs.map(c => (
+                    <option key={c.slug} value={c.slug}>{c.name}{c.hasSampleData ? " ★" : ""}</option>
+                  ))}
+                </optgroup>
+              ))}
+            </select>
+            <p className="text-[10px] text-muted-foreground mt-1">★ = sample data available for quick preview</p>
+          </div>
+
+          {selectedCounty && (
+            <div className="bg-amber-950/10 border border-amber-700/30 rounded-lg p-3 space-y-1.5 text-xs">
+              <p className="font-semibold text-amber-400 text-[10px] uppercase tracking-widest mb-2">{selectedCounty.recorderOffice}</p>
+              <p className="text-muted-foreground">{selectedCounty.address}</p>
+              <p className="text-muted-foreground">{selectedCounty.phone}</p>
+              <p className="mt-1"><span className="text-muted-foreground">Parcel label: </span>{selectedCounty.parcelLabel}</p>
+              {selectedCounty.hasSampleData && (
+                <button
+                  onClick={loadSample}
+                  disabled={sampleLoading}
+                  className="mt-2 w-full flex items-center justify-center gap-1.5 py-1.5 rounded border border-amber-600/40 text-amber-400 hover:bg-amber-900/20 transition-colors text-xs font-medium"
+                >
+                  <FileText className="w-3 h-3" />
+                  {sampleLoading ? "Loading…" : "Preview sample deed"}
+                </button>
+              )}
+            </div>
+          )}
+
+          {/* API reference */}
+          <div className="border border-border rounded-lg p-3 space-y-2 text-xs">
+            <p className="font-semibold uppercase tracking-widest text-[10px] text-muted-foreground">API Import Reference</p>
+            <div className="space-y-1.5 font-mono text-[10px] text-muted-foreground">
+              <p className="text-green-400">GET /api/deed/counties</p>
+              <p className="text-blue-400">GET /api/deed/:county</p>
+              <p className="text-blue-400">POST /api/deed/:county</p>
+              <p className="text-muted-foreground pl-2">?download=1 for file</p>
+            </div>
+            <p className="text-[10px] text-muted-foreground mt-1">Counties: MI (8) · CA (4) · TX (4)</p>
+          </div>
+        </div>
+
+        {/* Right — deed form */}
+        <div className="xl:col-span-2 space-y-3">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">2. Deed Details</p>
+
+          {!selectedSlug ? (
+            <div className="py-16 text-center text-sm text-muted-foreground">Select a county to configure the deed.</div>
+          ) : (
+            <div className="grid grid-cols-2 gap-3">
+              {selectedCounty && (
+                <div className="col-span-2">
+                  <label className="text-xs text-muted-foreground block mb-1">Deed Type</label>
+                  <select
+                    value={form.deedType}
+                    onChange={setf("deedType")}
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  >
+                    {selectedCounty.deedTypes.map(t => <option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+              )}
+
+              {([ ["grantor","Grantor Name"], ["grantorAddress","Grantor Address"], ["grantee","Grantee Name"], ["granteeAddress","Grantee Address"] ] as ["grantor"|"grantorAddress"|"grantee"|"granteeAddress", string][]).map(([k, label]) => (
+                <div key={k}>
+                  <label className="text-xs text-muted-foreground block mb-1">{label}</label>
+                  <input
+                    value={form[k]}
+                    onChange={setf(k)}
+                    className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500"
+                  />
+                </div>
+              ))}
+
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">{selectedCounty?.parcelLabel ?? "Parcel ID"} <span className="text-red-400">*</span></label>
+                <input value={form.parcelId} onChange={setf("parcelId")} placeholder="Required" className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Tribal Tract Number</label>
+                <input value={form.tractNumber} onChange={setf("tractNumber")} placeholder="MET-XXX-001" className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-xs text-muted-foreground block mb-1">Legal Description <span className="text-red-400">*</span></label>
+                <textarea value={form.legalDescription} onChange={setf("legalDescription")} rows={4} placeholder="Full legal description of the property…" className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:ring-1 focus:ring-amber-500 resize-none" />
+              </div>
+
+              <div className="col-span-2">
+                <label className="text-xs text-muted-foreground block mb-1">Consideration</label>
+                <input value={form.consideration} onChange={setf("consideration")} className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Federal Law Reference</label>
+                <input value={form.federalLawRef} onChange={setf("federalLawRef")} className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+              <div>
+                <label className="text-xs text-muted-foreground block mb-1">Tribal Code Reference</label>
+                <input value={form.tribalCodeRef} onChange={setf("tribalCodeRef")} className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+              <div className="col-span-2">
+                <label className="text-xs text-muted-foreground block mb-1">Exemption / Tax Basis</label>
+                <input value={form.exemptionBasis} onChange={setf("exemptionBasis")} className="w-full bg-background border border-border rounded-md px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-1 focus:ring-amber-500" />
+              </div>
+
+              {err && (
+                <div className="col-span-2 flex items-center gap-2 text-xs text-red-400 bg-red-950/20 border border-red-700/30 rounded-md px-3 py-2">
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0" /> {err}
+                </div>
+              )}
+
+              <div className="col-span-2 flex items-center gap-3 pt-2 border-t border-border">
+                <button
+                  onClick={() => generate(false)}
+                  disabled={generating || !form.parcelId || !form.legalDescription}
+                  className="flex items-center gap-2 px-4 py-2 bg-amber-600 hover:bg-amber-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-md text-sm font-medium transition-colors"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {generating ? "Generating…" : "Preview Deed"}
+                </button>
+                <button
+                  onClick={() => generate(true)}
+                  disabled={generating || !form.parcelId || !form.legalDescription}
+                  className="flex items-center gap-2 px-4 py-2 border border-amber-600/50 text-amber-400 hover:bg-amber-900/20 disabled:opacity-50 disabled:cursor-not-allowed rounded-md text-sm font-medium transition-colors"
+                >
+                  <FileArchive className="w-3.5 h-3.5" />
+                  Download HTML
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const TABS = [
   { id: "overview",      label: "Overview",              icon: BarChart3 },
   { id: "map",           label: "Map View",              icon: Map },
@@ -2442,11 +2772,13 @@ const TABS = [
   { id: "leases",        label: "Leases",                icon: FileText },
   { id: "assets",        label: "Assets & Resources",    icon: Building2 },
   { id: "deeds",         label: "Deed Repository",       icon: FileArchive },
+  { id: "deed-gen",      label: "Deed Generator",        icon: Gavel },
   { id: "tax",           label: "Tax Compliance",        icon: CalendarDays },
   { id: "assignments",   label: "Member / Stewards",     icon: Users },
   { id: "encumbrances",  label: "Encumbrances",          icon: ShieldAlert },
   { id: "notices",       label: "Notices & Enforcement", icon: ScrollText },
   { id: "stewardship",   label: "Stewardship Pipeline",  icon: TrendingUp },
+  { id: "templates",     label: "Document Templates",    icon: BookOpen },
 ];
 
 const EMPTY_STATS: Stats = {
@@ -2544,6 +2876,8 @@ export default function LandPage() {
         {tab === "encumbrances" && <EncumbrancesTab encumbrances={encQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-encumbrances", "land-stats"])} />}
         {tab === "notices"      && <NoticesTab notices={noticesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-notices", "land-stats"])} />}
         {tab === "stewardship"  && <StewardshipTab pipeline={pipelineQ.data ?? []} onRefresh={() => refresh(["land-pipeline", "land-stats"])} />}
+        {tab === "templates"    && <LandTemplatesTab />}
+        {tab === "deed-gen"     && <DeedGeneratorTab />}
       </div>
     </div>
   );
