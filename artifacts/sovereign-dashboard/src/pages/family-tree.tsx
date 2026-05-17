@@ -2521,6 +2521,7 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
   onSuccess: () => void;
 }) {
   const isEdit = editingNode !== null;
+  const { toast } = useToast();
   const [form, setForm] = useState({
     fullName: editingNode?.fullName ?? "",
     firstName: editingNode?.firstName ?? "",
@@ -2582,6 +2583,9 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
       return r.json();
     },
     onSuccess,
+    onError: (err: Error) => {
+      toast({ title: "Save failed", description: err.message, variant: "destructive" });
+    },
   });
 
   return (
