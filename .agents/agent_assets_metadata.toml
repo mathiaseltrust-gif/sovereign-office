@@ -30,3 +30,9 @@ id = "uIqrA0rAMHydfLRfS8d6a"
 uri = "file://attached_assets/accommodation-letter-COURT-2026-0002.pdf"
 type = "pdf"
 title = "Accommodation Letter — COURT-2026-0002 (Signed Certified Copy)"
+
+[[outputs]]
+id = "BoHNgJqHuOHyLnd1rrRGz"
+uri = "file://attached_assets/tribal-grant-deed-kern-ca-APN-514-364-11-00-1.pdf"
+type = "pdf"
+title = "Tribal Grant Deed — APN 514-364-11-00-1, Kern County, CA"
