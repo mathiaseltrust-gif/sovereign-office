@@ -1,0 +1,193 @@
+what are some open source interactive maps/tools that allow indigenous people to see the time line of executive orders, and other provisions of the United States that disconnected their ancestors throughout time
+Copilot said:
+Copilot
+There actually are some powerful tools out there — but they fall into different categories depending on what you’re trying to see:
+
+territories + treaties
+land loss timeline
+federal actions / policies (executive orders, acts)
+DIY / open-source mapping you can build on
+I’ll show you the best ones, then the ones that come closest to what you’re specifically asking (timeline of dispossession + legal actions).
+
+🧭 🏆 1. Best core interactive map (start here)
+🌍 Native Land Digital (Indigenous‑led)
+👉 https://native-land.ca
+
+Interactive map of:
+Indigenous territories
+treaties
+languages
+native-land
++1
+Search by address or region
+Includes treaty layers and references
+Why it matters:
+It reframes land outside colonial boundaries
+Shows overlapping territories (which is more accurate)
+Limits:
+Not a full legal timeline
+Doesn’t track executive orders step-by-step
+🧠 🏗️ 2. Advanced open data + mapping systems
+📊 Native Land Information System (NLIS)
+👉 https://nativeland.info
+
+Includes:
+interactive maps
+dashboards
+storymaps (timeline-style narratives)
+nativeland
+Focuses on:
+land use
+climate
+sovereignty data
+Why it matters:
+More “systems-level”
+You can trace policy impacts on land
+🌎 LandMark Global Platform
+👉 https://www.landmarkmap.org
+
+Maps:
+Indigenous lands (recognized + unrecognized)
+governance status
+Global dataset for land rights
+landmarkmap
+Why it matters:
+Shows what lands are:
+acknowledged by governments
+NOT acknowledged
+👉 That’s important for what you’re working on (recognition vs inherent status)
+
+⚡ 3. Treaty / land loss visualization (closest to what you want)
+📉 Animated “Land Loss” maps (U.S.)
+Example:
+
+“1.5 billion acres lost between 1776–1887” animation
+These maps show:
+
+step-by-step land cessions
+federal expansion over time
+openculture
+🗺️ Treaty cession datasets (historical)
+Example:
+
+U.S. land cession layers mapping treaties
+👉 These visualize:
+
+when land was taken
+what agreements caused it
+⚠️ Limitation
+These are often:
+
+less interactive
+not tied directly to:
+specific executive orders
+legal doctrines
+🧠 4. Tools that partially match your exact idea
+What you’re asking for is:
+
+A timeline map of executive orders + federal actions + land disconnection
+
+👉 That exact tool doesn’t fully exist yet as one system
+
+But parts exist:
+
+✅ A. Native Land Digital (territory + treaty overlay)
+✅ B. Land loss animations (timeline of dispossession)
+✅ C. NLIS storymaps (policy context)
+✅ D. Federal datasets (Indian lands, treaties)
+👉 The truth:
+
+You have to combine these layers yourself right now
+
+🧰 🧱 5. Open-source tools you can build your OWN system with
+This is where it gets powerful for you.
+
+🧭 Tool stack (used by indigenous projects)
+✅ 1. OpenStreetMap + Leaflet
+Fully open-source mapping engine
+Lets you build custom interactive maps
+✅ 2. ArcGIS (what your ELA form is for)
+Industry standard GIS
+You can:
+map treaties
+add legal overlays
+build timelines
+✅ 3. Native Land API (very important)
+Free geospatial data
+Territories + treaties
+Can integrate into your own system
+arcgis
+✅ 4. ESRI StoryMaps (via ArcGIS)
+Lets you create:
+timeline narratives
+legal + geographic overlays
+✅ 5. Federal datasets (plug into GIS)
+Examples:
+
+Indian Land datasets
+treaty records
+executive order archives
+🔥 6. What you’re actually describing (and why it matters)
+You’re talking about building:
+
+✅ A timeline-based sovereign land map showing:
+
+treaties
+executive orders
+removals
+jurisdiction shifts
+👉 That’s next‑level work, and few groups have fully done it yet.
+
+🧭 7. If you want the closest thing conceptually
+Combine:
+
+🔹 Native Land map
+(territories + treaties)
+
+🔹 Land loss animation
+(timeline of dispossession)
+
+🔹 Federal legal timeline data
+(executive orders, acts, allotment, termination, etc.)
+
+🧠 8. Why these tools matter for your situation
+Everything you’ve been talking about:
+
+aboriginal title
+Non‑Intercourse Act
+jurisdiction
+sovereignty
+👉 All depends on:
+
+historical continuity
+territorial mapping
+legal events over time
+These tools help you:
+
+prove ancestral connection
+visualize disconnection events
+document claims properly
+✅ Bottom line
+Best ready-to-use tools:
+Native Land Digital → territories + treaties
+NLIS → narrative + policy data
+LandMark → recognized vs unrecognized land
+Best timeline-type tools:
+animated land loss maps
+treaty cession maps
+Best path for your goals:
+👉 Combine those using:
+
+ArcGIS (ELA program)
+open datasets
+storymap timelines
+👍 If you want
+I can help you build exactly what you’re describing:
+
+a custom tribal land timeline system
+connecting:
+treaties
+executive orders
+land acquisition/loss
+your current land holdings
+👉 That would directly support your legal and sovereignty framework.

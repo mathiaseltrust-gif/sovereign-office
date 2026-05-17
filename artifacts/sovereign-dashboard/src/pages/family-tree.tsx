@@ -9,6 +9,9 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
+import {
+  SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X,
+} from "lucide-react";
 
 type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
@@ -604,7 +607,39 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   const nodes = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
-  const { positioned, totalW, totalH } = useMemo(() => computeLayout(nodes), [nodes]);
+
+  // ── Filter state ─────────────────────────────────────────────────────────
+  const [showFilters, setShowFilters] = useState(false);
+  const [filterGender, setFilterGender]           = useState("all");
+  const [filterSource, setFilterSource]           = useState("all");
+  const [filterProtection, setFilterProtection]   = useState("all");
+  const [filterStatus, setFilterStatus]           = useState("all");
+  const [filterDeceased, setFilterDeceased]       = useState("all");
+
+  const filteredNodes = useMemo(() => nodes.filter((n) => {
+    if (filterGender !== "all") {
+      const g = (n.gender ?? "").toLowerCase();
+      if (filterGender === "male"   && g !== "male")                        return false;
+      if (filterGender === "female" && g !== "female")                      return false;
+      if (filterGender === "other"  && (g === "male" || g === "female"))    return false;
+    }
+    if (filterSource !== "all"     && (n.sourceType     ?? "manual")  !== filterSource)     return false;
+    if (filterProtection !== "all" && (n.protectionLevel ?? "pending") !== filterProtection) return false;
+    if (filterStatus !== "all"     && (n.membershipStatus ?? "pending") !== filterStatus)    return false;
+    if (filterDeceased === "living"   &&  n.isDeceased) return false;
+    if (filterDeceased === "deceased" && !n.isDeceased) return false;
+    return true;
+  }), [nodes, filterGender, filterSource, filterProtection, filterStatus, filterDeceased]);
+
+  const activeFilterCount = [filterGender, filterSource, filterProtection, filterStatus, filterDeceased]
+    .filter((v) => v !== "all").length;
+
+  const clearFilters = useCallback(() => {
+    setFilterGender("all"); setFilterSource("all"); setFilterProtection("all");
+    setFilterStatus("all"); setFilterDeceased("all");
+  }, []);
+
+  const { positioned, totalW, totalH } = useMemo(() => computeLayout(filteredNodes), [filteredNodes]);
   const edges = useMemo(() => buildEdges(positioned), [positioned]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -803,40 +838,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   return (
     <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
-      <div className="flex items-center gap-2 mb-3 flex-wrap">
-        {canEdit && (
-          <Button size="sm" onClick={() => { setEditingNode(null); setShowAddModal(true); }}>
-            + Add Person
-          </Button>
-        )}
-        <Button size="sm" variant="secondary" onClick={() => setShowMemberAddModal(true)}>
-          + Add My Family
-        </Button>
-        {canEdit && (
-          <>
-            <input
-              ref={importRef}
-              type="file"
-              accept=".csv,.ged,.gedcom,text/csv,text/plain"
-              className="hidden"
-              onChange={(e) => {
-                const file = e.target.files?.[0];
-                if (file) importMutation.mutate(file);
-                e.target.value = "";
-              }}
-            />
-            <Button size="sm" variant="outline" onClick={() => importRef.current?.click()} disabled={importMutation.isPending}>
-              {importMutation.isPending ? "Importing…" : "Import File"}
-            </Button>
-          </>
-        )}
-        <Button size="sm" variant="outline" onClick={fitToScreen}>Fit to Screen</Button>
-        <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>＋</Button>
-        <Button size="sm" variant="ghost" onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>－</Button>
 
-        {/* ── Search bar + dropdown (wrapper is the anchor for the dropdown) ── */}
-        <div ref={searchWrapperRef} className="relative flex items-center ml-2">
-          <svg className="absolute left-2 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+      {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
+      <div className="flex items-center gap-1.5 mb-2 flex-wrap">
+
+        {/* Search */}
+        <div ref={searchWrapperRef} className="relative flex items-center">
+          <svg className="absolute left-2.5 w-3.5 h-3.5 text-muted-foreground pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" />
           </svg>
           <input
@@ -846,23 +854,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             onChange={(e) => { setSearchQuery(e.target.value); setActiveIdx(-1); setDropdownOpen(true); }}
             onFocus={() => { if (hasSearch) setDropdownOpen(true); }}
             onKeyDown={handleSearchKey}
-            placeholder="Search by name or nation…"
-            className="pl-7 pr-7 py-1 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring w-52"
+            placeholder="Search name or nation…"
+            className="pl-8 pr-7 py-1.5 text-xs rounded-md border border-input bg-background focus:outline-none focus:ring-1 focus:ring-ring w-48"
             autoComplete="off"
             aria-autocomplete="list"
             aria-expanded={dropdownOpen && hasSearch}
           />
           {hasSearch && (
-            <button
-              onClick={clearSearch}
-              className="absolute right-2 text-muted-foreground hover:text-foreground leading-none text-base"
-              title="Clear search (Esc)"
-            >
-              ✕
+            <button onClick={clearSearch} className="absolute right-2 text-muted-foreground hover:text-foreground" title="Clear (Esc)">
+              <X className="h-3 w-3" />
             </button>
           )}
 
-          {/* Dropdown — absolutely positioned below the input, inside the same relative wrapper */}
+          {/* Search dropdown */}
           {dropdownOpen && hasSearch && matchingNodes.length > 0 && (
             <div className="absolute top-full left-0 mt-1 z-50 w-64 bg-popover border border-border rounded-md shadow-lg overflow-hidden">
               <div className="px-2 py-1 text-xs text-muted-foreground border-b bg-muted/40 flex items-center justify-between">
@@ -896,10 +900,121 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
         </div>
-        {/* ──────────────────────────────────────────────────────────────────── */}
 
-        <span className="text-xs text-muted-foreground ml-auto">{nodes.length} records · scroll to zoom · drag to pan</span>
+        {/* Filters toggle */}
+        <Button
+          size="sm"
+          variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
+          onClick={() => setShowFilters((v) => !v)}
+          className="gap-1.5 h-8"
+        >
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filters
+          {activeFilterCount > 0 && (
+            <span className="ml-0.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">
+              {activeFilterCount}
+            </span>
+          )}
+        </Button>
+
+        {/* Divider */}
+        <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
+
+        {/* View controls */}
+        <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit tree to screen">
+          <Maximize2 className="h-3.5 w-3.5" /> Fit
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom in"
+          onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>
+          <Plus className="h-3.5 w-3.5" />
+        </Button>
+        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom out"
+          onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>
+          <Minus className="h-3.5 w-3.5" />
+        </Button>
+
+        {/* Divider */}
+        <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
+
+        {/* Add actions */}
+        {canEdit && (
+          <Button size="sm" onClick={() => { setEditingNode(null); setShowAddModal(true); }} className="gap-1.5 h-8">
+            <UserPlus className="h-3.5 w-3.5" /> Add Person
+          </Button>
+        )}
+        <Button size="sm" variant="secondary" onClick={() => setShowMemberAddModal(true)} className="gap-1.5 h-8">
+          <Users className="h-3.5 w-3.5" /> My Family
+        </Button>
+        {canEdit && (
+          <>
+            <input
+              ref={importRef}
+              type="file"
+              accept=".csv,.ged,.gedcom,text/csv,text/plain"
+              className="hidden"
+              onChange={(e) => {
+                const file = e.target.files?.[0];
+                if (file) importMutation.mutate(file);
+                e.target.value = "";
+              }}
+            />
+            <Button size="sm" variant="outline" onClick={() => importRef.current?.click()}
+              disabled={importMutation.isPending} className="gap-1.5 h-8">
+              <Upload className="h-3.5 w-3.5" />
+              {importMutation.isPending ? "Importing…" : "Import"}
+            </Button>
+          </>
+        )}
+
+        {/* Record count */}
+        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
+          {activeFilterCount > 0
+            ? <>{filteredNodes.length} <span className="opacity-60">of {nodes.length}</span></>
+            : <>{nodes.length} people</>
+          }
+          <span className="hidden sm:inline opacity-50"> · scroll to zoom</span>
+        </span>
       </div>
+
+      {/* ── Filter panel ─────────────────────────────────────────────────────── */}
+      {showFilters && (
+        <div className="mb-2 rounded-lg border bg-muted/20 px-3 py-2.5 space-y-2">
+          <div className="flex flex-wrap gap-x-5 gap-y-2">
+            {[
+              { label: "Gender",     value: filterGender,     set: setFilterGender,     opts: [["all","All"],["male","Male"],["female","Female"],["other","Other"]] },
+              { label: "Status",     value: filterStatus,     set: setFilterStatus,     opts: [["all","All"],["verified","Verified"],["pending","Pending"],["rejected","Rejected"]] },
+              { label: "Source",     value: filterSource,     set: setFilterSource,     opts: [["all","All"],["manual","Manual"],["gedcom","GEDCOM"],["member","Member"]] },
+              { label: "Living",     value: filterDeceased,   set: setFilterDeceased,   opts: [["all","All"],["living","Living"],["deceased","Deceased"]] },
+              { label: "Protection", value: filterProtection, set: setFilterProtection, opts: [["all","All"],["ancestor","Ancestor"],["descendant","Descendant"],["pending","Pending"]] },
+            ].map(({ label, value, set, opts }) => (
+              <div key={label} className="flex items-center gap-1.5">
+                <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[62px] shrink-0">{label}</span>
+                <div className="flex gap-1 flex-wrap">
+                  {opts.map(([v, l]) => (
+                    <button
+                      key={v}
+                      onClick={() => set(v)}
+                      className={[
+                        "text-[11px] px-2 py-0.5 rounded-full border transition-colors",
+                        value === v
+                          ? "bg-primary text-primary-foreground border-primary"
+                          : "bg-background border-border text-muted-foreground hover:border-primary/50 hover:text-foreground",
+                      ].join(" ")}
+                    >
+                      {l}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          {activeFilterCount > 0 && (
+            <button onClick={clearFilters} className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2">
+              Clear all filters
+            </button>
+          )}
+        </div>
+      )}
 
       <div className="flex flex-1 gap-0 min-h-0">
         <div
@@ -922,11 +1037,26 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
           {!isLoading && nodes.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-4 text-muted-foreground">
-              <p className="text-lg">No lineage records yet.</p>
-              {canEdit && (
-                <Button onClick={() => setShowAddModal(true)}>Add the first person</Button>
-              )}
-              <Button variant="secondary" onClick={() => setShowMemberAddModal(true)}>Add My Family Member</Button>
+              <p className="text-lg font-medium">No lineage records yet.</p>
+              <p className="text-sm">Add the first person to start building the family tree.</p>
+              <div className="flex gap-2">
+                {canEdit && (
+                  <Button onClick={() => setShowAddModal(true)} className="gap-1.5">
+                    <UserPlus className="h-4 w-4" /> Add Person
+                  </Button>
+                )}
+                <Button variant="secondary" onClick={() => setShowMemberAddModal(true)} className="gap-1.5">
+                  <Users className="h-4 w-4" /> Add My Family
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {!isLoading && nodes.length > 0 && filteredNodes.length === 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+              <SlidersHorizontal className="h-8 w-8 opacity-30" />
+              <p className="text-sm font-medium">No people match the current filters.</p>
+              <Button variant="outline" size="sm" onClick={clearFilters}>Clear filters</Button>
             </div>
           )}
 
@@ -967,6 +1097,16 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                 const isSelected = node.id === selectedNodeId;
                 const isMatch = hasSearch && matchingIdSet.has(node.id);
                 const isDimmed = hasSearch && !matchingIdSet.has(node.id);
+                const g = (node.gender ?? "").toLowerCase();
+                const genderDot = g === "male"
+                  ? "bg-sky-400"
+                  : g === "female"
+                    ? "bg-pink-400"
+                    : "bg-slate-300 dark:bg-slate-500";
+                const dateLabel = node.birthYear || node.deathYear
+                  ? `${node.birthYear ?? "?"}${node.isDeceased || node.deathYear ? ` – ${node.deathYear ?? "†"}` : ""}`
+                  : node.isDeceased ? "Deceased" : "";
+
                 return (
                   <div
                     key={node.id}
@@ -974,37 +1114,79 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                     onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
                     style={{ position: "absolute", left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
                     className={[
-                      "rounded-lg border-2 px-3 py-2 cursor-pointer transition-all duration-150",
+                      "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
                       bg, border,
-                      isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md",
-                      isMatch ? "ring-2 ring-amber-400 shadow-amber-200 shadow-md" : "",
-                      isDimmed ? "opacity-25" : "",
-                      node.sourceType === "archived" ? "opacity-50" : "",
+                      isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
+                      isMatch ? "ring-2 ring-amber-400 shadow-amber-200/60 shadow-md" : "",
+                      isDimmed ? "opacity-20 pointer-events-none" : "",
+                      node.sourceType === "archived" ? "opacity-40" : "",
                     ].join(" ")}
                   >
-                    <div className="flex items-start justify-between gap-1 mb-1">
-                      <span className="text-xs font-semibold leading-tight line-clamp-2 flex-1">
+                    {/* Top row: gender dot · name · membership dot */}
+                    <div className="flex items-start gap-1.5">
+                      <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${genderDot}`} title={node.gender ?? "unknown"} />
+                      <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
                         {node.fullName}
                       </span>
                       {membershipDot(node.membershipStatus)}
                     </div>
-                    <div className="text-xs text-muted-foreground mb-1">
-                      {node.birthYear && <span>b.{node.birthYear}</span>}
-                      {node.birthYear && node.deathYear && <span> – </span>}
-                      {node.deathYear && <span>d.{node.deathYear}</span>}
-                    </div>
-                    <div className="flex items-center gap-1 flex-wrap">
-                      {node.pendingReview && (
-                        <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-200 text-yellow-900 border border-yellow-400">Pending Review</span>
+
+                    {/* Bottom: dates + badges */}
+                    <div className="mt-1 space-y-1">
+                      {dateLabel && (
+                        <p className="text-[11px] text-muted-foreground leading-none">{dateLabel}</p>
                       )}
-                      {!node.pendingReview && protectionBadge(node.protectionLevel)}
-                      {node.linkedProfileUserId && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-primary inline-block" title="Linked user profile" />
-                      )}
+                      <div className="flex items-center gap-1 flex-wrap">
+                        {node.pendingReview && (
+                          <span className="text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm bg-yellow-200 text-yellow-900 border border-yellow-300">Review</span>
+                        )}
+                        {!node.pendingReview && node.protectionLevel && node.protectionLevel !== "standard" && (
+                          <span className={`text-[9px] font-bold uppercase px-1.5 py-0.5 rounded-sm ${
+                            node.protectionLevel === "ancestor"
+                              ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/40 dark:text-yellow-300"
+                              : node.protectionLevel === "descendant"
+                                ? "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
+                                : "bg-muted text-muted-foreground"
+                          }`}>{node.protectionLevel}</span>
+                        )}
+                        {node.tribalNation && !node.pendingReview && (
+                          <span className="text-[9px] text-muted-foreground truncate max-w-[90px]" title={node.tribalNation}>
+                            {node.tribalNation}
+                          </span>
+                        )}
+                        {node.linkedProfileUserId && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Linked member profile" />
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── Legend overlay ─────────────────────────────────────────────── */}
+          {!isLoading && nodes.length > 0 && (
+            <div className="absolute bottom-3 left-3 bg-card/90 backdrop-blur-sm border rounded-lg px-3 py-2 shadow-sm pointer-events-none select-none">
+              <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Legend</p>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-3 h-0.5 bg-amber-500 shrink-0" />Ancestor line
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-3 h-0 border-t border-dashed border-slate-400 shrink-0" />Family line
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-2 h-2 rounded-sm bg-yellow-100 border border-yellow-400 shrink-0" />Ancestor
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-2 h-2 rounded-sm bg-sky-50 border border-sky-400 shrink-0" />Descendant
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />Male
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0" />Female
+                </div>
+              </div>
             </div>
           )}
         </div>
