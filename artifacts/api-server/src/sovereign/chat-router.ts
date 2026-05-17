@@ -331,6 +331,200 @@ const FUNNELS: FunnelDef[] = [
     lawTags: ["debt-invalidation", "admin-process", "fdcpa", "fcra", "credit-protection", "nonintercourse", "trust-land"],
   },
   {
+    id: "HAIR_ATTIRE_PROTECTION",
+    patterns: [
+      /\bhair\b.{0,40}(policy|policies|rule|cut|long|braid|lock|dread)/i,
+      /\b(braid|dreadlock|loc|locs)\b/i,
+      /traditional\s+(attire|dress|clothing|regalia|wear)/i,
+      /\bregalia\b/i,
+      /grooming\s+(policy|rule|standard|requirement)/i,
+      /dress\s+code.{0,40}(native|indian|indigenous|spiritual|ceremonial|traditional)/i,
+      /(school|work|employer|prison|jail)\s+.{0,40}\b(hair|braids?|attire|clothing|dress)\b/i,
+      /can['\u2019]?t\s+(wear|have|keep).{0,40}(hair|braids?|attire|clothing|regalia)/i,
+      /told\s+(me|us)\s+(to\s+)?(cut|remove|change)\s+(my|our).{0,30}(hair|attire|clothing)/i,
+      /\bheaddress\b|\bfeathers?\b.{0,20}(wear|worn|carry|school|work)/i,
+    ],
+    respond: ({ userName }) =>
+      `${userName ? `${userName}, t` : "T"}his touches one of the most important — and most overlooked — areas of Indigenous protective rights.\n\n` +
+      `HAIR, APPEARANCE & ATTIRE PROTECTIONS:\n\n` +
+      `Long hair, braids, traditional attire, regalia, head coverings, beadwork, and ceremonial clothing may carry deep spiritual, cultural, familial, or ceremonial significance. That significance is legally protected — not as a courtesy, but as a right.\n\n` +
+      `WHY THESE PROTECTIONS EXIST:\n` +
+      `Hair cutting was one of the most documented acts of cultural destruction in the boarding school era. The forced removal of hair was a deliberate act of identity erasure. Federal law now protects what was once systematically destroyed.\n\n` +
+      `APPLICABLE LEGAL FRAMEWORKS:\n\n` +
+      `• AIRFA — American Indian Religious Freedom Act (42 U.S.C. § 1996): Federal policy affirms the right of Indigenous people to practice traditional religion including appearance and ceremonial objects.\n` +
+      `• RFRA — Religious Freedom Restoration Act (42 U.S.C. § 2000bb): Government and government-funded institutions cannot substantially burden religious practice without a compelling interest and the least restrictive means.\n` +
+      `• Title VII — Civil Rights Act (42 U.S.C. § 2000e): Employers must provide reasonable accommodation for sincerely held religious and cultural practice, including appearance and attire, unless it causes undue hardship.\n` +
+      `• RLUIPA — Religious Land Use and Institutionalized Persons Act (42 U.S.C. § 2000cc): Applies in prisons and jails — facilities cannot enforce grooming policies that substantially burden Indigenous religious practice without compelling justification.\n` +
+      `• Equal Protection — Schools receiving federal funds cannot apply dress codes in ways that discriminate against Indigenous cultural and religious expression.\n\n` +
+      `THE STANDARD:\n` +
+      `The institution must show a compelling interest AND that their policy is the least restrictive way to achieve it. "Policy is policy" is not a legal standard. "It applies to everyone" does not override a religious accommodation right.\n\n` +
+      `WHAT COMPANION CAN GENERATE FOR YOU:\n` +
+      `• A formal Religious/Cultural Accommodation Request letter\n` +
+      `• A notice identifying the applicable federal legal framework\n` +
+      `• Documentation of the protected practice and its cultural/spiritual significance\n` +
+      `• An objection letter if accommodation is denied\n\n` +
+      `Tell me the setting (school, employer, prison, courthouse) and what specifically is being required of you — and I will generate the appropriate accommodation request now.`,
+    actions: [
+      { label: "Generate Accommodation Letter", intent: "ACCOMMODATION_LETTER" },
+      { label: "File a Complaint", href: "/complaints" },
+      { label: "Religious Protections — Law Library", href: "/law" },
+    ],
+    lawTags: ["airfa", "rfra", "title-vii", "rluipa", "hair-attire", "religious-accommodation"],
+  },
+  {
+    id: "RELIGIOUS_CEREMONY_PROTECTION",
+    patterns: [
+      /\bceremony\b|\bceremonial\b/i,
+      /sweat\s+lodge/i,
+      /sacred\s+(site|land|object|item|ground|place)/i,
+      /\bpipe\b.{0,20}(sacred|ceremony|pray|prayer)/i,
+      /medicine\s+(bundle|bag|man|woman|practice)/i,
+      /\bsmudging?\b|\bsmudge\b/i,
+      /(prayer|praying)\s+(circle|ceremony|ritual)/i,
+      /fasting\s+(ceremony|ritual|spiritual|cultural)/i,
+      /\bpowwow\b/i,
+      /spiritual\s+(practice|ceremony|gathering|observance)/i,
+      /interfering\s+with.{0,30}(ceremony|prayer|practice|spiritual)/i,
+      /(denied|blocking|prevented|stopped)\s+(from\s+)?(ceremony|prayer|praying|practice)/i,
+      /american\s+indian\s+religious\s+freedom/i,
+      /\bairfa\b|\brfra\b/i,
+    ],
+    respond: () =>
+      `RELIGIOUS & CEREMONIAL PROTECTIONS — Indigenous Sovereign Right:\n\n` +
+      `Prayer, ceremony, sacred objects, medicine, fasting, gathering, songs, and sacred sites are legally protected under multiple federal frameworks. Interference with Indigenous ceremonial practice is a federal matter — not a policy disagreement.\n\n` +
+      `WHY THESE PROTECTIONS EXIST:\n` +
+      `Indigenous ceremony was systematically suppressed — the Sun Dance was criminalized, sacred objects were seized and taken to museums, ceremony was prohibited in boarding schools. Federal law now acknowledges that harm and creates binding obligations in response.\n\n` +
+      `GOVERNING LAW:\n\n` +
+      `• AIRFA — American Indian Religious Freedom Act (42 U.S.C. § 1996): It is the policy of the United States to protect and preserve the inherent right of American Indians to believe, express, and exercise their traditional religions — including access to sacred sites, ceremonial objects, and the freedom to worship through traditional rites.\n` +
+      `• RFRA — Religious Freedom Restoration Act (42 U.S.C. § 2000bb): No government action may substantially burden a person's religious practice unless it serves a compelling government interest using the least restrictive means available.\n` +
+      `• RLUIPA — Institutionalized Persons Act (42 U.S.C. § 2000cc-1): Protects incarcerated Indigenous people's right to sweat lodge, ceremony, diet (fasting), and sacred objects in prisons and jails.\n` +
+      `• NAGPRA (25 U.S.C. § 3001): Protects sacred objects and ancestral remains from excavation, transfer, or institutional control without tribal consultation and consent.\n` +
+      `• Eagle Feather Laws — The Migratory Bird Treaty Act and Bald Eagle Protection Act include specific exemptions for enrolled tribal members to possess eagle feathers for ceremonial use.\n\n` +
+      `SETTINGS WHERE THESE RIGHTS APPLY:\n` +
+      `Prison or jail, school, workplace, hospital, courthouse, any federally funded institution — and any interference with access to sacred sites on federal or public land.\n\n` +
+      `Describe what is being interfered with — the ceremony, the object, the setting — and I will identify the exact protection and generate a notice or accommodation request.`,
+    actions: [
+      { label: "Generate Accommodation Request", intent: "ACCOMMODATION_LETTER" },
+      { label: "File Complaint", href: "/complaints" },
+      { label: "Law Library — Religious Rights", href: "/law" },
+    ],
+    lawTags: ["airfa", "rfra", "rluipa", "nagpra", "ceremony", "sacred-sites"],
+  },
+  {
+    id: "ACCOMMODATION_LETTER",
+    patterns: [
+      /accommodation\s+(letter|request|form|notice)/i,
+      /generate\s+(an?\s+)?(accommodation|letter|request)/i,
+      /write\s+(a\s+)?(letter|notice|request).{0,40}(hair|attire|ceremony|pray|religious|cultural)/i,
+      /draft\s+(a\s+)?(letter|notice|request).{0,40}(accommodation|hair|attire|ceremony|pray|religious)/i,
+      /(need|want|create)\s+.{0,20}accommodation\s+(letter|notice|request)/i,
+      /how\s+do\s+i\s+(request|ask\s+for|get)\s+an?\s+accommodation/i,
+      /template\s+for\s+(accommodation|religious|hair|attire|cultural)/i,
+    ],
+    respond: ({ userName }) =>
+      `${userName ? `${userName}, I` : "I"} can generate an accommodation request for you. These letters establish your legal position in writing — they are not requests for special treatment, they are assertions of rights the law already recognizes.\n\n` +
+      `WHAT A PROPER ACCOMMODATION REQUEST MUST INCLUDE:\n\n` +
+      `1. Your identity and tribal affiliation (political relationship, not racial classification)\n` +
+      `2. The specific practice, observance, or appearance at issue\n` +
+      `3. The cultural, spiritual, or familial significance — in your words\n` +
+      `4. The specific institutional policy causing conflict\n` +
+      `5. The applicable legal framework (Title VII, RFRA, AIRFA, RLUIPA, Equal Protection)\n` +
+      `6. The accommodation you are requesting\n` +
+      `7. The standard the institution must meet (compelling interest + least restrictive means)\n` +
+      `8. A reservation of rights and notice of potential federal complaint if denied\n\n` +
+      `TYPES OF ACCOMMODATION LETTERS COMPANION CAN DRAFT:\n\n` +
+      `• Hair & Appearance — school, employer, prison, courthouse\n` +
+      `• Ceremonial Leave — requesting time for ceremony, gathering, or observance\n` +
+      `• Sacred Objects — right to possess in institutional setting\n` +
+      `• Dietary Accommodation — fasting protocols, traditional diet\n` +
+      `• Sweat Lodge or Prayer Access — incarcerated members\n` +
+      `• Regalia or Traditional Attire — school or workplace\n` +
+      `• Traditional Healer Access — hospital or medical setting\n\n` +
+      `Tell me: (1) the setting (school, employer, prison, hospital), (2) what is being restricted, and (3) the specific practice or significance — and I will draft the letter now using the correct legal framework.`,
+    actions: [
+      { label: "Describe My Situation", intent: "ANALYZE_SITUATION" },
+      { label: "File Complaint if Denied", href: "/complaints" },
+      { label: "Religious Rights — Law Library", href: "/law" },
+    ],
+    lawTags: ["title-vii", "rfra", "airfa", "rluipa", "religious-accommodation"],
+  },
+  {
+    id: "EDUCATION_RIGHTS",
+    patterns: [
+      /school.{0,40}(native|indian|indigenous|tribal|cultural|spiritual|language|hair|regalia|discrimination)/i,
+      /student.{0,40}(native|indian|indigenous|tribal|rights|discrimination)/i,
+      /native\s+american\s+languages?\s+act/i,
+      /\b(teacher|principal|school\s+board)\b.{0,40}(hair|regalia|ceremony|cultural|prayer|language)/i,
+      /school\s+(won['\u2019]?t|refused|denied|won['\u2019]?t\s+let|is\s+preventing)/i,
+      /my\s+(child|daughter|son|kid)\s+.{0,40}(school|teacher|principal).{0,40}(hair|regalia|dress|prayer|language|cultural)/i,
+      /tribal\s+(language|culture)\s+in\s+school/i,
+      /(bullied|harassed|discriminated)\s+(against\s+)?at\s+school.{0,20}(native|indian|indigenous|tribal)/i,
+    ],
+    respond: ({ userName }) =>
+      `${userName ? `${userName}, N` : "N"}ative students have federal rights to cultural expression, language preservation, and protection from discrimination in educational settings.\n\n` +
+      `WHY THESE PROTECTIONS EXIST:\n` +
+      `Boarding schools were designed explicitly to "kill the Indian and save the man" — to destroy language, culture, family, and identity through forced education. Federal law now imposes obligations in direct response to that documented harm.\n\n` +
+      `EDUCATIONAL RIGHTS FRAMEWORK:\n\n` +
+      `• Native American Languages Act (25 U.S.C. §§ 2901–2906): It is the policy of the United States to preserve, protect, and promote the rights and freedom of Native Americans to use, practice, and develop Native American languages. Schools receiving federal funds cannot prohibit Native language use or instruction.\n` +
+      `• Title VI, Civil Rights Act (42 U.S.C. § 2000d): No person shall be subjected to discrimination based on race or national origin in any federally funded program or activity — including public schools.\n` +
+      `• Equal Protection (14th Amendment): Schools cannot apply dress codes, grooming policies, or behavioral rules in ways that discriminate against Indigenous cultural and religious expression.\n` +
+      `• AIRFA & RFRA: Religious and cultural accommodations in school settings — prayer, ceremony, attire, sacred objects.\n` +
+      `• Title IX: Protects against sex-based harassment that may intersect with cultural discrimination.\n\n` +
+      `WHAT CAN BE PROTECTED IN SCHOOL:\n` +
+      `• Traditional hair (long hair, braids, locs)\n` +
+      `• Regalia and ceremonial clothing (including graduation ceremonies)\n` +
+      `• Prayer and ceremony time\n` +
+      `• Native language use and instruction\n` +
+      `• Cultural expression in projects and curriculum\n` +
+      `• Protection from harassment and bullying based on Indigenous identity\n\n` +
+      `COMPANION CAN GENERATE:\n` +
+      `A school accommodation notice, a Title VI complaint letter, or a parental rights assertion letter — telling me the school, what happened, and what the student was told.`,
+    actions: [
+      { label: "Generate School Accommodation Letter", intent: "ACCOMMODATION_LETTER" },
+      { label: "File Discrimination Complaint", href: "/complaints" },
+      { label: "Law Library — Education Rights", href: "/law" },
+    ],
+    lawTags: ["native-languages-act", "title-vi", "airfa", "rfra", "equal-protection", "education"],
+  },
+  {
+    id: "NAGPRA_BURIAL",
+    patterns: [
+      /\bnagpra\b/i,
+      /\brepatriation\b/i,
+      /ancestral\s+(remains?|bones?|burial|grave)/i,
+      /\bburial\s+(site|ground|protection)\b/i,
+      /(museum|university|institution)\s+.{0,40}(remains?|bones?|artifacts?|sacred\s+objects?)/i,
+      /sacred\s+objects?\s+.{0,40}(museum|return|returned|repatriate|stolen)/i,
+      /\bcultural\s+patrimony\b/i,
+      /(disturb|excavat|found|discovered).{0,30}(grave|remains?|burial)/i,
+      /cemetery\s+(protection|rights|tribal)/i,
+    ],
+    respond: () =>
+      `LAND, BURIAL & ANCESTOR PROTECTIONS — NAGPRA:\n\n` +
+      `Indigenous burial sites, ancestral remains, sacred objects, and cultural patrimony are protected under federal law. Disturbance, excavation, and trafficking of ancestral remains and sacred items is a federal crime.\n\n` +
+      `WHY THIS LAW EXISTS:\n` +
+      `Generations of Indigenous ancestral remains were removed from burial sites, displayed in museums, and held by universities — often without consent and in violation of tribal spiritual law. NAGPRA was enacted to reverse that harm and establish repatriation as a federal obligation.\n\n` +
+      `GOVERNING LAW — NATIVE AMERICAN GRAVES PROTECTION AND REPATRIATION ACT (25 U.S.C. §§ 3001–3013):\n\n` +
+      `• REPATRIATION: Federal agencies and institutions receiving federal funds must inventory and repatriate Native American human remains, funerary objects, sacred objects, and cultural patrimony to affiliated tribes upon request.\n` +
+      `• NEWLY DISCOVERED REMAINS: If human remains or cultural items are discovered on federal or tribal land during any activity, work must stop. The Secretary of the Interior must be notified. Affiliated tribes have the right to control disposition.\n` +
+      `• CONSULTATION: Institutions must consult with tribes before any disposition of covered items.\n` +
+      `• CRIMINAL PENALTIES: Trafficking in Native American human remains or sacred objects is a federal crime — 18 U.S.C. § 1170 (up to 12 months imprisonment, up to 5 years for repeat violations).\n` +
+      `• ENFORCEMENT: Tribes may file for injunctive relief and civil penalties for NAGPRA violations.\n\n` +
+      `IF YOU KNOW OF:\n` +
+      `• A burial site being disturbed by construction or development\n` +
+      `• Ancestral remains held by a museum or university\n` +
+      `• Sacred objects in private or institutional collections\n` +
+      `• A cemetery being improperly treated\n\n` +
+      `Our office can file a formal NAGPRA compliance demand, a Notice of Federal Review, and coordinate repatriation requests directly.\n\n` +
+      `Describe what you know and I will identify the appropriate federal response.`,
+    actions: [
+      { label: "File NAGPRA Complaint", href: "/complaints" },
+      { label: "Generate Federal Review Notice", href: "/instruments" },
+      { label: "Law Library — NAGPRA", href: "/law" },
+    ],
+    lawTags: ["nagpra", "burial-protection", "repatriation", "sacred-objects", "cultural-patrimony"],
+  },
+  {
     id: "EMERGENCY",
     patterns: [
       /\bemergency\b/i,

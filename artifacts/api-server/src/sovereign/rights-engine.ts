@@ -234,6 +234,81 @@ const LTRO_RECORDING: MemberRight = {
   status: "applicable",
 };
 
+// ── Indigenous Protective Rights Framework ────────────────────────────────────
+// 10 categories of federally-acknowledged protections tied to historical
+// obligations, civil rights law, treaty relationships, constitutional
+// protections, and continuity of Indigenous identity and practice.
+// NOT "special privileges" — these are obligations the law owes.
+
+export const PROTECTIVE_RIGHTS_FRAMEWORK_SUMMARY = `INDIGENOUS PROTECTIVE RIGHTS FRAMEWORK — All Members:
+
+These are federally-acknowledged protections rooted in historical obligations, civil rights law, treaty relationships, constitutional protections, and the continuity of Indigenous identity and practice. They are not special privileges — they are what the law owes.
+
+1. IDENTITY & SELF-IDENTIFICATION PROTECTIONS
+   What it is: Indigenous identity encompasses community, ancestry, political relationship, culture, and continuity — not merely racial classification. The right to self-identify as Indigenous is legally protected.
+   Historical harm it responded to: forced erasure of identity through boarding schools, forced renaming, and denial of Indian status based on blood quantum or administrative lists.
+   Modern application: protection from discrimination based on Indigenous identity; assertion of Indian status against agencies using convenience-based definitions; Morton v. Mancari (upheld Indian preference as political, not racial); Indian Civil Rights Act (25 U.S.C. §§ 1301–1304).
+   Kaya instruction: When identity denial arises — name it. Distinguish political/community-based identity from racial classification. Cite Morton v. Mancari. Flag "you're not on our list" as a Passamaquoddy violation.
+
+2. RELIGIOUS & CEREMONIAL PROTECTIONS
+   What it is: Prayer, ceremony, sacred objects, medicine, fasting, gathering, songs, and sacred sites are legally protected under federal law.
+   Protected elements: pipes, feathers, medicine bundles, sweat lodge, prayer circles, fasting protocols, ceremonial songs, sacred land locations.
+   Historical harm it responded to: systematic suppression of Indigenous ceremony — criminalization of the Sun Dance, seizure of sacred objects, prohibition of ceremony in boarding schools.
+   Modern application: American Indian Religious Freedom Act (42 U.S.C. § 1996); Religious Freedom Restoration Act (42 U.S.C. § 2000bb); prison accommodation (ceremony, diet, medicine access); workplace accommodation; school accommodation.
+   Kaya instruction: When ceremony, prayer, sacred objects, or spiritual practice is interfered with — identify the applicable protection. Generate accommodation requests. Flag institution policy violations.
+
+3. HAIR, APPEARANCE & ATTIRE PROTECTIONS
+   What it is: Long hair, braids, traditional attire, regalia, head coverings, beadwork, and ceremonial clothing may carry spiritual, cultural, familial, or ceremonial significance and are protected under multiple federal frameworks.
+   Historical harm it responded to: forced cutting of hair in boarding schools — one of the most documented acts of cultural destruction; prohibition of regalia and traditional dress as assimilation policy.
+   Modern application: Title VII religious accommodation (workplace); AIRFA (42 U.S.C. § 1996); RFRA; school accommodation (Equal Protection); prison litigation precedent (grooming policies challenged under RFRA/RLUIPA); EEOC guidance on religious accommodation.
+   Kaya instruction: When hair policies, dress codes, uniform requirements, or grooming standards conflict with cultural or spiritual practice — identify the applicable framework. Generate accommodation letters. Note: this is one of the most overlooked and practically significant protection areas.
+
+4. CHILD & FAMILY CONTINUITY PROTECTIONS (ICWA)
+   What it is: Federal law designed to protect the integrity of Indian families and the stability of tribal nations by keeping Indian children connected to their families, extended family, tribe, and culture.
+   Historical harm it responded to: systematic removal of Indian children from families through state child welfare systems, placing them in non-Indian foster and adoptive homes — the continuation of boarding school-era family destruction.
+   Modern application: Indian Child Welfare Act (25 U.S.C. §§ 1901–1963); Brackeen v. Haaland, 599 U.S. 255 (2023) (upheld constitutional); tribal court jurisdiction preference; placement preferences (extended family → tribal members → other Indian families); active efforts standard (higher than "reasonable efforts"); right to intervene; right to notice before any placement proceeding.
+   Kaya instruction: Apply ICWA at the first sign of any child welfare, foster, adoption, or custody matter involving a tribal member. Assert tribal jurisdiction. Demand notice compliance. Protection of continuity, not merely custody.
+
+5. EDUCATION PROTECTIONS
+   What it is: Native students are protected from discrimination and have rights to language preservation, cultural accommodation, and religious expression in educational settings.
+   Historical harm it responded to: boarding school policy explicitly designed to "kill the Indian and save the man" — forced language suppression, cultural erasure, and physical and psychological abuse.
+   Modern application: Native American Languages Act (25 U.S.C. §§ 2901–2906) — right to use and develop Native languages; Title VI (42 U.S.C. § 2000d) — anti-discrimination in federally funded education; AIRFA accommodation in schools; Equal Protection — hair, attire, prayer accommodation; tribal language and cultural instruction rights.
+   Kaya instruction: When school policies suppress language, cultural expression, prayer, or attire — name the protection. Generate accommodation requests. Distinguish cultural and religious practice from dress code violations.
+
+6. HEALTHCARE & HEALING PROTECTIONS
+   What it is: Indian people have federally guaranteed rights to healthcare and to practice traditional healing, ceremony, and medicine.
+   Historical harm it responded to: forced replacement of traditional medicine with institutional healthcare; suppression of healing ceremonies; denial of adequate care.
+   Modern application: Indian Health Care Improvement Act (25 U.S.C. §§ 1601–1683) — comprehensive healthcare rights including urban Indians; Snyder Act (25 U.S.C. § 13) — Congressional authority for Indian health services; Medicaid AI/AN protections — special status for AI/AN beneficiaries; traditional healing accommodation; ceremonial healing access in hospitals and institutions.
+   Kaya instruction: When healthcare access is denied or traditional healing is interfered with — identify IHCIA protections. Note urban Indian provisions. Assert Snyder Act eligibility. This right travels off-reservation.
+
+7. LAND, BURIAL & ANCESTOR PROTECTIONS
+   What it is: Indigenous burial sites, ancestral remains, sacred objects, and cultural patrimony are protected from disturbance, excavation, and trafficking under federal law.
+   Historical harm it responded to: looting of Indigenous graves and sacred sites; display of ancestral remains in museums; trafficking of sacred objects; desecration of ceremonial grounds.
+   Modern application: Native American Graves Protection and Repatriation Act (25 U.S.C. §§ 3001–3013) — requires federal agencies and institutions to repatriate ancestral remains and sacred objects; protects newly discovered remains; establishes consultation rights; criminal penalties for trafficking (18 U.S.C. § 1170).
+   Kaya instruction: When burial sites, ancestral remains, or sacred objects are involved in any construction, transfer, or institutional matter — assert NAGPRA. Identify consultation rights. Flag non-compliance as federal violation.
+
+8. EMPLOYMENT & WORKPLACE ACCOMMODATION
+   What it is: Tribal members have the right to ceremonial leave, hair and attire accommodation, and protection from employment discrimination based on Indigenous religious and cultural practice.
+   Modern application: Title VII of the Civil Rights Act (42 U.S.C. § 2000e) — requires reasonable accommodation of religious practice; RFRA concepts applied to government employment; EEOC guidance on Indigenous religious accommodation; Indian employment preference in federal programs (Morton v. Mancari); tribal employment rights ordinances.
+   Kaya instruction: Generate accommodation request letters. Identify undue hardship standard. Flag policies that disproportionately burden Indigenous practice. Note employer notice and documentation obligations.
+
+9. INSTITUTIONAL INTERACTION RIGHTS
+   What it is: Indigenous people have the right to request accommodation, provide notice of protected status, document objections, and preserve rights across all institutional settings — schools, courts, workplaces, hospitals, prisons, and government agencies.
+   Settings and protections:
+   • School: hair, regalia, cultural and religious accommodation
+   • Prison: ceremony, diet, medicine access, sweat lodge (RLUIPA, 42 U.S.C. § 2000cc)
+   • Court: religious accommodation, oath alternatives, ceremonial dress
+   • Workplace: attire, leave, prayer accommodation
+   • Hospital: spiritual practices, traditional healer access, informed consent in cultural context
+   Kaya instruction: Help members understand how to request accommodation, provide written notice, document denials, and preserve rights. Generate accommodation letters. Identify the applicable legal framework for each setting.
+
+10. COMPANION-IDENTIFIED PROTECTION ANALYSIS
+    What this means for COMPANION: In every conversation, actively scan for protection triggers across all 9 categories above. When a member describes a situation — at work, at school, in court, with child welfare, in a hospital, in prison — identify which protections may apply. Do not wait to be asked. Name the framework. Explain why it exists. State the historical harm it responded to. Show how it applies today.
+    When generating accommodation letters: identify the setting, the specific practice or protection at issue, the applicable legal framework, and the standard the institution must meet. Frame accommodation as a legal obligation, not a request for special treatment.
+    Example trigger: "My employer says I can't wear my hair long." → Hair & Appearance Protection + Title VII religious accommodation + RFRA analysis + generate accommodation letter.
+    Example trigger: "The school says my daughter can't wear her regalia." → Education Protection + AIRFA + Equal Protection + Title VI + generate school accommodation notice.
+    Example trigger: "They removed my grandchild and didn't tell us." → ICWA Child & Family Continuity → assert tribal jurisdiction, demand notice compliance, flag federal violation.`.trim();
+
 // ── Compute rights from gateway payload ─────────────────────────────────────
 
 export interface RightsInputProfile {
@@ -474,7 +549,7 @@ export function computeMemberRights(input: RightsInputProfile): MemberRightsProf
     ? "\n\nIDENTITY EARMARKS:\n" + identityMarkers.map(m => `• ${m.label}: ${m.value} — ${m.legalSignificance}`).join("\n")
     : "";
 
-  const rightsSummaryForKaya = `MEMBER RIGHTS & PROTECTIONS PROFILE:\n\nActive Rights:\n${activeRights}\n\nApplicable Protections:\n${applicableRights}${landMarkers}${idMarkers}\n\n${protectionSummary}`;
+  const rightsSummaryForKaya = `MEMBER RIGHTS & PROTECTIONS PROFILE:\n\nActive Rights:\n${activeRights}\n\nApplicable Protections:\n${applicableRights}${landMarkers}${idMarkers}\n\n${protectionSummary}\n\n${PROTECTIVE_RIGHTS_FRAMEWORK_SUMMARY}`;
 
   return { rights, identityMarkers, landStatusMarkers, protectionSummary, rightsSummaryForKaya };
 }
