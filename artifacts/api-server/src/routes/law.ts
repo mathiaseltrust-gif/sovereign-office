@@ -1,5 +1,6 @@
 import { Router } from "express";
-import { requireAuth, requireRole } from "../auth/entra-guard";
+import type { Request, Response, NextFunction } from "express";
+import { requireAuth } from "../auth/entra-guard";
 import {
   listAllFederalLaw,
   listAllTribalLaw,
@@ -13,6 +14,18 @@ import {
 } from "../sovereign/law-db";
 
 const router = Router();
+
+function requireLawAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) { res.status(401).json({ error: "Authentication required." }); return; }
+  const allowed = req.user.roles.some(r =>
+    ["chief_justice", "sovereign_admin", "admin", "trustee"].includes(r)
+  );
+  if (!allowed) {
+    res.status(403).json({ error: "Law Library writes require Sovereign Admin, Chief Justice, Trustee, or Admin access." });
+    return;
+  }
+  next();
+}
 
 router.get("/", requireAuth, async (_req, res, next) => {
   try {
@@ -80,7 +93,7 @@ router.get("/doctrines", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.post("/federal", requireAuth, requireRole("admin"), async (req, res, next) => {
+router.post("/federal", requireAuth, requireLawAdmin, async (req, res, next) => {
   try {
     const { title, citation, body, tags } = req.body as {
       title: string; citation: string; body: string; tags?: string[];
@@ -96,7 +109,7 @@ router.post("/federal", requireAuth, requireRole("admin"), async (req, res, next
   }
 });
 
-router.post("/tribal", requireAuth, requireRole("admin"), async (req, res, next) => {
+router.post("/tribal", requireAuth, requireLawAdmin, async (req, res, next) => {
   try {
     const { title, citation, body, tags } = req.body as {
       title: string; citation: string; body: string; tags?: string[];
@@ -112,7 +125,7 @@ router.post("/tribal", requireAuth, requireRole("admin"), async (req, res, next)
   }
 });
 
-router.post("/doctrines", requireAuth, requireRole("admin"), async (req, res, next) => {
+router.post("/doctrines", requireAuth, requireLawAdmin, async (req, res, next) => {
   try {
     const { caseName, citation, summary, tags } = req.body as {
       caseName: string; citation: string; summary: string; tags?: string[];
