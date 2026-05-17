@@ -98,6 +98,58 @@ export async function isRedisAvailable(): Promise<boolean> {
   }
 }
 
+// ── Online Presence Tracking (heartbeat-based, 60s TTL) ──────────────────────
+
+const PRESENCE_TTL_SECONDS = 60;
+
+function presenceKey(userId: number): string {
+  return `presence:online:${userId}`;
+}
+
+export async function setPresence(userId: number): Promise<void> {
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.set(presenceKey(userId), "1", "EX", PRESENCE_TTL_SECONDS);
+  } catch { /* ok */ }
+}
+
+export async function getOnlineMemberIds(): Promise<number[]> {
+  const redis = getRedis();
+  if (!redis) return [];
+  try {
+    const keys = await redis.keys("presence:online:*");
+    return keys.map((k) => parseInt(k.replace("presence:online:", ""), 10)).filter((n) => !isNaN(n));
+  } catch {
+    return [];
+  }
+}
+
+// ── Real-time message pub/sub (Redis channels) ────────────────────────────────
+
+export function getMessageRedis(): Redis | null {
+  return getRedis();
+}
+
+export async function publishMessageEvent(recipientId: number, event: object): Promise<void> {
+  const { pushToUser } = await import("./sse-manager");
+  const { pushWsEvent } = await import("./ws-manager");
+
+  const e = event as { type?: string; [k: string]: unknown };
+  const eventType = e.type ?? "message";
+
+  // Always push via in-process transports (works without Redis, single-server)
+  pushToUser(recipientId, eventType, event);
+  pushWsEvent(recipientId, event);
+
+  // Also publish to Redis for multi-server fan-out when available
+  const redis = getRedis();
+  if (!redis) return;
+  try {
+    await redis.publish(`msg:${recipientId}`, JSON.stringify(event));
+  } catch { /* ok */ }
+}
+
 // ── Long-term Profile Memory (1-year TTL — grows with every session) ───────────
 
 export interface ProfileMemory {

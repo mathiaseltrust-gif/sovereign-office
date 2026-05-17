@@ -160,3 +160,34 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
 export function buildTestToken(user: { id: string; email: string; roles: string[]; name?: string }): string {
   return Buffer.from(JSON.stringify(user)).toString("base64");
 }
+
+/**
+ * Resolve a DB user ID from a raw bearer token string.
+ * Used by WebSocket upgrade handler (which cannot run Express middleware).
+ */
+export async function resolveUserIdFromToken(rawToken: string): Promise<number | null> {
+  const token = rawToken.replace(/^Bearer\s+/i, "").trim();
+  if (!token) return null;
+
+  try {
+    if (isSessionJwt(token)) {
+      const payload = verifySessionJwt(token);
+      if (!payload || payload.type !== "session") return null;
+      const dbUser = await resolveDbUser(payload.email as string);
+      return dbUser?.id ?? null;
+    } else if (isRealJwt(token)) {
+      const jwtPayload = await verifyEntraJwt(token);
+      if (!jwtPayload) return null;
+      const email = jwtPayload.email ?? jwtPayload.preferred_username ?? jwtPayload.oid;
+      const dbUser = await resolveDbUser(email);
+      return dbUser?.id ?? null;
+    } else {
+      const parsed = parseDevToken(token);
+      if (!parsed) return null;
+      const dbUser = await resolveDbUser(parsed.email);
+      return dbUser?.id ?? null;
+    }
+  } catch {
+    return null;
+  }
+}

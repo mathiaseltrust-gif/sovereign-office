@@ -16,6 +16,7 @@ import {
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { getSovereignSession } from "@/lib/utils";
+import { useChatManager } from "@/components/ChatManager";
 
 const navigation = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -30,12 +31,14 @@ const mobileNav = navigation.slice(0, 4);
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location] = useLocation();
+  const { totalUnread } = useChatManager();
   return (
     <div className="space-y-0.5">
       {navigation.map((item) => {
         const isActive =
           location === item.href ||
           (item.href !== "/" && location.startsWith(item.href));
+        const showBadge = item.href === "/directory" && totalUnread > 0;
         return (
           <Link key={item.name} href={item.href} onClick={onNavigate}>
             <div
@@ -50,6 +53,11 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
               {item.name === "Admin" && (
                 <span className="ml-auto text-[10px] font-semibold uppercase tracking-wider opacity-60">Office</span>
               )}
+              {showBadge && (
+                <span className="ml-auto bg-red-500 text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center px-1">
+                  {totalUnread > 9 ? "9+" : totalUnread}
+                </span>
+              )}
             </div>
           </Link>
         );
@@ -63,6 +71,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { theme, setTheme } = useTheme();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
+  const { totalUnread: dmUnread } = useChatManager();
 
   useEffect(() => {
     const u = getSovereignSession();
@@ -199,14 +208,20 @@ export function Layout({ children }: { children: React.ReactNode }) {
             const isActive =
               location === item.href ||
               (item.href !== "/" && location.startsWith(item.href));
+            const showBadge = item.href === "/directory" && dmUnread > 0;
             return (
               <Link key={item.name} href={item.href} className="flex-1">
                 <div
-                  className={`flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
+                  className={`relative flex flex-col items-center justify-center py-2 gap-0.5 transition-colors ${
                     isActive ? "text-primary" : "text-muted-foreground"
                   }`}
                 >
                   <item.icon className="h-5 w-5" />
+                  {showBadge && (
+                    <span className="absolute top-1 right-1/4 bg-red-500 text-white text-[8px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5">
+                      {dmUnread > 9 ? "9+" : dmUnread}
+                    </span>
+                  )}
                   <span className="text-[9px] font-medium leading-none">{item.name.split(" ")[0]}</span>
                 </div>
               </Link>

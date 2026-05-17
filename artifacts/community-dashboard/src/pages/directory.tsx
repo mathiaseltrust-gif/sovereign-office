@@ -1,36 +1,62 @@
 import React, { useState } from "react";
 import { Link } from "wouter";
-import { Search, Filter, Shield, User as UserIcon, Users } from "lucide-react";
-import { 
-  useListCommunityMembers, 
-  getListCommunityMembersQueryKey 
+import { Search, Filter, Shield, Users, MessageCircle } from "lucide-react";
+import {
+  useListCommunityMembers,
 } from "@workspace/api-client-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { useChatManager } from "@/components/ChatManager";
+import { usePresence } from "@/hooks/usePresence";
+import { getSovereignSession } from "@/lib/utils";
 
-// Basic debounce hook inline for simplicity
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 function useDebounceValue<T>(value: T, delay: number): T {
   const [debouncedValue, setDebouncedValue] = useState<T>(value);
   React.useEffect(() => {
-    const handler = setTimeout(() => {
-      setDebouncedValue(value);
-    }, delay);
-    return () => {
-      clearTimeout(handler);
-    };
+    const handler = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(handler);
   }, [value, delay]);
   return debouncedValue;
+}
+
+function getToken(): string | null {
+  const session = getSovereignSession();
+  if (!session) return null;
+  try {
+    const raw = localStorage.getItem("sovereign_auth_v3");
+    if (raw) {
+      const s = JSON.parse(raw) as { token?: string };
+      if (s.token) return s.token;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+interface MemberWithAccount {
+  id: number;
+  name: string;
+  email: string;
 }
 
 export default function Directory() {
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebounceValue(search, 300);
   const [filter, setFilter] = useState("all");
+  const [membersWithAccounts, setMembersWithAccounts] = useState<MemberWithAccount[]>([]);
+
+  const token = getToken();
+  const onlineIds = usePresence(token);
+  const { openChat } = useChatManager();
+
+  const session = getSovereignSession();
+  const currentUserId = session?.id ? parseInt(session.id, 10) : null;
 
   const queryParams = {
     ...(debouncedSearch ? { q: debouncedSearch } : {}),
@@ -39,6 +65,18 @@ export default function Directory() {
   };
 
   const { data: members, isLoading } = useListCommunityMembers(queryParams);
+
+  React.useEffect(() => {
+    if (!token) return;
+    fetch(`${BASE}/api/messages/members-with-accounts`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => (r.ok ? r.json() : []))
+      .then((data: MemberWithAccount[]) => setMembersWithAccounts(data))
+      .catch(() => {});
+  }, [token]);
+
+  const accountMap = new Map(membersWithAccounts.map((m) => [m.name.toLowerCase(), m]));
 
   return (
     <div className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -54,8 +92,8 @@ export default function Directory() {
       <div className="flex flex-col md:flex-row gap-4 bg-card p-4 rounded-lg border shadow-sm">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-3 h-4 w-4 text-muted-foreground" />
-          <Input 
-            placeholder="Search by name, tribal nation, or enrollment..." 
+          <Input
+            placeholder="Search by name, tribal nation, or enrollment..."
             className="pl-9"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
@@ -94,72 +132,104 @@ export default function Directory() {
         </div>
       ) : members && members.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {members.map((member) => (
-            <Link key={member.id} href={`/directory/${member.id}`}>
-              <Card className="cursor-pointer hover:shadow-md transition-all hover:border-primary/50 group h-full flex flex-col">
-                <CardHeader className="flex flex-row items-center gap-4 pb-4 border-b bg-muted/20">
-                  <Avatar className="h-16 w-16 border-2 border-background shadow-sm group-hover:border-primary/20 transition-colors">
-                    <AvatarImage src={`/assets/${member.photoFilename || ""}`} />
-                    <AvatarFallback className="bg-primary/10 text-primary text-xl">
-                      {member.firstName?.charAt(0) || ""}{member.lastName?.charAt(0) || ""}
-                    </AvatarFallback>
-                  </Avatar>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
-                      {member.fullName}
-                    </h3>
-                    <div className="flex items-center text-sm text-muted-foreground mt-1">
-                      {member.isDeceased ? (
-                        <span>{member.birthYear || "?"} - {member.deathYear || "?"}</span>
-                      ) : (
-                        <span>Born {member.birthYear || "Unknown"}</span>
+          {members.map((member) => {
+            const accountUser = accountMap.get((member.fullName ?? "").toLowerCase());
+            const isOnline = accountUser ? onlineIds.has(accountUser.id) : false;
+            const canMessage =
+              accountUser && currentUserId !== null && accountUser.id !== currentUserId;
+
+            return (
+              <Card key={member.id} className="hover:shadow-md transition-all hover:border-primary/50 group h-full flex flex-col">
+                <Link href={`/directory/${member.id}`} className="flex-1 flex flex-col">
+                  <CardHeader className="flex flex-row items-center gap-4 pb-4 border-b bg-muted/20 cursor-pointer">
+                    <div className="relative">
+                      <Avatar className="h-16 w-16 border-2 border-background shadow-sm group-hover:border-primary/20 transition-colors">
+                        <AvatarImage src={`/assets/${member.photoFilename || ""}`} />
+                        <AvatarFallback className="bg-primary/10 text-primary text-xl">
+                          {member.firstName?.charAt(0) || ""}{member.lastName?.charAt(0) || ""}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isOnline && (
+                        <span
+                          title="Online"
+                          className="absolute bottom-0.5 right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background"
+                        />
                       )}
                     </div>
-                  </div>
-                </CardHeader>
-                <CardContent className="pt-4 flex-1 space-y-3">
-                  {member.tribalNation && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <Users className="h-3 w-3" /> Nation
-                      </span>
-                      <span className="font-medium text-foreground">{member.tribalNation}</span>
+                    <div className="flex flex-col flex-1 min-w-0">
+                      <h3 className="font-semibold text-lg truncate group-hover:text-primary transition-colors">
+                        {member.fullName}
+                      </h3>
+                      <div className="flex items-center text-sm text-muted-foreground mt-1">
+                        {member.isDeceased ? (
+                          <span>{member.birthYear || "?"} - {member.deathYear || "?"}</span>
+                        ) : (
+                          <span>Born {member.birthYear || "Unknown"}</span>
+                        )}
+                      </div>
                     </div>
-                  )}
-                  {member.tribalEnrollmentNumber && (
-                    <div className="flex justify-between items-center text-sm">
-                      <span className="text-muted-foreground flex items-center gap-2">
-                        <FileText className="h-3 w-3" /> ID
-                      </span>
-                      <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{member.tribalEnrollmentNumber}</span>
+                  </CardHeader>
+                  <CardContent className="pt-4 flex-1 space-y-3 cursor-pointer">
+                    {member.tribalNation && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <Users className="h-3 w-3" /> Nation
+                        </span>
+                        <span className="font-medium text-foreground">{member.tribalNation}</span>
+                      </div>
+                    )}
+                    {member.tribalEnrollmentNumber && (
+                      <div className="flex justify-between items-center text-sm">
+                        <span className="text-muted-foreground flex items-center gap-2">
+                          <FileText className="h-3 w-3" /> ID
+                        </span>
+                        <span className="font-mono text-xs bg-muted px-2 py-0.5 rounded">{member.tribalEnrollmentNumber}</span>
+                      </div>
+                    )}
+                    <div className="flex flex-wrap gap-2 mt-4 pt-2">
+                      {member.isAncestor && (
+                        <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
+                          Ancestor
+                        </Badge>
+                      )}
+                      {member.icwaEligible && (
+                        <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800">
+                          ICWA Eligible
+                        </Badge>
+                      )}
+                      {member.trustBeneficiary && (
+                        <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
+                          Trust Beneficiary
+                        </Badge>
+                      )}
+                      {member.pendingReview && (
+                        <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50">
+                          Pending Review
+                        </Badge>
+                      )}
                     </div>
-                  )}
-                  <div className="flex flex-wrap gap-2 mt-4 pt-2">
-                    {member.isAncestor && (
-                      <Badge variant="outline" className="bg-amber-50 text-amber-700 border-amber-200 dark:bg-amber-950/30 dark:text-amber-400 dark:border-amber-800">
-                        Ancestor
-                      </Badge>
-                    )}
-                    {member.icwaEligible && (
-                      <Badge variant="outline" className="bg-blue-50 text-blue-700 border-blue-200 dark:bg-blue-950/30 dark:text-blue-400 dark:border-blue-800">
-                        ICWA Eligible
-                      </Badge>
-                    )}
-                    {member.trustBeneficiary && (
-                      <Badge variant="outline" className="bg-green-50 text-green-700 border-green-200 dark:bg-green-950/30 dark:text-green-400 dark:border-green-800">
-                        Trust Beneficiary
-                      </Badge>
-                    )}
-                    {member.pendingReview && (
-                      <Badge variant="secondary" className="bg-orange-100 text-orange-800 border-orange-200 hover:bg-orange-100 dark:bg-orange-900/30 dark:text-orange-400 dark:border-orange-800/50">
-                        Pending Review
-                      </Badge>
-                    )}
+                  </CardContent>
+                </Link>
+
+                {canMessage && (
+                  <div className="px-4 pb-4">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="w-full gap-2 text-xs"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        openChat(accountUser.id, accountUser.name);
+                      }}
+                    >
+                      <MessageCircle className="h-3.5 w-3.5" />
+                      {isOnline ? "Chat (online)" : "Send Message"}
+                    </Button>
                   </div>
-                </CardContent>
+                )}
               </Card>
-            </Link>
-          ))}
+            );
+          })}
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center py-20 text-center bg-card rounded-lg border border-dashed">
@@ -171,8 +241,8 @@ export default function Directory() {
             We couldn't find any family members matching your current search and filter criteria.
           </p>
           {(search || filter !== "all") && (
-            <Button 
-              variant="outline" 
+            <Button
+              variant="outline"
               className="mt-6"
               onClick={() => {
                 setSearch("");

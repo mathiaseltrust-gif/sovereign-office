@@ -167,6 +167,23 @@ const INTENT_MESSAGES: Record<string, string> = {
   AI_ESCALATE: "I need a detailed AI legal analysis of my question.",
 };
 
+// ─── RELAY MODE: Companion acts as messenger to another member ─────────────────
+const RELAY_PATTERNS = [
+  /(?:talk\s+to|message|send\s+a\s+message\s+to|relay\s+to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:through|via)\s+(?:you|companion|the\s+companion)/i,
+  /open\s+(?:a\s+)?relay\s+(?:with|to)\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+  /(?:relay|forward)\s+(?:my\s+)?message\s+to\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)/i,
+];
+
+function detectRelayIntent(text: string): string | null {
+  for (const pat of RELAY_PATTERNS) {
+    const m = pat.exec(text);
+    if (m) return m[1].trim();
+  }
+  return null;
+}
+
+interface RelayTarget { id: number; name: string }
+
 export function ChatWidget() {
   const { user, activeRole } = useAuth();
   const [, navigate] = useLocation();
@@ -177,6 +194,12 @@ export function ChatWidget() {
   const [loading, setLoading] = useState(false);
   const [hasRedFlag, setHasRedFlag] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [dmUnreadCount, setDmUnreadCount] = useState(0);
+  const [relayMode, setRelayMode] = useState<RelayTarget | null>(null);
+  const relayThreadIdRef = useRef<number | null>(null);
+  const relayLastMsgIdRef = useRef<number>(0);
+  const relayPollRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const dmWsRef = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
@@ -194,9 +217,105 @@ export function ChatWidget() {
     if (open) {
       scrollToBottom();
       setUnreadCount(0);
+      setDmUnreadCount(0);
       setTimeout(() => inputRef.current?.focus(), 100);
     }
   }, [open, messages]);
+
+  // ── Subscribe to /api/messages/ws for DM unread badge ────────────────────
+  useEffect(() => {
+    if (!user) return;
+    const token = getCurrentBearerToken();
+    if (!token) return;
+
+    const base = import.meta.env.BASE_URL?.replace(/\/$/, "") ?? "";
+    const proto = window.location.protocol === "https:" ? "wss:" : "ws:";
+    const host = window.location.host;
+    const wsUrl = `${proto}//${host}${base}/api/messages/ws?authorization=Bearer%20${encodeURIComponent(token)}`;
+
+    let ws: WebSocket;
+    let closed = false;
+    let retryTimer: ReturnType<typeof setTimeout> | null = null;
+
+    const connect = () => {
+      if (closed) return;
+      ws = new WebSocket(wsUrl);
+      dmWsRef.current = ws;
+
+      const myDbId = user?.dbId;
+      ws.onmessage = (evt) => {
+        try {
+          const event = JSON.parse(evt.data as string) as { type?: string; message?: { senderId?: number } };
+          if (event.type === "new_message" && event.message?.senderId !== undefined) {
+            // Only count messages from others, not our own sends
+            if (myDbId === undefined || event.message.senderId !== myDbId) {
+              setDmUnreadCount(n => n + 1);
+            }
+          } else if (event.type === "message_read") {
+            setDmUnreadCount(n => Math.max(0, n - 1));
+          }
+        } catch { /* ignore */ }
+      };
+
+      ws.onclose = () => {
+        if (!closed) {
+          retryTimer = setTimeout(connect, 5000);
+        }
+      };
+
+      ws.onerror = () => { ws.close(); };
+    };
+
+    connect();
+
+    return () => {
+      closed = true;
+      if (retryTimer) clearTimeout(retryTimer);
+      ws?.close();
+      dmWsRef.current = null;
+    };
+  }, [user]);
+
+  // ── Relay mode: poll thread for inbound replies every 5s ──────────────────
+  useEffect(() => {
+    if (!relayMode || !user) {
+      if (relayPollRef.current) { clearInterval(relayPollRef.current); relayPollRef.current = null; }
+      if (!relayMode) { relayThreadIdRef.current = null; relayLastMsgIdRef.current = 0; }
+      return;
+    }
+    const poll = async () => {
+      const threadId = relayThreadIdRef.current;
+      if (!threadId) return;
+      const token = getCurrentBearerToken();
+      if (!token) return;
+      try {
+        const res = await fetch(`/api/messages/threads/${threadId}`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        if (!res.ok) return;
+        const msgs = await res.json() as Array<{ id: number; senderId: number; content: string; createdAt: string }>;
+        const myId = user ? undefined : null;
+        void myId;
+        for (const m of msgs) {
+          if (m.id > relayLastMsgIdRef.current && m.senderId === relayMode.id) {
+            relayLastMsgIdRef.current = m.id;
+            addMessage({
+              role: "assistant",
+              content: `**${relayMode.name}** replied: "${m.content}"`,
+              tier: "funnel",
+              tierLabel: "Sovereign Office Messenger",
+            });
+          } else if (m.id > relayLastMsgIdRef.current) {
+            relayLastMsgIdRef.current = m.id;
+          }
+        }
+      } catch { /* ignore poll errors */ }
+    };
+    relayPollRef.current = setInterval(poll, 5000);
+    return () => {
+      if (relayPollRef.current) { clearInterval(relayPollRef.current); relayPollRef.current = null; }
+    };
+  }, [relayMode, user]);
 
   const addMessage = (msg: Omit<ChatMessage, "id" | "timestamp">) => {
     const full: ChatMessage = { ...msg, id: Math.random().toString(36).slice(2), timestamp: new Date() };
@@ -210,8 +329,88 @@ export function ChatWidget() {
     if (!trimmed || loading) return;
 
     setInput("");
-    addMessage({ role: "user", content: trimmed });
     setLoading(true);
+
+    // ── Relay exit: check BEFORE relay send so "end relay" is never forwarded ─
+    if (relayMode && /end\s+relay|exit\s+relay|stop\s+relay|normal\s+mode/i.test(trimmed)) {
+      addMessage({ role: "user", content: trimmed });
+      addMessage({ role: "assistant", content: `Relay mode ended. You are now back in the Sovereign Office Companion.`, tier: "funnel", tierLabel: "Sovereign Office" });
+      setRelayMode(null);
+      setLoading(false);
+      return;
+    }
+
+    // ── Relay mode: deliver message to another member via DM API ──────────────
+    if (relayMode && user) {
+      addMessage({ role: "user", content: trimmed });
+      try {
+        const res = await fetch("/api/messages", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+          body: JSON.stringify({ recipientId: relayMode.id, content: trimmed }),
+        });
+        if (res.ok) {
+          const data = await res.json() as { message: { id: number }; thread: { id: number } };
+          if (data.thread?.id && !relayThreadIdRef.current) {
+            relayThreadIdRef.current = data.thread.id;
+            if (data.message?.id) relayLastMsgIdRef.current = data.message.id;
+          }
+          addMessage({
+            role: "assistant",
+            content: `✓ Message sent to **${relayMode.name}**: "${trimmed}"\n\nYou are still in relay mode. Type another message or click "End Relay" when done.`,
+            tier: "funnel",
+            tierLabel: "Sovereign Office Messenger",
+          });
+        } else {
+          addMessage({ role: "assistant", content: `Unable to send message to ${relayMode.name}. Please try again.`, tier: "hard_default", tierLabel: "Sovereign Office" });
+        }
+      } catch {
+        addMessage({ role: "assistant", content: "Connection error. Please try again.", tier: "hard_default", tierLabel: "Sovereign Office" });
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // ── Detect relay intent: "relay to [Name] through companion" ──────────────
+    const relayTarget = user ? detectRelayIntent(trimmed) : null;
+    if (relayTarget) {
+      addMessage({ role: "user", content: trimmed });
+      try {
+        const membersRes = await fetch("/api/messages/members-with-accounts", {
+          headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        });
+        if (membersRes.ok) {
+          const members = await membersRes.json() as { id: number; name: string }[];
+          const found = members.find(m => m.name.toLowerCase().includes(relayTarget.toLowerCase()));
+          if (found) {
+            setRelayMode(found);
+            addMessage({
+              role: "assistant",
+              content: `Relay mode activated — I will forward your messages directly to **${found.name}** via the community messaging system.\n\nType your message now. Say "end relay" when you're done.`,
+              tier: "funnel",
+              tierLabel: "Sovereign Office Messenger",
+            });
+            setLoading(false);
+            return;
+          }
+        }
+        addMessage({
+          role: "assistant",
+          content: `I couldn't find a member named "${relayTarget}" with an active account. Please visit the Family Directory to verify their name.`,
+          tier: "funnel",
+          tierLabel: "Sovereign Office Messenger",
+        });
+        setLoading(false);
+        return;
+      } catch {
+        addMessage({ role: "assistant", content: "Connection error finding member. Please try again.", tier: "hard_default", tierLabel: "Sovereign Office" });
+        setLoading(false);
+        return;
+      }
+    }
+
+    addMessage({ role: "user", content: trimmed });
 
     try {
       const res = await fetch("/api/chat", {
@@ -908,6 +1107,24 @@ export function ChatWidget() {
             </div>
           )}
 
+          {/* Relay mode banner with explicit End Relay button */}
+          {relayMode && (
+            <div style={{ padding: "6px 12px", background: "#fef3c7", borderTop: "1px solid #fcd34d", display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+              <span style={{ fontSize: 12, color: "#92400e", flex: 1 }}>
+                Relaying to <strong>{relayMode.name}</strong> — replies appear above
+              </span>
+              <button
+                onClick={() => {
+                  addMessage({ role: "assistant", content: "Relay mode ended. You are back in the Sovereign Office Companion.", tier: "funnel", tierLabel: "Sovereign Office" });
+                  setRelayMode(null);
+                }}
+                style={{ fontSize: 11, padding: "3px 8px", background: "#92400e", color: "#fff", border: "none", borderRadius: 4, cursor: "pointer", whiteSpace: "nowrap" }}
+              >
+                End Relay
+              </button>
+            </div>
+          )}
+
           {/* Input Area */}
           <div
             style={{
@@ -1041,9 +1258,9 @@ export function ChatWidget() {
           <span style={{ flex: 1, textAlign: "left", fontWeight: 600, fontSize: 13, letterSpacing: 0.2, fontFamily: "'Georgia', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             Sovereign Office Companion
           </span>
-          {!open && unreadCount > 0 && (
+          {!open && (unreadCount > 0 || dmUnreadCount > 0) && (
             <span style={{ background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: "50%", minWidth: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", flexShrink: 0 }}>
-              {unreadCount}
+              {unreadCount + dmUnreadCount}
             </span>
           )}
           {hasRedFlag && (

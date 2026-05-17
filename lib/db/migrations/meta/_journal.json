@@ -36,6 +36,13 @@
       "when": 1747434600000,
       "tag": "0004_governor_log_event_type",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1747521000000,
+      "tag": "0009_add_direct_messages",
+      "breakpoints": true
     }
   ]
 }

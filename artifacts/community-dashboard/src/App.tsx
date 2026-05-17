@@ -13,6 +13,8 @@ import ForumPost from "@/pages/forum-post";
 import Announcements from "@/pages/announcements";
 import Admin from "@/pages/admin";
 import University from "@/pages/university";
+import { ChatManagerProvider } from "@/components/ChatManager";
+import { getSovereignSession } from "@/lib/utils";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -23,6 +25,17 @@ const queryClient = new QueryClient({
     },
   },
 });
+
+function getSessionToken(): string | null {
+  try {
+    const raw = localStorage.getItem("sovereign_auth_v3");
+    if (raw) {
+      const s = JSON.parse(raw) as { token?: string };
+      if (s.token) return s.token;
+    }
+  } catch { /* ignore */ }
+  return null;
+}
 
 function Router() {
   return (
@@ -43,12 +56,18 @@ function Router() {
 }
 
 function App() {
+  const session = getSovereignSession();
+  const currentUserId = session?.id ? parseInt(session.id, 10) : null;
+  const token = getSessionToken();
+
   return (
     <QueryClientProvider client={queryClient}>
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <Router />
+            <ChatManagerProvider currentUserId={currentUserId} token={token}>
+              <Router />
+            </ChatManagerProvider>
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

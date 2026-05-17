@@ -73,6 +73,7 @@ import ancestryExposureRouter from "./ancestry/exposure";
 import ancestryGedcomRouter from "./ancestry/gedcom";
 import templatesRouter from "./templates/index";
 import deedRouter from "./deed";
+import messagesRouter from "./messages/index";
 
 const router: IRouter = Router();
 
@@ -151,5 +152,6 @@ router.use("/donate", donateRouter);
 router.use("/land", landRouter);
 router.use("/ancestry/exposure", ancestryExposureRouter);
 router.use("/ancestry/gedcom", ancestryGedcomRouter);
+router.use("/messages", messagesRouter);
 
 export default router;

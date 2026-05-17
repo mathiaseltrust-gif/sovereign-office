@@ -55,6 +55,26 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+
+  // direct messaging — member-to-member DMs
+  `CREATE TABLE IF NOT EXISTS message_threads (
+    id SERIAL PRIMARY KEY,
+    participant_a_id INTEGER NOT NULL,
+    participant_b_id INTEGER NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    last_message_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS direct_messages (
+    id SERIAL PRIMARY KEY,
+    thread_id INTEGER NOT NULL,
+    sender_id INTEGER NOT NULL,
+    recipient_id INTEGER NOT NULL,
+    content TEXT NOT NULL,
+    read_at TIMESTAMP,
+    edited_at TIMESTAMP,
+    deleted_at TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
 ];
 
 async function runMigrations() {

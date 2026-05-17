@@ -73,6 +73,16 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// SSE auth: EventSource can't send custom headers, so accept token via query param.
+// Scoped narrowly to the SSE endpoint only — URL tokens have higher exposure risk.
+app.use("/api/messages/sse", (req: Request, _res: Response, next: NextFunction) => {
+  const qAuth = req.query.authorization as string | undefined;
+  if (qAuth && !req.headers.authorization) {
+    req.headers.authorization = qAuth;
+  }
+  next();
+});
+
 app.use(serviceKeyMiddleware);
 app.use(entraMiddleware);
 app.use(requireEntraIfRequired);

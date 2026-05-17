@@ -3,6 +3,8 @@ import { queryLawDb } from "./law-db";
 import { callAzureOpenAI, getAzureOpenAIClient, type ConversationMessage } from "../lib/azure-openai";
 import { checkAlignment, type AlignmentResult } from "./alignment-checker";
 import { logger } from "../lib/logger";
+import { db, usersTable, messageThreadsTable, directMessagesTable } from "@workspace/db";
+import { eq, ilike, and, ne } from "drizzle-orm";
 
 export type ChatTier = "funnel" | "intake_filter" | "law_db" | "azure_openai" | "hard_default";
 
@@ -648,8 +650,178 @@ function buildAlignmentWarning(result: AlignmentResult): AlignmentWarning | unde
   };
 }
 
+// ─── SEND MESSAGE INTENT DETECTION ────────────────────────────────────────────
+
+const SEND_MSG_PATTERNS = [
+  /send\s+(?:a\s+)?message\s+to\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:saying|:)\s+(.+)/i,
+  /message\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:saying|:)\s+(.+)/i,
+  /tell\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+(?:that\s+)?(.+)/i,
+  /send\s+([A-Z][a-z]+(?:\s+[A-Z][a-z]+)*)\s+a\s+message\s*(?::|saying)?\s*(.+)/i,
+];
+
+// Pending DM confirmation store — TTL 5 minutes (no external dependency)
+interface PendingDmIntent {
+  recipientId: number;
+  recipientName: string;
+  content: string;
+  expiresAt: number;
+}
+const pendingDmIntents = new Map<number, PendingDmIntent>();
+const PENDING_DM_TTL_MS = 5 * 60 * 1000;
+
+function clearExpiredPending(): void {
+  const now = Date.now();
+  for (const [userId, intent] of pendingDmIntents) {
+    if (intent.expiresAt <= now) pendingDmIntents.delete(userId);
+  }
+}
+
+async function executeDmSend(userId: number, intent: PendingDmIntent): Promise<ChatResponse> {
+  pendingDmIntents.delete(userId);
+  try {
+    const existingThread = await db.query.messageThreadsTable.findFirst({
+      where: (t, { or, and: a }) =>
+        or(
+          a(eq(t.participantAId, userId), eq(t.participantBId, intent.recipientId)),
+          a(eq(t.participantAId, intent.recipientId), eq(t.participantBId, userId)),
+        ),
+    });
+
+    let threadId: number;
+    if (existingThread) {
+      threadId = existingThread.id;
+    } else {
+      const [canonA, canonB] = userId < intent.recipientId
+        ? [userId, intent.recipientId]
+        : [intent.recipientId, userId];
+      const [newThread] = await db.insert(messageThreadsTable).values({ participantAId: canonA, participantBId: canonB }).returning({ id: messageThreadsTable.id });
+      threadId = newThread.id;
+    }
+
+    const [newMsg] = await db.insert(directMessagesTable).values({ threadId, senderId: userId, recipientId: intent.recipientId, content: intent.content }).returning();
+
+    await db.update(messageThreadsTable).set({ lastMessageAt: new Date() }).where(eq(messageThreadsTable.id, threadId));
+
+    const { publishMessageEvent } = await import("../lib/redis-memory");
+    const event = { type: "new_message", message: newMsg, threadId };
+    void publishMessageEvent(intent.recipientId, event);
+    void publishMessageEvent(userId, event);
+
+    return {
+      reply: `✓ Message sent to **${intent.recipientName}**:\n\n> ${intent.content}\n\nThey will see it in the Community Dashboard. Would you like to open a direct chat?`,
+      tier: "funnel",
+      tierLabel: "Sovereign Office Messenger",
+      redFlag: false,
+      actions: [{ label: "Open Community Dashboard", href: "/community-dashboard/directory" }],
+    };
+  } catch (err) {
+    logger.error({ err }, "Companion message-send failed");
+    return {
+      reply: "I was unable to send the message due to a server error. Please try again.",
+      tier: "hard_default",
+      tierLabel: "Sovereign Office",
+      redFlag: false,
+    };
+  }
+}
+
+async function tryConfirmPendingDm(input: ChatInput): Promise<ChatResponse | null> {
+  if (!input.userId) return null;
+  clearExpiredPending();
+  const pending = pendingDmIntents.get(input.userId);
+  if (!pending) return null;
+
+  const msg = input.message.trim().toLowerCase();
+  if (/^(yes|confirm|send it|send|go ahead|ok|yep|yeah|sure)\.?$/i.test(msg)) {
+    return executeDmSend(input.userId, pending);
+  }
+  if (/^(no|cancel|nevermind|never mind|stop|abort|don'?t)\.?$/i.test(msg)) {
+    pendingDmIntents.delete(input.userId);
+    return {
+      reply: `Message to **${pending.recipientName}** cancelled. Is there anything else I can help you with?`,
+      tier: "funnel",
+      tierLabel: "Sovereign Office Messenger",
+      redFlag: false,
+    };
+  }
+  return null;
+}
+
+async function trySendMessageIntent(input: ChatInput): Promise<ChatResponse | null> {
+  if (!input.userId) return null;
+  const { message } = input;
+  let recipientName: string | null = null;
+  let messageContent: string | null = null;
+  for (const pat of SEND_MSG_PATTERNS) {
+    const m = pat.exec(message);
+    if (m) {
+      recipientName = m[1].trim();
+      messageContent = m[2].trim();
+      break;
+    }
+  }
+  if (!recipientName || !messageContent) return null;
+
+  try {
+    const candidates = await db
+      .select({ id: usersTable.id, name: usersTable.name })
+      .from(usersTable)
+      .where(and(ilike(usersTable.name, `%${recipientName}%`), ne(usersTable.id, input.userId), eq(usersTable.role, "member")))
+      .limit(5);
+
+    if (candidates.length === 0) {
+      return {
+        reply: `I couldn't find a member named **${recipientName}** in the community. Please check the name and try again, or visit the Family Directory to find the correct spelling.`,
+        tier: "funnel",
+        tierLabel: "Sovereign Office Advisor",
+        redFlag: false,
+        actions: [{ label: "Open Family Directory", href: "/community-dashboard/directory" }],
+      };
+    }
+
+    // If multiple candidates, ask which one
+    if (candidates.length > 1) {
+      const nameList = candidates.map((c, i) => `${i + 1}. ${c.name}`).join("\n");
+      return {
+        reply: `I found multiple members matching **${recipientName}**:\n\n${nameList}\n\nPlease be more specific — include their full name to proceed.`,
+        tier: "funnel",
+        tierLabel: "Sovereign Office Advisor",
+        redFlag: false,
+      };
+    }
+
+    const recipient = candidates[0];
+
+    // Store pending confirmation — require explicit "yes" before sending
+    pendingDmIntents.set(input.userId, {
+      recipientId: recipient.id,
+      recipientName: recipient.name,
+      content: messageContent,
+      expiresAt: Date.now() + PENDING_DM_TTL_MS,
+    });
+
+    return {
+      reply: `I found **${recipient.name}** in the community.\n\nShall I send them this message?\n\n> ${messageContent}\n\nReply **yes** to send or **no** to cancel.`,
+      tier: "funnel",
+      tierLabel: "Sovereign Office Messenger",
+      redFlag: false,
+    };
+  } catch (err) {
+    logger.error({ err }, "Companion message-send failed");
+    return null;
+  }
+}
+
 export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   const { message } = input;
+
+  // Companion task mode — step 1: confirm pending DM intent ("yes"/"no")
+  const confirmResponse = await tryConfirmPendingDm(input);
+  if (confirmResponse) return confirmResponse;
+
+  // Companion task mode — step 2: detect send-message intent and prompt for confirmation
+  const msgIntent = await trySendMessageIntent(input);
+  if (msgIntent) return msgIntent;
 
   // Law & Logic Layer — run alignment check on every message (zero cost, synchronous)
   const alignmentResult = checkAlignment(message + (input.uploadedDocumentText ? " " + input.uploadedDocumentText : ""));
