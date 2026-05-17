@@ -1,11 +1,33 @@
 import { useEffect, useState, useMemo } from "react";
-import { MapContainer, TileLayer, Marker, CircleMarker, Polyline, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON as GeoJSONLayer, Polyline, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
 import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { AtlasEvent, AncestorRecord, ActiveLayers } from "@/pages/atlas";
-import tribalTerritoriesData from "@/data/tribalTerritories.json";
+import tribalGeoJSONRaw from "@/data/tribalTerritoriesGeoJSON.json";
+
+interface TerritoryFeatureProperties {
+  nation_id: string;
+  name: string;
+  region: string;
+  year_start: number;
+  year_end: number;
+  notes: string;
+  current_status: string;
+  removal_year: number | null;
+}
+
+interface TerritoryFeatureCollection {
+  type: "FeatureCollection";
+  features: Array<{
+    type: "Feature";
+    properties: TerritoryFeatureProperties;
+    geometry: { type: string; coordinates: unknown };
+  }>;
+}
+
+const tribalGeoJSONData = tribalGeoJSONRaw as TerritoryFeatureCollection;
 
 delete (L.Icon.Default.prototype as any)._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -199,10 +221,6 @@ function clusterAncestors(plots: AncestorPlot[]): AncestorCluster[] {
   return clusters;
 }
 
-// Convert miles radius to approximate degrees
-function milesToDegrees(miles: number): number {
-  return miles / 69.0;
-}
 
 function MapCenterController({ center, zoom }: { center: [number, number] | null; zoom?: number }) {
   const map = useMap();
@@ -226,15 +244,17 @@ export function AtlasMap({
 
   const isEventFilteredOut = (evtId: string) => !filteredEvents.find(e => e.id === evtId);
 
-  // Filter tribal territories by the current year range
-  const visibleTerritories = useMemo(() => {
-    if (!activeLayers.tribalTerritories) return [];
-    return tribalTerritoriesData.filter(nation => {
-      const presence = nation.historical_presence.find(
-        p => p.year_start <= yearRange[1] && (p.year_end === 9999 || p.year_end >= yearRange[0])
-      );
-      return !!presence;
-    });
+  // Filter GeoJSON territory features by the current year range and layer toggle.
+  // Each feature represents one time-period slice of a tribal territory.
+  const visibleGeoJSON = useMemo((): TerritoryFeatureCollection | null => {
+    if (!activeLayers.tribalTerritories) return null;
+    const features = tribalGeoJSONData.features.filter(
+      (f: TerritoryFeatureCollection["features"][number]) => {
+        const { year_start, year_end } = f.properties;
+        return year_start <= yearRange[1] && (year_end === 9999 || year_end >= yearRange[0]);
+      }
+    );
+    return { type: "FeatureCollection", features };
   }, [activeLayers.tribalTerritories, yearRange]);
 
   // Resolve all ancestor coordinates, then cluster nearby ones.
@@ -282,45 +302,47 @@ export function AtlasMap({
 
         {mapCenter && <MapCenterController center={mapCenter} />}
 
-        {/* ── Tribal Territory Circles (time-aware) ── */}
-        {visibleTerritories.map(nation => {
-          const presence = nation.historical_presence.find(
-            p => p.year_start <= yearRange[1] && (p.year_end === 9999 || p.year_end >= yearRange[0])
-          );
-          if (!presence) return null;
-          const center = presence.center as [number, number];
-          const radiusDeg = milesToDegrees(nation.approximate_radius_miles);
-          const isRemoved = nation.removal_year !== null && nation.removal_year <= yearRange[1];
-          const isPersisting = presence.year_end === 9999;
-
-          return (
-            <CircleMarker
-              key={nation.id}
-              center={center}
-              radius={Math.max(18, nation.approximate_radius_miles / 8)}
-              pathOptions={{
+        {/* ── Tribal Territory GeoJSON polygons (time-aware) ── */}
+        {visibleGeoJSON && visibleGeoJSON.features.length > 0 && (
+          <GeoJSONLayer
+            key={[
+              ...visibleGeoJSON.features.map(
+                f => `${f.properties.nation_id}_${f.properties.year_start}`
+              ),
+              yearRange[0],
+              yearRange[1],
+            ].join(",")}
+            data={visibleGeoJSON}
+            style={(feature) => {
+              if (!feature) return {};
+              const p = feature.properties as TerritoryFeatureProperties;
+              const isRemoved = p.removal_year !== null && p.removal_year <= yearRange[1];
+              const isPersisting = p.year_end === 9999;
+              return {
                 color: isPersisting ? "#7c5a2a" : isRemoved ? "#a64115" : "#8a7050",
                 weight: 1.5,
                 fillColor: isPersisting ? "#c9a96e" : isRemoved ? "#c47040" : "#c4a870",
-                fillOpacity: 0.10,
-                opacity: 0.55,
-                dashArray: isRemoved && !isPersisting ? "4 4" : undefined,
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
-                <div className="min-w-[180px]">
-                  <div className="font-serif font-semibold text-sm">{nation.name}</div>
-                  <div className="text-xs text-muted-foreground mt-0.5">{nation.region}</div>
-                  {nation.removal_year && nation.removal_year <= yearRange[1] && (
-                    <div className="text-xs text-[#a64115] mt-0.5">Removal: {nation.removal_year}</div>
-                  )}
-                  <div className="text-[10px] text-muted-foreground mt-1 leading-relaxed">{presence.notes}</div>
-                  <div className="text-[10px] mt-1 border-t border-border/30 pt-1 text-muted-foreground italic">{nation.current_status}</div>
-                </div>
-              </Tooltip>
-            </CircleMarker>
-          );
-        })}
+                fillOpacity: 0.13,
+                opacity: 0.65,
+                dashArray: isRemoved && !isPersisting ? "5 5" : undefined,
+              };
+            }}
+            onEachFeature={(feature, layer) => {
+              const p = feature.properties as TerritoryFeatureProperties;
+              const isRemoved = p.removal_year !== null && p.removal_year <= yearRange[1];
+              const html = `
+                <div style="min-width:200px;font-family:serif">
+                  <div style="font-weight:600;font-size:14px">${p.name}</div>
+                  <div style="font-size:12px;color:#888;margin-top:2px">${p.region}</div>
+                  ${isRemoved ? `<div style="font-size:12px;color:#a64115;margin-top:2px">Removal: ${p.removal_year}</div>` : ""}
+                  <div style="font-size:10px;color:#666;margin-top:4px;line-height:1.5">${p.notes}</div>
+                  <div style="font-size:10px;margin-top:4px;border-top:1px solid #e5e5e5;padding-top:4px;color:#888;font-style:italic">${p.current_status}</div>
+                </div>`;
+              layer.bindTooltip(html, { sticky: true, opacity: 0.97 });
+              layer.bindPopup(html, { maxWidth: 280, className: "tribal-territory-popup" });
+            }}
+          />
+        )}
 
         {/* ── Removal Routes ── */}
         {activeLayers.migrationPaths && urbanLocations.keyRemovalRoutes?.map((route: any, i: number) => (
@@ -535,7 +557,9 @@ export function AtlasMap({
           <p className="font-mono font-semibold text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Map Legend</p>
           {activeLayers.tribalTerritories && (
             <div className="flex items-center gap-2">
-              <div className="w-4 h-4 rounded-full border-2 border-[#8a7050]/60 bg-[#c4a870]/20" />
+              <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polygon points="9,1 17,6 14,13 4,13 1,6" fill="rgba(196,168,112,0.22)" stroke="#8a7050" strokeWidth="1.5"/>
+              </svg>
               <span className="text-muted-foreground">Tribal Territory (time-aware)</span>
             </div>
           )}

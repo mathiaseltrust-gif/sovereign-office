@@ -10,8 +10,8 @@
     "removal_year": 1838,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1838, "center": [35.5, -84.2], "notes": "Traditional homelands in the southern Appalachians and Tennessee Valley." },
-      { "year_start": 1838, "year_end": 9999, "center": [36.1, -95.9], "notes": "Forced to Indian Territory (present-day Oklahoma) via Trail of Tears. Eastern Band remained hidden in NC mountains." }
+      { "year_start": 1700, "year_end": 1838, "center": [35.5, -84.2], "boundary_polygon": [[36.8,-81.3],[36.4,-80.7],[35.8,-80.0],[35.0,-79.8],[34.2,-80.2],[33.4,-83.5],[33.1,-84.6],[33.5,-86.2],[34.3,-86.8],[35.2,-85.8],[35.6,-85.0],[36.0,-84.8],[36.4,-84.5],[36.8,-83.3],[36.8,-81.3]], "notes": "Traditional homelands in the southern Appalachians and Tennessee Valley." },
+      { "year_start": 1838, "year_end": 9999, "center": [36.1, -95.9], "boundary_polygon": [[37.0,-96.7],[37.0,-94.4],[36.5,-94.4],[35.5,-94.4],[35.3,-95.2],[35.5,-96.0],[36.0,-96.8],[36.5,-96.7],[37.0,-96.7]], "notes": "Forced to Indian Territory (present-day Oklahoma) via Trail of Tears. Eastern Band remained hidden in NC mountains." }
     ],
     "continuity_note": "Thousands of Cherokee remained in North Carolina, hiding their identity to survive removal. The Eastern Band of Cherokee Indians retains their ancestral homeland to this day.",
     "era_notes": "Experienced removal (1830–1838), allotment (1880s–1900s), and termination threats in the 1950s."
@@ -27,8 +27,8 @@
     "removal_year": 1831,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1831, "center": [32.3, -89.5], "notes": "Homeland across central Mississippi and Alabama." },
-      { "year_start": 1831, "year_end": 9999, "center": [34.7, -95.3], "notes": "First nation removed under Indian Removal Act (1831–1833). Mississippi Band remained in homelands." }
+      { "year_start": 1700, "year_end": 1831, "center": [32.3, -89.5], "boundary_polygon": [[35.0,-89.7],[34.8,-88.3],[33.5,-87.8],[32.0,-87.5],[30.9,-88.0],[30.5,-89.3],[30.5,-90.2],[31.5,-91.2],[32.8,-91.0],[34.0,-90.3],[35.0,-89.7]], "notes": "Homeland across central Mississippi and Alabama." },
+      { "year_start": 1831, "year_end": 9999, "center": [34.7, -95.3], "boundary_polygon": [[35.5,-96.1],[35.5,-94.5],[34.7,-94.5],[33.9,-94.5],[33.8,-95.5],[34.0,-96.5],[34.5,-97.0],[35.0,-96.5],[35.5,-96.1]], "notes": "First nation removed under Indian Removal Act (1831–1833). Mississippi Band remained in homelands." }
     ],
     "continuity_note": "The Mississippi Band of Choctaw Indians never left their homeland. Members who stayed were reclassified as 'colored' in subsequent census records.",
     "era_notes": "First removal under 1830 Act. Choctaw removal is documented as causing mass death from disease, starvation, and exposure."
@@ -44,8 +44,8 @@
     "removal_year": 1836,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1836, "center": [32.8, -86.8], "notes": "Central Alabama and western Georgia." },
-      { "year_start": 1836, "year_end": 9999, "center": [35.7, -96.0], "notes": "Removed to Indian Territory 1836–1837. Members who stayed were often violently attacked." }
+      { "year_start": 1700, "year_end": 1836, "center": [32.8, -86.8], "boundary_polygon": [[34.8,-85.8],[34.5,-85.0],[33.5,-84.5],[32.5,-84.3],[31.8,-85.5],[31.5,-86.7],[31.8,-87.6],[33.0,-88.1],[34.0,-87.6],[34.8,-86.8],[34.8,-85.8]], "notes": "Central Alabama and western Georgia." },
+      { "year_start": 1836, "year_end": 9999, "center": [35.7, -96.0], "boundary_polygon": [[36.2,-96.8],[36.0,-95.4],[35.3,-95.4],[35.2,-96.2],[35.5,-97.0],[36.0,-97.2],[36.2,-96.8]], "notes": "Removed to Indian Territory 1836–1837. Members who stayed were often violently attacked." }
     ],
     "continuity_note": "The 2020 McGirt v. Oklahoma decision affirmed that the Muscogee (Creek) Reservation was never disestablished — a landmark Supreme Court win for tribal sovereignty.",
     "era_notes": "Removal (1836), allotment (Dawes Rolls), and reservation reassertion (McGirt, 2020)."
@@ -61,8 +61,8 @@
     "removal_year": 1837,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1837, "center": [34.0, -88.5], "notes": "Northern Mississippi, western Tennessee, parts of Kentucky and Alabama." },
-      { "year_start": 1837, "year_end": 9999, "center": [34.3, -97.1], "notes": "Removed to Indian Territory (now south-central Oklahoma) starting 1837." }
+      { "year_start": 1700, "year_end": 1837, "center": [34.0, -88.5], "boundary_polygon": [[36.8,-88.5],[36.8,-89.8],[36.2,-90.0],[35.5,-90.0],[34.5,-89.8],[33.5,-88.5],[33.8,-87.3],[34.8,-87.3],[35.8,-87.5],[36.8,-88.5]], "notes": "Northern Mississippi, western Tennessee, parts of Kentucky and Alabama." },
+      { "year_start": 1837, "year_end": 9999, "center": [34.3, -97.1], "boundary_polygon": [[34.8,-98.0],[34.8,-96.8],[34.2,-96.5],[33.8,-97.0],[33.8,-98.2],[34.2,-98.5],[34.8,-98.0]], "notes": "Removed to Indian Territory (now south-central Oklahoma) starting 1837." }
     ],
     "continuity_note": "Chickasaw Nation today is one of the largest employers in Oklahoma and maintains extensive cultural sovereignty programs.",
     "era_notes": "Negotiated removal treaties that gave them some agency. Allotment era was particularly devastating to Chickasaw land holdings."
@@ -78,7 +78,7 @@
     "removal_year": 1838,
     "year_established_in_record": 1720,
     "historical_presence": [
-      { "year_start": 1720, "year_end": 9999, "center": [27.5, -81.5], "notes": "Florida peninsula. Seminole people never formally surrendered. A portion remains in Florida to this day." }
+      { "year_start": 1720, "year_end": 9999, "center": [27.5, -81.5], "boundary_polygon": [[30.5,-87.5],[30.5,-85.0],[30.0,-84.5],[29.5,-81.5],[28.5,-80.5],[26.5,-80.0],[25.0,-80.5],[24.5,-81.5],[24.5,-82.5],[25.5,-83.0],[27.0,-83.5],[28.5,-83.5],[30.0,-84.5],[30.5,-87.5]], "notes": "Florida peninsula. Seminole people never formally surrendered. A portion remains in Florida to this day." }
     ],
     "continuity_note": "The Seminole are often called 'the unconquered people.' They never signed a peace treaty and a portion of the nation remained in the Florida Everglades. The Florida Seminole Tribe has never ceded their homelands.",
     "era_notes": "Three Seminole Wars (1817–1858). The third war ended without a Seminole surrender. Members who were captured were removed to Indian Territory; those who escaped remained in Florida."
@@ -94,7 +94,7 @@
     "removal_year": null,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 9999, "center": [34.6, -79.1], "notes": "Robeson County, North Carolina — the largest off-reservation Indian community in the Southeast." }
+      { "year_start": 1700, "year_end": 9999, "center": [34.6, -79.1], "boundary_polygon": [[34.9,-79.4],[34.9,-78.7],[34.4,-78.7],[34.4,-79.4],[34.9,-79.4]], "notes": "Robeson County, North Carolina — the largest off-reservation Indian community in the Southeast." }
     ],
     "continuity_note": "The Lumbee have maintained continuous presence in Robeson County. Their lack of full federal recognition is a direct consequence of the Plecker-era reclassification and removal of 'Indian' designation from state records. They have been fighting for federal recognition since 1956.",
     "era_notes": "Robeson County records show a large Indian community persisting through removal era, Civil War, Jim Crow, and Plecker's paper genocide — never leaving, never disappearing."
@@ -110,7 +110,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [35.0, -81.0], "notes": "Piedmont region of the Carolinas. Maintained homeland through successive colonial and state pressure." }
+      { "year_start": 1600, "year_end": 9999, "center": [35.0, -81.0], "boundary_polygon": [[35.7,-81.8],[35.7,-80.5],[35.0,-80.0],[34.2,-80.2],[33.8,-80.8],[34.0,-81.5],[34.8,-82.0],[35.7,-81.8]], "notes": "Piedmont region of the Carolinas. Maintained homeland through successive colonial and state pressure." }
     ],
     "continuity_note": "The Catawba successfully litigated a land claim case under the Trade and Intercourse Act (Non-Intercourse Act) and reached a settlement in 1993. Their persistent legal identity despite centuries of pressure demonstrates continuity of existence.",
     "era_notes": "Colonial treaty period, 19th-century state land dispossession, 20th-century federal termination (1959–1973), federal restoration (1993)."
@@ -126,7 +126,7 @@
     "removal_year": null,
     "year_established_in_record": 1400,
     "historical_presence": [
-      { "year_start": 1400, "year_end": 9999, "center": [43.0, -76.5], "notes": "Central and western New York. Portions of the original territory remain as reservations." }
+      { "year_start": 1400, "year_end": 9999, "center": [43.0, -76.5], "boundary_polygon": [[44.0,-79.8],[43.8,-76.0],[43.2,-75.0],[42.5,-76.5],[41.8,-77.5],[41.8,-80.0],[42.5,-80.5],[43.2,-80.0],[44.0,-79.8]], "notes": "Central and western New York. Portions of the original territory remain as reservations." }
     ],
     "continuity_note": "The Haudenosaunee Confederacy influenced the structure of the U.S. Constitution. Onondaga Lake (central New York) remains a contested sacred site and center of Haudenosaunee governance.",
     "era_notes": "Six Nations split during the American Revolution. Sullivan-Clinton Campaign (1779) burned 40+ villages but did not end Haudenosaunee presence in the region."
@@ -142,8 +142,8 @@
     "removal_year": 1860,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 1860, "center": [40.0, -75.0], "notes": "Delaware Valley, New Jersey, and southeastern New York." },
-      { "year_start": 1778, "year_end": 9999, "center": [36.3, -95.7], "notes": "Gradually pushed west through Ohio, Indiana, Kansas, and eventually Oklahoma via a series of treaty removals." }
+      { "year_start": 1600, "year_end": 1860, "center": [40.0, -75.0], "boundary_polygon": [[41.5,-74.5],[41.5,-73.5],[41.0,-73.8],[40.5,-73.9],[39.8,-74.2],[38.8,-75.0],[38.5,-75.8],[39.2,-76.2],[39.8,-75.7],[40.5,-75.2],[41.5,-74.5]], "notes": "Delaware Valley, New Jersey, and southeastern New York." },
+      { "year_start": 1778, "year_end": 9999, "center": [36.3, -95.7], "boundary_polygon": [[36.7,-95.9],[36.7,-94.9],[36.0,-94.9],[35.9,-95.7],[36.3,-96.2],[36.7,-95.9]], "notes": "Gradually pushed west through Ohio, Indiana, Kansas, and eventually Oklahoma via a series of treaty removals." }
     ],
     "continuity_note": "The Lenape signed the first treaty with the United States in 1778 (Treaty of Fort Pitt). Despite being removed from their Delaware Valley homeland, communities persisted in Pennsylvania and New Jersey who never joined the westward removals.",
     "era_notes": "Progressive westward removal from colonial era through 1860s. The Munsee branch maintains presence in New Jersey and New York to this day."
@@ -159,7 +159,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [41.7, -70.6], "notes": "Cape Cod, Martha's Vineyard, and southeastern Massachusetts." }
+      { "year_start": 1600, "year_end": 9999, "center": [41.7, -70.6], "boundary_polygon": [[42.2,-71.5],[42.2,-70.5],[41.8,-70.0],[41.4,-70.1],[41.2,-70.6],[41.4,-71.5],[42.2,-71.5]], "notes": "Cape Cod, Martha's Vineyard, and southeastern Massachusetts." }
     ],
     "continuity_note": "The Wampanoag survived King Philip's War (1675–1676) — one of the deadliest per-capita wars in North American history. Despite being enslaved, killed, and dispersed, Wampanoag people maintained identity in Mashpee and Aquinnah. The Mashpee Wampanoag trust land case was fought to the Supreme Court in the 2010s.",
     "era_notes": "King Philip's War (1675–1676), colonial dispossession, 19th-century state land seizures, 20th-century federal recognition fight."
@@ -175,7 +175,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [46.5, -90.5], "notes": "Great Lakes region extending into the northern Plains. Wild rice (manoomin) homeland." }
+      { "year_start": 1600, "year_end": 9999, "center": [46.5, -90.5], "boundary_polygon": [[49.0,-97.0],[49.0,-84.0],[47.0,-82.0],[45.5,-84.0],[44.8,-87.0],[45.5,-90.5],[47.0,-92.5],[47.5,-96.5],[49.0,-97.0]], "notes": "Great Lakes region extending into the northern Plains. Wild rice (manoomin) homeland." }
     ],
     "continuity_note": "Ojibwe people successfully litigated treaty fishing, hunting, and gathering rights in the Great Lakes (Voigt Decision, 1983). These rights, often called 'usufructuary rights,' affirm ongoing sovereignty in ceded territories.",
     "era_notes": "Allotment era (1880s–1930s) was particularly devastating to Ojibwe land holdings in Minnesota and Wisconsin. The Indian Reorganization Act (1934) halted further allotment."
@@ -191,7 +191,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [45.1, -88.7], "notes": "Green Bay region and the Menominee River Valley, Wisconsin." }
+      { "year_start": 1600, "year_end": 9999, "center": [45.1, -88.7], "boundary_polygon": [[45.8,-88.1],[45.8,-87.5],[45.1,-87.3],[44.5,-87.8],[44.5,-88.5],[45.0,-89.0],[45.8,-88.7],[45.8,-88.1]], "notes": "Green Bay region and the Menominee River Valley, Wisconsin." }
     ],
     "continuity_note": "The Menominee were terminated in 1954 (Menominee Termination Act) and their reservation was converted to Menominee County. After relentless advocacy — especially by Ada Deer — they were restored in 1973, becoming the first terminated tribe to be fully restored.",
     "era_notes": "Termination (1954), restoration (1973). The Menominee case became the model for tribal restoration policy."
@@ -207,8 +207,8 @@
     "removal_year": 1838,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 1838, "center": [41.5, -87.0], "notes": "Lake Michigan shoreline and the Chicago region. The word 'Chicago' derives from a Potawatomi/Algonquian term." },
-      { "year_start": 1838, "year_end": 9999, "center": [38.9, -95.7], "notes": "Trail of Death (1838) forced removal to Kansas. Multiple subsequent removals to Oklahoma." }
+      { "year_start": 1600, "year_end": 1838, "center": [41.5, -87.0], "boundary_polygon": [[44.0,-87.0],[43.8,-84.5],[43.0,-83.5],[42.0,-83.0],[41.2,-83.5],[41.0,-86.5],[41.5,-87.8],[42.5,-87.8],[43.5,-87.5],[44.0,-87.0]], "notes": "Lake Michigan shoreline and the Chicago region. The word 'Chicago' derives from a Potawatomi/Algonquian term." },
+      { "year_start": 1838, "year_end": 9999, "center": [38.9, -95.7], "boundary_polygon": [[39.2,-96.5],[39.2,-95.2],[38.5,-95.2],[38.5,-96.5],[39.2,-96.5]], "notes": "Trail of Death (1838) forced removal to Kansas. Multiple subsequent removals to Oklahoma." }
     ],
     "continuity_note": "The 'Trail of Death' (1838) — the forced removal of 859 Potawatomi from northern Indiana — killed at least 42 people in 61 days. The route is now a National Historic Trail.",
     "era_notes": "Removal (1838), multiple subsequent removals (1840s–1860s). Prairie Band Potawatomi in Kansas never removed to Oklahoma."
@@ -224,7 +224,7 @@
     "removal_year": null,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 9999, "center": [44.0, -102.0], "notes": "Northern Great Plains. The Black Hills (He Sapa) are the Lakota sacred homeland." }
+      { "year_start": 1700, "year_end": 9999, "center": [44.0, -102.0], "boundary_polygon": [[49.0,-104.0],[49.0,-96.5],[46.0,-96.5],[43.0,-96.5],[42.5,-98.0],[42.5,-104.0],[44.5,-104.0],[49.0,-104.0]], "notes": "Northern Great Plains. The Black Hills (He Sapa) are the Lakota sacred homeland." }
     ],
     "continuity_note": "The United States Supreme Court ruled in 1980 (United States v. Sioux Nation) that the Black Hills were taken illegally. The Lakota rejected the $122 million settlement, asserting that their land is not for sale. The sum has grown to over $2 billion — still unclaimed.",
     "era_notes": "Fort Laramie Treaties (1851, 1868), Black Hills seizure (1876), Wounded Knee Massacre (1890), AIM occupation of Wounded Knee (1973), Standing Rock pipeline protest (2016–2017)."
@@ -240,8 +240,8 @@
     "removal_year": 1877,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1877, "center": [41.5, -105.0], "notes": "Wyoming and Colorado high plains. Later shared range with Arapaho." },
-      { "year_start": 1877, "year_end": 9999, "center": [45.8, -106.7], "notes": "Northern Cheyenne returned to Montana against federal orders. Southern Cheyenne removed to Indian Territory (Oklahoma)." }
+      { "year_start": 1700, "year_end": 1877, "center": [41.5, -105.0], "boundary_polygon": [[45.0,-104.0],[45.0,-100.0],[43.0,-99.0],[41.0,-99.0],[40.0,-101.5],[39.5,-104.0],[41.0,-105.0],[43.0,-104.5],[45.0,-104.0]], "notes": "Wyoming and Colorado high plains. Later shared range with Arapaho." },
+      { "year_start": 1877, "year_end": 9999, "center": [45.8, -106.7], "boundary_polygon": [[46.6,-107.6],[46.6,-105.2],[45.5,-105.2],[45.2,-106.5],[45.7,-107.6],[46.6,-107.6]], "notes": "Northern Cheyenne returned to Montana against federal orders. Southern Cheyenne removed to Indian Territory (Oklahoma)." }
     ],
     "continuity_note": "After the Sand Creek Massacre (1864) and the Battle of Little Bighorn (1876), Northern Cheyenne were forcibly marched to Oklahoma. Most escaped and walked 1,500 miles home to Montana in 1878. They were eventually granted a reservation in Montana — land they won through sheer refusal to leave.",
     "era_notes": "Sand Creek Massacre (1864), Battle of Little Bighorn (1876), Northern Cheyenne Exodus (1878–1879), reservation era."
@@ -257,8 +257,8 @@
     "removal_year": 1872,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 1872, "center": [37.5, -97.0], "notes": "Southern Missouri and northern Arkansas, later Kansas." },
-      { "year_start": 1872, "year_end": 9999, "center": [36.7, -96.4], "notes": "Osage County, Oklahoma — site of early 20th-century oil discovery and the Reign of Terror." }
+      { "year_start": 1600, "year_end": 1872, "center": [37.5, -97.0], "boundary_polygon": [[38.8,-95.5],[38.8,-92.0],[37.5,-91.5],[36.5,-93.0],[36.5,-95.5],[37.5,-96.0],[38.8,-95.5]], "notes": "Southern Missouri and northern Arkansas, later Kansas." },
+      { "year_start": 1872, "year_end": 9999, "center": [36.7, -96.4], "boundary_polygon": [[37.1,-97.0],[37.1,-95.8],[36.5,-95.8],[36.5,-97.0],[37.1,-97.0]], "notes": "Osage County, Oklahoma — site of early 20th-century oil discovery and the Reign of Terror." }
     ],
     "continuity_note": "The Osage Reign of Terror (1921–1925): after oil was found under their Oklahoma allotments, the federal government assigned white guardians to Osage people, then members of the Osage Nation were systematically murdered for their oil headrights. Dozens were killed. This was investigated by the early FBI and dramatized in 'Killers of the Flower Moon.'",
     "era_notes": "Removal (1825, 1865, 1872), oil headright era (1906–1920s), Reign of Terror (1921–1925)."
@@ -274,8 +274,8 @@
     "removal_year": 1875,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1875, "center": [34.0, -101.0], "notes": "Comanchería — a vast territory across the Southern Plains, controlled by the Comanche until 1875." },
-      { "year_start": 1875, "year_end": 9999, "center": [34.6, -98.4], "notes": "Confined to Fort Sill area of Oklahoma following Red River War." }
+      { "year_start": 1700, "year_end": 1875, "center": [34.0, -101.0], "boundary_polygon": [[38.0,-104.0],[38.0,-97.5],[36.5,-97.0],[35.0,-97.0],[33.0,-97.5],[31.5,-99.5],[30.5,-103.5],[31.5,-106.0],[33.5,-106.5],[35.5,-105.0],[37.0,-104.0],[38.0,-104.0]], "notes": "Comanchería — a vast territory across the Southern Plains, controlled by the Comanche until 1875." },
+      { "year_start": 1875, "year_end": 9999, "center": [34.6, -98.4], "boundary_polygon": [[35.0,-98.8],[35.0,-98.0],[34.5,-98.0],[34.3,-98.5],[34.5,-99.0],[35.0,-98.8]], "notes": "Confined to Fort Sill area of Oklahoma following Red River War." }
     ],
     "continuity_note": "The Comanche controlled the largest and most powerful equestrian empire in North American history until the 1870s, with a territory larger than Texas. Code Talkers served in WWII.",
     "era_notes": "Red River War (1874–1875), reservation confinement, allotment era."
@@ -291,7 +291,7 @@
     "removal_year": 1864,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [36.5, -110.0], "notes": "Four Corners region. The Long Walk (1864) removed Navajo to Fort Sumner but they returned in 1868 after the Treaty of Bosque Redondo guaranteed their homeland." }
+      { "year_start": 1600, "year_end": 9999, "center": [36.5, -110.0], "boundary_polygon": [[37.0,-109.0],[37.0,-107.5],[36.5,-107.0],[35.5,-108.0],[35.0,-109.5],[35.0,-111.0],[35.8,-112.0],[36.8,-111.5],[37.0,-110.5],[37.0,-109.0]], "notes": "Four Corners region. The Long Walk (1864) removed Navajo to Fort Sumner but they returned in 1868 after the Treaty of Bosque Redondo guaranteed their homeland." }
     ],
     "continuity_note": "The Navajo Treaty of 1868 specifically granted the Navajo their homeland. After the Long Walk — a forced 300-mile march that killed hundreds — the Navajo refused to be resettled anywhere other than their sacred homeland. They returned. This treaty remains in force.",
     "era_notes": "Long Walk (1864–1868), Treaty of Bosque Redondo (1868), uranium mining era (1940s–1980s), COVID-19 disproportionate impact (2020)."
@@ -307,7 +307,7 @@
     "removal_year": 1886,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [33.5, -109.0], "notes": "Arizona, New Mexico, west Texas, and northern Mexico. Multiple bands maintained distinct territories." }
+      { "year_start": 1600, "year_end": 9999, "center": [33.5, -109.0], "boundary_polygon": [[35.5,-109.0],[35.5,-106.5],[33.5,-105.0],[31.3,-107.0],[31.3,-109.5],[32.0,-111.0],[33.5,-111.5],[35.0,-110.5],[35.5,-109.0]], "notes": "Arizona, New Mexico, west Texas, and northern Mexico. Multiple bands maintained distinct territories." }
     ],
     "continuity_note": "When Geronimo surrendered in 1886, he and 500 Apache were shipped by train to Florida as prisoners of war. They were never returned to Arizona. The Fort Sill Apache in Oklahoma are descendants of those prisoners.",
     "era_notes": "Apache Wars (1849–1886), prisoner of war status (1886–1913), reservation era, allotment."
@@ -323,7 +323,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [32.0, -112.0], "notes": "Sonoran Desert of southern Arizona and northern Sonora (Mexico). The international border bisects their traditional territory." }
+      { "year_start": 1600, "year_end": 9999, "center": [32.0, -112.0], "boundary_polygon": [[33.5,-112.5],[33.5,-110.5],[32.5,-110.0],[31.3,-110.5],[31.3,-112.5],[32.0,-113.5],[33.5,-112.5]], "notes": "Sonoran Desert of southern Arizona and northern Sonora (Mexico). The international border bisects their traditional territory." }
     ],
     "continuity_note": "The US–Mexico border was drawn directly through the middle of Tohono O'odham ancestral territory. Tribal members regularly cross a border that was not their idea, for ceremonial, family, and economic purposes — an exercise of sovereignty the nation has maintained continuously.",
     "era_notes": "Gadsden Purchase (1853) bisected their territory. Reservation boundaries set in 1874 and 1916. Border wall construction has disrupted sacred sites and migration corridors."
@@ -339,8 +339,8 @@
     "removal_year": 1877,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 1877, "center": [45.8, -116.5], "notes": "Wallowa Valley (Oregon) and Clearwater River region (Idaho)." },
-      { "year_start": 1877, "year_end": 9999, "center": [46.4, -116.9], "notes": "After the 1877 war, confined to smaller Idaho reservation. Some ended up in Oklahoma, then returned to Idaho." }
+      { "year_start": 1700, "year_end": 1877, "center": [45.8, -116.5], "boundary_polygon": [[47.0,-117.5],[47.0,-115.0],[46.0,-114.5],[44.8,-115.5],[44.5,-117.0],[45.0,-118.5],[46.0,-118.8],[47.0,-117.5]], "notes": "Wallowa Valley (Oregon) and Clearwater River region (Idaho)." },
+      { "year_start": 1877, "year_end": 9999, "center": [46.4, -116.9], "boundary_polygon": [[47.0,-117.2],[47.0,-116.0],[46.0,-116.0],[46.0,-117.2],[47.0,-117.2]], "notes": "After the 1877 war, confined to smaller Idaho reservation. Some ended up in Oklahoma, then returned to Idaho." }
     ],
     "continuity_note": "Chief Joseph's surrender speech (1877): 'From where the sun now stands, I will fight no more forever.' The Nez Perce fled 1,170 miles in 3 months before surrendering near the Canadian border. Joseph's request to return his people to the Wallowa Valley was denied. He died in exile in 1904, reportedly of a 'broken heart.'",
     "era_notes": "Nez Perce War (1877), reservation confinement, allotment."
@@ -356,7 +356,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [46.6, -120.5], "notes": "Columbia Plateau and Cascade Mountain region. Yakama Treaty of 1855 guaranteed fishing, hunting, and gathering rights." }
+      { "year_start": 1600, "year_end": 9999, "center": [46.6, -120.5], "boundary_polygon": [[47.5,-121.5],[47.5,-119.5],[46.5,-118.5],[45.5,-119.5],[45.5,-121.5],[46.5,-122.0],[47.5,-121.5]], "notes": "Columbia Plateau and Cascade Mountain region. Yakama Treaty of 1855 guaranteed fishing, hunting, and gathering rights." }
     ],
     "continuity_note": "The Yakama Treaty of 1855 guaranteed fishing rights at 'usual and accustomed places.' These rights were litigated in US v. Washington (1974 — the 'Boldt Decision'), which affirmed that Pacific Northwest tribes are entitled to 50% of the harvestable salmon. Still enforced today.",
     "era_notes": "Treaty of 1855, allotment, Boldt Decision (1974), ongoing salmon rights litigation."
@@ -372,7 +372,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [41.5, -123.8], "notes": "Klamath River and Pacific Coast of Northern California. The Klamath River is their cultural and spiritual center." }
+      { "year_start": 1600, "year_end": 9999, "center": [41.5, -123.8], "boundary_polygon": [[42.0,-124.5],[42.0,-123.0],[41.2,-122.8],[40.5,-123.5],[40.5,-124.4],[41.2,-124.5],[42.0,-124.5]], "notes": "Klamath River and Pacific Coast of Northern California. The Klamath River is their cultural and spiritual center." }
     ],
     "continuity_note": "In 2021, the Yurok Tribe became the first tribe in the United States to pass a resolution giving legal rights to a river — the Klamath. In 2022, the largest dam removal project in US history began on the Klamath, driven largely by Yurok and Karuk advocacy for salmon restoration.",
     "era_notes": "California statehood (1850) brought systematic violence against California Indians. The Round Valley Reservation era, allotment, and the 20th-century urban relocation program all affected Yurok communities."
@@ -388,7 +388,7 @@
     "removal_year": null,
     "year_established_in_record": 1500,
     "historical_presence": [
-      { "year_start": 1500, "year_end": 9999, "center": [34.5, -120.0], "notes": "Southern California coastal region from Malibu to Paso Robles, including the Channel Islands." }
+      { "year_start": 1500, "year_end": 9999, "center": [34.5, -120.0], "boundary_polygon": [[35.8,-121.5],[35.8,-120.0],[35.0,-119.5],[34.0,-119.5],[33.9,-120.2],[34.0,-121.0],[34.5,-121.8],[35.8,-121.5]], "notes": "Southern California coastal region from Malibu to Paso Robles, including the Channel Islands." }
     ],
     "continuity_note": "The California Mission System (1769–1833) enslaved and killed tens of thousands of California Indians including Chumash. Despite near-annihilation, Chumash people survived and maintained cultural knowledge. Today the Santa Ynez Band operates Chumash Casino Resort and has used resources to buy back ancestral land.",
     "era_notes": "Mission Era (1769–1833), Mexican rancho era, California statehood massacres (1850s), allotment, termination (1950s)."
@@ -404,7 +404,7 @@
     "removal_year": null,
     "year_established_in_record": 900,
     "historical_presence": [
-      { "year_start": 900, "year_end": 9999, "center": [35.5, -106.5], "notes": "Rio Grande Valley and western New Mexico. Home to some of the oldest continuously occupied settlements in North America." }
+      { "year_start": 900, "year_end": 9999, "center": [35.5, -106.5], "boundary_polygon": [[37.0,-107.5],[37.0,-105.5],[36.0,-104.5],[35.0,-104.5],[34.5,-105.5],[34.5,-107.0],[35.0,-108.0],[36.0,-108.0],[37.0,-107.5]], "notes": "Rio Grande Valley and western New Mexico. Home to some of the oldest continuously occupied settlements in North America." }
     ],
     "continuity_note": "Taos Pueblo has been continuously inhabited for over 1,000 years. In 1970, Congress returned 48,000 acres including Blue Lake to the Taos Pueblo, a site they had been fighting to recover since it was taken in 1906. This was one of the first major land returns in US history.",
     "era_notes": "Pueblo Revolt (1680) — the only successful large-scale revolt against Spanish colonization in North America. 1692 Spanish reconquest. US territorial acquisition (1848). Blue Lake returned (1970)."
@@ -420,8 +420,8 @@
     "removal_year": 1880,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 1880, "center": [39.5, -108.5], "notes": "Entire Colorado and Utah plateau region." },
-      { "year_start": 1880, "year_end": 9999, "center": [37.5, -108.4], "notes": "Confined to smaller reservations in southwestern Colorado and northeastern Utah after the Meeker Massacre and subsequent forced removal." }
+      { "year_start": 1600, "year_end": 1880, "center": [39.5, -108.5], "boundary_polygon": [[41.0,-109.0],[41.0,-105.5],[40.0,-105.0],[38.0,-105.0],[37.0,-107.5],[37.0,-109.0],[38.5,-110.0],[40.0,-110.0],[41.0,-109.0]], "notes": "Entire Colorado and Utah plateau region." },
+      { "year_start": 1880, "year_end": 9999, "center": [37.5, -108.4], "boundary_polygon": [[38.5,-109.0],[38.5,-107.5],[37.0,-107.5],[37.0,-109.0],[38.5,-109.0]], "notes": "Confined to smaller reservations in southwestern Colorado and northeastern Utah after the Meeker Massacre and subsequent forced removal." }
     ],
     "continuity_note": "The Ute were once the largest tribal nation by territory in the Rocky Mountain region. Colorado was entirely Ute land. The slogan 'Colorado is Ute land' reflects this — acknowledged even in some state documents.",
     "era_notes": "Brunot Agreement land seizures (1873), Meeker Incident (1879), forced removal (1880), allotment."
@@ -437,7 +437,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [38.5, -117.5], "notes": "Great Basin desert region across Nevada, California, Oregon, Utah, and Idaho." }
+      { "year_start": 1600, "year_end": 9999, "center": [38.5, -117.5], "boundary_polygon": [[42.5,-120.0],[42.5,-115.0],[40.5,-114.0],[37.0,-114.5],[36.0,-116.0],[36.0,-119.0],[37.5,-120.0],[40.0,-121.0],[42.5,-120.0]], "notes": "Great Basin desert region across Nevada, California, Oregon, Utah, and Idaho." }
     ],
     "continuity_note": "Sarah Winnemucca (Northern Paiute) was the first Native American woman to publish an autobiography (1883), documenting federal abuses and advocating for her people before Congress. She is now memorialized with a statue in the US Capitol.",
     "era_notes": "Pyramid Lake War (1860), Bannock War (1878), Nevada termination threats, land and water rights litigation."
@@ -453,7 +453,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [43.0, -115.0], "notes": "Great Basin and Rocky Mountain region. Sacagawea was Lemhi Shoshone." }
+      { "year_start": 1600, "year_end": 9999, "center": [43.0, -115.0], "boundary_polygon": [[45.0,-114.5],[45.0,-110.5],[43.0,-110.0],[41.0,-111.5],[40.5,-114.0],[42.0,-115.5],[43.5,-116.5],[45.0,-114.5]], "notes": "Great Basin and Rocky Mountain region. Sacagawea was Lemhi Shoshone." }
     ],
     "continuity_note": "The Bear River Massacre (1863) killed an estimated 250–500 Northwestern Shoshone — the deadliest massacre of Indigenous people in US history. It was not declared a battle but a 'fight' in military records for over a century.",
     "era_notes": "Bear River Massacre (1863), Box Elder Treaty (1863), reservation confinement, Duck Valley allotment."
@@ -469,7 +469,7 @@
     "removal_year": null,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 9999, "center": [35.5, -83.2], "notes": "Qualla Boundary, Western North Carolina. Never removed. Tsali and others hid in the mountains during the Trail of Tears." }
+      { "year_start": 1700, "year_end": 9999, "center": [35.5, -83.2], "boundary_polygon": [[35.8,-83.6],[35.8,-82.8],[35.3,-82.6],[35.0,-83.0],[35.2,-83.7],[35.8,-83.6]], "notes": "Qualla Boundary, Western North Carolina. Never removed. Tsali and others hid in the mountains during the Trail of Tears." }
     ],
     "continuity_note": "The Eastern Band exists because a portion of the Cherokee people hid in the Smoky Mountains rather than submit to removal. Qualla Boundary land was purchased in their name by William Holland Thomas (a white trader adopted by the Cherokee) because federal law at the time prohibited Indians from owning land in North Carolina.",
     "era_notes": "Trail of Tears resistance (1838), land purchase era, allotment, restoration of cultural sovereignty, Harrah's Cherokee Casino (gaming sovereignty era)."
@@ -485,7 +485,7 @@
     "removal_year": null,
     "year_established_in_record": 1700,
     "historical_presence": [
-      { "year_start": 1700, "year_end": 9999, "center": [32.8, -89.2], "notes": "East-central Mississippi. Never left their homeland despite the 1830 Indian Removal Act." }
+      { "year_start": 1700, "year_end": 9999, "center": [32.8, -89.2], "boundary_polygon": [[33.4,-89.6],[33.4,-88.8],[32.4,-88.7],[32.0,-89.2],[32.3,-89.8],[33.0,-90.0],[33.4,-89.6]], "notes": "East-central Mississippi. Never left their homeland despite the 1830 Indian Removal Act." }
     ],
     "continuity_note": "The Mississippi Choctaw refused to leave. For a century, they lived in poverty with no federal services, reclassified as 'colored' in records, denied schools. Federal recognition and services were finally extended under the New Deal-era IRA (1934). Chief Phillip Martin led a transformation that turned the tribe into a major economic force in Mississippi.",
     "era_notes": "Stayed through removal era. Reclassified in records 1830–1934. IRA recognition (1934). Economic development era (1970s–present)."
@@ -501,7 +501,7 @@
     "removal_year": null,
     "year_established_in_record": 1600,
     "historical_presence": [
-      { "year_start": 1600, "year_end": 9999, "center": [45.3, -68.7], "notes": "Penobscot River watershed in Maine. The river is named for the nation." }
+      { "year_start": 1600, "year_end": 9999, "center": [45.3, -68.7], "boundary_polygon": [[46.5,-70.0],[46.5,-68.0],[45.5,-67.5],[44.5,-68.5],[44.5,-70.5],[45.5,-70.5],[46.5,-70.0]], "notes": "Penobscot River watershed in Maine. The river is named for the nation." }
     ],
     "continuity_note": "The Maine Indian Claims Settlement Act (1980) was triggered by the Trade and Intercourse Act argument — the Penobscot and Passamaquoddy successfully argued that land sales in the 1700s–1800s violated the Non-Intercourse Act. They received $81.5 million and 300,000 acres.",
     "era_notes": "Colonial dispossession (1600s–1800s), Non-Intercourse Act land claim (1970s), Settlement Act (1980). The Maine Indian Settlement Act created an unusual jurisdictional structure that the tribes have been fighting to revise ever since."
@@ -517,7 +517,7 @@
     "removal_year": null,
     "year_established_in_record": 1400,
     "historical_presence": [
-      { "year_start": 1400, "year_end": 9999, "center": [43.1, -75.6], "notes": "Central New York. Oneida Nation is pressing major land claims in New York under the Non-Intercourse Act." }
+      { "year_start": 1400, "year_end": 9999, "center": [43.1, -75.6], "boundary_polygon": [[43.7,-76.2],[43.7,-75.0],[42.7,-74.9],[42.5,-75.7],[42.8,-76.3],[43.4,-76.5],[43.7,-76.2]], "notes": "Central New York. Oneida Nation is pressing major land claims in New York under the Non-Intercourse Act." }
     ],
     "continuity_note": "The Oneida successfully litigated the Oneida Nation v. County of Oneida cases (1974, 1985). The Supreme Court confirmed in 1985 that the Oneida had a federal common law right to sue for possession of land taken in violation of the Trade and Intercourse Act.",
     "era_notes": "American Revolution, 1788 Treaty of Paris land seizures, Trade and Intercourse Act claims, ongoing land reacquisition."
