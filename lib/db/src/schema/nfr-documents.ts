@@ -3,17 +3,33 @@ import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const nfrDocumentsTable = pgTable("nfr_documents", {
-  id: serial("id").primaryKey(),
-  classificationId: integer("classification_id").notNull(),
-  doctrineApplied: jsonb("doctrine_applied").default({}),
-  content: text("content").notNull(),
-  pdfUrl: text("pdf_url"),
-  status: varchar("status", { length: 50 }).notNull().default("draft"),
-  tribalRef: varchar("tribal_ref", { length: 50 }),
-  certifiedMailNumber: text("certified_mail_number"),
-  sentAt: timestamp("sent_at", { withTimezone: true }),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  id:                     serial("id").primaryKey(),
+  // Legacy FK — points to the original classification record
+  classificationId:       integer("classification_id").notNull().default(1),
+  // Investigation link
+  investigationId:        integer("investigation_id"),
+  // Affected parties
+  affectedMemberId:       integer("affected_member_id"),
+  affectedParcelId:       integer("affected_parcel_id"),
+  // Triggering context
+  triggeringEntity:       text("triggering_entity"),
+  evidenceSource:         text("evidence_source"),
+  // Urgency & categorisation — denormalised from the investigation for fast querying
+  urgencyScore:           integer("urgency_score"),
+  protectionCategory:     varchar("protection_category", { length: 60 }),
+  // Doctrine / law payloads
+  implicatedLaws:         jsonb("implicated_laws").default([]),
+  recommendedActions:     jsonb("recommended_actions").default([]),
+  doctrineApplied:        jsonb("doctrine_applied").default({}),
+  // Document body
+  content:                text("content").notNull(),
+  pdfUrl:                 text("pdf_url"),
+  status:                 varchar("status", { length: 50 }).notNull().default("draft"),
+  tribalRef:              varchar("tribal_ref", { length: 50 }),
+  certifiedMailNumber:    text("certified_mail_number"),
+  sentAt:                 timestamp("sent_at", { withTimezone: true }),
+  createdAt:              timestamp("created_at").defaultNow().notNull(),
+  updatedAt:              timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const insertNfrDocumentSchema = createInsertSchema(nfrDocumentsTable).omit({

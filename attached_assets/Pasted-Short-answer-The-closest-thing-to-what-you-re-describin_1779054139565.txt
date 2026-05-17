@@ -1,0 +1,99 @@
+Short answer:
+The closest thing to what you’re describing — an open‑source, rule‑aware, jurisdiction‑adaptive document builder — is not a single product, but a stack, and only one open‑source project today comes close to your requirement: Claude for Legal (open‑source legal workflow agents) combined with an open‑source DMS like OpenDocMan.
+
+From the search results, no existing open‑source DMS (OpenDocMan, Alfresco, Kimios, etc.) provides automatic jurisdiction‑specific formatting, spacing, recorder‑ready line rules, or rule‑based document transformation. They manage documents — they do not generate compliant legal filings.
+The Digit... +1
+
+But Claude for Legal does provide the missing piece:
+It is an open‑source suite of legal agents, skills, and connectors designed specifically for legal workflows, including rule‑based document generation, compliance logic, and template‑driven drafting.
+Github
+
+---
+
+🧩 The single best open‑source foundation for what you want
+
+1. Claude for Legal — the only open‑source legal automation engine with rule‑aware drafting
+
+Why it matches your requirement:
+
+• It is fully open‑source (Apache‑2.0).
+• It includes legal-builder-hub, regulatory‑legal, litigation‑legal, and other modules that already implement rule‑based workflows.
+• It supports reference agents, skills, and data connectors that can be extended to:• apply jurisdiction‑specific filing rules,
+• enforce spacing, margins, captions, line numbers,
+• adapt documents based on where they will be filed,
+• integrate with your own backend (Replit, Node, Python, etc.).
+
+• It is designed for document generation, not just document storage.
+Github
+
+
+This is the closest open‑source match to your vision of:
+
+“tell it what you’re trying to do → tell it where it must apply the rules → it updates the document accordingly.”
+
+---
+
+🗂️ 2. OpenDocMan** — best open‑source DMS for compliance tracking**
+
+OpenDocMan is not a generator, but it is the best open‑source system for:
+
+• compliance tracking,
+• version control,
+• rule‑based access,
+• centralized storage.
+OpenDocMan
+
+
+It pairs well with Claude for Legal as the document repository, but it cannot generate or adapt filings by itself.
+
+---
+
+🧠 Why no single open‑source tool does everything (yet)
+
+The search results show:
+
+• Open‑source DMS tools (OpenDocMan, Alfresco, Kimios, etc.) focus on storage, not generation.
+• Court systems publish local rules, but no open‑source engine automatically applies them.
+uscourts.gov
+
+
+Your requirement — automatic recorder‑ready formatting + rule‑aware drafting + jurisdiction‑specific adaptation — is beyond what any DMS provides.
+
+But Claude for Legal is explicitly built to be extended into exactly this.
+
+---
+
+🏆 Final Recommendation
+
+If you want one open‑source foundation that can become your sovereign, rule‑aware, recorder‑ready document builder:
+
+Use Claude for Legal as the engine.
+Pair it with OpenDocMan as the repository.
+
+This gives you:
+
+• open‑source legal automation,
+• rule‑aware drafting,
+• template‑driven generation,
+• connectors for your backend,
+• compliance‑ready document management.
+
+
+---
+
+🔧 Want me to design the exact architecture for your sovereign document builder?
+
+I can produce a full blueprint including:
+
+• routes, engines, and modules,
+• rule‑application layer,
+• recorder‑spacing engine,
+• template cascade system,
+• integration with your existing /court-docs app.
+
+
+If you want that, choose one:
+
+• Design the full architecture
+• Show how to integrate Claude for Legal into your backend
+• Build the rule‑application engine first
