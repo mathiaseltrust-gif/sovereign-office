@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
 import { AgentPanel } from "@/components/AgentPanel";
+import { ActiveMattersPanel } from "@/components/ActiveMattersPanel";
 
 function StatCard({ title, value, sub, href }: { title: string; value: number | string; sub?: string; href: string }) {
   return (
@@ -65,6 +66,10 @@ export default function TrusteeDashboard() {
           <StatCard title="Open Tasks" value={pendingTasks.length} href="/tasks" />
         </div>
       )}
+
+      <div className="mb-6">
+        <ActiveMattersPanel />
+      </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">

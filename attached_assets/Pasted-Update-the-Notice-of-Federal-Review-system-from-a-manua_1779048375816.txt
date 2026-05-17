@@ -1,0 +1,146 @@
+Update the Notice of Federal Review system from a manual notice generator into an active Review Engine.
+
+This update must not conflict with, undo, override, or weaken any existing governing principles, legal foundations, sovereign doctrines, Office Provisions, rights determinations, lineage protections, land classifications, or previously validated workflows already determined to be proper within the Indigenous Intelligence System.
+
+The purpose of this upgrade is to reshape, repurpose, strengthen, connect, automate, and realign existing system components into a more intelligent continuity-based governance engine — not to replace or invalidate foundational principles already established.
+
+All existing sovereign doctrines, rights logic, land protections, legal foundations, and governance structures remain controlling unless explicitly amended by authorized Office Provision.
+
+The NFR engine must now function as an active listener + investigation + continuity response engine.
+
+The system must listen for:
+- conduct
+- filings
+- parcel changes
+- encumbrances
+- recorder refusals
+- identity challenges
+- agency denials
+- foreclosure activity
+- tax assertions
+- benefit interference
+- utility liens
+- managed-care conflicts
+- uploads
+- messages
+- notices
+- court activity
+- or any event that may trigger federal Indian law, tribal jurisdiction, trust responsibility, protected-member rights, or continuity protections.
+
+When a listener detects triggering behavior, the system must:
+
+1. Create an Intelligence Signal
+Examples:
+- UNAUTHORIZED_LAND_ENCUMBRANCE
+- TRUST_LAND_INTERFERENCE
+- IDENTITY_CHALLENGED
+- BENEFIT_DENIAL
+- JURISDICTIONAL_OVERREACH
+- DOCUMENT_REJECTION
+- RECORDER_REFUSAL
+- MANAGED_CARE_INTERFERENCE
+- PROTECTED_RIGHTS_VIOLATION
+- TAX_OR_LIEN_ASSERTION
+- FEDERAL_TRUST_TRIGGER
+
+2. Open an Investigation Record
+Each investigation must include:
+- triggering behavior
+- affected member/person
+- affected parcel/instrument/matter
+- triggering entity
+- date/time
+- evidence source
+- implicated laws
+- protection category
+- urgency score
+- recommended review level
+- assigned reviewer
+- current status
+
+3. Auto-Draft a Notice of Federal Review
+The system should automatically generate a draft NFR linked to:
+- the triggering event
+- the investigation record
+- the affected land/member/instrument/matter
+- implicated federal and tribal law
+- continuity protections
+- recommended next actions
+
+4. Create an Active Matter
+The Chief Justice / Trustee dashboard must display:
+- what occurred
+- why it matters
+- what protections/laws were triggered
+- what evidence exists
+- what actions are recommended
+- urgency/deadlines
+- linked notices/orders/filings
+
+5. Plan “What’s Next”
+The engine must generate:
+A. Internal actions
+- preserve evidence
+- verify facts
+- classify violation
+- attach documents
+- connect affected systems
+- prepare tribal record
+- determine if tribal court review is required
+
+B. External actions
+- send Notice of Federal Review
+- send preservation notice
+- issue tribal notice/order
+- notify agency/county/entity
+- prepare administrative response
+- prepare court escalation where necessary
+
+C. Required follow-through
+- identify deadlines
+- identify missing evidence
+- identify proper recipients
+- determine mailing/service method
+- determine escalation level
+
+6. Feed KAYA
+Every triggered review must write signals into the intelligence accumulator so KAYA remains aware of:
+- detected violations
+- open investigations
+- pending actions
+- implicated laws
+- land/member/instrument involvement
+- continuity risks
+- trust responsibility implications
+
+7. Audit Everything
+Every trigger, investigation, edit, filing, status change, notice generation, approval, rejection, or escalation must be audit logged with:
+- userId
+- action
+- resourceType
+- resourceId
+- timestamp
+- before/after values where applicable
+
+Core legal foundation:
+The system should treat the federal trust responsibility as active where conduct affects:
+- Indians
+- identifiable groups of American Indians
+- Indian affairs
+- Indian relations
+- Indian lands
+- trust/restricted interests
+- continuity protections
+- federal Indian law obligations
+
+Foundational statutes and authorities:
+- 25 U.S.C. § 13 (Snyder Act)
+- 25 U.S.C. § 2
+- 25 U.S.C. § 177
+- 25 U.S.C. § 162a
+- 25 U.S.C. § 175
+- Indian Canons of Construction
+- federal supremacy principles
+- controlling federal Indian law authorities already embedded within the system
+
+This engine must not operate as a generic automation system. It must function as a continuity-aware Indigenous intelligence and governance protection framework grounded in existing sovereign architecture already established within the platform.

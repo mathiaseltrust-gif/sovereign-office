@@ -4,6 +4,7 @@ import { nfrDocumentsTable, classificationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { buildNfrRecorderPdf } from "../../lib/pdf-builder";
+import { auditLog } from "../../sovereign/nfr-review-engine";
 
 const router = Router();
 
@@ -82,6 +83,7 @@ router.get("/:id/pdf", async (req, res, next) => {
 router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
+    const userId = req.user?.dbId ?? null;
     const { content, status } = req.body as { content?: string; status?: string };
     const existing = await db.select().from(nfrDocumentsTable).where(eq(nfrDocumentsTable.id, id)).limit(1);
     if (!existing[0]) {
@@ -98,6 +100,18 @@ router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) =
       })
       .where(eq(nfrDocumentsTable.id, id))
       .returning();
+
+    await auditLog({
+      userId,
+      action: "NFR_UPDATED",
+      resourceType: "nfr_document",
+      resourceId: id,
+      resourceRef: existing[0].tribalRef ?? undefined,
+      beforeValue: { status: existing[0].status },
+      afterValue: { status: updated[0]?.status },
+      metadata: { fieldsChanged: [content !== undefined && "content", status !== undefined && "status"].filter(Boolean) },
+    });
+
     res.json(updated[0]);
   } catch (err) {
     next(err);

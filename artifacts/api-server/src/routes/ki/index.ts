@@ -7,6 +7,7 @@ import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
 import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
 import { accumulateIntelligence, getCompanionIntelContext } from "../../sovereign/intelligence-accumulator";
+import { getOpenInvestigationsForKaya } from "../../sovereign/nfr-review-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -254,6 +255,8 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     // Non-fatal — land registry is supplemental context
   }
 
+  const openInvestigationsContext = await getOpenInvestigationsForKaya(10).catch(() => "");
+
   const now30 = new Date(Date.now() + 30 * 86400000);
   const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault, activeProvisions] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
@@ -419,7 +422,7 @@ THE MEMBER:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
-${rightsContext}${landContext}${tribalLandRegistryContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
+${rightsContext}${landContext}${tribalLandRegistryContext}${openInvestigationsContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${provisionsContext}
 ${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}

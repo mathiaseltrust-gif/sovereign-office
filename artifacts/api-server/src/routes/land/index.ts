@@ -12,6 +12,7 @@ import {
   buildLandCode,
   nextSeqForLocation,
 } from "../../sovereign/land-code-service";
+import { triggerReviewEngine, auditLog } from "../../sovereign/nfr-review-engine";
 
 const router = Router();
 
@@ -438,7 +439,39 @@ router.post("/encumbrances", requireAuth, requireLandWrite, async (req, res, nex
       )
       RETURNING *
     `);
-    res.status(201).json(result.rows[0]);
+    const enc = result.rows[0] as Record<string, unknown>;
+
+    await auditLog({
+      userId: req.user?.dbId ?? null,
+      action: "ENCUMBRANCE_CREATED",
+      resourceType: "land_encumbrance",
+      resourceId: enc?.id as number | undefined,
+      afterValue: enc,
+      metadata: { parcelId, encumbranceType, voidAbInitio, source },
+    });
+
+    // Fire the NFR Review Engine for any encumbrance on a tribal land parcel
+    const signalType = bool(voidAbInitio)
+      ? "UNAUTHORIZED_LAND_ENCUMBRANCE" as const
+      : (str(encumbranceType) === "foreclosure" || str(encumbranceType) === "foreclosure_notice")
+        ? "FORECLOSURE_ACTIVITY" as const
+        : (str(encumbranceType) === "tax_lien" || str(encumbranceType) === "utility_lien")
+          ? "TAX_OR_LIEN_ASSERTION" as const
+          : "TRUST_LAND_INTERFERENCE" as const;
+
+    triggerReviewEngine({
+      eventType: "encumbrance_created",
+      eventId: enc?.id as number | undefined,
+      signalType,
+      affectedParcelId: num(parcelId) ?? undefined,
+      triggeringEntity: str(source) ?? undefined,
+      affectedMatter: `${str(title) ?? "Encumbrance"} on parcel #${parcelId}`,
+      evidenceSource: "land_registry",
+      context: `Type: ${str(encumbranceType)} | Description: ${str(description)?.slice(0, 200) ?? ""} | Federal law: ${str(federalLawImplicated) ?? "—"}`,
+      triggeredByUserId: req.user?.dbId ?? undefined,
+    }).catch((err) => logger.error({ err }, "Review engine fire failed (non-fatal)"));
+
+    res.status(201).json(enc);
   } catch (err) { next(err); }
 });
 
