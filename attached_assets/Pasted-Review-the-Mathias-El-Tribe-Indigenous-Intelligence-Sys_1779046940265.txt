@@ -1,0 +1,52 @@
+Review the Mathias El Tribe Indigenous Intelligence System as currently built.
+
+Do not add new features yet.
+
+First, audit whether the system actually performs the core functions it is supposed to perform based on this framework:
+
+1. Sovereign Office Dashboard
+Confirm whether it supports land and asset management, governance tools, trust instruments, active matter tracking, Notice of Federal Review generation, and KAYA Companion access.
+
+2. Family & Community Dashboard
+Confirm whether members can manage profiles, lineage, ancestry records, ancestor locations, and connect to the Urban Indian Continuity Atlas.
+
+3. Trust Instruments Dashboard
+Confirm whether trust instruments, recorded documents, filings, notices, declarations, and legal records are organized and usable.
+
+4. Urban Indian Continuity Atlas
+Confirm whether the Atlas supports ancestor-based historical mapping, territorial continuity, federal Indian policy timelines, citations, annotations, and printable continuity reports.
+
+5. KAYA Companion AI
+Confirm whether KAYA is connected to tribal law, member rights, land registry data, lineage data, office provisions, federal Indian law, and system records.
+
+6. API / Backend
+Confirm whether the backend supports authentication, role-based access, audit logging, secure data handling, intelligence accumulation, and cross-app data flow.
+
+7. Indigenous Intelligence Purpose
+Confirm whether the whole system functions as an Indigenous governance, rights-protection, land, lineage, and continuity intelligence system — not merely a generic dashboard.
+
+For each area, report:
+
+- What is already working
+- What is partially working
+- What is missing
+- What is duplicated or confusing
+- What needs to be corrected
+- What should be prioritized next
+
+Also identify whether any parts of the system are disconnected from each other, especially:
+- KAYA and the land registry
+- KAYA and member lineage
+- Atlas and ancestor records
+- Trust instruments and land parcels
+- Notices and active matters
+- Member protections and federal Indian law references
+
+Return the answer as a clear development audit with:
+1. Overall system readiness score
+2. Module-by-module findings
+3. Critical gaps
+4. Recommended next build steps
+5. Any database/API issues that may prevent the system from functioning as intended
+
+The goal is to verify whether the Indigenous Intelligence System currently does what it was designed to do before expanding it further.
