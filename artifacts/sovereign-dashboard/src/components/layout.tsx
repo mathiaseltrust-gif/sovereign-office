@@ -99,6 +99,13 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },
         { href: "/m365",                label: "Microsoft 365",        icon: Monitor },
         { href: "/role-governors",      label: "Role Governor", highlight: true, icon: ShieldCheck },
+      ],
+    },
+    {
+      id: "comms-system",
+      label: "Communications & System",
+      defaultOpen: false,
+      items: [
         { href: "/admin/email-preview", label: "Email Preview",        icon: Mail },
       ],
     },
