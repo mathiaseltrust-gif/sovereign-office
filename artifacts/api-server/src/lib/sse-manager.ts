@@ -34,6 +34,8 @@ export function pushToUser(userId: number, event: string, data: object): void {
 }
 
 let _subRedis: Redis | null = null;
+let _subConnectAttempts = 0;
+const SUB_MAX_RETRIES = 3;
 
 export function startRedisSubscriber(): void {
   const url = process.env.REDIS_CONNECTION_STRING;
@@ -47,10 +49,20 @@ export function startRedisSubscriber(): void {
       commandTimeout: 2000,
       maxRetriesPerRequest: 1,
       tls: url.startsWith("rediss://") ? {} : undefined,
+      // Stop reconnecting after SUB_MAX_RETRIES failures — prevents log flooding
+      retryStrategy: () => {
+        _subConnectAttempts++;
+        if (_subConnectAttempts >= SUB_MAX_RETRIES) {
+          logger.warn("Redis subscriber: max reconnect attempts reached — real-time messaging disabled");
+          return null; // null = stop retrying
+        }
+        return Math.min(_subConnectAttempts * 2000, 10000);
+      },
     });
 
     _subRedis.on("error", (err) => {
-      logger.warn({ err }, "Redis subscriber error");
+      // Only log the first error to avoid flooding; retryStrategy handles the rest
+      if (_subConnectAttempts <= 1) logger.warn({ err }, "Redis subscriber error");
     });
 
     _subRedis.psubscribe("msg:*", (err) => {
