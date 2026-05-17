@@ -638,8 +638,9 @@ function computePedigreeLayout(nodes: LineageNode[]): {
   // Bounding box in d3 space (x = breadth, y = depth)
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   root2.each(d => {
-    minX = Math.min(minX, d.x); maxX = Math.max(maxX, d.x);
-    minY = Math.min(minY, d.y); maxY = Math.max(maxY, d.y);
+    const dx = d.x ?? 0; const dy = d.y ?? 0;
+    minX = Math.min(minX, dx); maxX = Math.max(maxX, dx);
+    minY = Math.min(minY, dy); maxY = Math.max(maxY, dy);
   });
 
   // Transpose: d3.y (depth) → our px (horizontal); d3.x (breadth) → our py (vertical)
@@ -648,8 +649,8 @@ function computePedigreeLayout(nodes: LineageNode[]): {
 
   const placed: PedigreeNode[] = [];
   root2.each(d => {
-    const px = PDIG_PAD + (d.y - minY);
-    const py = PDIG_PAD + (d.x - minX);
+    const px = PDIG_PAD + ((d.y ?? 0) - minY);
+    const py = PDIG_PAD + ((d.x ?? 0) - minX);
     placed.push({ ...d.data.node, px, py, gen: d.depth, ahnNum: d.data.ahnNum });
   });
 
