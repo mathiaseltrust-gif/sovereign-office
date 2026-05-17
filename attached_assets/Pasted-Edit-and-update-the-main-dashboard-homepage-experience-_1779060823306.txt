@@ -1,0 +1,114 @@
+Edit and update the main dashboard/homepage experience shown after login, specifically the current “AI Intake Funnel” area and related service sections.
+
+Rename:
+
+“AI Intake Funnel”
+
+to:
+
+“AI Funnel by Companion”
+
+This should reflect that Companion is the branded AI guidance and intelligence layer operating within the broader Mathias El Tribe Indigenous Intelligence System.
+
+Do not remove, overwrite, or disrupt existing dashboard services, workflows, or cards already functioning properly. Instead, edit and update the dashboard to include the following Companion-guided intake and protection categories if they are not already listed or integrated.
+
+The dashboard should evolve while preserving continuity with all prior approved logic, routing systems, and governance structures.
+
+The AI Funnel by Companion should function as more than a simple intake display. Each intake should operate as an active guided review and protection engine capable of assisting members while remaining aligned with tribal governance, SDU educational guidance, Companion logic, document systems, and office routing workflows.
+
+Add or integrate the following categories:
+
+1. Identity & Lineage Intake
+
+This area should support:
+• member identity review;
+• lineage continuity;
+• ancestry and descendant connections;
+• family/community continuity;
+• ceremonial and cultural protections;
+• tribal affiliation history;
+• membership verification routing;
+• identity protection guidance.
+
+The intake should help strengthen continuity protections and community connection by linking lineage, ancestry, family history, and member identity into the broader Companion intelligence system.
+
+2. Housing & Land Protection Intake
+
+This area should support:
+• housing matters;
+• APN and parcel review;
+• deeds and recordings;
+• foreclosure concerns;
+• tax and lien matters;
+• utilities;
+• mortgage servicing issues;
+• restricted land concerns;
+• trust land review;
+• tribal land classifications;
+• occupancy and land protection workflows.
+
+The system should be capable of triggering:
+• Notice of Federal Review workflows;
+• jurisdictional review;
+• land protection review;
+• trust/restricted land analysis;
+• evidence preservation;
+• document generation workflows;
+• office escalation routing.
+
+3. Healthcare & Benefits Intake
+
+This area should support:
+• AI/AN healthcare protections;
+• Medi-Cal and managed care concerns;
+• Indian health eligibility review;
+• healthcare denials;
+• disenrollment protections;
+• medical center support;
+• benefit interruptions;
+• welfare and assistance requests;
+• healthcare protection guidance.
+
+4. General Welfare & Protection Intake
+
+This area should support:
+• discrimination concerns;
+• rights violations;
+• emergency welfare matters;
+• family protection concerns;
+• agency misconduct;
+• administrative denials;
+• public benefit issues;
+• community welfare support;
+• requests requiring office review or escalation.
+
+The Companion-guided dashboard system should align with all updated integrations and internal guidance systems already established throughout the platform.
+
+The AI guidance layer should be capable of:
+• collecting facts and uploaded documents;
+• identifying issue categories;
+• detecting protected interests;
+• applying tribal doctrine and governing principles;
+• referencing SDU educational guidance;
+• applying applicable protections and workflows;
+• flagging jurisdictional, identity, healthcare, housing, land, and benefit-related concerns;
+• routing matters to the proper office or workflow;
+• recommending next lawful steps;
+• suggesting or generating notices, declarations, forms, review packets, and templates;
+• preserving records for future tribal, administrative, or federal review;
+• assisting members while preserving required human review where appropriate.
+
+Under “My Services,” update the Law Library section so it displays:
+
+“Law Library”
+“Brought to you in part by Self-Determination University (SDU).”
+
+Add a small SDU description beneath it:
+
+“Self-Determination University preserves and teaches tribal law, federal Indian law, self-determination principles, identity protections, land protections, healthcare access protections, and general welfare frameworks. The Law Library should function as both an educational and practical resource helping members understand protections, responsibilities, remedies, and governing principles.”
+
+The Law Library should integrate with Companion so AI guidance may reference SDU teachings, templates, protections, law library materials, and office guidance where applicable.
+
+Operational safeguard:
+
+Nothing in this update may conflict with, weaken, override, remove, or reinterpret existing governing principles, tribal law, tribal court authority, trust instruments, prior determinations, approved workflows, existing dashboard services, or previously established protections already operating within the system. These updates should only reshape, repurpose, strengthen, organize, and realign the dashboard and Companion guidance process while preserving continuity with all prior lawful foundations and integrations already built into the platform.

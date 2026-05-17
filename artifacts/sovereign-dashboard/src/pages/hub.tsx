@@ -3,11 +3,10 @@ import { Link } from "wouter";
 import {
   User, FileText, Brain, Building2, Users, Scale,
   Gavel, Heart, Shield, ChevronRight, LogOut, Briefcase,
-  TreePine, AlertCircle, BookOpen, Star
+  TreePine, AlertCircle, BookOpen, Star, Fingerprint,
+  Landmark, Stethoscope, ShieldAlert, GraduationCap,
 } from "lucide-react";
 
-// Position titles — presented as acknowledgements/earned positions, not system role names
-// Members have no special position label; access is reflected through visible services only
 const POSITION_TITLES: Record<string, string | null> = {
   trustee: "Chief Justice & Trustee",
   sovereign_admin: "Sovereign Administrator",
@@ -24,6 +23,7 @@ const COMMUNITY_URL = "https://community-dashboard.redstone-3e658f00.eastus.azur
 function ServiceCard({
   icon: Icon,
   title,
+  subtitle,
   description,
   href,
   external,
@@ -32,18 +32,20 @@ function ServiceCard({
 }: {
   icon: React.ElementType;
   title: string;
+  subtitle?: string;
   description: string;
   href: string;
   external?: boolean;
   badge?: string;
-  color?: "primary" | "amber" | "green" | "blue" | "rose";
+  color?: "primary" | "amber" | "green" | "blue" | "rose" | "violet";
 }) {
   const colorMap = {
     primary: "bg-primary/10 text-primary",
-    amber: "bg-amber-500/10 text-amber-600",
-    green: "bg-green-500/10 text-green-600",
-    blue: "bg-blue-500/10 text-blue-600",
-    rose: "bg-rose-500/10 text-rose-600",
+    amber:   "bg-amber-500/10 text-amber-600",
+    green:   "bg-green-500/10 text-green-600",
+    blue:    "bg-blue-500/10 text-blue-600",
+    rose:    "bg-rose-500/10 text-rose-600",
+    violet:  "bg-violet-500/10 text-violet-600",
   };
 
   const content = (
@@ -60,6 +62,9 @@ function ServiceCard({
             </span>
           )}
         </div>
+        {subtitle && (
+          <p className="text-[10px] font-semibold text-amber-600 dark:text-amber-400 mt-0.5">{subtitle}</p>
+        )}
         <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{description}</p>
       </div>
       <ChevronRight className="w-4 h-4 text-muted-foreground shrink-0 mt-0.5 group-hover:text-primary transition-colors" />
@@ -72,9 +77,14 @@ function ServiceCard({
   return <Link href={href}>{content}</Link>;
 }
 
-function SectionHeader({ title }: { title: string }) {
+function SectionHeader({ title, sub }: { title: string; sub?: string }) {
   return (
-    <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-1">{title}</p>
+    <div className="mb-2 px-1">
+      <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">{title}</p>
+      {sub && (
+        <p className="text-[11px] text-muted-foreground/70 mt-0.5 leading-snug">{sub}</p>
+      )}
+    </div>
   );
 }
 
@@ -94,7 +104,6 @@ export default function HubPage() {
   const isElder = activeRole === "elder";
   const isMedical = activeRole === "medical_provider";
 
-  // Build SSO link: pass session token as query param so other dashboards can pick it up
   function ssoLink(baseUrl: string, path = "") {
     if (sessionToken) {
       return `${baseUrl}${path}?sso_token=${encodeURIComponent(sessionToken)}`;
@@ -104,6 +113,7 @@ export default function HubPage() {
 
   return (
     <div className="max-w-3xl mx-auto p-4 md:p-6 space-y-6">
+
       {/* Profile card */}
       <div className="bg-card border border-card-border rounded-2xl shadow-sm overflow-hidden">
         <div className="bg-sidebar px-6 pt-6 pb-4">
@@ -133,26 +143,65 @@ export default function HubPage() {
         </div>
       </div>
 
-      {/* AI Intake Funnel */}
+      {/* AI Funnel by Companion */}
       <div>
-        <SectionHeader title="AI Intake Funnel" />
+        <SectionHeader
+          title="AI Funnel by Companion"
+          sub="Companion is the AI guidance and intelligence layer of the Mathias El Tribe Indigenous Intelligence System. Each intake below opens an active guided review — collecting facts, identifying protected interests, applying tribal doctrine, and routing your matter to the proper office or workflow."
+        />
         <div className="space-y-2">
+
+          {/* 1 — Identity & Lineage Intake */}
+          <ServiceCard
+            icon={Fingerprint}
+            title="Identity & Lineage Intake"
+            description="Member identity review, lineage continuity, ancestry and descendant connections, family and community continuity, ceremonial and cultural protections, tribal affiliation history, membership verification routing, and identity protection guidance."
+            href="/intake-ai"
+            badge="Companion"
+            color="blue"
+          />
+
+          {/* 2 — Housing & Land Protection Intake */}
+          <ServiceCard
+            icon={Landmark}
+            title="Housing & Land Protection Intake"
+            description="Housing matters, APN and parcel review, deeds and recordings, foreclosure concerns, tax and lien matters, utilities, mortgage servicing issues, restricted and trust land concerns, tribal land classifications, and occupancy and land protection workflows. Can trigger Notice of Federal Review, jurisdictional review, and document generation."
+            href="/land"
+            badge="Companion"
+            color="amber"
+          />
+
+          {/* 3 — Healthcare & Benefits Intake */}
+          <ServiceCard
+            icon={Stethoscope}
+            title="Healthcare & Benefits Intake"
+            description="AI/AN healthcare protections, Medi-Cal and managed care concerns, Indian health eligibility review, healthcare denials, disenrollment protections, medical center support, benefit interruptions, welfare and assistance requests, and healthcare protection guidance."
+            href="/intake-ai"
+            badge="Companion"
+            color="rose"
+          />
+
+          {/* 4 — General Welfare & Protection Intake */}
+          <ServiceCard
+            icon={ShieldAlert}
+            title="General Welfare & Protection Intake"
+            description="Discrimination concerns, rights violations, emergency welfare matters, family protection concerns, agency misconduct, administrative denials, public benefit issues, community welfare support, and matters requiring office review or escalation."
+            href="/welfare"
+            badge="Companion"
+            color="violet"
+          />
+
+          {/* General AI intake — catch-all */}
           <ServiceCard
             icon={Brain}
-            title="Case & Complaint Intake"
-            description="Submit a situation for AI legal analysis — flags violations, applies tribal doctrine, and routes to the right office."
+            title="General Case & Complaint Intake"
+            description="Submit any situation for AI legal analysis — flags violations, applies tribal doctrine, detects protected interests, and routes your matter to the right office or workflow."
             href="/intake-ai"
             badge="AI"
             color="primary"
           />
-          <ServiceCard
-            icon={Users}
-            title="Lineage & Membership Verification"
-            description="Verify your tribal descendant status. Enter your lineage details and the system matches against the tribal registry."
-            href="/onboarding/lineage"
-            badge="Enroll"
-            color="green"
-          />
+
+          {/* Business Formation */}
           <ServiceCard
             icon={Building2}
             title="Sovereign Business Formation"
@@ -161,13 +210,7 @@ export default function HubPage() {
             badge="AI"
             color="amber"
           />
-          <ServiceCard
-            icon={Heart}
-            title="Welfare & Community Resources"
-            description="Access welfare instruments, emergency declarations, and benefit authorizations issued under the Office."
-            href="/welfare"
-            color="rose"
-          />
+
         </div>
       </div>
 
@@ -199,9 +242,17 @@ export default function HubPage() {
           <ServiceCard
             icon={BookOpen}
             title="Law Library"
-            description="Access tribal code, federal Indian law, sovereignty doctrines, and case law."
+            subtitle="Brought to you in part by Self-Determination University (SDU)."
+            description="Self-Determination University preserves and teaches tribal law, federal Indian law, self-determination principles, identity protections, land protections, healthcare access protections, and general welfare frameworks. The Law Library functions as both an educational and practical resource — helping members understand protections, responsibilities, remedies, and governing principles. Companion AI guidance may reference SDU teachings, templates, protections, law library materials, and office guidance where applicable."
             href="/law"
             color="blue"
+          />
+          <ServiceCard
+            icon={GraduationCap}
+            title="Self-Determination University"
+            description="Sovereign definitions, tribal law courses, federal Indian law frameworks, and self-determination principles. The educational foundation supporting all Companion guidance and office workflows."
+            href="/sdu"
+            color="amber"
           />
         </div>
       </div>
@@ -297,6 +348,7 @@ export default function HubPage() {
           />
         </div>
       </div>
+
     </div>
   );
 }
