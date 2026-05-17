@@ -202,14 +202,14 @@ export default function Login() {
           </p>
           <blockquote className="pl-3">
             <p className="font-serif text-sm leading-relaxed text-foreground/80 italic">
-              "We hold these trusts to be self-evident: that every man and woman is entitled to his or her own personhood — to name, to nation, to standing — and that no external authority may sever that right without the full force of consent."
+              "Self-determination begins with the right of a people to remain themselves. A people do not cease to exist because they are renamed, reclassified, displaced, or misunderstood. Continuity survives interruption. Identity survives administration. And the inherent right of self-determination remains wherever a people continue in memory, relation, culture, community, and collective existence."
             </p>
           </blockquote>
           <div className="pl-3 mt-2.5 flex flex-wrap gap-x-3 gap-y-1">
             {[
               "UNDRIP Art. 3 — Self-Determination",
-              "25 U.S.C. § 5302 — Self-Governance",
-              "Worcester v. Georgia (1832)",
+              "Worcester v. Georgia",
+              "25 U.S.C. § 5302 — Congressional Policy of Self-Determination",
             ].map(cite => (
               <span key={cite} className="text-[9px] tracking-wide"
                 style={{ color: "rgba(120,80,10,0.55)" }}
