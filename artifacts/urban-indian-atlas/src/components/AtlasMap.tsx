@@ -302,7 +302,7 @@ export function AtlasMap({
   if (!mounted) return null;
 
   return (
-    <div className="flex-1 w-full bg-[#f4f1ea] relative" data-testid="map-container" style={{ height: "100%", zIndex: 0 }}>
+    <div className="flex-1 w-full bg-[#1a1612] relative" data-testid="map-container" style={{ height: "100%", zIndex: 0 }}>
       <MapContainer
         center={[39.5, -98.35]}
         zoom={4}
@@ -311,7 +311,7 @@ export function AtlasMap({
       >
         <TileLayer
           attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+          url="https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png"
         />
 
         {mapCenter && <MapCenterController center={mapCenter} />}
