@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback, useMemo } from "react";
+import { hierarchy, tree } from "d3-hierarchy";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -584,93 +585,87 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
 // ── Tree view mode ──────────────────────────────────────────────────────────────
 type TreeViewMode = "family" | "pedigree" | "fan";
 
-// ── Pedigree layout (horizontal, ancestors only) ────────────────────────────────
-const PDIG_W   = 158;   // node width
-const PDIG_H   = 70;    // node height
-const PDIG_CGAP = 44;   // column gap (space between generation columns)
-const PDIG_RGAP = 14;   // row gap (space between sibling rows)
-const PDIG_CELL = PDIG_H + PDIG_RGAP;
-const PDIG_PAD  = 60;
-const PDIG_MAX  = 8;    // max ancestor generations to render
+// ── Pedigree layout — d3-hierarchy Reingold–Tilford ─────────────────────────────
+const PDIG_W    = 158;  // node width
+const PDIG_H    = 70;   // node height
+const PDIG_CGAP = 52;   // column gap (horizontal, between generations)
+const PDIG_RGAP = 18;   // row gap    (vertical, between siblings)
+const PDIG_PAD  = 60;   // canvas padding
+const PDIG_MAX  = 8;    // max ancestor generations
 
 interface PedigreeNode extends LineageNode {
   px: number; py: number; gen: number; ahnNum: number;
 }
 
-/** Horizontal ancestor tree: root on the left, oldest ancestors on the right. */
+/** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
+ *  Root on the left; oldest ancestors spread to the right.
+ *  Paternal line = amber connectors, maternal = sky-blue. */
 function computePedigreeLayout(nodes: LineageNode[]): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
   pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }>;
 } {
-  const byId = new Map(nodes.map((n) => [n.id, n]));
-  const root = nodes.find((n) => n.id === 20)
-    ?? nodes.find((n) => (n.generationalPosition ?? 99) === 0)
+  const byId = new Map(nodes.map(n => [n.id, n]));
+  const root = nodes.find(n => n.id === 20)
+    ?? nodes.find(n => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0];
   if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
 
-  // BFS — collect direct ancestors, tracking Ahnentafel number
-  const visited = new Map<number, { gen: number; ahnNum: number }>();
-  const q: Array<{ id: number; gen: number; ahnNum: number }> = [{ id: root.id, gen: 0, ahnNum: 1 }];
-  let qi = 0;
-  while (qi < q.length) {
-    const { id, gen, ahnNum } = q[qi++];
-    if (visited.has(id) || gen > PDIG_MAX) continue;
-    visited.set(id, { gen, ahnNum });
+  // Build recursive ancestor structure:  root = focal person; "children" in d3 = parents (upward)
+  interface HierDatum { node: LineageNode; ahnNum: number; children?: HierDatum[] }
+
+  function buildHier(id: number, gen: number, ahnNum: number, seen: Set<number>): HierDatum | null {
+    if (gen > PDIG_MAX || seen.has(id)) return null;
     const n = byId.get(id);
-    if (!n) continue;
+    if (!n) return null;
+    seen.add(id);
     const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
-    if (pids[0] && !visited.has(pids[0])) q.push({ id: pids[0], gen: gen + 1, ahnNum: ahnNum * 2 });
-    if (pids[1] && !visited.has(pids[1])) q.push({ id: pids[1], gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
+    const kids: HierDatum[] = [];
+    if (pids[0]) { const c = buildHier(pids[0], gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
+    if (pids[1]) { const c = buildHier(pids[1], gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
+    return { node: n, ahnNum, children: kids.length ? kids : undefined };
   }
 
-  // Dendrogram Y: leaves get sequential slots, parents get midpoint of their children
-  const yMap  = new Map<number, number>();
-  const yDone = new Set<number>();
-  let leafSeq = 0;
+  const hierData = buildHier(root.id, 0, 1, new Set());
+  if (!hierData) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
 
-  function assignY(id: number): number {
-    if (yMap.has(id)) return yMap.get(id)!;
-    if (yDone.has(id)) { const v = leafSeq++; yMap.set(id, v); return v; }
-    yDone.add(id);
-    const n = byId.get(id);
-    const pids = n ? (Array.isArray(n.parentIds) ? (n.parentIds as number[]) : []) : [];
-    const parentsHere = pids.filter((pid) => visited.has(pid));
-    if (parentsHere.length === 0) {
-      yMap.set(id, leafSeq++);
-    } else {
-      const ys = parentsHere.map(assignY);
-      yMap.set(id, (Math.min(...ys) + Math.max(...ys)) / 2);
-    }
-    return yMap.get(id)!;
-  }
-  assignY(root.id);
+  const root2 = hierarchy<HierDatum>(hierData, d => d.children);
 
-  let maxGen = 0;
-  for (const { gen } of visited.values()) maxGen = Math.max(maxGen, gen);
-  const numLeaves = Math.max(leafSeq, 1);
-  const totalW = PDIG_PAD * 2 + (maxGen + 1) * PDIG_W + maxGen * PDIG_CGAP;
-  const totalH = PDIG_PAD * 2 + numLeaves * PDIG_CELL;
+  // nodeSize: [breadth-spacing (→ our vertical), depth-spacing (→ our horizontal)]
+  tree<HierDatum>().nodeSize([PDIG_H + PDIG_RGAP, PDIG_W + PDIG_CGAP])(root2);
+
+  // Bounding box in d3 space (x = breadth, y = depth)
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  root2.each(d => {
+    minX = Math.min(minX, d.x); maxX = Math.max(maxX, d.x);
+    minY = Math.min(minY, d.y); maxY = Math.max(maxY, d.y);
+  });
+
+  // Transpose: d3.y (depth) → our px (horizontal); d3.x (breadth) → our py (vertical)
+  const totalW = PDIG_PAD * 2 + (maxY - minY) + PDIG_W;
+  const totalH = PDIG_PAD * 2 + (maxX - minX) + PDIG_H;
 
   const placed: PedigreeNode[] = [];
-  const pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }> = [];
+  root2.each(d => {
+    const px = PDIG_PAD + (d.y - minY);
+    const py = PDIG_PAD + (d.x - minX);
+    placed.push({ ...d.data.node, px, py, gen: d.depth, ahnNum: d.data.ahnNum });
+  });
 
-  for (const [id, { gen, ahnNum }] of visited) {
-    const n = byId.get(id)!;
-    const yU = yMap.get(id) ?? 0;
-    const px = PDIG_PAD + gen * (PDIG_W + PDIG_CGAP);
-    const py = PDIG_PAD + yU * PDIG_CELL;
-    placed.push({ ...n, px, py, gen, ahnNum });
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
-    for (let pi = 0; pi < Math.min(pids.length, 2); pi++) {
-      if (!visited.has(pids[pi])) continue;
-      const parYU = yMap.get(pids[pi]) ?? 0;
-      const parPx = PDIG_PAD + (gen + 1) * (PDIG_W + PDIG_CGAP);
-      const parPy = PDIG_PAD + parYU * PDIG_CELL;
-      pEdges.push({ key: `${id}-${pids[pi]}`, x1: px + PDIG_W, y1: py + PDIG_H / 2, x2: parPx, y2: parPy + PDIG_H / 2, isPat: pi === 0 });
-    }
-  }
+  const pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }> = [];
+  root2.links().forEach(({ source, target }) => {
+    const child  = placed.find(p => p.id === source.data.node.id);
+    const parent = placed.find(p => p.id === target.data.node.id);
+    if (!child || !parent) return;
+    pEdges.push({
+      key:   `${child.id}-${parent.id}`,
+      x1:    child.px + PDIG_W,  y1: child.py  + PDIG_H / 2,
+      x2:    parent.px,           y2: parent.py + PDIG_H / 2,
+      isPat: target.data.ahnNum % 2 === 0,
+    });
+  });
+
   return { placed, totalW, totalH, pEdges };
 }
 

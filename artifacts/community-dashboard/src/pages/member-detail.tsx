@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
+import { hierarchy, tree } from "d3-hierarchy";
 import { useParams, Link } from "wouter";
 import { useQuery } from "@tanstack/react-query";
 import { 
@@ -287,60 +288,156 @@ function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: b
   );
 }
 
+// Node dimensions and spacing
+const MT_NW = 88, MT_NH = 64, MT_HGAP = 14, MT_VGAP = 54, MT_PAD = 20;
+
+/** Compute centered x-positions for a flat row of N nodes using d3-hierarchy. */
+function d3RowCenters(count: number): number[] {
+  if (count === 0) return [];
+  type D = { id: number; ch?: { id: number }[] };
+  const root = hierarchy<D>(
+    { id: -1, ch: Array.from({ length: count }, (_, i) => ({ id: i })) },
+    d => d.ch ?? null,
+  );
+  tree<D>().nodeSize([MT_NW + MT_HGAP, MT_NH + MT_VGAP])(root);
+  const xs = (root.children ?? []).map(c => c.x);
+  const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
+  return xs.map(x => x - mid); // center around 0
+}
+
 function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyPerson[] | null; spouses?: FamilyPerson[] | null; children?: FamilyPerson[] | null } }) {
-  const parents = member.parents ?? [];
-  const spouses = member.spouses ?? [];
+  const parents  = member.parents  ?? [];
+  const spouses  = member.spouses  ?? [];
   const children = member.children ?? [];
-  const hasAny = parents.length > 0 || spouses.length > 0 || children.length > 0;
+  const hasAny   = parents.length > 0 || spouses.length > 0 || children.length > 0;
+
+  const parentCx  = useMemo(() => d3RowCenters(parents.length),  [parents.length]);
+  const childCx   = useMemo(() => d3RowCenters(children.length), [children.length]);
+  // Spouses extend to the right of member; member center = 0
+  const spouseCx  = spouses.map((_, i) => (MT_NW + 20) * (i + 1));
+
+  const hasParents  = parents.length  > 0;
+  const hasChildren = children.length > 0;
+
+  const parentRowY = 0;
+  const memberRowY = hasParents  ? MT_NH + MT_VGAP : 0;
+  const childRowY  = memberRowY + MT_NH + MT_VGAP;
+
+  // SVG bounds: collect all node centers and compute required width
+  const allLeft  = [...parentCx, ...childCx, 0].map(x => x - MT_NW / 2);
+  const allRight = [...parentCx, ...childCx, 0, ...spouseCx].map(x => x + MT_NW / 2);
+  const minRelX  = Math.min(...allLeft)  - MT_PAD;
+  const maxRelX  = Math.max(...allRight) + MT_PAD;
+  const svgW     = Math.max(maxRelX - minRelX, MT_NW + MT_PAD * 2);
+  const svgH     = (hasChildren ? childRowY + MT_NH : memberRowY + MT_NH) + MT_PAD;
+  const cx       = -minRelX; // SVG x-coordinate for member center
+
+  // Cubic bezier path between two center points
+  const bezier = (x1: number, y1: number, x2: number, y2: number) => {
+    const my = (y1 + y2) / 2;
+    return `M${x1.toFixed(1)},${y1.toFixed(1)} C${x1.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${my.toFixed(1)} ${x2.toFixed(1)},${y2.toFixed(1)}`;
+  };
+
+  const nodeRect = (nx: number, ny: number, isMain: boolean, isPat?: boolean) => {
+    if (isMain)  return <rect x={nx} y={ny} width={MT_NW} height={MT_NH} rx={8} fill="hsl(var(--primary) / 0.10)" stroke="hsl(var(--primary))" strokeWidth={2} />;
+    if (isPat)   return <rect x={nx} y={ny} width={MT_NW} height={MT_NH} rx={8} fill="rgb(255 251 235 / 0.8)" stroke="#d97706" strokeWidth={1.5} />;
+    return <rect x={nx} y={ny} width={MT_NW} height={MT_NH} rx={8} fill="rgb(240 249 255 / 0.8)" stroke="#7dd3fc" strokeWidth={1.5} />;
+  };
+
+  const nodeLabel = (nx: number, ny: number, person: FamilyPerson, isMain: boolean) => {
+    const initials = `${person.firstName?.charAt(0) ?? ""}${person.lastName?.charAt(0) ?? ""}`;
+    return (
+      <>
+        <text x={nx + MT_NW / 2} y={ny + 18} textAnchor="middle" fontSize={14} fontWeight="700"
+          fill={isMain ? "hsl(var(--primary))" : "#374151"} opacity={isMain ? 0.85 : 0.65}>{initials}</text>
+        <foreignObject x={nx + 2} y={ny + 22} width={MT_NW - 4} height={MT_NH - 24}>
+          <div style={{ fontSize: 9, textAlign: "center", lineHeight: 1.25, padding: "0 2px", overflow: "hidden" }}>
+            <div style={{ fontWeight: isMain ? 700 : 600, marginBottom: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{person.fullName ?? "—"}</div>
+            {person.birthYear && <div style={{ opacity: 0.55 }}>b. {person.birthYear}</div>}
+          </div>
+        </foreignObject>
+      </>
+    );
+  };
 
   if (!hasAny) return (
     <div className="p-8 text-center text-muted-foreground text-sm">No family connections recorded in the directory.</div>
   );
 
   return (
-    <div className="p-4 select-none overflow-x-auto">
-      <div className="flex flex-col items-center gap-0 min-w-fit mx-auto">
+    <div className="p-3 overflow-x-auto select-none">
+      <svg width={svgW} height={svgH} viewBox={`0 0 ${svgW} ${svgH}`} style={{ display: "block", maxWidth: "100%" }}>
 
-        {/* Parents row */}
-        {parents.length > 0 && (
-          <>
-            <div className="flex gap-3 flex-wrap justify-center">
-              {parents.map(p => <TreeNode key={p.id} person={p} />)}
-            </div>
-            <div className="flex flex-col items-center">
-              <div className="w-px h-4 bg-border mt-1" />
-              <div className="w-2 h-2 rounded-full border-2 border-border bg-background" />
-              <div className="w-px h-3 bg-border" />
-            </div>
-          </>
+        {/* Parent → Member edges (amber, cubic bezier) */}
+        {parents.map((_, i) => (
+          <path key={`pe-${i}`}
+            d={bezier(cx + parentCx[i], parentRowY + MT_NH, cx, memberRowY)}
+            fill="none" stroke="#b45309" strokeWidth={1.5} opacity={0.45} />
+        ))}
+
+        {/* Member → Children edges (slate, cubic bezier) */}
+        {children.map((_, i) => (
+          <path key={`ce-${i}`}
+            d={bezier(cx, memberRowY + MT_NH, cx + childCx[i], childRowY)}
+            fill="none" stroke="#64748b" strokeWidth={1.5} opacity={0.4} />
+        ))}
+
+        {/* Spouse dashed connector */}
+        {spouses.length > 0 && (
+          <line x1={cx + MT_NW / 2} y1={memberRowY + MT_NH / 2}
+            x2={cx + spouseCx[spouses.length - 1] + MT_NW / 2} y2={memberRowY + MT_NH / 2}
+            stroke="#94a3b8" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.5} />
         )}
 
-        {/* Member + spouses row */}
-        <div className="flex items-center gap-2 flex-wrap justify-center">
-          <TreeNode person={member} isMain />
-          {spouses.map((s, i) => (
-            <React.Fragment key={s.id}>
-              <span className="text-muted-foreground text-sm font-light select-none">⁓</span>
-              <TreeNode person={s} />
-            </React.Fragment>
-          ))}
-        </div>
+        {/* Parent nodes */}
+        {parents.map((p, i) => {
+          const nx = cx + parentCx[i] - MT_NW / 2;
+          const ny = parentRowY;
+          return (
+            <g key={`p-${p.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${p.id}`; }}>
+              {nodeRect(nx, ny, false, true)}
+              {nodeLabel(nx, ny, p, false)}
+            </g>
+          );
+        })}
 
-        {/* Children row */}
-        {children.length > 0 && (
-          <>
-            <div className="flex flex-col items-center">
-              <div className="w-px h-3 bg-border mt-1" />
-              <div className="w-2 h-2 rounded-full border-2 border-border bg-background" />
-              <div className="w-px h-4 bg-border" />
-            </div>
-            <div className="flex gap-3 flex-wrap justify-center">
-              {children.map(c => <TreeNode key={c.id} person={c} />)}
-            </div>
-          </>
-        )}
+        {/* Member node */}
+        {(() => {
+          const nx = cx - MT_NW / 2;
+          const ny = memberRowY;
+          return (
+            <g key="member">
+              {nodeRect(nx, ny, true)}
+              {nodeLabel(nx, ny, member, true)}
+            </g>
+          );
+        })()}
 
-      </div>
+        {/* Spouse nodes */}
+        {spouses.map((s, i) => {
+          const nx = cx + spouseCx[i] - MT_NW / 2;
+          const ny = memberRowY;
+          return (
+            <g key={`s-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${s.id}`; }}>
+              {nodeRect(nx, ny, false, false)}
+              {nodeLabel(nx, ny, s, false)}
+            </g>
+          );
+        })}
+
+        {/* Children nodes */}
+        {children.map((c, i) => {
+          const nx = cx + childCx[i] - MT_NW / 2;
+          const ny = childRowY;
+          return (
+            <g key={`c-${c.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${c.id}`; }}>
+              {nodeRect(nx, ny, false, false)}
+              {nodeLabel(nx, ny, c, false)}
+            </g>
+          );
+        })}
+
+      </svg>
     </div>
   );
 }
