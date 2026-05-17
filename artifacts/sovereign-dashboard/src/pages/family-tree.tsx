@@ -581,6 +581,168 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
   );
 }
 
+// ── Tree view mode ──────────────────────────────────────────────────────────────
+type TreeViewMode = "family" | "pedigree" | "fan";
+
+// ── Pedigree layout (horizontal, ancestors only) ────────────────────────────────
+const PDIG_W   = 158;   // node width
+const PDIG_H   = 70;    // node height
+const PDIG_CGAP = 44;   // column gap (space between generation columns)
+const PDIG_RGAP = 14;   // row gap (space between sibling rows)
+const PDIG_CELL = PDIG_H + PDIG_RGAP;
+const PDIG_PAD  = 60;
+const PDIG_MAX  = 8;    // max ancestor generations to render
+
+interface PedigreeNode extends LineageNode {
+  px: number; py: number; gen: number; ahnNum: number;
+}
+
+/** Horizontal ancestor tree: root on the left, oldest ancestors on the right. */
+function computePedigreeLayout(nodes: LineageNode[]): {
+  placed: PedigreeNode[];
+  totalW: number;
+  totalH: number;
+  pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }>;
+} {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const root = nodes.find((n) => n.id === 20)
+    ?? nodes.find((n) => (n.generationalPosition ?? 99) === 0)
+    ?? nodes[0];
+  if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
+
+  // BFS — collect direct ancestors, tracking Ahnentafel number
+  const visited = new Map<number, { gen: number; ahnNum: number }>();
+  const q: Array<{ id: number; gen: number; ahnNum: number }> = [{ id: root.id, gen: 0, ahnNum: 1 }];
+  let qi = 0;
+  while (qi < q.length) {
+    const { id, gen, ahnNum } = q[qi++];
+    if (visited.has(id) || gen > PDIG_MAX) continue;
+    visited.set(id, { gen, ahnNum });
+    const n = byId.get(id);
+    if (!n) continue;
+    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    if (pids[0] && !visited.has(pids[0])) q.push({ id: pids[0], gen: gen + 1, ahnNum: ahnNum * 2 });
+    if (pids[1] && !visited.has(pids[1])) q.push({ id: pids[1], gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
+  }
+
+  // Dendrogram Y: leaves get sequential slots, parents get midpoint of their children
+  const yMap  = new Map<number, number>();
+  const yDone = new Set<number>();
+  let leafSeq = 0;
+
+  function assignY(id: number): number {
+    if (yMap.has(id)) return yMap.get(id)!;
+    if (yDone.has(id)) { const v = leafSeq++; yMap.set(id, v); return v; }
+    yDone.add(id);
+    const n = byId.get(id);
+    const pids = n ? (Array.isArray(n.parentIds) ? (n.parentIds as number[]) : []) : [];
+    const parentsHere = pids.filter((pid) => visited.has(pid));
+    if (parentsHere.length === 0) {
+      yMap.set(id, leafSeq++);
+    } else {
+      const ys = parentsHere.map(assignY);
+      yMap.set(id, (Math.min(...ys) + Math.max(...ys)) / 2);
+    }
+    return yMap.get(id)!;
+  }
+  assignY(root.id);
+
+  let maxGen = 0;
+  for (const { gen } of visited.values()) maxGen = Math.max(maxGen, gen);
+  const numLeaves = Math.max(leafSeq, 1);
+  const totalW = PDIG_PAD * 2 + (maxGen + 1) * PDIG_W + maxGen * PDIG_CGAP;
+  const totalH = PDIG_PAD * 2 + numLeaves * PDIG_CELL;
+
+  const placed: PedigreeNode[] = [];
+  const pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }> = [];
+
+  for (const [id, { gen, ahnNum }] of visited) {
+    const n = byId.get(id)!;
+    const yU = yMap.get(id) ?? 0;
+    const px = PDIG_PAD + gen * (PDIG_W + PDIG_CGAP);
+    const py = PDIG_PAD + yU * PDIG_CELL;
+    placed.push({ ...n, px, py, gen, ahnNum });
+    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    for (let pi = 0; pi < Math.min(pids.length, 2); pi++) {
+      if (!visited.has(pids[pi])) continue;
+      const parYU = yMap.get(pids[pi]) ?? 0;
+      const parPx = PDIG_PAD + (gen + 1) * (PDIG_W + PDIG_CGAP);
+      const parPy = PDIG_PAD + parYU * PDIG_CELL;
+      pEdges.push({ key: `${id}-${pids[pi]}`, x1: px + PDIG_W, y1: py + PDIG_H / 2, x2: parPx, y2: parPy + PDIG_H / 2, isPat: pi === 0 });
+    }
+  }
+  return { placed, totalW, totalH, pEdges };
+}
+
+// ── Fan chart layout (radial ancestor wheel) ────────────────────────────────────
+const FAN_ROOT_R = 62;   // radius of root circle
+const FAN_RING_W = 66;   // thickness of each generation ring
+const FAN_MAX_GEN = 7;   // max generations in fan
+const FAN_PAD    = 80;   // padding around outermost ring
+
+// Paternal (father's side): warm earth/amber palette
+const FAN_PAT_COLORS = ["#7c2d12","#9a3412","#c2410c","#ea580c","#f97316","#fb923c","#fdba74"];
+// Maternal (mother's side): cool sky/water palette
+const FAN_MAT_COLORS = ["#0c4a6e","#075985","#0369a1","#0284c7","#0ea5e9","#38bdf8","#7dd3fc"];
+
+function fanArcPath(cx: number, cy: number, r1: number, r2: number, a1: number, a2: number): string {
+  const f = (v: number) => v.toFixed(2);
+  const c = Math.cos, s = Math.sin;
+  const lg = (a2 - a1) > Math.PI ? 1 : 0;
+  return [
+    `M${f(cx + r1 * c(a1))},${f(cy + r1 * s(a1))}`,
+    `L${f(cx + r2 * c(a1))},${f(cy + r2 * s(a1))}`,
+    `A${r2},${r2} 0 ${lg} 1 ${f(cx + r2 * c(a2))},${f(cy + r2 * s(a2))}`,
+    `L${f(cx + r1 * c(a2))},${f(cy + r1 * s(a2))}`,
+    `A${r1},${r1} 0 ${lg} 0 ${f(cx + r1 * c(a1))},${f(cy + r1 * s(a1))} Z`,
+  ].join(" ");
+}
+
+interface FanEntry {
+  id: number; node: LineageNode; gen: number; ahnNum: number;
+  a1: number; a2: number; isPat: boolean;
+}
+
+function buildFanEntries(nodes: LineageNode[]): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
+  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const root = nodes.find((n) => n.id === 20)
+    ?? nodes.find((n) => (n.generationalPosition ?? 99) === 0)
+    ?? nodes[0] ?? null;
+  if (!root) return { entries: [], root: null, maxGen: 0 };
+
+  const entries: FanEntry[] = [];
+  const seen = new Set<number>();
+  const q: Array<{ id: number; gen: number; ahnNum: number }> = [{ id: root.id, gen: 0, ahnNum: 1 }];
+  let qi = 0, maxGen = 0;
+
+  while (qi < q.length) {
+    const { id, gen, ahnNum } = q[qi++];
+    if (seen.has(id) || gen > FAN_MAX_GEN) continue;
+    seen.add(id);
+    const n = byId.get(id);
+    if (!n) continue;
+    maxGen = Math.max(maxGen, gen);
+
+    if (gen > 0) {
+      const slots = Math.pow(2, gen);
+      const pos   = ahnNum - slots;
+      const OFFSET = -Math.PI / 2; // 0° = top (12 o'clock)
+      const a1 = OFFSET + (pos / slots) * 2 * Math.PI;
+      const a2 = OFFSET + ((pos + 1) / slots) * 2 * Math.PI;
+      // Paternal = descendants of father (ahnNum=2); maternal = descendants of mother (ahnNum=3)
+      const msb = Math.floor(Math.log2(ahnNum));
+      const isPat = ahnNum === 2 || (ahnNum > 2 && msb >= 1 && ((ahnNum >> (msb - 1)) & 1) === 0);
+      entries.push({ id, node: n, gen, ahnNum, a1, a2, isPat });
+    }
+
+    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    if (pids[0] && !seen.has(pids[0])) q.push({ id: pids[0], gen: gen + 1, ahnNum: ahnNum * 2 });
+    if (pids[1] && !seen.has(pids[1])) q.push({ id: pids[1], gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
+  }
+
+  return { entries, root, maxGen };
+}
+
 const TREE_SESSION_KEY = "family-tree-viewport";
 
 function readTreeSession(): { transform: { x: number; y: number; scale: number }; selectedNodeId: number | null } | null {
@@ -678,7 +840,21 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
+  const [treeView, setTreeView] = useState<TreeViewMode>("family");
   const importRef = useRef<HTMLInputElement>(null);
+
+  const pedigreeData = useMemo(
+    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+    [treeNodes, treeView],
+  );
+  const fanData = useMemo(
+    () => treeView === "fan" ? buildFanEntries(treeNodes) : { entries: [], root: null, maxGen: 0 },
+    [treeNodes, treeView],
+  );
+  const fanCanvasSize = useMemo(() => {
+    if (fanData.maxGen === 0) return (FAN_ROOT_R + FAN_PAD) * 2;
+    return (FAN_ROOT_R + fanData.maxGen * FAN_RING_W + FAN_PAD) * 2;
+  }, [fanData.maxGen]);
 
   // ── Search state ──────────────────────────────────────────────────────────
   const [searchQuery, setSearchQuery] = useState("");
@@ -767,15 +943,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const selectedNode = positioned.find((n) => n.id === selectedNodeId) ?? null;
 
   const fitToScreen = useCallback(() => {
-    if (!containerRef.current || totalW === 0 || totalH === 0) return;
+    if (!containerRef.current) return;
+    const w = treeView === "pedigree" ? pedigreeData.totalW : treeView === "fan" ? fanCanvasSize : totalW;
+    const h = treeView === "pedigree" ? pedigreeData.totalH : treeView === "fan" ? fanCanvasSize : totalH;
+    if (w === 0 || h === 0) return;
     const { clientWidth, clientHeight } = containerRef.current;
-    const scaleX = (clientWidth - 40) / totalW;
-    const scaleY = (clientHeight - 40) / totalH;
+    const scaleX = (clientWidth - 40) / w;
+    const scaleY = (clientHeight - 40) / h;
     const scale = Math.min(scaleX, scaleY, 1.5);
-    const x = (clientWidth - totalW * scale) / 2;
-    const y = (clientHeight - totalH * scale) / 2;
+    const x = (clientWidth - w * scale) / 2;
+    const y = (clientHeight - h * scale) / 2;
     setTransform({ x, y, scale });
-  }, [totalW, totalH]);
+  }, [totalW, totalH, treeView, pedigreeData.totalW, pedigreeData.totalH, fanCanvasSize]);
 
   // Default: zoom in on the current user's node (or root) and their direct connections
   const centerOnSelf = useCallback(() => {
@@ -963,6 +1142,33 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         {/* Divider */}
         <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
 
+        {/* View mode switcher */}
+        <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
+          {(["family", "pedigree", "fan"] as TreeViewMode[]).map((mode) => {
+            const labels: Record<TreeViewMode, string> = { family: "Family", pedigree: "Pedigree", fan: "Fan" };
+            const titles: Record<TreeViewMode, string> = {
+              family: "Family tree — vertical layout with all connections",
+              pedigree: "Pedigree chart — horizontal, direct ancestors only",
+              fan: "Fan chart — radial ancestor wheel",
+            };
+            return (
+              <button
+                key={mode}
+                onClick={() => { setTreeView(mode); setTransform({ x: 0, y: 0, scale: 1 }); }}
+                className={[
+                  "px-2.5 py-1 text-xs transition-colors",
+                  treeView === mode
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                ].join(" ")}
+                title={titles[mode]}
+              >
+                {labels[mode]}
+              </button>
+            );
+          })}
+        </div>
+
         {/* View controls */}
         <Button size="sm" variant="outline" onClick={centerOnSelf} className="gap-1 h-8" title="Center on my node">
           <Users className="h-3.5 w-3.5" /> Me
@@ -1122,7 +1328,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
 
-          {!isLoading && positioned.length > 0 && (
+          {!isLoading && treeView === "family" && positioned.length > 0 && (
             <div
               style={{
                 transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
@@ -1233,6 +1439,196 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   </div>
                 );
               })}
+            </div>
+          )}
+
+          {/* ── Pedigree view ───────────────────────────────────────────────── */}
+          {!isLoading && treeView === "pedigree" && pedigreeData.placed.length > 0 && (
+            <div
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transformOrigin: "0 0",
+                position: "absolute",
+                width: pedigreeData.totalW,
+                height: pedigreeData.totalH,
+              }}
+            >
+              <svg
+                style={{ position: "absolute", top: 0, left: 0, width: pedigreeData.totalW, height: pedigreeData.totalH, pointerEvents: "none", overflow: "visible" }}
+              >
+                {pedigreeData.pEdges.map((e) => {
+                  const midX = (e.x1 + e.x2) / 2;
+                  return (
+                    <path
+                      key={e.key}
+                      d={`M${e.x1},${e.y1} H${midX} V${e.y2} H${e.x2}`}
+                      fill="none"
+                      stroke={e.isPat ? "#b45309" : "#0369a1"}
+                      strokeWidth={1.5}
+                      opacity={0.55}
+                    />
+                  );
+                })}
+              </svg>
+              {pedigreeData.placed.map((node) => {
+                const isSelected = node.id === selectedNodeId;
+                const isRoot = node.ahnNum === 1;
+                const isPat = node.ahnNum % 2 === 0;
+                const bg = isRoot
+                  ? "bg-primary/10 dark:bg-primary/20 border-primary"
+                  : isPat
+                    ? "bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-700"
+                    : "bg-sky-50 dark:bg-sky-950/30 border-sky-300 dark:border-sky-700";
+                const dateStr = node.birthYear
+                  ? `${node.birthYear}${node.deathYear ? ` – ${node.deathYear}` : node.isDeceased ? " – †" : ""}`
+                  : "";
+                return (
+                  <div
+                    key={node.id}
+                    data-node="1"
+                    onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
+                    style={{ position: "absolute", left: node.px, top: node.py, width: PDIG_W, height: PDIG_H }}
+                    className={[
+                      "rounded-lg border-2 px-2.5 py-1.5 cursor-pointer transition-all flex flex-col justify-between overflow-hidden",
+                      bg,
+                      isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md hover:scale-[1.01]",
+                    ].join(" ")}
+                  >
+                    <span className="text-[11px] font-semibold leading-tight line-clamp-2">{node.fullName}</span>
+                    <div className="flex items-center justify-between gap-1 mt-0.5">
+                      <span className="text-[10px] text-muted-foreground font-mono">{dateStr}</span>
+                      {node.gen > 0 && (
+                        <span className="text-[9px] font-bold text-muted-foreground/50">Gen +{node.gen}</span>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+          {!isLoading && treeView === "pedigree" && !isLoading && pedigreeData.placed.length === 0 && nodes.length > 0 && (
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
+              <p className="text-sm font-medium">No ancestor chain found from the root node.</p>
+              <p className="text-xs">Pedigree view shows direct ancestors only (parents, grandparents, etc.).</p>
+            </div>
+          )}
+
+          {/* ── Fan chart view ──────────────────────────────────────────────── */}
+          {!isLoading && treeView === "fan" && (fanData.entries.length > 0 || fanData.root !== null) && (
+            <div
+              style={{
+                transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
+                transformOrigin: "0 0",
+                position: "absolute",
+                width: fanCanvasSize,
+                height: fanCanvasSize,
+              }}
+            >
+              <svg
+                width={fanCanvasSize}
+                height={fanCanvasSize}
+                style={{ position: "absolute", top: 0, left: 0, overflow: "visible" }}
+              >
+                {fanData.entries.map((entry) => {
+                  const r1 = FAN_ROOT_R + (entry.gen - 1) * FAN_RING_W + 2;
+                  const r2 = r1 + FAN_RING_W - 4;
+                  const cx = fanCanvasSize / 2;
+                  const cy = fanCanvasSize / 2;
+                  const colors = entry.isPat ? FAN_PAT_COLORS : FAN_MAT_COLORS;
+                  const fill = colors[Math.min(entry.gen - 1, colors.length - 1)];
+                  const pathD = fanArcPath(cx, cy, r1, r2, entry.a1, entry.a2);
+                  const midA = (entry.a1 + entry.a2) / 2;
+                  const midR = (r1 + r2) / 2;
+                  const tx = cx + midR * Math.cos(midA);
+                  const ty = cy + midR * Math.sin(midA);
+                  const arcSpan = entry.a2 - entry.a1;
+                  const showLabel = arcSpan > 0.12 && entry.gen <= 5;
+                  const nameParts = entry.node.fullName.split(" ");
+                  const labelText = entry.gen <= 3
+                    ? (nameParts[0].length > 11 ? nameParts[0].slice(0, 10) + "…" : nameParts[0])
+                    : (nameParts[0].length > 7 ? nameParts[0].slice(0, 6) + "…" : nameParts[0]);
+                  const isSelected = entry.id === selectedNodeId;
+                  const rotateDeg = (midA * 180 / Math.PI) + 90;
+                  return (
+                    <g
+                      key={entry.id}
+                      data-node="1"
+                      onClick={(e) => { e.stopPropagation(); setSelectedNodeId(entry.id); }}
+                      style={{ cursor: "pointer" }}
+                    >
+                      <path
+                        d={pathD}
+                        fill={fill}
+                        stroke={isSelected ? "#fbbf24" : "white"}
+                        strokeWidth={isSelected ? 2.5 : 0.8}
+                        opacity={isSelected ? 1 : 0.88}
+                      />
+                      {showLabel && (
+                        <text
+                          x={tx}
+                          y={ty}
+                          textAnchor="middle"
+                          dominantBaseline="middle"
+                          fontSize={Math.max(7, Math.min(11, (arcSpan * midR) / 7))}
+                          fill="white"
+                          fontWeight="600"
+                          style={{ pointerEvents: "none", userSelect: "none" }}
+                          transform={`rotate(${rotateDeg}, ${tx}, ${ty})`}
+                        >
+                          {labelText}
+                        </text>
+                      )}
+                      <title>
+                        {entry.node.fullName}
+                        {entry.node.birthYear ? ` (${entry.node.birthYear}${entry.node.deathYear ? `–${entry.node.deathYear}` : ""})` : ""}
+                        {` · Gen +${entry.gen}`}
+                      </title>
+                    </g>
+                  );
+                })}
+                {fanData.root && (
+                  <g
+                    data-node="1"
+                    onClick={(e) => { e.stopPropagation(); setSelectedNodeId(fanData.root!.id); }}
+                    style={{ cursor: "pointer" }}
+                  >
+                    <circle
+                      cx={fanCanvasSize / 2}
+                      cy={fanCanvasSize / 2}
+                      r={FAN_ROOT_R - 3}
+                      fill={selectedNodeId === fanData.root.id ? "#7c3aed" : "#4f46e5"}
+                      stroke="white"
+                      strokeWidth={3}
+                    />
+                    <text
+                      x={fanCanvasSize / 2}
+                      y={fanCanvasSize / 2 - 7}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fontSize={11}
+                      fontWeight="700"
+                      fill="white"
+                      style={{ pointerEvents: "none", userSelect: "none" }}
+                    >
+                      {fanData.root.fullName.split(" ")[0]}
+                    </text>
+                    {fanData.root.fullName.split(" ").length > 1 && (
+                      <text
+                        x={fanCanvasSize / 2}
+                        y={fanCanvasSize / 2 + 7}
+                        textAnchor="middle"
+                        dominantBaseline="middle"
+                        fontSize={9}
+                        fill="rgba(255,255,255,0.85)"
+                        style={{ pointerEvents: "none", userSelect: "none" }}
+                      >
+                        {fanData.root.fullName.split(" ").slice(1).join(" ").slice(0, 14)}
+                      </text>
+                    )}
+                    <title>{fanData.root.fullName}</title>
+                  </g>
+                )}
+              </svg>
             </div>
           )}
 
