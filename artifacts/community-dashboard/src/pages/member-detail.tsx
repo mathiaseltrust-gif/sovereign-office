@@ -1,4 +1,7 @@
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, lazy, Suspense } from "react";
+const MapPickerModal = lazy(() =>
+  import("@/components/map-picker-modal").then((m) => ({ default: m.MapPickerModal }))
+);
 import { hierarchy, tree } from "d3-hierarchy";
 import { useParams, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -64,36 +67,21 @@ interface AncestorLocationEditorProps {
 
 function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, onSaved }: AncestorLocationEditorProps) {
   const { toast } = useToast();
-  const [editing, setEditing] = useState(false);
-  const [latStr, setLatStr] = useState(currentLat != null ? String(currentLat) : "");
-  const [lngStr, setLngStr] = useState(currentLng != null ? String(currentLng) : "");
+  const [showMapPicker, setShowMapPicker] = useState(false);
   const [saving, setSaving] = useState(false);
 
   if (!isDeceased && !isAncestor) return null;
 
   const hasCoords = currentLat != null && currentLng != null;
 
-  const handleSave = async () => {
+  const handleMapConfirm = async (lat: number, lng: number) => {
     const token = getCommunityToken();
     if (!token) {
       toast({ title: "Not authenticated", description: "You must be signed in to update ancestor locations.", variant: "destructive" });
       return;
     }
-    const lat = latStr.trim() === "" ? null : parseFloat(latStr);
-    const lng = lngStr.trim() === "" ? null : parseFloat(lngStr);
-    if (lat !== null && (isNaN(lat) || lat < -90 || lat > 90)) {
-      toast({ title: "Invalid latitude", description: "Latitude must be between -90 and 90.", variant: "destructive" });
-      return;
-    }
-    if (lng !== null && (isNaN(lng) || lng < -180 || lng > 180)) {
-      toast({ title: "Invalid longitude", description: "Longitude must be between -180 and 180.", variant: "destructive" });
-      return;
-    }
-    if ((lat == null) !== (lng == null)) {
-      toast({ title: "Both fields required", description: "Enter both latitude and longitude, or leave both blank to clear.", variant: "destructive" });
-      return;
-    }
     setSaving(true);
+    setShowMapPicker(false);
     try {
       const r = await fetch(`/api/ancestors/${memberId}/location`, {
         method: "PATCH",
@@ -105,8 +93,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
         throw new Error(err.error ?? "Failed to save location");
       }
       onSaved(lat, lng);
-      setEditing(false);
-      toast({ title: "Location saved", description: lat != null ? `Verified coordinates stored for this ancestor.` : "Coordinates cleared." });
+      toast({ title: "Location saved", description: "Verified coordinates stored for this ancestor." });
     } catch (e) {
       toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -128,10 +115,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
         const err = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Failed to clear location");
       }
-      setLatStr("");
-      setLngStr("");
       onSaved(null, null);
-      setEditing(false);
       toast({ title: "Location cleared", description: "Verified coordinates removed. The Atlas will use inferred placement." });
     } catch (e) {
       toast({ title: "Failed to clear", description: (e as Error).message, variant: "destructive" });
@@ -141,87 +125,66 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
   };
 
   return (
+    <>
+      {showMapPicker && (
+        <Suspense fallback={null}>
+          <MapPickerModal
+            initialLat={currentLat}
+            initialLng={currentLng}
+            onConfirm={handleMapConfirm}
+            onCancel={() => setShowMapPicker(false)}
+          />
+        </Suspense>
+      )}
     <Card className="overflow-hidden">
       <CardHeader className="bg-emerald-50 dark:bg-emerald-950/20 border-b border-emerald-200 dark:border-emerald-800/30 pb-3 pt-4 px-5">
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <CardTitle className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Verified Ancestor Location</CardTitle>
-            {hasCoords && !editing && (
+            {hasCoords && (
               <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-emerald-100 dark:bg-emerald-900/40 text-emerald-700 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700 px-1.5 py-0.5 rounded-full">
                 <CheckCircle2 className="w-2.5 h-2.5" /> Set
               </span>
             )}
           </div>
-          {!editing && (
-            <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30" onClick={() => { setLatStr(currentLat != null ? String(currentLat) : ""); setLngStr(currentLng != null ? String(currentLng) : ""); setEditing(true); }}>
+          <div className="flex items-center gap-1">
+            <Button
+              size="sm"
+              variant="ghost"
+              className="h-7 text-xs gap-1 text-emerald-700 dark:text-emerald-400 hover:bg-emerald-100 dark:hover:bg-emerald-900/30"
+              onClick={() => setShowMapPicker(true)}
+              disabled={saving}
+            >
               <Pencil className="w-3 h-3" />
-              {hasCoords ? "Edit" : "Add Location"}
-            </Button>
-          )}
-        </div>
-        {!editing && (
-          <p className="text-xs text-muted-foreground mt-1">
-            {hasCoords
-              ? `Lat ${currentLat?.toFixed(5)}, Lng ${currentLng?.toFixed(5)} — shown as a solid green pin on the Atlas.`
-              : "Store an exact coordinate from a census address, allotment record, or boarding school assignment. Verified points appear as solid green pins on the Atlas."}
-          </p>
-        )}
-      </CardHeader>
-
-      {editing && (
-        <CardContent className="p-4 space-y-3">
-          <p className="text-xs text-muted-foreground leading-relaxed">
-            Enter decimal latitude and longitude from a verified documentary source (census record, allotment location, boarding school address, etc.). These coordinates will appear as a <strong>solid green pin</strong> on the Atlas, distinct from inferred tribal-nation placements.
-          </p>
-          <div className="grid grid-cols-2 gap-3">
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Latitude</label>
-              <input
-                type="number"
-                step="any"
-                min={-90}
-                max={90}
-                placeholder="e.g. 35.46"
-                value={latStr}
-                onChange={e => setLatStr(e.target.value)}
-                className="w-full h-8 text-sm px-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-xs font-medium text-foreground">Longitude</label>
-              <input
-                type="number"
-                step="any"
-                min={-180}
-                max={180}
-                placeholder="e.g. -94.97"
-                value={lngStr}
-                onChange={e => setLngStr(e.target.value)}
-                className="w-full h-8 text-sm px-2 rounded-md border border-input bg-background focus:outline-none focus:ring-2 focus:ring-ring font-mono"
-              />
-            </div>
-          </div>
-          <div className="flex items-center gap-2 pt-1">
-            <Button size="sm" className="h-7 text-xs gap-1 bg-emerald-700 hover:bg-emerald-800 text-white" onClick={handleSave} disabled={saving}>
-              <CheckCircle2 className="w-3 h-3" />
-              {saving ? "Saving…" : "Save Location"}
+              {hasCoords ? "Edit on Map" : "Add Location"}
             </Button>
             {hasCoords && (
-              <Button size="sm" variant="ghost" className="h-7 text-xs gap-1 text-destructive hover:bg-destructive/10" onClick={handleClear} disabled={saving}>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="h-7 text-xs gap-1 text-destructive hover:bg-destructive/10"
+                onClick={handleClear}
+                disabled={saving}
+              >
                 <X className="w-3 h-3" /> Clear
               </Button>
             )}
-            <Button size="sm" variant="ghost" className="h-7 text-xs ml-auto text-muted-foreground" onClick={() => setEditing(false)} disabled={saving}>
-              Cancel
-            </Button>
           </div>
-          <p className="text-[10px] text-muted-foreground/60">
-            Leave both fields blank and save to remove previously stored coordinates. The Atlas will fall back to record-based or tribal-nation inference.
-          </p>
+        </div>
+        <p className="text-xs text-muted-foreground mt-1">
+          {hasCoords
+            ? `Lat ${currentLat?.toFixed(5)}, Lng ${currentLng?.toFixed(5)} — shown as a solid green pin on the Atlas.`
+            : "Store an exact coordinate from a census address, allotment record, or boarding school assignment. Verified points appear as solid green pins on the Atlas."}
+        </p>
+      </CardHeader>
+      {saving && (
+        <CardContent className="p-3">
+          <p className="text-xs text-muted-foreground animate-pulse">Saving location…</p>
         </CardContent>
       )}
     </Card>
+    </>
   );
 }
 
