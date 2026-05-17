@@ -1,0 +1,211 @@
+We need to stop thinking in terms of hardcoded formatter rules only.
+
+We need a Jurisdictional Rules Acquisition + Registry System.
+
+Goal:
+Build a continuously expandable jurisdiction intelligence layer that can ingest, store, normalize, and apply physical filing/recording rules from external jurisdictions without disrupting the existing doctrine ecosystem.
+
+This is additive only.
+
+Do not alter:
+- doctrine engines
+- tribal logic
+- NFR systems
+- intake systems
+- templates
+- signing/stamping systems
+- audit systems
+- electronic tribal court seal workflows
+- existing generated documents
+
+Nothing in this system may override or conflict with existing governing principles or previously approved implementation logic. This system only acquires, maps, normalizes, and applies external filing/recording presentation requirements.
+
+CORE IDEA:
+Separate:
+1. substantive doctrine generation
+FROM
+2. jurisdiction-specific physical formatting/output requirements.
+
+We are building a “jurisdiction intelligence registry.”
+
+Create these components:
+
+==================================================
+1. jurisdiction-registry table
+==================================================
+
+Fields:
+
+- id
+- jurisdiction_code
+- jurisdiction_name
+- state
+- county
+- court_type
+- filing_type
+- source_url
+- source_document_title
+- source_last_checked
+- active
+- notes
+
+==================================================
+2. formatting_rules table
+==================================================
+
+Fields:
+
+- jurisdiction_code
+- margins_top
+- margins_bottom
+- margins_left
+- margins_right
+- page_size
+- font_family
+- font_size
+- line_spacing
+- line_numbers_required
+- caption_required
+- footer_required
+- certificate_required
+- hole_punch_reserved
+- recording_return_address_required
+- first_page_special_margin
+- max_page_length
+- accepted_file_types
+- efiling_supported
+- physical_recording_supported
+- notarization_required
+- wet_signature_required
+- additional_rules_json
+
+==================================================
+3. jurisdiction-source-ingest service
+==================================================
+
+Purpose:
+Allow admin/manual ingestion of:
+- recorder manuals
+- local court rules
+- filing PDFs
+- e-filing instructions
+- county formatting guides
+- secretary of state guides
+- tax tribunal filing standards
+
+This service extracts formatting requirements and maps them into structured rules.
+
+==================================================
+4. rules normalization layer
+==================================================
+
+Normalize different terminology into unified system rules.
+
+Example:
+“one inch top margin”
+“1-inch top border”
+“top margin: 1.0in”
+
+All normalize into:
+margins_top = 1
+
+==================================================
+5. initial jurisdictions to support
+==================================================
+
+California
+- Kern County Recorder
+- California Superior Court
+- California Court of Appeal
+
+Michigan
+- Oakland County
+- Michigan Tax Tribunal
+- Wayne County
+- Detroit Recorder
+
+Louisiana
+- Orleans Parish
+- Caddo Parish
+
+Georgia
+- Fulton County
+- DeKalb County
+
+Mississippi
+- Hinds County
+- Jackson County
+
+Alabama
+- Montgomery County
+- Jefferson County
+
+Federal
+- USDC Eastern District California
+- USDC Eastern District Michigan
+- Court of Federal Claims
+- Federal Circuit
+
+==================================================
+6. preserve existing tribal formatting/stamping
+==================================================
+
+Critical:
+Preserve the existing:
+“By Order of the Mathias El Tribe Supreme Court”
+date block
+“Office of the Chief Justice and Trustee”
+electronic stamp/seal/signature implementation.
+
+Do not recreate it.
+Do not replace it.
+Do not require reconfiguration.
+Reuse the existing implementation exactly as currently functioning.
+
+==================================================
+7. acquisition strategy
+==================================================
+
+We are NOT manually coding every jurisdiction forever.
+
+Build:
+- registry-driven rules
+- expandable ingestion
+- source tracking
+- source validation
+- source refresh timestamps
+
+The system should eventually support:
+- automatic updates
+- AI-assisted extraction
+- manual override
+- admin review
+- jurisdiction versioning
+
+==================================================
+8. architecture rule
+==================================================
+
+This system sits AFTER doctrine generation and BEFORE export/print/e-filing.
+
+It must never:
+- reinterpret legal doctrine
+- alter tribal authority language
+- rewrite generated legal substance
+- weaken existing ecosystem behavior
+
+It only adjusts physical filing/recording presentation requirements.
+
+==================================================
+9. future-ready standards support
+==================================================
+
+Architect for eventual compatibility with:
+- CM/ECF workflows
+- PACER-style filing logic
+- LegalXML
+- Akoma Ntoso
+- LegalRuleML
+- ECF standards
+
+But do not overengineer phase one.
