@@ -12,6 +12,7 @@ import {
   X,
   LogOut,
   GraduationCap,
+  UserCircle,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -24,6 +25,7 @@ const navigation = [
   { name: "Community Forum", href: "/forum", icon: MessageSquare },
   { name: "Announcements", href: "/announcements", icon: Megaphone },
   { name: "SDU University", href: "/university", icon: GraduationCap },
+  { name: "My Profile", href: "/profile", icon: UserCircle },
   { name: "Admin", href: "/admin", icon: Shield },
 ];
 

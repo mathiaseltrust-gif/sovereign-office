@@ -1093,15 +1093,20 @@ function ChiefQuickLinks() {
 }
 
 /* ── notification preferences ── */
-const NOTIFICATION_CHANNELS = [
-  { key: "familyGovernance", label: "Family Governance" },
-  { key: "welfareUpdates", label: "Welfare Updates" },
-  { key: "trustInstruments", label: "Trust Instruments" },
-  { key: "recorderFilings", label: "Recorder Filings" },
-  { key: "courtHearings", label: "Court Hearings" },
-  { key: "tribalAnnouncements", label: "Tribal Announcements" },
-  { key: "email", label: "Email" },
-  { key: "push", label: "Push" },
+const EMAIL_NOTIFICATION_TOGGLES = [
+  { key: "emailOnFamilyGovernance", label: "Family Governance" },
+  { key: "emailOnWelfareUpdate", label: "Welfare Updates" },
+  { key: "emailOnTrustInstrument", label: "Trust Instruments" },
+  { key: "emailOnRecorderFiling", label: "Recorder Filings" },
+  { key: "emailOnCourtHearing", label: "Court & Calendar Events" },
+  { key: "emailOnTribalAnnouncement", label: "Tribal Announcements" },
+  { key: "emailOnTaskAssigned", label: "Task Assignments" },
+  { key: "emailOnComplaintUpdate", label: "Complaint Updates" },
+  { key: "emailOnDirectMessage", label: "Direct Messages" },
+  { key: "emailOnLineageReview", label: "Lineage Review" },
+  { key: "emailOnLineageApproved", label: "Lineage Approved" },
+  { key: "emailOnLineageRejected", label: "Lineage Updates" },
+  { key: "emailOnEnrollmentGranted", label: "Enrollment Granted" },
 ];
 
 /* ── ai intake questions ── */
@@ -2552,23 +2557,48 @@ export default function ProfilePage() {
       {/* ── Notification preferences ── */}
       <Card>
         <CardHeader className="pb-3">
-          <CardTitle className="text-sm uppercase tracking-widest">Notification Preferences</CardTitle>
-          <p className="text-xs text-muted-foreground">Red flag and TRO alerts are always delivered.</p>
+          <CardTitle className="text-sm uppercase tracking-widest">Email Notification Preferences</CardTitle>
+          <p className="text-xs text-muted-foreground">Choose which events trigger an email to your inbox.</p>
         </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-            {NOTIFICATION_CHANNELS.map((ch) => (
-              <label key={ch.key} className="flex items-center gap-2 cursor-pointer">
-                <input
-                  type="checkbox"
-                  className="w-4 h-4 accent-primary"
-                  checked={notifPrefs[ch.key] ?? true}
-                  onChange={(e) => setNotifPrefs((prev) => ({ ...prev, [ch.key]: e.target.checked }))}
-                />
-                <span className="text-sm">{ch.label}</span>
-              </label>
-            ))}
+        <CardContent className="space-y-5">
+          {/* Master toggle */}
+          <label className="flex items-center justify-between gap-3 cursor-pointer">
+            <div>
+              <p className="text-sm font-medium">Receive notification emails</p>
+              <p className="text-xs text-muted-foreground">Master switch — turn off to stop all non-critical emails.</p>
+            </div>
+            <input
+              type="checkbox"
+              className="w-4 h-4 accent-primary shrink-0"
+              checked={notifPrefs.email ?? false}
+              onChange={(e) => setNotifPrefs((p) => ({ ...p, email: e.target.checked }))}
+            />
+          </label>
+
+          {/* Always-on notice */}
+          <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 text-xs text-amber-800 leading-relaxed">
+            <strong>TRO alerts and red-flag alerts</strong> are always delivered by email — they cannot be turned off.
           </div>
+
+          {/* Per-category toggles — shown only when master email is on */}
+          {(notifPrefs.email ?? false) && (
+            <div className="space-y-2">
+              <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Per-category settings</p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-1.5">
+                {EMAIL_NOTIFICATION_TOGGLES.map((toggle) => (
+                  <label key={toggle.key} className="flex items-center gap-2 cursor-pointer rounded-md px-2 py-1.5 hover:bg-muted/50 transition-colors">
+                    <input
+                      type="checkbox"
+                      className="w-3.5 h-3.5 accent-primary shrink-0"
+                      checked={notifPrefs[toggle.key] !== false}
+                      onChange={(e) => setNotifPrefs((p) => ({ ...p, [toggle.key]: e.target.checked }))}
+                    />
+                    <span className="text-sm">{toggle.label}</span>
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

@@ -1,12 +1,36 @@
+import { useState, useEffect } from "react";
 import { Layout } from "@/components/layout";
 import { useAuth } from "@/lib/auth";
 import { getRoleConfig } from "@/lib/role-config";
-import { UserCircle, Mail, Shield, Scale } from "lucide-react";
+import { getAuthToken } from "@/lib/api";
+import { UserCircle, Mail, Shield, Scale, Bell, Lock, Loader2 } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+
+const EMAIL_NOTIFICATION_TOGGLES = [
+  { key: "emailOnFamilyGovernance", label: "Family Governance" },
+  { key: "emailOnWelfareUpdate", label: "Welfare Updates" },
+  { key: "emailOnTrustInstrument", label: "Trust Instruments" },
+  { key: "emailOnRecorderFiling", label: "Recorder Filings" },
+  { key: "emailOnCourtHearing", label: "Court & Calendar Events" },
+  { key: "emailOnTribalAnnouncement", label: "Tribal Announcements" },
+  { key: "emailOnTaskAssigned", label: "Task Assignments" },
+  { key: "emailOnComplaintUpdate", label: "Complaint Updates" },
+  { key: "emailOnDirectMessage", label: "Direct Messages" },
+  { key: "emailOnLineageReview", label: "Lineage Review" },
+  { key: "emailOnLineageApproved", label: "Lineage Approved" },
+  { key: "emailOnLineageRejected", label: "Lineage Updates" },
+  { key: "emailOnEnrollmentGranted", label: "Enrollment Granted" },
+];
 
 export default function MemberProfile() {
   const { user } = useAuth();
+  const { toast } = useToast();
   const roles = user?.roles ?? [];
   const config = getRoleConfig(roles);
+
+  const [isLoading, setIsLoading] = useState(true);
+  const [isSaving, setIsSaving] = useState(false);
+  const [notifPrefs, setNotifPrefs] = useState<Record<string, boolean>>({});
 
   const initials = user?.name
     ?.split(" ")
@@ -15,12 +39,59 @@ export default function MemberProfile() {
     .toUpperCase()
     .slice(0, 2) ?? "?";
 
+  useEffect(() => {
+    (async () => {
+      setIsLoading(true);
+      try {
+        const token = getAuthToken();
+        const r = await fetch("/api/user/profile", {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (r.ok) {
+          const d = await r.json();
+          const prefs = (d.profile?.notificationPreferences ?? {}) as Record<string, boolean>;
+          setNotifPrefs(prefs);
+        }
+      } catch {
+        /* ignore */
+      } finally {
+        setIsLoading(false);
+      }
+    })();
+  }, []);
+
+  const handleSave = async () => {
+    setIsSaving(true);
+    try {
+      const token = getAuthToken();
+      const r = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ notificationPreferences: notifPrefs }),
+      });
+      if (r.ok) {
+        toast({ title: "Preferences saved", description: "Your notification settings have been updated." });
+      } else {
+        toast({ title: "Save failed", description: "Please try again.", variant: "destructive" });
+      }
+    } catch {
+      toast({ title: "Error", description: "Network error.", variant: "destructive" });
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const masterEmailOn = notifPrefs.email ?? false;
+
   return (
     <Layout>
       <div className="p-6 max-w-3xl mx-auto space-y-6">
         <div>
           <h1 className="text-2xl font-bold text-foreground">My Profile</h1>
-          <p className="text-sm text-muted-foreground mt-1">Your tribal membership record and standing.</p>
+          <p className="text-sm text-muted-foreground mt-1">Your tribal membership record and notification preferences.</p>
         </div>
 
         <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
@@ -67,6 +138,79 @@ export default function MemberProfile() {
               </div>
             </div>
           </div>
+        </div>
+
+        {/* Notification Preferences */}
+        <div className="bg-card border border-card-border rounded-xl shadow-sm overflow-hidden">
+          <div className="flex items-center gap-3 px-5 py-4 border-b border-card-border">
+            <Bell className="w-4 h-4 text-primary" />
+            <div>
+              <h2 className="text-sm font-semibold text-card-foreground">Email Notification Preferences</h2>
+              <p className="text-xs text-muted-foreground mt-0.5">Choose which events trigger an email to your inbox.</p>
+            </div>
+          </div>
+
+          {isLoading ? (
+            <div className="px-5 py-6 flex items-center gap-2 text-muted-foreground text-sm">
+              <Loader2 className="h-4 w-4 animate-spin" /> Loading preferences…
+            </div>
+          ) : (
+            <div className="px-5 py-5 space-y-5">
+              {/* Master toggle */}
+              <label className="flex items-center justify-between gap-3 cursor-pointer">
+                <div>
+                  <p className="text-sm font-medium text-foreground">Receive notification emails</p>
+                  <p className="text-xs text-muted-foreground">Master switch — turn off to stop all non-critical emails.</p>
+                </div>
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 accent-primary shrink-0"
+                  checked={masterEmailOn}
+                  onChange={(e) => setNotifPrefs((p) => ({ ...p, email: e.target.checked }))}
+                />
+              </label>
+
+              {/* Always-on notice */}
+              <div className="rounded-lg border border-amber-200 bg-amber-50/60 px-3 py-2 flex items-start gap-2">
+                <Lock className="h-3.5 w-3.5 text-amber-600 shrink-0 mt-0.5" />
+                <p className="text-xs text-amber-800 leading-relaxed">
+                  <strong>TRO alerts and red-flag alerts</strong> are always delivered by email — they cannot be turned off.
+                </p>
+              </div>
+
+              {/* Per-category toggles — shown only when master email is on */}
+              {masterEmailOn && (
+                <div className="space-y-2">
+                  <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Per-category settings</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5">
+                    {EMAIL_NOTIFICATION_TOGGLES.map((toggle) => (
+                      <label key={toggle.key} className="flex items-center gap-2.5 cursor-pointer rounded-md px-2.5 py-2 hover:bg-muted/40 transition-colors">
+                        <input
+                          type="checkbox"
+                          className="w-3.5 h-3.5 accent-primary shrink-0"
+                          checked={notifPrefs[toggle.key] !== false}
+                          onChange={(e) => setNotifPrefs((p) => ({ ...p, [toggle.key]: e.target.checked }))}
+                        />
+                        <span className="text-sm text-foreground">{toggle.label}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div className="flex items-center gap-3 pt-2 border-t border-card-border">
+                <button
+                  onClick={handleSave}
+                  disabled={isSaving}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-60"
+                >
+                  {isSaving && <Loader2 className="h-4 w-4 animate-spin" />}
+                  Save Preferences
+                </button>
+                <p className="text-xs text-muted-foreground">Changes take effect on the next notification.</p>
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="bg-card border border-card-border rounded-xl shadow-sm">

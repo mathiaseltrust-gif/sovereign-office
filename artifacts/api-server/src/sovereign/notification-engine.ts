@@ -38,7 +38,62 @@ export interface NotificationInput {
   metadata?: Record<string, unknown>;
 }
 
-async function getUserEmailPreference(userId: number): Promise<{ email: string; name: string; emailOptIn: boolean } | null> {
+/**
+ * Maps a NotificationCategory to its per-category email preference key stored
+ * in notificationPreferences JSONB.  Entries absent from this map are treated
+ * as always-on (e.g. tro_alert, red_flag_alert).
+ */
+const CATEGORY_EMAIL_PREF_KEY: Partial<Record<NotificationCategory, string>> = {
+  family_governance: "emailOnFamilyGovernance",
+  welfare_update: "emailOnWelfareUpdate",
+  trust_instrument: "emailOnTrustInstrument",
+  recorder_filing: "emailOnRecorderFiling",
+  court_hearing: "emailOnCourtHearing",
+  tribal_announcement: "emailOnTribalAnnouncement",
+  task_assigned: "emailOnTaskAssigned",
+  complaint_update: "emailOnComplaintUpdate",
+  direct_message: "emailOnDirectMessage",
+  enrollment_granted: "emailOnEnrollmentGranted",
+  lineage_review: "emailOnLineageReview",
+  lineage_approved: "emailOnLineageApproved",
+  lineage_rejected: "emailOnLineageRejected",
+};
+
+/** Categories that always trigger an email regardless of the member's preferences. */
+const ALWAYS_ON_CATEGORIES = new Set<NotificationCategory>([
+  "tro_alert",
+  "red_flag_alert",
+]);
+
+/**
+ * Determines whether an email should be sent for the given category, based on
+ * the member's notificationPreferences object.
+ *
+ * Rules:
+ *  1. Always-on categories (TRO / red-flag) bypass all toggles.
+ *  2. The master `email` flag must be true (defaults to false when absent).
+ *  3. If the per-category flag is explicitly set to false, skip.
+ *  4. If the per-category flag is absent, default to true (opt-in by default).
+ */
+function shouldSendEmailForCategory(
+  prefs: Record<string, unknown>,
+  category: NotificationCategory,
+): boolean {
+  if (ALWAYS_ON_CATEGORIES.has(category)) return true;
+
+  const masterOptIn = typeof prefs.email === "boolean" ? prefs.email : false;
+  if (!masterOptIn) return false;
+
+  const prefKey = CATEGORY_EMAIL_PREF_KEY[category];
+  if (!prefKey) return true;
+
+  const categoryFlag = prefs[prefKey];
+  return typeof categoryFlag === "boolean" ? categoryFlag : true;
+}
+
+async function getUserEmailPreference(
+  userId: number,
+): Promise<{ email: string; name: string; notificationPreferences: Record<string, unknown> } | null> {
   try {
     const [row] = await db
       .select({
@@ -51,9 +106,8 @@ async function getUserEmailPreference(userId: number): Promise<{ email: string; 
       .where(eq(usersTable.id, userId))
       .limit(1);
     if (!row) return null;
-    const prefs = (row.notificationPreferences ?? {}) as Record<string, unknown>;
-    const emailOptIn = typeof prefs.email === "boolean" ? prefs.email : false;
-    return { email: row.email, name: row.name, emailOptIn };
+    const notificationPreferences = (row.notificationPreferences ?? {}) as Record<string, unknown>;
+    return { email: row.email, name: row.name, notificationPreferences };
   } catch (err) {
     logger.error({ err, userId }, "Failed to fetch user email preferences");
     return null;
@@ -83,7 +137,7 @@ export async function createNotification(input: NotificationInput): Promise<type
     try {
       if (input.userId != null) {
         const userInfo = await getUserEmailPreference(input.userId);
-        if (userInfo?.emailOptIn) {
+        if (userInfo && shouldSendEmailForCategory(userInfo.notificationPreferences, input.category)) {
           await sendNotificationEmail({
             to: userInfo.email,
             name: userInfo.name,
@@ -95,15 +149,33 @@ export async function createNotification(input: NotificationInput): Promise<type
           });
         }
       } else {
-        // Broadcast: DB-side filter for opted-in users, concurrent sends
-        const optedInUsers = await db
-          .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+        // Broadcast: for non-always-on categories, prefilter at DB level on the
+        // master email flag to reduce the result set, then apply per-category JS
+        // filter.  Always-on categories (tro_alert, red_flag_alert) skip the
+        // master flag check and query all users with a profile.
+        const isAlwaysOn = ALWAYS_ON_CATEGORIES.has(input.category);
+        const candidateUsers = await db
+          .select({
+            id: usersTable.id,
+            email: usersTable.email,
+            name: usersTable.name,
+            notificationPreferences: profilesTable.notificationPreferences,
+          })
           .from(usersTable)
           .innerJoin(profilesTable, eq(profilesTable.userId, usersTable.id))
-          .where(sql`${profilesTable.notificationPreferences}->>'email' = 'true'`);
+          .where(
+            isAlwaysOn
+              ? undefined
+              : sql`${profilesTable.notificationPreferences}->>'email' = 'true'`,
+          );
+
+        const eligibleUsers = candidateUsers.filter((u) => {
+          const prefs = (u.notificationPreferences ?? {}) as Record<string, unknown>;
+          return shouldSendEmailForCategory(prefs, input.category);
+        });
 
         await Promise.all(
-          optedInUsers.map((u) =>
+          eligibleUsers.map((u) =>
             sendNotificationEmail({
               to: u.email,
               name: u.name,
