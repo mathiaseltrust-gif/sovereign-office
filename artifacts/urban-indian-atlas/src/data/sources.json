@@ -1,0 +1,47 @@
+{
+  "acts_of_congress": [
+    { "id": "src-001", "title": "Trade and Intercourse Act (Non-Intercourse Act)", "year": 1790, "citation": "1 Stat. 137; 25 U.S.C. § 177", "url": "https://www.loc.gov/law/help/statutes-at-large/1st-congress.php", "status": "active" },
+    { "id": "src-002", "title": "Indian Removal Act", "year": 1830, "citation": "4 Stat. 411", "url": "https://www.loc.gov/law/help/statutes-at-large/21st-congress.php", "status": "superseded" },
+    { "id": "src-003", "title": "General Allotment Act (Dawes Act)", "year": 1887, "citation": "24 Stat. 388", "url": "https://www.loc.gov/law/help/statutes-at-large/49th-congress.php", "status": "repealed" },
+    { "id": "src-004", "title": "Indian Reorganization Act", "year": 1934, "citation": "48 Stat. 984; 25 U.S.C. §§ 5101–5144", "url": "https://www.loc.gov/law/help/statutes-at-large/73rd-congress.php", "status": "active" },
+    { "id": "src-005", "title": "Indian Relocation Act", "year": 1956, "citation": "70 Stat. 986; Pub. L. 84-959", "url": "https://www.loc.gov/law/help/statutes-at-large/84th-congress.php", "status": "terminated" },
+    { "id": "src-006", "title": "Indian Civil Rights Act", "year": 1968, "citation": "82 Stat. 77; 25 U.S.C. §§ 1301–1304", "url": "https://www.loc.gov/law/help/statutes-at-large/90th-congress.php", "status": "active" },
+    { "id": "src-007", "title": "Indian Education Act", "year": 1972, "citation": "86 Stat. 334; 20 U.S.C. §§ 7401–7492", "url": "https://www.loc.gov/law/help/statutes-at-large/92nd-congress.php", "status": "active" },
+    { "id": "src-008", "title": "Indian Self-Determination and Education Assistance Act", "year": 1975, "citation": "88 Stat. 2203; 25 U.S.C. §§ 5301 et seq.", "url": "https://www.nicoa.org/isdeaa/", "status": "active" },
+    { "id": "src-009", "title": "Indian Health Care Improvement Act", "year": 1976, "citation": "90 Stat. 1400; 25 U.S.C. §§ 1601–1683", "url": "https://www.ihs.gov/ihcia/", "status": "active" },
+    { "id": "src-010", "title": "American Indian Religious Freedom Act", "year": 1978, "citation": "92 Stat. 469; 42 U.S.C. § 1996", "url": "https://www.loc.gov/law/help/statutes-at-large/95th-congress.php", "status": "active" },
+    { "id": "src-011", "title": "Indian Child Welfare Act", "year": 1978, "citation": "92 Stat. 3069; 25 U.S.C. §§ 1901–1963", "url": "https://www.nicwa.org/indian-child-welfare-act/", "status": "active" },
+    { "id": "src-012", "title": "Native American Graves Protection and Repatriation Act", "year": 1990, "citation": "104 Stat. 3048; 25 U.S.C. §§ 3001–3013", "url": "https://www.nps.gov/nagpra/", "status": "active" }
+  ],
+  "federal_reports": [
+    { "id": "src-020", "title": "The Problem of Indian Administration (Meriam Report)", "year": 1928, "author": "Lewis Meriam et al.", "url": "https://narf.org/nill/resources/meriam.html", "description": "First major federal survey documenting catastrophic poverty, disease, and educational failure in Indian communities caused by allotment and boarding school policy." },
+    { "id": "src-021", "title": "Indian Education: A National Tragedy — A National Challenge (Kennedy Report)", "year": 1969, "author": "Senate Special Subcommittee on Indian Education", "url": "https://eric.ed.gov/?id=ED034749", "description": "Documented systematic failure of federal and public schools to educate Indian children. Called for tribal community control of Indian education." },
+    { "id": "src-022", "title": "A Quiet Crisis: Federal Funding and Unmet Needs in Indian Country", "year": 2003, "author": "U.S. Commission on Civil Rights", "url": "https://www.usccr.gov/pubs/docs/na0703.pdf", "description": "Documented systematic federal underfunding of Indian health, education, and housing programs relative to non-Indian equivalents." }
+  ],
+  "census_materials": [
+    { "id": "src-030", "title": "U.S. Census Records 1790–1960 (American Indian Enumeration)", "url": "https://www.census.gov/history/www/genealogy/decennial_census_records/", "description": "Primary source for tracing census racial classification of Indian families. Enumerator instructions from each decade show policy-driven reclassification." },
+    { "id": "src-031", "title": "2020 Census American Indian and Alaska Native Population", "url": "https://www.census.gov/library/stories/2021/08/improved-race-ethnicity-measures-reveal-united-states-population-much-more-multiracial.html", "description": "Shows 39% increase in American Indian self-identification from 2010 — documenting recovery from decades of under-reporting, not population growth." }
+  ],
+  "state_records": [
+    { "id": "src-040", "title": "Virginia Bureau of Vital Statistics Records (Walter Plecker Era)", "years": "1912–1946", "url": "https://www.encyclopediavirginia.org/Racial_Integrity_Laws_of_the_1920s", "description": "Birth, death, and marriage records from Virginia showing systematic reclassification of Indian families as 'colored' under Plecker's administration." }
+  ],
+  "health_policy": [
+    { "id": "src-050", "title": "Urban Indian Health: A Review of the Literature", "author": "Urban Indian Health Institute", "url": "https://www.uihi.org/resources/urban-indian-health/", "description": "Comprehensive review documenting health disparities for urban Indians and the gap in federal health services between reservation and urban populations." },
+    { "id": "src-051", "title": "Invisible Tribes: Urban Indians and Their Health in a Changing World", "author": "Urban Indian Health Institute", "year": 2008, "url": "https://www.uihi.org/resources/invisible-tribes/", "description": "Documents how urban Indians are systematically excluded from federal health data, making their health needs invisible to policymakers." }
+  ],
+  "urban_indian_policy": [
+    { "id": "src-060", "title": "Gathering of Voices for the Native Communities", "author": "Urban Indian Health Institute", "year": 2004, "url": "https://www.uihi.org/resources/", "description": "Community health assessment documenting the needs and conditions of urban Indian communities in major cities." },
+    { "id": "src-061", "title": "Urban Indian Statistics", "author": "National Council of Urban Indian Health", "url": "https://ncuih.org/data-and-resources/", "description": "Current statistics on urban Indian population, health, and service access." }
+  ],
+  "court_cases": [
+    { "id": "src-070", "title": "Worcester v. Georgia", "year": 1832, "citation": "31 U.S. 515 (1832)", "url": "https://supreme.justia.com/cases/federal/us/31/515/", "description": "States have no authority over Indian nations. Federal-tribal relationship is nation-to-nation. Still controlling law." },
+    { "id": "src-071", "title": "Passamaquoddy Tribe v. Morton", "year": 1975, "citation": "528 F.2d 370 (1st Cir. 1975)", "url": "https://law.justia.com/cases/federal/appellate-courts/F2/528/370/419893/", "description": "Federal trust responsibility extends to tribes not on BIA administrative recognition list. Being 'unrecognized' does not eliminate trust rights." },
+    { "id": "src-072", "title": "Morton v. Mancari", "year": 1974, "citation": "417 U.S. 535 (1974)", "url": "https://supreme.justia.com/cases/federal/us/417/535/", "description": "Indian status is a political, not racial, classification. Federal Indian preference programs are not racial discrimination." },
+    { "id": "src-073", "title": "Cobell v. Salazar", "year": 2009, "citation": "No. 1:96-cv-01285 (D.D.C.)", "url": "https://www.cobellsettlement.com/", "description": "$3.4 billion settlement for federal mismanagement of Individual Indian Money trust accounts since 1887." },
+    { "id": "src-074", "title": "Loper Bright Enterprises v. Raimondo", "year": 2024, "citation": "603 U.S. ___ (2024)", "url": "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf", "description": "Chevron deference overturned. Agency interpretations of Indian law statutes are now subject to independent judicial review." }
+  ],
+  "maps": [
+    { "id": "src-080", "title": "Native Land Digital — Treaty and Territory Maps", "url": "https://native-land.ca/", "description": "Interactive map of Indigenous territories, treaties, and languages." },
+    { "id": "src-081", "title": "Homeland by Vine Deloria Jr. — Indian Land Cession Maps", "url": "https://digitalmaine.com/cgi/viewcontent.cgi?article=1009&context=spo_docs", "description": "Detailed maps of land cessions from treaty era through allotment." }
+  ]
+}

@@ -1,0 +1,324 @@
+Build an interactive web application called “Urban Indian Continuity Atlas.”
+
+Purpose:
+This application must show how laws, public policies, federal/state classifications, urbanization, public schools, health systems, census records, housing policy, labor migration, and administrative reclassification affected Indigenous identity, family continuity, community memory, and modern urban Indian life.
+
+This is not primarily a boarding school project. Boarding schools may appear only when relevant to a broader policy era, source collection, or identity-disruption pattern. The main focus is urban Indians, reclassified families, public-school assimilation, migration, city records, health access, and continuity despite government classification.
+
+Core Concept:
+The app is a historical continuity and impact engine for urban Indians. It must combine:
+1. timeline
+2. map
+3. policy filters
+4. identity/reclassification filters
+5. family/ancestor overlays
+6. source archive
+7. modern impact notes
+
+Primary Question:
+How did federal, state, county, school, health, census, and urban policies affect Indigenous identity and continuity across generations?
+
+Do not frame Indigenous people as disappearing.
+Separate actual identity from government classification.
+Show continuity despite reclassification.
+
+Main Layout:
+Create a full-screen explorer with:
+
+Left Sidebar:
+Filters
+
+Center:
+Interactive Map
+
+Bottom:
+Timeline Slider
+
+Right Sidebar:
+Selected Event Details
+
+Main Filters:
+- Reclassification
+- Census Identity
+- Public Schools
+- Urban Relocation
+- Health Access
+- Indian Health Services
+- State Records
+- County Records
+- Housing
+- Labor Migration
+- Land Loss
+- Taxation
+- Jurisdiction
+- Citizenship
+- Voting Rights
+- Religious/Cultural Suppression
+- Family Continuity
+- Tribal Continuity
+- Federal Trust Responsibility
+- Other Identifiable Groups of American Indians
+- Administrative Misclassification
+
+Event Types:
+- Act of Congress
+- Treaty
+- Court Decision
+- Executive Order
+- Federal Policy
+- State Policy
+- County Action
+- Census Classification
+- Public School Policy
+- Urban Relocation Policy
+- Health Policy
+- Housing Policy
+- Labor Policy
+- Identity/Reclassification Event
+- Land Record Event
+- Court/Administrative Classification Event
+
+Each event must include these fields:
+
+id
+title
+short_title
+date_start
+date_end
+year
+era
+event_type
+policy_area
+description
+plain_language_summary
+identity_impact
+reclassification_impact
+continuity_impact
+family_impact
+public_school_impact
+urbanization_impact
+health_access_impact
+housing_impact
+labor_migration_impact
+land_impact
+jurisdiction_impact
+modern_effect
+affected_people
+affected_regions
+states_affected
+coordinates
+geojson_layer
+source_title
+source_url
+source_type
+citation
+public_law_number
+statutes_at_large_citation
+congress_number
+case_name
+status
+tags
+severity_level
+continuity_survival_note
+ancestor_relevance_note
+
+Important Event Categories:
+Include initial seed events for:
+
+1790 Trade and Intercourse Act
+1819 Civilization Fund Act
+1830 Indian Removal Act
+1851 Indian Appropriations Act
+1871 End of Treaty-Making Act
+1887 Dawes Act
+1890 Census racial classification systems
+1924 Indian Citizenship Act
+1928 Meriam Report
+1934 Indian Reorganization Act
+1940s–1950s urban migration patterns
+1946 Indian Claims Commission Act
+1953 Termination policies
+1956 Indian Relocation Act
+1968 Indian Civil Rights Act
+1972 Indian Education Act
+1975 Indian Self-Determination and Education Assistance Act
+1976 Indian Health Care Improvement Act
+1978 American Indian Religious Freedom Act
+1978 Indian Child Welfare Act
+1988 Indian Gaming Regulatory Act
+1990 Native American Graves Protection and Repatriation Act
+1994 AIRFA Amendments
+2010 IHCIA permanent reauthorization
+2024 Loper Bright v. Raimondo
+
+Urban Indian Focus Areas:
+The app must track:
+- movement from tribal/rural lands into cities
+- public school assimilation
+- loss or alteration of Indian identity in records
+- census racial reclassification
+- state and county record distortion
+- health eligibility barriers
+- housing displacement
+- employment/labor migration
+- loss of community record continuity
+- continued Indigenous identity despite paperwork changes
+
+Ancestor Overlay Feature:
+Allow users to enter:
+
+ancestor name
+surname
+birth year
+death year
+known cities
+known counties
+known states
+known tribal/community identity
+known classifications in records
+school records
+census records
+health records
+land records
+family notes
+
+Then show:
+- events during that ancestor’s lifetime
+- events near that ancestor’s known location
+- policies that may have affected classification
+- public school or census systems active during that time
+- urbanization patterns active during that time
+- continuity notes
+
+Use careful language:
+“potentially relevant”
+“historically connected”
+“may have affected”
+“requires source review”
+
+Do not automatically make legal conclusions.
+
+Map Features:
+Use Leaflet or Mapbox.
+Show:
+- cities
+- migration routes
+- counties
+- states
+- former tribal territories
+- land cession areas
+- public school regions
+- urban relocation cities
+- Indian health service / urban Indian health program locations
+- census and administrative regions
+
+Timeline Features:
+Show events chronologically.
+Allow filtering by identity, public school, health, urbanization, land, jurisdiction, and family impact.
+Allow zooming by century, decade, and year.
+Clicking an event opens a detail panel.
+
+Event Detail Panel:
+Display:
+
+Title
+Date
+Event Type
+Plain-language summary
+Legal/policy source
+Affected people
+Affected places
+Identity impact
+Reclassification impact
+Family continuity impact
+Public school impact
+Urbanization impact
+Health access impact
+Modern effect
+Continuity Despite Classification
+Source citation
+
+Required Principle:
+Every event must include a section titled:
+“Continuity Despite Classification”
+
+This section explains how Indigenous people, families, communities, and descendants continued even where records, schools, governments, or agencies attempted to reclassify them.
+
+Source Archive:
+Create a source archive grouped by:
+
+Acts of Congress
+Federal Reports
+Census Materials
+Public School Records
+State Records
+County Records
+Health Policy
+Urban Indian Policy
+Court Cases
+Treaties
+Maps
+Family/Community Records
+
+Data Sources to Prepare For:
+Congress.gov
+Wikisource Statutes at Large
+Library of Congress
+National Archives
+Census.gov
+Indian Health Service
+Urban Indian Health Institute
+National Council of Urban Indian Health
+Department of Education archives
+Bureau of Indian Affairs records
+CourtListener
+Justia
+Local uploaded records
+Family/community uploads
+
+Design Style:
+Use copper, charcoal, parchment, deep green, muted gold, and earth tones.
+The app should feel like a living archive for urban Indian continuity.
+It should not look like a generic legal database.
+
+Core Message:
+Government paperwork may have changed names, classifications, categories, and access, but it did not erase Indigenous continuity.
+
+MVP Build Order:
+1. Build React layout.
+2. Add local JSON data file.
+3. Add timeline.
+4. Add map.
+5. Add filter sidebar.
+6. Add event detail panel.
+7. Add source archive.
+8. Add ancestor overlay.
+9. Add comparison tool.
+10. Add admin event form.
+11. Add Supabase database.
+12. Add import/export CSV and JSON.
+
+Components Needed:
+Timeline
+MapView
+FilterSidebar
+EventDetailPanel
+SourceArchive
+AncestorOverlay
+ComparisonView
+AdminEventForm
+SearchBar
+ContinuityImpactCard
+ReclassificationImpactCard
+UrbanPolicyLayer
+
+Final app must run in Replit with:
+npm install
+npm run dev
+
+Include README instructions for:
+- adding events
+- adding sources
+- adding map layers
+- adding ancestor records
+- deploying the app

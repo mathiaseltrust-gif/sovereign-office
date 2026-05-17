@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/urban-indian-atlas/"
+title = "Urban Indian Continuity Atlas"
+version = "1.0.0"
+id = "artifacts/urban-indian-atlas"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/urban-indian-atlas/" ]
+localPort = 20825
+
+[services.development]
+run = "pnpm --filter @workspace/urban-indian-atlas run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/urban-indian-atlas", "run", "build" ]
+publicDir = "artifacts/urban-indian-atlas/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20825"
+BASE_PATH = "/urban-indian-atlas/"
