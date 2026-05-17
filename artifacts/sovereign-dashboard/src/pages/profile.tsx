@@ -406,6 +406,7 @@ function TrustResponsibilityBreakdown() {
 function ProtectionsPanel() {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [showAll, setShowAll] = useState(false);
+  const [showRights, setShowRights] = useState(true);
   const [showInherited, setShowInherited] = useState(false);
   const [showIdentityMarkers, setShowIdentityMarkers] = useState(false);
   const [showLandMarkers, setShowLandMarkers] = useState(false);
@@ -533,10 +534,21 @@ function ProtectionsPanel() {
 
         {/* ── Rights list ── */}
         <div>
-          <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2 flex items-center gap-1.5">
-            <Key className="h-3 w-3" /> Your Rights
-          </div>
-          <div className="space-y-1.5">
+          <button
+            onClick={() => setShowRights(v => !v)}
+            className="w-full flex items-center justify-between hover:bg-muted/40 rounded-lg px-2 py-1.5 -mx-2 transition-colors mb-2"
+          >
+            <div className="flex items-center gap-1.5 text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <Key className="h-3 w-3" /> Your Rights
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] font-bold px-2 py-0.5 rounded-full border border-green-300 text-green-700 bg-green-50">
+                {data.rights.filter(r => r.status === "active").length} active
+              </span>
+              <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showRights ? "rotate-180" : ""}`} />
+            </div>
+          </button>
+          {showRights && <div className="space-y-1.5">
             {displayRights.map((right) => {
               const isOpen = expanded === right.id;
               const catColor = CATEGORY_COLORS[right.category] ?? "text-slate-700 bg-slate-50 border-slate-200";
@@ -589,8 +601,8 @@ function ProtectionsPanel() {
                 </div>
               );
             })}
-          </div>
-          {data.rights.length > 6 && (
+          </div>}
+          {showRights && data.rights.length > 6 && (
             <button
               onClick={() => setShowAll(s => !s)}
               className="mt-2 w-full text-[11px] text-primary hover:underline flex items-center justify-center gap-1"
@@ -616,9 +628,11 @@ function ProtectionsPanel() {
             <ChevronDown className={`h-3.5 w-3.5 text-muted-foreground transition-transform ${showInherited ? "rotate-180" : ""}`} />
           </button>
 
+          {showInherited && (
           <p className="text-[10px] text-muted-foreground mt-1 leading-snug">
             {data.inheritanceSummary ?? "Add tribal nation and treaty affiliation data to ancestor records in the Family Tree to activate inherited protections."}
           </p>
+          )}
 
           {showInherited && data.inheritedRights?.length > 0 && (
             <div className="mt-2 space-y-1.5">
