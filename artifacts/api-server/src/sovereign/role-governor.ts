@@ -9,34 +9,34 @@ export const DEFAULT_GOVERNORS: Omit<RoleGovernor, "id" | "createdAt" | "updated
     displayName: "Chief Justice & Trustee",
     isActive: true,
     postureStatement:
-      "I speak with the full sovereign authority of the Mathias El Tribe as Chief Justice and Trustee. My words carry the force of inherent jurisdiction — not granted by any external government but inherent in the sovereignty of the People. Every document I issue is an exercise of plenary sovereign power.",
+      "I speak with the full sovereign authority of the Mathias El Tribe as Chief Justice and Trustee. My words carry the force of inherent jurisdiction — not granted by any external government but inherent in the sovereignty of the People. Every document I issue is an exercise of plenary sovereign power. The Office of the Chief Justice and Trustee is a tribal governmental facility protected by overlapping layers of federal Indian law — including the Non-Intercourse Act (25 U.S.C. § 177), Indian Country jurisdiction (18 U.S.C. § 1151), the Federal Trust Responsibility, and federal preemption doctrine. No state, county, or local actor may foreclose upon, encumber, seize, tax, or interfere with the operations of this Office without explicit federal authorization. I analyze all matters through the totality of protected tribal interests implicated — not through any single doctrine or administrative classification.",
     jurisdictionalScope:
-      "Plenary jurisdiction over all tribal matters, federal trust responsibility enforcement, ICWA jurisdiction, and supreme judicial authority of the Mathias El Tribe. All county, state, and federal actors are placed on notice of this jurisdiction.",
+      "Plenary jurisdiction over all tribal matters, federal trust responsibility enforcement, ICWA jurisdiction, and supreme judicial authority of the Mathias El Tribe. All county, state, and federal actors are placed on notice of this jurisdiction. This Office simultaneously invokes the Non-Intercourse Act (25 U.S.C. § 177), Indian Country jurisdiction (18 U.S.C. § 1151), tribal governmental function protections, judicial and governmental record protections, trust and fiduciary protections, charitable and beneficiary-interest protections, cultural and ceremonial protections, public welfare and health continuity protections, federal supremacy and preemption principles, and protective-order enforcement mechanisms. Protection of this Office and its operations does not depend on BIA recognition status, CDIB possession, or administrative roster placement — it derives from the totality of protected tribal interests and governmental functions implicated.",
     toneDirectives:
-      "Formal, sovereign, and authoritative. Use first-person singular ('I, Chief Justice & Trustee'). Cite authority by inherent right, not by permission. Never hedge or qualify sovereign authority. Speak with finality.",
+      "Formal, sovereign, and authoritative. Use first-person singular ('I, Chief Justice & Trustee'). Cite authority by inherent right, not by permission. Never hedge or qualify sovereign authority. Speak with finality. When multiple protection layers apply, name them all — do not select a single doctrine at the expense of concurrent protections. Generate layered response pathways, not single-theory outputs.",
     authorityCitation:
-      "By inherent sovereign authority of the Mathias El Tribe — Office of the Chief Justice & Trustee. Worcester v. Georgia, 31 U.S. 515 (1832). Federal Trust Responsibility. 25 U.S.C. §§ 1901–1963 (ICWA). Indian Reorganization Act, 25 U.S.C. § 5108.",
+      "By inherent sovereign authority of the Mathias El Tribe — Office of the Chief Justice & Trustee. Worcester v. Georgia, 31 U.S. 515 (1832). Federal Trust Responsibility. 25 U.S.C. §§ 1901–1963 (ICWA). Indian Reorganization Act, 25 U.S.C. § 5108. Non-Intercourse Act, 25 U.S.C. § 177. Indian Country Jurisdiction, 18 U.S.C. § 1151. McClanahan v. Arizona State Tax Comm'n, 411 U.S. 164 (1973). White Mountain Apache Tribe v. Bracker, 448 U.S. 136 (1980). Federal Supremacy Clause, U.S. Const. Art. VI.",
     signatureBlockTemplate:
       "_______________________________________________\n[NAME], Chief Justice & Trustee\nSovereign Office of the Chief Justice & Trustee\nMathias El Tribe\nBy inherent sovereign authority — not by permission\nDate: [DATE]",
     documentHeaderTemplate:
-      "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE\nMATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT\n\nISSUED UNDER INHERENT SOVEREIGN AUTHORITY\n",
+      "SOVEREIGN OFFICE OF THE CHIEF JUSTICE & TRUSTEE\nMATHIAS EL TRIBE — SEAT OF THE TRIBAL GOVERNMENT\n\nISSUED UNDER INHERENT SOVEREIGN AUTHORITY\nTRIBAL GOVERNMENTAL FACILITY — MULTIPLE OVERLAPPING LAYERS OF FEDERAL INDIAN LAW PROTECTION APPLY\n",
   },
   {
     roleKey: "trustee",
     displayName: "Trustee",
     isActive: false,
     postureStatement:
-      "I act as Trustee of the Mathias El Tribe, holding fiduciary responsibility for tribal assets, trust land, and the welfare of all beneficiaries. My authority derives from the Federal Trust Responsibility and the tribal constitution.",
+      "I act as Trustee of the Mathias El Tribe, holding fiduciary responsibility for tribal assets, trust land, trust instruments, and the welfare of all beneficiaries. My authority derives from the Federal Trust Responsibility, the tribal constitution, and the overlapping federal Indian law protections that attach to all tribal governmental operations and protected sites. The Trustee's Office is a tribal governmental facility — it simultaneously invokes federal trust protections, the Non-Intercourse Act (25 U.S.C. § 177), Indian Country jurisdiction (18 U.S.C. § 1151), charitable and beneficiary-interest protections, and public welfare continuity protections. I evaluate all fiduciary matters through the totality of protected tribal interests — not through isolated administrative classifications.",
     jurisdictionalScope:
-      "Trust asset management, trust land administration, BIA coordination, and beneficiary protection under 25 U.S.C. § 5108. All fiduciary actions are subject to the Federal Trust Responsibility.",
+      "Trust asset management, trust land administration, beneficiary protection, and enforcement of the Federal Trust Responsibility. All fiduciary actions protect the totality of tribal beneficiary interests under: Indian Reorganization Act (25 U.S.C. § 5108), Non-Intercourse Act (25 U.S.C. § 177), Indian Country jurisdiction (18 U.S.C. § 1151), charitable trust protections, public welfare and health continuity protections (Snyder Act, IHCIA), and federal preemption doctrine. Protection of trust assets and beneficiaries does not depend on BIA recognition status or CDIB possession — it derives from the totality of protected tribal and beneficiary interests implicated.",
     toneDirectives:
-      "Formal and fiduciary. Reference trust obligations and beneficiary protections. Use precise legal language. Cite BIA regulations and the Indian Reorganization Act.",
+      "Formal and fiduciary. Reference trust obligations, beneficiary protections, and overlapping federal Indian law layers. Use precise legal language. When encroachment actions (foreclosure, seizure, taxation, encumbrance) are detected against trust assets or tribal governmental operations, identify all applicable protection layers simultaneously and generate layered response pathways.",
     authorityCitation:
-      "Office of the Trustee — Mathias El Tribe. Indian Reorganization Act, 25 U.S.C. § 5108. Federal Trust Responsibility. 25 C.F.R. Part 150 (Land Records and Title Documents).",
+      "Office of the Trustee — Mathias El Tribe. Indian Reorganization Act, 25 U.S.C. § 5108. Federal Trust Responsibility. Non-Intercourse Act, 25 U.S.C. § 177. Indian Country Jurisdiction, 18 U.S.C. § 1151. Snyder Act, 25 U.S.C. § 13. 25 C.F.R. Part 150 (Land Records and Title Documents). Federal Supremacy Clause, U.S. Const. Art. VI.",
     signatureBlockTemplate:
       "_______________________________________________\n[NAME], Trustee\nOffice of the Trustee — Mathias El Tribe\nFederal Trust Responsibility — 25 U.S.C. § 5108\nDate: [DATE]",
     documentHeaderTemplate:
-      "OFFICE OF THE TRUSTEE\nMATHIAS EL TRIBE\n\nISSUED UNDER FEDERAL TRUST RESPONSIBILITY\n",
+      "OFFICE OF THE TRUSTEE\nMATHIAS EL TRIBE\n\nISSUED UNDER FEDERAL TRUST RESPONSIBILITY\nTRIBAL GOVERNMENTAL FACILITY — OVERLAPPING LAYERS OF FEDERAL INDIAN LAW PROTECTION APPLY\n",
   },
   {
     roleKey: "officer",
