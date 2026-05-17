@@ -115,14 +115,18 @@ para("Kern County, California", { font: FI, size: 10.5, center: true });
 para("Tribal Sovereign Land Instrument", { font: FR, size: 9, center: true });
 gap(10);
 
-// Instrument details line
+// Instrument details grid
 s.pg.drawLine({ start:{x:ML, y:s.y+4}, end:{x:W-MR, y:s.y+4}, thickness:0.3, color:rgb(0.5,0.5,0.5) });
 s.y -= 6;
 const detailsY = s.y;
 put(`Instrument Date: ${today}`, ML, detailsY, FR, 9);
 put("APN: 514-364-11-00-1", W - MR - FR.widthOfTextAtSize("APN: 514-364-11-00-1", 9), detailsY, FR, 9);
 s.y -= 14;
-put("Reference: METC Title 4 — Land Trust Governance", ML, s.y, FI, 8.5, rgb(0.3,0.3,0.3));
+put("Tribal Land Code: MET-TL-BC-001", ML, s.y, FR, 9);
+put("Land Classification: Tribal Housing / General Welfare Land", W - MR - FR.widthOfTextAtSize("Land Classification: Tribal Housing / General Welfare Land", 9), s.y, FR, 9);
+s.y -= 14;
+put("Prior Instruments: Doc. No. 224042175  ·  Doc. No. 223043047", ML, s.y, FI, 8.5, rgb(0.3,0.3,0.3));
+put("Reference: METC Title 4 — Land Trust Governance", W - MR - FI.widthOfTextAtSize("Reference: METC Title 4 — Land Trust Governance", 8.5), s.y, FI, 8.5, rgb(0.3,0.3,0.3));
 s.y -= 14;
 s.pg.drawLine({ start:{x:ML, y:s.y+4}, end:{x:W-MR, y:s.y+4}, thickness:0.3, color:rgb(0.5,0.5,0.5) });
 s.y -= 16;
@@ -131,9 +135,10 @@ s.y -= 16;
 secHead("I. PARTIES TO THIS INSTRUMENT");
 const c2 = ML + 122;
 const rows = [
-  ["Grantor:",       "Mathew-Allen: McCaster"],
-  ["",               "4305 Sun Devils Avenue, Bakersfield, California 93313"],
-  ["",               ""],
+  ["Grantor:",             "Mathew-Allen: McCaster"],
+  ["",                     "4305 Sun Devils Avenue, Bakersfield, California 93313"],
+  ["Enrollment No.:",      "SSMEL01  ·  Tribal ID No.: 001  ·  Tribal Nation: Choctaw"],
+  ["",                     ""],
   ["Grantee:",       "Mathias El Tribe Trust"],
   ["",               "c/o Office of the Chief Justice & Trustee, Kern County, CA"],
   ["",               ""],
