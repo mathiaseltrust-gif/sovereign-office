@@ -76,6 +76,55 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
 
+  // NFR Review Engine tables — auto-created if missing
+  `CREATE TABLE IF NOT EXISTS nfr_investigations (
+    id SERIAL PRIMARY KEY,
+    signal_type VARCHAR(80) NOT NULL,
+    triggering_event_type VARCHAR(80) NOT NULL,
+    triggering_event_id INTEGER,
+    affected_user_id INTEGER,
+    affected_parcel_id INTEGER,
+    affected_instrument_id INTEGER,
+    affected_matter TEXT,
+    triggering_entity TEXT,
+    evidence_source TEXT,
+    implicated_laws JSONB DEFAULT '[]',
+    protection_category VARCHAR(60),
+    urgency_score INTEGER DEFAULT 5,
+    recommended_review_level VARCHAR(30) DEFAULT 'TRUSTEE',
+    assigned_reviewer_id INTEGER,
+    status VARCHAR(30) NOT NULL DEFAULT 'open',
+    internal_actions JSONB DEFAULT '[]',
+    external_actions JSONB DEFAULT '[]',
+    required_followthrough JSONB DEFAULT '[]',
+    nfr_id INTEGER,
+    summary TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS nfr_review_signals (
+    id SERIAL PRIMARY KEY,
+    investigation_id INTEGER,
+    user_id INTEGER,
+    signal_type VARCHAR(80) NOT NULL,
+    context TEXT,
+    source VARCHAR(60) NOT NULL DEFAULT 'system',
+    detected_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE TABLE IF NOT EXISTS nfr_audit_log (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER,
+    action VARCHAR(80) NOT NULL,
+    resource_type VARCHAR(60) NOT NULL,
+    resource_id INTEGER,
+    resource_ref VARCHAR(100),
+    before_value JSONB,
+    after_value JSONB,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+
   // email digest queue — stores pending digest emails for daily/weekly delivery
   `CREATE TABLE IF NOT EXISTS email_digest_queue (
     id SERIAL PRIMARY KEY,
