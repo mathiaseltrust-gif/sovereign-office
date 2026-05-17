@@ -107,6 +107,28 @@ const TEMPLATE_CATALOG: TemplateInfo[] = [
     eligibilityHint: "First step for any new trust land matter — creates the intake record.",
   },
   {
+    key: "land_into_trust",
+    title: "Application for Land Acquisition in Trust",
+    category: "Land Instruments",
+    icon: Landmark,
+    description: "Formal petition to the Bureau of Indian Affairs to acquire fee land in federal trust status on behalf of a tribal member or the tribe under the Indian Reorganization Act.",
+    law: "25 U.S.C. § 5108 · 25 C.F.R. Part 151",
+    partyFields: ["Applicant Name", "Current Land Owner (if different)", "Tract / APN"],
+    needsLand: true,
+    eligibilityHint: "For tribal members seeking to place fee land into federal trust. Requires BIA Regional Director approval.",
+  },
+  {
+    key: "restricted_status_confirmation",
+    title: "Confirmation of Restricted Land Status",
+    category: "Land Instruments",
+    icon: ShieldCheck,
+    description: "Formal confirmation that the subject land is held in restricted fee status and cannot be alienated, encumbered, or taxed without express federal approval under the Non-Intercourse Act.",
+    law: "25 U.S.C. § 177 · 25 C.F.R. § 1.4",
+    partyFields: ["Property Owner / Beneficial Interest", "Tract / APN", "Directed To (Agency / Recorder)"],
+    needsLand: true,
+    eligibilityHint: "Use in court filings, agency submissions, and recorder challenges where restricted fee status must be confirmed on the record.",
+  },
+  {
     key: "trust_land_probate_summary",
     title: "Trust Land Probate Summary",
     category: "Land Instruments",
@@ -374,8 +396,33 @@ export default function InstrumentWizardPage() {
     }));
   };
 
+  // Auto-populate party fields from identity/land data already collected in earlier steps.
+  // Only fills empty fields — never overwrites user input.
+  const prefillPartyFields = (template: TemplateInfo) => {
+    const name = wiz.legalName;
+    const apn = wiz.apn;
+    const defaults: Record<string, string> = {};
+    template.partyFields.forEach(field => {
+      if (wiz.parties[field]) return; // respect user input
+      const fl = field.toLowerCase();
+      if (name && (fl.includes("applicant") || fl.includes("petitioner") || fl.includes("declarant")
+        || fl.includes("beneficial") || fl.includes("owner") || fl.includes("patient")
+        || fl.includes("grantor") || fl.includes("grantee") || fl.includes("lessor")
+        || fl.includes("transferor") || fl.includes("decedent") || fl.includes("member"))) {
+        defaults[field] = name;
+      }
+      if (apn && (fl.includes("apn") || fl.includes("parcel") || fl.includes("tract"))) {
+        defaults[field] = apn;
+      }
+    });
+    if (Object.keys(defaults).length > 0) {
+      setWiz(prev => ({ ...prev, parties: { ...defaults, ...prev.parties } }));
+    }
+  };
+
   const goToStep = (step: number) => {
     if (step === 2 && profileData && !wiz.legalName) prefillFromProfile(profileData);
+    if (step === 4 && selectedTemplate) prefillPartyFields(selectedTemplate);
     setWiz(prev => ({ ...prev, step }));
   };
 
