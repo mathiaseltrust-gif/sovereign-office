@@ -138,6 +138,7 @@ router.get("/parcels", requireAuth, async (req, res, next) => {
     if (jurisdictionalStatus) q = sql`${q} AND jurisdictional_status = ${jurisdictionalStatus}`;
     q = sql`${q} ORDER BY created_at DESC`;
     const result = await db.execute(q);
+    res.set("Cache-Control", "no-store");
     res.json(result.rows);
   } catch (err) { next(err); }
 });

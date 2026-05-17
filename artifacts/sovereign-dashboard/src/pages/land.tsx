@@ -2798,13 +2798,13 @@ export default function LandPage() {
 
   async function q<T>(url: string): Promise<T> {
     const token = await getCurrentBearerToken();
-    const r = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+    const r = await fetch(url, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });
     if (!r.ok) throw new Error(await r.text());
     return r.json();
   }
 
-  const statsQ = useQuery<Stats>({ queryKey: ["land-stats"], queryFn: () => q("/api/land/stats") });
-  const parcelsQ = useQuery<Parcel[]>({ queryKey: ["land-parcels"], queryFn: () => q("/api/land/parcels") });
+  const statsQ = useQuery<Stats>({ queryKey: ["land-stats"], queryFn: () => q("/api/land/stats"), staleTime: 0 });
+  const parcelsQ = useQuery<Parcel[]>({ queryKey: ["land-parcels"], queryFn: () => q("/api/land/parcels"), staleTime: 0 });
   const leasesQ = useQuery<Lease[]>({ queryKey: ["land-leases"], queryFn: () => q("/api/land/leases") });
   const assetsQ = useQuery<Asset[]>({ queryKey: ["land-assets"], queryFn: () => q("/api/land/assets") });
   const encQ = useQuery<Encumbrance[]>({ queryKey: ["land-encumbrances"], queryFn: () => q("/api/land/encumbrances") });
