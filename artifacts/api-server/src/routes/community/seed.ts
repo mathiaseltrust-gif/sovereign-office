@@ -220,7 +220,7 @@ export async function ensureCommunitySeeded(): Promise<void> {
         },
         {
           title: "Federal Trust Responsibility — Know Your Rights",
-          body: "As members of a federally recognized tribe, we are entitled to the full federal trust responsibility. This includes rights to health care through IHS, educational support through BIE programs, and protection of our trust lands and resources. If any federal agency is denying you services, please document it and contact the office. We will assert your rights.",
+          body: "As members of the Mathias El Tribe — exercising inherent sovereignty, treaty rights, and federal protections that exist independent of any administrative recognition process — we are entitled to the full federal trust responsibility. The Snyder Act (25 U.S.C. § 13) covers 'Indians throughout the United States.' Our rights to health care through IHS, educational support through BIE programs, and protection of our trust lands and resources are grounded in treaty and statute, not an administrative list. If any federal agency is denying you services, document it and contact this office. We will assert your rights.",
           category: "Legal",
           authorName: "Legal Department",
           pinned: false,

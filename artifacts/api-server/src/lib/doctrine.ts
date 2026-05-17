@@ -62,7 +62,7 @@ export function applyDoctrine(input: ClassificationInput): DoctrineResult {
 
   if (isStateActor && isIndianLand) {
     guardrails.push("State actor has limited jurisdiction on Indian trust land — Worcester doctrine applies");
-    guardrails.push("BIA approval may be required for this action");
+    guardrails.push("Tribal Council authorization required — this action falls within inherent tribal sovereign authority");
   }
 
   if (
@@ -79,17 +79,17 @@ export function applyDoctrine(input: ClassificationInput): DoctrineResult {
 
   if (input.actionType.toLowerCase().includes("recording") || input.actionType.toLowerCase().includes("filing")) {
     if (isIndianLand) {
-      guardrails.push("BIA Land Title and Records Office (LTRO) must receive a copy of recorded instruments");
+      guardrails.push("Federal Land Title and Records Office (LTRO) must receive a copy of recorded instruments to complete federal notice of this instrument");
     }
   }
 
   let recommendation =
     doctrinesApplied.length > 0
-      ? "Federal law governs this transaction. Ensure BIA review and LTRO notification."
+      ? "Federal law governs this transaction under treaty authority and the Non-Intercourse Act. Ensure LTRO notification and obtain Tribal Council authorization."
       : "Standard state recorder procedures apply. Verify county-specific formatting requirements.";
 
   if (isTribalActor && isIndianLand) {
-    recommendation = "Full tribal and federal sovereignty protections apply. Obtain tribal council authorization and BIA approval.";
+    recommendation = "Full tribal and federal sovereignty protections apply. Obtain Tribal Council authorization under inherent sovereign authority. No external agency approval required for sovereign acts — authority derives from treaty and statute.";
   }
 
   return { doctrinesApplied, guardrails, federalLaw, sovereigntyProtections, recommendation };

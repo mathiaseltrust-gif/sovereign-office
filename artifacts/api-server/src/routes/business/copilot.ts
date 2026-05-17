@@ -181,7 +181,7 @@ YOUR CAPABILITIES:
    - Marketing copy, website copy, proposal writing
 
 7. FINANCIAL & FUNDING
-   - Tribal enterprise financing, BIA loan guarantees
+   - Tribal enterprise financing, federal Indian loan guarantees (25 U.S.C. § 1544)
    - Federal grant programs (CDFI Fund, SBA, HUD, USDA)
    - Revenue sharing models between tribal entity and tribal government
    - Budget templates and financial control frameworks

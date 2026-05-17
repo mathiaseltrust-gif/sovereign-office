@@ -3305,7 +3305,7 @@ const KOS_RESOURCES = [
     color: "border-sky-600",
     items: [
       { title: "Dawes Rolls — National Archives", desc: "1898–1914 enrollment records for the Five Civilized Tribes. Essential for proving lineal descent and eligibility.", url: "https://www.archives.gov/research/native-americans/dawes" },
-      { title: "BIA Tribal Enrollment Resources", desc: "Bureau of Indian Affairs guide to proving tribal membership, blood quantum, and descendancy.", url: "https://www.bia.gov/bia/ois/tribal-government/tribal-enrollment-process" },
+      { title: "Mathias El Tribe Enrollment — Sovereign Registry", desc: "Tribal membership is determined by the Mathias El Tribe under inherent sovereign authority — not by any BIA administrative list. Contact the Office of the Chief Justice & Trustee to begin enrollment.", url: "/sovereign-dashboard/directory" },
       { title: "FamilySearch — Native American Records", desc: "Free genealogy database with census rolls, church records, and Indian agency records from the 1800s–1900s.", url: "https://www.familysearch.org/en/wiki/Native_American_Genealogy" },
       { title: "Ancestry.com — Native American Collections", desc: "Digitized Indian census schedules (1885–1940), Dawes packets, and allotment records.", url: "https://www.ancestry.com/search/collections/list/#ghCategories=40" },
     ],

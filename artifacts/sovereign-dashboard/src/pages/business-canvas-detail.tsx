@@ -614,7 +614,7 @@ function DocumentsTab({ concept, onDocUpdated }: { concept: BusinessConcept; onD
     <div className="space-y-4">
       <div>
         <p className="text-sm text-muted-foreground mb-3">
-          Upload PDFs, Word documents, or images associated with this concept (charters, BIA applications, agreements). Max 20 MB per file.
+          Upload PDFs, Word documents, or images associated with this concept (tribal charters, sovereign agreements, supporting documentation). Max 20 MB per file.
         </p>
         <div className="flex items-center gap-3">
           <Button

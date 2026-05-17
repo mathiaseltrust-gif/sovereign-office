@@ -539,7 +539,7 @@ const LAW_CARDS = [
     icon: "💰",
     title: "Indian Country Tax Exemptions",
     category: "Tax Law",
-    summary: "Tribal enterprises operating within Indian Country may be exempt from state and local taxes. Federal taxes may apply depending on structure. BIA and IRS guidelines provide specific exemption criteria based on entity type, location, and tribal member ownership.",
+    summary: "Tribal enterprises operating within Indian Country may be exempt from state and local taxes under inherent sovereign authority and applicable federal Indian law. Federal taxes may apply depending on structure. IRS guidelines and tribal sovereign authority determine specific exemption criteria based on entity type, location, and tribal member ownership.",
   },
   {
     icon: "🤝",

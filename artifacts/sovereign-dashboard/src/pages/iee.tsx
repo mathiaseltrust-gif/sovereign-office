@@ -10,7 +10,7 @@ const ENTERPRISE_TYPES = [
     title: "Construction & Infrastructure",
     code: "NAICS 236-238",
     desc: "General contracting, construction management, and infrastructure development eligible for federal Indian set-aside contracts.",
-    certifications: ["SBA Indian Set-Aside", "BIA Business Financing", "HUBZone Eligible"],
+    certifications: ["SBA Indian Set-Aside", "Federal Contract Eligible", "HUBZone Eligible"],
   },
   {
     title: "Professional Services",
@@ -22,7 +22,7 @@ const ENTERPRISE_TYPES = [
     title: "Natural Resources & Agriculture",
     code: "NAICS 111-115",
     desc: "Farming, forestry, fishing, and natural resource enterprises on trust land or with tribal approval.",
-    certifications: ["BIA Financing", "Trust Land Operations"],
+    certifications: ["Federal Set-Aside Eligible", "Trust Land Operations"],
   },
   {
     title: "Technology & Innovation",
@@ -46,15 +46,15 @@ const ENTERPRISE_TYPES = [
 
 const LEGAL_FRAMEWORK = [
   { code: "25 C.F.R. § 140.3", title: "Indian Economic Enterprise Definition", desc: "Defines IEE eligibility — must be majority-owned and controlled by enrolled members" },
-  { code: "25 U.S.C. § 1544", title: "BIA Business Financing Program", desc: "Federal loan guarantees and direct loans for enrolled member-owned businesses" },
-  { code: "15 U.S.C. § 637(e)", title: "Indian Set-Aside Contracts", desc: "Federal contracting preference for Indian Economic Enterprises" },
-  { code: "25 U.S.C. § 1521 et seq.", title: "Indian Business Development Program", desc: "BIA grant program for tribal and Indian-owned business development" },
+  { code: "25 U.S.C. § 1544", title: "Indian Business Financing Program", desc: "Federal loan guarantees and direct loans available as supplementary resources for enrolled member-owned businesses" },
+  { code: "15 U.S.C. § 637(e)", title: "Indian Set-Aside Contracts", desc: "Federal contracting preference for Indian Economic Enterprises — primary revenue advantage" },
+  { code: "25 U.S.C. § 1521 et seq.", title: "Indian Business Development Program", desc: "Federal grant program available for tribal and Indian-owned business development" },
 ];
 
 const ELIGIBILITY_REQUIREMENTS = [
   "51% or more owned by enrolled tribal member(s)",
   "Management and daily operations controlled by enrolled member(s)",
-  "BIA Form 5-5321 certification on file",
+  "Sovereign business certification on file with Office of the Chief Justice & Trustee",
   "Tribal business license from Office of the Chief Justice & Trustee",
   "Compliance with 25 C.F.R. Part 140",
 ];
@@ -104,8 +104,8 @@ export default function IeePage() {
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
                 Indian Economic Enterprises (I.E.E.s) are tribal business enterprises majority-owned and controlled by enrolled
-                members. They are eligible for SBA Indian set-aside contracts, BIA business financing, and federal Indian business
-                preferences — building economic self-sufficiency and generational wealth within the tribe.
+                members. They are eligible for SBA Indian set-aside contracts and federal Indian business preferences under
+                inherent sovereign authority — building economic self-sufficiency and generational wealth within the tribe.
               </p>
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">IEE Eligibility Requirements</p>
@@ -168,8 +168,8 @@ export default function IeePage() {
               <p className="text-xs text-orange-800">
                 Certified Indian Economic Enterprises have preference in federal contracting under 15 U.S.C. § 637(e).
                 Federal agencies may set aside contracts exclusively for IEEs without full and open competition.
-                BIA may provide direct loans and loan guarantees under 25 U.S.C. § 1544 to support IEE operations.
-                Contact the Office of the Chief Justice & Trustee to begin your IEE certification process.
+                Federal loan programs under 25 U.S.C. § 1544 are available as supplementary resources — not required for IEE certification or operation.
+                Contact the Office of the Chief Justice & Trustee to begin your sovereign IEE certification process.
               </p>
             </CardContent>
           </Card>

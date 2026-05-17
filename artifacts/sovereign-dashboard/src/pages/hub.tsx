@@ -156,7 +156,7 @@ export default function HubPage() {
           <ServiceCard
             icon={Building2}
             title="Sovereign Business Formation"
-            description="AI-guided wizard to form a Tribal Section 17, LLC, or other sovereign entity with full legal provisions."
+            description="AI-guided wizard to form a Tribal LLC, Corporation, or other sovereign entity with full legal provisions under inherent tribal authority."
             href="/business-canvas/new"
             badge="AI"
             color="amber"

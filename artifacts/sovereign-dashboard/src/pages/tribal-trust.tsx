@@ -7,7 +7,7 @@ import { WhatNextPanel } from "@/components/WhatNextPanel";
 
 const TRUST_AUTHORITIES = [
   { title: "Indian Reorganization Act", code: "25 U.S.C. § 5108", desc: "Authorizes federal acquisition and protection of tribal trust land" },
-  { title: "Trust Fund Management", code: "25 U.S.C. § 162a", desc: "BIA fiduciary obligation to manage tribal and individual Indian trust funds" },
+  { title: "Trust Fund Management", code: "25 U.S.C. § 162a", desc: "Federal fiduciary obligation to manage tribal and individual Indian trust funds — a duty grounded in treaty, not agency discretion" },
   { title: "American Indian Probate Reform", code: "25 U.S.C. § 2201 et seq.", desc: "Governs inheritance of trust land and assets" },
   { title: "Trust Land Regulations", code: "25 C.F.R. Part 115", desc: "Regulatory framework for individual Indian money accounts" },
 ];
@@ -33,11 +33,11 @@ export default function TribalTrustPage() {
           <div>
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Federal Indian Trust</p>
             <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Trust</h1>
-            <p className="text-muted-foreground mt-1">Bureau of Indian Affairs — Federal Fiduciary — 25 U.S.C. § 5108</p>
+            <p className="text-muted-foreground mt-1">Sovereign Trust — Treaty-Based Federal Fiduciary — 25 U.S.C. § 5108</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-amber-700 text-white">Federal Indian Trust</Badge>
-            <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">BIA Fiduciary Oversight</Badge>
+            <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">Treaty-Based Fiduciary</Badge>
           </div>
         </div>
       </div>

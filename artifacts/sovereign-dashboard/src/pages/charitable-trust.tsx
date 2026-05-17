@@ -518,7 +518,7 @@ export default function CharitableTrustPage() {
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground mb-4">
-                The Mathias El Tribe Charitable Trust is a federally recognized 501(c)(3) non-profit organization advancing
+                The Mathias El Tribe Charitable Trust is an IRS-recognized 501(c)(3) non-profit organization advancing
                 education, health, housing, and cultural preservation for enrolled members and eligible indigenous families.
                 All contributions are tax-deductible to the full extent permitted by law under 26 U.S.C. § 170.
               </p>
