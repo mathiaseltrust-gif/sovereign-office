@@ -19,6 +19,7 @@ export const familyLineageTable = pgTable("family_lineage", {
   parentIds: jsonb("parent_ids").default([]),
   childrenIds: jsonb("children_ids").default([]),
   spouseIds: jsonb("spouse_ids").default([]),
+  siblingIds: jsonb("sibling_ids").default([]),
   lineageTags: jsonb("lineage_tags").default([]),
   sourceType: varchar("source_type", { length: 50 }).notNull().default("manual"),
   generationalPosition: integer("generational_position").default(0),

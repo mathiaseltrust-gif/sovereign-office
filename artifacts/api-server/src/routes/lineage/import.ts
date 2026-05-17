@@ -208,6 +208,22 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
             .where(eq(familyLineageTable.id, parentId));
         }
 
+        // Patch sibling_ids: all children in the same FAM record are siblings to each other
+        for (const childId of childDbIds) {
+          const [child] = await db
+            .select({ siblingIds: familyLineageTable.siblingIds })
+            .from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+          if (!child) continue;
+          const existingSiblings = Array.isArray(child.siblingIds) ? (child.siblingIds as number[]) : [];
+          const otherSiblings = childDbIds.filter((cid) => cid !== childId);
+          const newSiblings = [...new Set([...existingSiblings, ...otherSiblings])];
+          if (newSiblings.length > existingSiblings.length) {
+            await db.update(familyLineageTable)
+              .set({ siblingIds: newSiblings })
+              .where(eq(familyLineageTable.id, childId));
+          }
+        }
+
         void famRow;
       } catch (err) {
         famSkipped++;

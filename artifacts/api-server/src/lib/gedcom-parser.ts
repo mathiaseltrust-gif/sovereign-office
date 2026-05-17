@@ -313,6 +313,7 @@ export interface ResolvedRelationships {
   motherGedcomId: string | null;
   spouseGedcomIds: string[];
   childrenGedcomIds: string[];
+  siblingGedcomIds: string[];
 }
 
 export function resolveRelationships(
@@ -320,7 +321,7 @@ export function resolveRelationships(
 ): Map<string, ResolvedRelationships> {
   const map = new Map<string, ResolvedRelationships>();
   for (const indi of result.individuals) {
-    map.set(indi.gedcomId, { fatherGedcomId: null, motherGedcomId: null, spouseGedcomIds: [], childrenGedcomIds: [] });
+    map.set(indi.gedcomId, { fatherGedcomId: null, motherGedcomId: null, spouseGedcomIds: [], childrenGedcomIds: [], siblingGedcomIds: [] });
   }
 
   for (const fam of result.families) {
@@ -346,6 +347,12 @@ export function resolveRelationships(
       const r = map.get(chil)!;
       if (husb) r.fatherGedcomId = husb;
       if (wife) r.motherGedcomId = wife;
+      // All other children in this FAM record are this child's siblings
+      for (const otherChil of fam.childIds) {
+        if (otherChil !== chil && !r.siblingGedcomIds.includes(otherChil)) {
+          r.siblingGedcomIds.push(otherChil);
+        }
+      }
     }
   }
 
