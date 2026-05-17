@@ -2599,6 +2599,29 @@ export default function ProfilePage() {
               </div>
             </div>
           )}
+
+          {/* Email delivery preview — live summary */}
+          <div className="rounded-lg border border-blue-100 bg-blue-50/50 px-3 py-3 space-y-2">
+            <p className="text-[10px] font-bold text-blue-700 uppercase tracking-widest">Email delivery preview</p>
+            {!(notifPrefs.email ?? false) ? (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                No category emails will be sent — master switch is off. Only TRO and red-flag alerts will still be delivered.
+              </p>
+            ) : (() => {
+              const enabled = EMAIL_NOTIFICATION_TOGGLES.filter((t) => notifPrefs[t.key] !== false);
+              return (
+                <div className="flex flex-wrap gap-1">
+                  <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">TRO alerts</span>
+                  <span className="text-[10px] rounded-full bg-amber-100 border border-amber-200 text-amber-800 px-2 py-0.5 font-medium">Red-flag alerts</span>
+                  {enabled.length === 0 ? (
+                    <span className="text-xs text-muted-foreground self-center ml-1">No optional categories selected.</span>
+                  ) : enabled.map((t) => (
+                    <span key={t.key} className="text-[10px] rounded-full bg-blue-100 border border-blue-200 text-blue-800 px-2 py-0.5 font-medium">{t.label}</span>
+                  ))}
+                </div>
+              );
+            })()}
+          </div>
         </CardContent>
       </Card>
 
