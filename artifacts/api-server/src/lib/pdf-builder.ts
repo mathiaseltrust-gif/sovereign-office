@@ -1649,3 +1649,126 @@ export async function buildGweLetterPdf(input: GweLetterInput): Promise<PdfResul
     checksum,
   };
 }
+
+// ── Certified Copy Stamp ────────────────────────────────────────────────────
+
+/**
+ * Overlays a "TRUE AND CERTIFIED COPY" stamp block on every page of an existing
+ * PDF buffer.  The stamp is placed in the bottom-right corner so it does not
+ * obscure the document's main content area.
+ */
+export async function stampCertifiedCopy(
+  pdfBuffer: Buffer,
+  officerName: string,
+  date: string,
+): Promise<Buffer> {
+  const pdfDoc = await PDFDocument.load(pdfBuffer);
+  const boldFont = await pdfDoc.embedFont(StandardFonts.HelveticaBold);
+  const regularFont = await pdfDoc.embedFont(StandardFonts.Helvetica);
+
+  const STAMP_W = 210;
+  const STAMP_H = 70;
+  const STAMP_PAD = 7;
+  const MARGIN_RIGHT_STAMP = 36;
+  const MARGIN_BOTTOM_STAMP = 36;
+
+  for (const page of pdfDoc.getPages()) {
+    const { width } = page.getSize();
+
+    const stampX = width - STAMP_W - MARGIN_RIGHT_STAMP;
+    const stampY = MARGIN_BOTTOM_STAMP;
+
+    // Background + border
+    page.drawRectangle({
+      x: stampX,
+      y: stampY,
+      width: STAMP_W,
+      height: STAMP_H,
+      color: rgb(0.94, 0.95, 1.0),
+      borderColor: rgb(0.05, 0.1, 0.45),
+      borderWidth: 1.75,
+      opacity: 0.95,
+    });
+
+    // Header: "TRUE AND CERTIFIED COPY"
+    const headerText = "TRUE AND CERTIFIED COPY";
+    const headerSize = 8.5;
+    const headerW = boldFont.widthOfTextAtSize(headerText, headerSize);
+    page.drawText(headerText, {
+      x: stampX + (STAMP_W - headerW) / 2,
+      y: stampY + STAMP_H - STAMP_PAD - headerSize,
+      size: headerSize,
+      font: boldFont,
+      color: rgb(0.05, 0.1, 0.45),
+    });
+
+    // Divider
+    const dividerY = stampY + STAMP_H - STAMP_PAD - headerSize - 5;
+    page.drawLine({
+      start: { x: stampX + 5, y: dividerY },
+      end: { x: stampX + STAMP_W - 5, y: dividerY },
+      thickness: 0.75,
+      color: rgb(0.05, 0.1, 0.45),
+    });
+
+    // Date line
+    const dateLabel = "Date: ";
+    const dateLabelW = boldFont.widthOfTextAtSize(dateLabel, 7.5);
+    const dateLineY = dividerY - 12;
+    page.drawText(dateLabel, {
+      x: stampX + STAMP_PAD,
+      y: dateLineY,
+      size: 7.5,
+      font: boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+    page.drawText(date, {
+      x: stampX + STAMP_PAD + dateLabelW,
+      y: dateLineY,
+      size: 7.5,
+      font: regularFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    // Officer name line
+    const officerLabel = "Certified by: ";
+    const officerLabelW = boldFont.widthOfTextAtSize(officerLabel, 7.5);
+    const officerLineY = dateLineY - 12;
+    page.drawText(officerLabel, {
+      x: stampX + STAMP_PAD,
+      y: officerLineY,
+      size: 7.5,
+      font: boldFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    // Truncate officer name to fit available width
+    const maxNameW = STAMP_W - STAMP_PAD * 2 - officerLabelW;
+    let officerDisplay = officerName;
+    while (officerDisplay.length > 1 && regularFont.widthOfTextAtSize(officerDisplay, 7.5) > maxNameW) {
+      officerDisplay = officerDisplay.slice(0, -1);
+    }
+    page.drawText(officerDisplay, {
+      x: stampX + STAMP_PAD + officerLabelW,
+      y: officerLineY,
+      size: 7.5,
+      font: regularFont,
+      color: rgb(0.1, 0.1, 0.1),
+    });
+
+    // Footer attribution
+    const footerText = "SOVEREIGN OFFICE — MATHIAS EL TRIBE";
+    const footerSize = 5.5;
+    const footerW = regularFont.widthOfTextAtSize(footerText, footerSize);
+    page.drawText(footerText, {
+      x: stampX + (STAMP_W - footerW) / 2,
+      y: stampY + STAMP_PAD - 1,
+      size: footerSize,
+      font: regularFont,
+      color: rgb(0.4, 0.4, 0.4),
+    });
+  }
+
+  const stamped = await pdfDoc.save();
+  return Buffer.from(stamped);
+}

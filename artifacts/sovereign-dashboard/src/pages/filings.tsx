@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link, useRoute } from "wouter";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
+import { useState } from "react";
 
 function statusVariant(status: string) {
   switch (status) {
@@ -71,9 +73,48 @@ export function FilingsListPage() {
   );
 }
 
+const CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
+
 export function FilingDetailPage({ params }: { params: { id: string } }) {
   const id = Number(params.id);
   const { data: filing, isLoading } = useGetFiling(id, { query: { enabled: !!id, queryKey: getGetFilingQueryKey(id) } });
+  const { activeRole } = useAuth();
+  const [downloading, setDownloading] = useState(false);
+  const [certifiedMode, setCertifiedMode] = useState(false);
+  const canReproduce = CERTIFIED_COPY_ROLES.includes(activeRole);
+
+  const downloadFilingPdf = async (certified: boolean) => {
+    if (!filing?.instrumentId) { alert("No instrument PDF associated with this filing."); return; }
+    setDownloading(true);
+    try {
+      const token = getCurrentBearerToken();
+      const url = certified
+        ? `/api/trust/filings/${filing.id}/certified-copy`
+        : `/api/trust/instruments/${filing.instrumentId}/pdf`;
+      const res = await fetch(url, {
+        method: certified ? "POST" : "GET",
+        headers: {
+          ...(certified ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        ...(certified ? { body: JSON.stringify({}) } : {}),
+      });
+      if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = certified
+        ? `filing-${filing.id}-certified.pdf`
+        : `filing-${filing.id}-instrument.pdf`;
+      a.click();
+      URL.revokeObjectURL(objUrl);
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setDownloading(false);
+    }
+  };
 
   if (isLoading) return <div data-testid="page-filing-detail"><Skeleton className="h-48" /></div>;
   if (!filing) return <div data-testid="page-filing-detail" className="text-muted-foreground">Filing not found.</div>;
@@ -120,10 +161,35 @@ export function FilingDetailPage({ params }: { params: { id: string } }) {
           )}
         </CardContent>
       </Card>
-      <div className="mt-4">
+      <div className="mt-4 flex items-center gap-4 flex-wrap">
         <Link href={`/instruments/${filing.instrumentId}`} className="text-sm text-primary hover:underline">
           View associated instrument →
         </Link>
+        {filing.instrumentId && (
+          <div className="flex items-center gap-3">
+            {canReproduce && (
+              <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer select-none">
+                <input
+                  type="checkbox"
+                  className="accent-blue-600"
+                  checked={certifiedMode}
+                  onChange={(e) => setCertifiedMode(e.target.checked)}
+                />
+                Certified copy
+              </label>
+            )}
+            <Button
+              variant="outline"
+              size="sm"
+              className={certifiedMode ? "border-blue-400 text-blue-700 dark:text-blue-400" : ""}
+              onClick={() => downloadFilingPdf(certifiedMode)}
+              disabled={downloading}
+              title={certifiedMode ? "Download as True and Certified Copy" : "Download instrument PDF"}
+            >
+              {downloading ? "Preparing…" : (certifiedMode ? "Download PDF (Certified)" : "Download PDF")}
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -82,8 +82,9 @@ function escHtml(s: string): string {
 function buildOfficialDocHtml(opts: {
   stampDate: string; title: string; subject: string; body: string;
   signerName: string; signerTitle: string; useActualSeal: boolean; showSeal: boolean;
+  certifiedCopy?: boolean; certifyingOfficer?: string; certDate?: string;
 }): string {
-  const { stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal } = opts;
+  const { stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal, certifiedCopy, certifyingOfficer, certDate } = opts;
   const origin = window.location.origin;
   const base = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
   const tribalSeal  = `${origin}${base}tribal-seal.png`;
@@ -108,12 +109,22 @@ function buildOfficialDocHtml(opts: {
       : `<div style="width:140px;height:140px;border-radius:50%;border:2px dashed #aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="text-align:center;color:#aaa;font-size:10px;padding:20px;"><div style="font-size:22px;margin-bottom:4px;">&#8853;</div>SEAL PLACEMENT</div></div>`
     : "";
 
+  const certifiedStampHtml = certifiedCopy
+    ? `<div style="position:absolute;bottom:0.85in;right:1in;display:inline-flex;flex-direction:column;align-items:center;border:2px solid #0a1875;background:rgba(240,243,255,0.96);padding:8px 12px;min-width:210px;font-family:Arial,sans-serif;box-sizing:border-box;">
+        <div style="font-size:9pt;font-weight:700;color:#0a1875;letter-spacing:0.5px;text-transform:uppercase;text-align:center;padding-bottom:4px;border-bottom:1px solid #0a1875;width:100%;margin-bottom:4px;">TRUE AND CERTIFIED COPY</div>
+        <div style="font-size:8pt;color:#111;width:100%;margin-bottom:2px;"><span style="font-weight:700;">Date:</span> ${escHtml(certDate ?? "")}</div>
+        <div style="font-size:8pt;color:#111;width:100%;margin-bottom:4px;"><span style="font-weight:700;">Certified by:</span> ${escHtml(certifyingOfficer ?? "")}</div>
+        <div style="font-size:6.5pt;color:#777;text-align:center;width:100%;">SOVEREIGN OFFICE — MATHIAS EL TRIBE</div>
+      </div>`
+    : "";
+
   return `<!DOCTYPE html><html lang="en"><head>
     <meta charset="utf-8">
     <title>Official Document — ${escHtml(title || "Sovereign Order")}</title>
     <style>* { box-sizing: border-box; } body { margin:0; padding:0; background:#fff; } @page { size: letter; margin: 0; }</style>
   </head><body>
     <div style="background:#fff;color:#000;font-family:'Times New Roman',Georgia,serif;font-size:12pt;line-height:1.6;padding:1in 1in 0.75in;max-width:8.5in;min-height:11in;margin:0 auto;position:relative;box-sizing:border-box;">
+      ${certifiedStampHtml}
       <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:24px;gap:12px;">
         <img src="${tribalSeal}" alt="Mathias El Tribe" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;" />
         <div style="flex:1;text-align:center;padding:0 16px;">
@@ -337,8 +348,8 @@ function DelegationPanel() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function OfficialDocumentsPage() {
-  const { activeRole } = useAuth();
-  const canAccess = ["trustee", "sovereign_admin"].includes(activeRole);
+  const { activeRole, user } = useAuth();
+  const canAccess = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
 
   const today = new Date();
   const [stampDate, setStampDate] = useState(formatStampDate(today));
@@ -351,6 +362,7 @@ export default function OfficialDocumentsPage() {
   const [signerTitle, setSignerTitle] = useState("Chief Justice & Trustee");
   const [useActualSeal, setUseActualSeal] = useState(true);
   const [showSeal, setShowSeal] = useState(true);
+  const [certifiedCopy, setCertifiedCopy] = useState(false);
 
   if (!canAccess) {
     return (
@@ -365,7 +377,11 @@ export default function OfficialDocumentsPage() {
   }
 
   const handlePrint = () => {
-    const html = buildOfficialDocHtml({ stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal });
+    const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const html = buildOfficialDocHtml({
+      stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal,
+      certifiedCopy, certifyingOfficer: user?.name ?? signerName, certDate,
+    });
     const w = window.open("", "_blank", "width=1000,height=820");
     if (!w) { alert("Pop-up blocked — please allow pop-ups for this site."); return; }
     w.document.open();
@@ -456,6 +472,25 @@ export default function OfficialDocumentsPage() {
                       <span className="text-[9px] text-muted-foreground">(digital)</span>
                     </label>
                   </div>
+                </div>
+
+                <Separator />
+
+                <div className="space-y-1.5">
+                  <Label className="text-xs font-semibold uppercase tracking-wider">Reproduction</Label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={certifiedCopy}
+                      onChange={(e) => setCertifiedCopy(e.target.checked)}
+                    />
+                    <span className="text-sm font-medium">This is a reproduction</span>
+                  </label>
+                  {certifiedCopy && (
+                    <p className="text-[10px] text-blue-700 dark:text-blue-400 leading-snug">
+                      A "TRUE AND CERTIFIED COPY" block will appear on the printed document, attributed to {user?.name ?? signerName}.
+                    </p>
+                  )}
                 </div>
               </CardContent>
             </Card>

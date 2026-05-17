@@ -1,9 +1,9 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { generateCourtDocument, getCourtDocument, listCourtDocuments, listTemplates } from "../../sovereign/court-doc-generator";
-import { buildCourtDocumentPdf } from "../../lib/pdf-builder";
+import { buildCourtDocumentPdf, stampCertifiedCopy } from "../../lib/pdf-builder";
 import { db } from "@workspace/db";
-import { courtDocumentsTable } from "@workspace/db";
+import { courtDocumentsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { nextDocRef } from "../../lib/doc-ref";
 
@@ -138,6 +138,56 @@ router.get("/:id/pdf", async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="court-doc-${id}.pdf"`);
     res.send(pdfResult.buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
+
+router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
+  try {
+    const userRoles: string[] = req.user?.roles ?? [];
+    if (!userRoles.some((r) => CERTIFIED_COPY_ROLES.includes(r))) {
+      res.status(403).json({ error: "Only officers, trustees, admins, and elders may certify documents." });
+      return;
+    }
+
+    const id = Number(req.params.id);
+    const doc = await getCourtDocument(id);
+    if (!doc) {
+      res.status(404).json({ error: "Court document not found" });
+      return;
+    }
+
+    let certifierName = req.user?.email || "Sovereign Officer";
+    if (req.user?.dbId) {
+      const [row] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.user.dbId)).limit(1);
+      if (row?.name) certifierName = row.name;
+    }
+    const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const pdfResult = await buildCourtDocumentPdf({
+      id: doc.id,
+      title: doc.title,
+      documentType: doc.documentType,
+      templateName: doc.templateName,
+      parties: (doc.parties as Record<string, string>) ?? {},
+      content: doc.content,
+      signatureBlock: doc.signatureBlock ?? "",
+      troSensitive: doc.troSensitive,
+      emergencyOrder: doc.emergencyOrder,
+      doctrinesApplied: (doc.doctrinesApplied as string[]) ?? [],
+      lawRefs: (doc.lawRefs as Array<{ citation: string; title: string }>) ?? [],
+      caseDetails: (doc.caseDetails as Record<string, string>) ?? {},
+      signingMode: "electronic",
+    });
+
+    const stamped = await stampCertifiedCopy(pdfResult.buffer, certifierName, certDate);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="court-doc-${id}-certified.pdf"`);
+    res.send(stamped);
   } catch (err) {
     next(err);
   }

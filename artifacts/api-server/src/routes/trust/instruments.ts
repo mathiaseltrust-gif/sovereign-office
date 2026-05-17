@@ -4,6 +4,7 @@ import {
   trustInstrumentsTable,
   trustFilingsTable,
   searchIndexTable,
+  usersTable,
 } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
@@ -16,6 +17,7 @@ import {
 import {
   buildRecorderPdf,
   buildInstrumentRecorderPdf,
+  stampCertifiedCopy,
   type PdfBuildInput,
 } from "../../lib/pdf-builder";
 import {
@@ -195,6 +197,50 @@ router.get("/:id/pdf", async (req, res, next) => {
     res.setHeader("Content-Type", "application/pdf");
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.send(results[0].pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const INSTRUMENT_CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
+
+router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
+  try {
+    const userRoles: string[] = req.user?.roles ?? [];
+    if (!userRoles.some((r) => INSTRUMENT_CERTIFIED_COPY_ROLES.includes(r))) {
+      res.status(403).json({ error: "Only officers, trustees, admins, and elders may certify documents." });
+      return;
+    }
+
+    const id = Number(req.params.id);
+    const results = await db
+      .select({ pdfBuffer: trustInstrumentsTable.pdfBuffer, title: trustInstrumentsTable.title })
+      .from(trustInstrumentsTable)
+      .where(eq(trustInstrumentsTable.id, id))
+      .limit(1);
+
+    if (!results[0]) {
+      res.status(404).json({ error: "Instrument not found" });
+      return;
+    }
+    if (!results[0].pdfBuffer) {
+      res.status(404).json({ error: "PDF not yet generated for this instrument." });
+      return;
+    }
+
+    let certifierName = req.user?.email || "Sovereign Officer";
+    if (req.user?.dbId) {
+      const [row] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.user.dbId)).limit(1);
+      if (row?.name) certifierName = row.name;
+    }
+    const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const stamped = await stampCertifiedCopy(Buffer.from(results[0].pdfBuffer), certifierName, certDate);
+    const filename = `trust-instrument-${id}-certified.pdf`.replace(/[^a-zA-Z0-9.-]/g, "_");
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(stamped);
   } catch (err) {
     next(err);
   }

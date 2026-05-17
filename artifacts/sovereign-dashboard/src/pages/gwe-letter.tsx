@@ -61,7 +61,39 @@ async function downloadGwePdf(id: number, recipientName: string): Promise<void> 
 
 function GweLetterList({ letters, isLoading }: { letters: GweLetter[] | undefined; isLoading: boolean }) {
   const { toast } = useToast();
+  const { activeRole, user } = useAuth();
+  const canCertify = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [certifyIds, setCertifyIds] = useState<Set<number>>(new Set());
+  const toggleCertify = (id: number) => setCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const handleCertifiedDownload = async (letter: GweLetter) => {
+    setDownloading(letter.id);
+    try {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`/api/documents/gwe-letter/${letter.id}/certified-copy`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error("Failed to download certified copy");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gwe-letter-${letter.id}-${letter.recipientName.replace(/[^a-zA-Z0-9]/g, "-")}-certified.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not download certified copy";
+      toast({ title: "Download Failed", description: msg, variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -115,14 +147,22 @@ function GweLetterList({ letters, isLoading }: { letters: GweLetter[] | undefine
                   Created: {new Date(letter.createdAt).toLocaleString()}
                 </div>
               </div>
-              <div className="shrink-0">
+              <div className="shrink-0 flex flex-col gap-2 items-end">
+                {canCertify && (
+                  <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+                    <input type="checkbox" className="accent-blue-600" checked={certifyIds.has(letter.id)} onChange={() => toggleCertify(letter.id)} />
+                    Certified copy
+                  </label>
+                )}
                 <Button
                   size="sm"
                   variant="outline"
+                  className={certifyIds.has(letter.id) ? "border-blue-400 text-blue-700 dark:text-blue-400" : ""}
                   disabled={downloading === letter.id}
-                  onClick={() => handleDownload(letter)}
+                  onClick={() => certifyIds.has(letter.id) ? handleCertifiedDownload(letter) : handleDownload(letter)}
+                  title={certifyIds.has(letter.id) ? "Download as Certified True and Exact Copy" : "Download PDF"}
                 >
-                  {downloading === letter.id ? "Downloading…" : "Download PDF"}
+                  {downloading === letter.id ? "Downloading…" : (certifyIds.has(letter.id) ? "Download PDF (Certified)" : "Download PDF")}
                 </Button>
               </div>
             </div>

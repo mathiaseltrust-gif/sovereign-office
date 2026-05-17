@@ -4,10 +4,14 @@ import {
   trustFilingsTable,
   trustInstrumentsTable,
   searchIndexTable,
+  usersTable,
 } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { nextDocRef } from "../../lib/doc-ref";
+import { stampCertifiedCopy } from "../../lib/pdf-builder";
+
+const FILING_CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
 
 const router = Router();
 
@@ -196,6 +200,40 @@ router.post("/:id/accept", requireAuth, requireRole("officer"), async (req, res,
       .returning();
     if (!updated) { res.status(404).json({ error: "Filing not found" }); return; }
     res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
+  try {
+    const userRoles: string[] = req.user?.roles ?? [];
+    if (!userRoles.some((r) => FILING_CERTIFIED_COPY_ROLES.includes(r))) {
+      res.status(403).json({ error: "Only officers, trustees, admins, and elders may certify documents." });
+      return;
+    }
+    const id = Number(req.params.id);
+    const filings = await db.select().from(trustFilingsTable).where(eq(trustFilingsTable.id, id)).limit(1);
+    if (!filings[0]) { res.status(404).json({ error: "Filing not found" }); return; }
+    const instrumentId = filings[0].instrumentId;
+    if (!instrumentId) { res.status(404).json({ error: "No instrument PDF associated with this filing." }); return; }
+    const instruments = await db
+      .select({ pdfBuffer: trustInstrumentsTable.pdfBuffer, title: trustInstrumentsTable.title })
+      .from(trustInstrumentsTable)
+      .where(eq(trustInstrumentsTable.id, instrumentId))
+      .limit(1);
+    if (!instruments[0]?.pdfBuffer) { res.status(404).json({ error: "Instrument PDF not yet generated." }); return; }
+    let certifierName = req.user?.email || "Sovereign Officer";
+    if (req.user?.dbId) {
+      const [row] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.user.dbId)).limit(1);
+      if (row?.name) certifierName = row.name;
+    }
+    const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+    const stamped = await stampCertifiedCopy(Buffer.from(instruments[0].pdfBuffer), certifierName, certDate);
+    const filename = `trust-filing-${id}-certified.pdf`;
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
+    res.send(stamped);
   } catch (err) {
     next(err);
   }

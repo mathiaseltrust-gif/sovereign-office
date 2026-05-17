@@ -1,20 +1,64 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { api, type TrustFiling } from "@/lib/api";
+import { api, getAuthToken, type TrustFiling } from "@/lib/api";
 import { useAuth } from "@/lib/auth";
 import { StatusBadge } from "@/components/status-badge";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
-import { CheckCircle2, XCircle, FileText, Search } from "lucide-react";
+import { CheckCircle2, XCircle, FileText, Search, BadgeCheck } from "lucide-react";
 import { format } from "date-fns";
 import { useState } from "react";
 
 export default function Filings() {
-  const { hasRole } = useAuth();
+  const { hasRole, user } = useAuth();
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [actionMsg, setActionMsg] = useState("");
   const [rejectId, setRejectId] = useState<number | null>(null);
   const [rejectReason, setRejectReason] = useState("");
+  const [reproducingId, setReproducingId] = useState<number | null>(null);
+
+  const canReproduce = (user?.roles ?? []).some((r) =>
+    ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(r)
+  );
+
+  const [certifyIds, setCertifyIds] = useState<Set<number>>(new Set());
+  const toggleCertify = (id: number) => setCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const downloadFilingPdf = async (filing: TrustFiling, certified: boolean) => {
+    if (!filing.instrumentId) {
+      alert("This filing has no associated instrument PDF.");
+      return;
+    }
+    setReproducingId(filing.id);
+    try {
+      const token = getAuthToken() ?? undefined;
+      const url = certified
+        ? `/api/trust/filings/${filing.id}/certified-copy`
+        : `/api/trust/instruments/${filing.instrumentId}/pdf`;
+      const res = await fetch(url, {
+        method: certified ? "POST" : "GET",
+        headers: {
+          ...(certified ? { "Content-Type": "application/json" } : {}),
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        ...(certified ? { body: JSON.stringify({}) } : {}),
+      });
+      if (!res.ok) throw new Error(`Download failed: HTTP ${res.status}`);
+      const blob = await res.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = objUrl;
+      a.download = certified
+        ? `filing-${filing.id}-certified.pdf`
+        : `filing-${filing.id}-instrument.pdf`;
+      a.click();
+      URL.revokeObjectURL(objUrl);
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setReproducingId(null);
+    }
+  };
 
   const { data: filings = [], isLoading } = useQuery<TrustFiling[]>({
     queryKey: ["filings"],
@@ -114,6 +158,9 @@ export default function Filings() {
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Land Class</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
                     <th className="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wide">Filed</th>
+                    {canReproduce && (
+                      <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">PDF</th>
+                    )}
                     {hasRole("officer") && (
                       <th className="px-4 py-3 text-right text-xs font-semibold text-muted-foreground uppercase tracking-wide">Actions</th>
                     )}
@@ -153,6 +200,29 @@ export default function Filings() {
                             ? format(new Date(filing.submittedAt), "MMM d, yyyy")
                             : format(new Date(filing.createdAt), "MMM d, yyyy")}
                         </td>
+                        {canReproduce && (
+                          <td className="px-4 py-3 text-right">
+                            {filing.instrumentId ? (
+                              <div className="inline-flex items-center gap-2">
+                                <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none" title="Download as Certified True and Exact Copy">
+                                  <input type="checkbox" className="accent-blue-600" checked={certifyIds.has(filing.id)} onChange={() => toggleCertify(filing.id)} />
+                                  <span className="hidden sm:inline text-[10px]">Cert.</span>
+                                </label>
+                                <button
+                                  onClick={() => downloadFilingPdf(filing, certifyIds.has(filing.id))}
+                                  disabled={reproducingId === filing.id}
+                                  className={`inline-flex items-center gap-1 text-xs hover:underline disabled:opacity-50 ${certifyIds.has(filing.id) ? "text-blue-700 dark:text-blue-400" : "text-primary"}`}
+                                  title={certifyIds.has(filing.id) ? "Download Certified Copy" : "Download Filing PDF"}
+                                >
+                                  {certifyIds.has(filing.id) ? <BadgeCheck className="w-3.5 h-3.5" /> : <FileText className="w-3.5 h-3.5" />}
+                                  {reproducingId === filing.id ? "…" : ""}
+                                </button>
+                              </div>
+                            ) : (
+                              <span className="text-xs text-muted-foreground/50">—</span>
+                            )}
+                          </td>
+                        )}
                         {hasRole("officer") && (
                           <td className="px-4 py-3 text-right">
                             {filing.filingStatus === "submitted" && (

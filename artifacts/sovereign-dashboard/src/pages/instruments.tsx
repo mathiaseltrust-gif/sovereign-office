@@ -11,7 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { Link } from "wouter";
 
 function statusColor(status: string) {
@@ -41,7 +41,36 @@ export default function InstrumentsPage() {
   const createInstrument = useCreateInstrument();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const { user, activeRole } = useAuth();
+  const canCertify = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
+  const [certifyIds, setCertifyIds] = useState<Set<number>>(new Set());
+  const toggleCertify = (id: number) => setCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+  const [downloading, setDownloading] = useState<number | null>(null);
   const [open, setOpen] = useState(false);
+
+  const downloadCertifiedCopy = async (instId: number) => {
+    setDownloading(instId);
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`/api/trust/instruments/${instId}/certified-copy`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error("Failed to produce certified copy");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `trust-instrument-${instId}-certified.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      toast({ title: "Error", description: err instanceof Error ? err.message : "Could not download certified copy", variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
   const [form, setForm] = useState({
     title: "",
     type: "trust_deed",
@@ -210,18 +239,38 @@ export default function InstrumentsPage() {
                     <span className="text-xs text-muted-foreground">· {new Date(inst.createdAt).toLocaleDateString()}</span>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 ml-4">
+                <div className="flex items-center gap-2 ml-4 flex-wrap">
                   <Badge variant={statusColor(inst.status) as any}>{inst.status}</Badge>
                   {inst.pdfUrl && (
-                    <Button size="sm" variant="outline" data-testid={`button-pdf-${inst.id}`} onClick={async () => {
-                      const token = getCurrentBearerToken() ?? "";
-                      const r = await fetch(`/api/trust/instruments/${inst.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
-                      const blob = await r.blob();
-                      const url = URL.createObjectURL(blob);
-                      window.open(url);
-                    }}>
-                      Download PDF
-                    </Button>
+                    <>
+                      {canCertify && (
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+                          <input type="checkbox" className="accent-blue-600" checked={certifyIds.has(inst.id)} onChange={() => toggleCertify(inst.id)} />
+                          Certified copy
+                        </label>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={certifyIds.has(inst.id) ? "border-blue-400 text-blue-700 dark:text-blue-400" : ""}
+                        data-testid={`button-pdf-${inst.id}`}
+                        disabled={downloading === inst.id}
+                        onClick={async () => {
+                          if (certifyIds.has(inst.id)) {
+                            await downloadCertifiedCopy(inst.id);
+                          } else {
+                            const token = getCurrentBearerToken() ?? "";
+                            const r = await fetch(`/api/trust/instruments/${inst.id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
+                            const blob = await r.blob();
+                            const url = URL.createObjectURL(blob);
+                            window.open(url);
+                          }
+                        }}
+                        title={certifyIds.has(inst.id) ? "Download as Certified True and Exact Copy" : "Download PDF"}
+                      >
+                        {downloading === inst.id ? "Preparing…" : (certifyIds.has(inst.id) ? "Download PDF (Certified)" : "Download PDF")}
+                      </Button>
+                    </>
                   )}
                 </div>
               </CardContent>

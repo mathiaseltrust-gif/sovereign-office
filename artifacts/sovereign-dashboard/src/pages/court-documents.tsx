@@ -143,11 +143,39 @@ async function downloadGweLetter(id: number, recipientName: string): Promise<voi
 }
 
 function GweLettersTab() {
-  const { activeRole } = useAuth();
+  const { activeRole, user } = useAuth();
   const { toast } = useToast();
   const canView = ["trustee", "officer", "sovereign_admin", "admin", "elder"].includes(activeRole);
+  const canCertifyGwe = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
   const { data: letters, isLoading } = useGweLetters(canView);
   const [downloading, setDownloading] = useState<number | null>(null);
+  const [certifyIds, setCertifyIds] = useState<Set<number>>(new Set());
+  const toggleCertify = (id: number) => setCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const handleCertifiedDownloadLetter = async (letter: GweLetter) => {
+    setDownloading(letter.id);
+    try {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`/api/documents/gwe-letter/${letter.id}/certified-copy`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      if (!r.ok) throw new Error("Failed to download certified copy");
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `gwe-letter-${letter.id}-${letter.recipientName.replace(/[^a-zA-Z0-9]/g, "-")}-certified.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Could not download certified copy";
+      toast({ title: "Download Failed", description: msg, variant: "destructive" });
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   if (!canView) {
     return (
@@ -170,6 +198,7 @@ function GweLettersTab() {
       setDownloading(null);
     }
   };
+
 
   return (
     <div className="space-y-4">
@@ -215,15 +244,23 @@ function GweLettersTab() {
                     Basis: {letter.exclusionBasis} · Officer: {letter.issuingOfficer}
                   </div>
                 </div>
-                <div className="flex items-center gap-2 ml-4 shrink-0">
+                <div className="flex items-center gap-2 ml-4 shrink-0 flex-wrap">
                   <span className="text-xs text-muted-foreground">GWE-{String(letter.id).padStart(6, "0")}</span>
+                  {canCertifyGwe && (
+                    <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+                      <input type="checkbox" className="accent-blue-600" checked={certifyIds.has(letter.id)} onChange={() => toggleCertify(letter.id)} />
+                      Certified copy
+                    </label>
+                  )}
                   <Button
                     size="sm"
-                    variant="outline"
+                    variant={certifyIds.has(letter.id) ? "outline" : "outline"}
+                    className={certifyIds.has(letter.id) ? "border-blue-400 text-blue-700 dark:text-blue-400" : ""}
                     disabled={downloading === letter.id}
-                    onClick={() => handleDownload(letter)}
+                    onClick={() => certifyIds.has(letter.id) ? handleCertifiedDownloadLetter(letter) : handleDownload(letter)}
+                    title={certifyIds.has(letter.id) ? "Download as Certified True and Exact Copy" : "Download PDF"}
                   >
-                    {downloading === letter.id ? "…" : "PDF"}
+                    {downloading === letter.id ? "…" : (certifyIds.has(letter.id) ? "PDF (Certified)" : "PDF")}
                   </Button>
                 </div>
               </CardContent>
@@ -360,6 +397,11 @@ export default function CourtDocumentsPage() {
     onError: (e: Error) => toast({ title: "Error", description: e.message, variant: "destructive" }),
   });
 
+  const { user, activeRole } = useAuth();
+  const canCertify = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
+  const [docCertifyIds, setDocCertifyIds] = useState<Set<number>>(new Set());
+  const toggleDocCertify = (id: number) => setDocCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
   const downloadPdf = async (id: number, mode: "electronic" | "print" = "electronic") => {
     const url = `/api/court/documents/${id}/pdf${mode === "print" ? "?mode=print" : ""}`;
     const r = await fetch(url, { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
@@ -369,6 +411,23 @@ export default function CourtDocumentsPage() {
     const a = document.createElement("a");
     a.href = objUrl;
     a.download = mode === "print" ? `court-doc-${id}-print.pdf` : `court-doc-${id}.pdf`;
+    a.click();
+    URL.revokeObjectURL(objUrl);
+  };
+
+  const downloadCertifiedCopy = async (id: number) => {
+    const token = getCurrentBearerToken() ?? "";
+    const r = await fetch(`/api/court/documents/${id}/certified-copy`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      body: JSON.stringify({ officerName: user?.name ?? "" }),
+    });
+    if (!r.ok) { toast({ title: "Error", description: "Could not produce certified copy.", variant: "destructive" }); return; }
+    const blob = await r.blob();
+    const objUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objUrl;
+    a.download = `court-doc-${id}-certified.pdf`;
     a.click();
     URL.revokeObjectURL(objUrl);
   };
@@ -610,14 +669,28 @@ export default function CourtDocumentsPage() {
                         )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2 ml-4 shrink-0">
+                    <div className="flex items-center gap-2 ml-4 shrink-0 flex-wrap">
                       <Badge variant="outline" className="text-xs">{doc.status}</Badge>
-                      <Button size="sm" variant="outline" onClick={() => downloadPdf(doc.id, "electronic")} title="Download with electronic seal">
-                        PDF
+                      {canCertify && (
+                        <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none">
+                          <input type="checkbox" className="accent-blue-600" checked={docCertifyIds.has(doc.id)} onChange={() => toggleDocCertify(doc.id)} />
+                          Certified copy
+                        </label>
+                      )}
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className={docCertifyIds.has(doc.id) ? "border-blue-400 text-blue-700 dark:text-blue-400" : ""}
+                        onClick={() => docCertifyIds.has(doc.id) ? downloadCertifiedCopy(doc.id) : downloadPdf(doc.id, "electronic")}
+                        title={docCertifyIds.has(doc.id) ? "Download as Certified True and Exact Copy" : "Download with electronic seal"}
+                      >
+                        {docCertifyIds.has(doc.id) ? "PDF (Certified)" : "PDF"}
                       </Button>
-                      <Button size="sm" variant="outline" className="text-muted-foreground border-dashed" onClick={() => downloadPdf(doc.id, "print")} title="Download for physical stamp — seal placeholder included">
-                        Print &amp; Sign
-                      </Button>
+                      {!docCertifyIds.has(doc.id) && (
+                        <Button size="sm" variant="outline" className="text-muted-foreground border-dashed" onClick={() => downloadPdf(doc.id, "print")} title="Download for physical stamp — seal placeholder included">
+                          Print &amp; Sign
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>

@@ -1,9 +1,9 @@
 import { Router, type Request } from "express";
 import { db } from "@workspace/db";
-import { gweLettersTable } from "@workspace/db";
+import { gweLettersTable, usersTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { buildGweLetterPdf, type GweLetterInput } from "../../lib/pdf-builder";
+import { buildGweLetterPdf, stampCertifiedCopy, type GweLetterInput } from "../../lib/pdf-builder";
 import { objectStorageClient } from "../../lib/objectStorage";
 import { logger } from "../../lib/logger";
 import { randomUUID } from "node:crypto";
@@ -206,6 +206,58 @@ router.get("/:id/pdf", requireAuth, async (req, res, next) => {
     res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
     res.setHeader("Content-Length", result.buffer.length);
     res.send(result.buffer);
+  } catch (err) {
+    next(err);
+  }
+});
+
+const GWE_CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
+
+router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
+  try {
+    const userRoles: string[] = req.user?.roles ?? [];
+    if (!userRoles.some((r) => GWE_CERTIFIED_COPY_ROLES.includes(r))) {
+      res.status(403).json({ error: "Only officers, trustees, admins, and elders may certify documents." });
+      return;
+    }
+
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid letter ID" });
+      return;
+    }
+
+    const rows = await db.select().from(gweLettersTable).where(eq(gweLettersTable.id, id)).limit(1);
+    if (!rows[0]) {
+      res.status(404).json({ error: "GWE letter not found" });
+      return;
+    }
+
+    const row = rows[0];
+    const input: GweLetterInput = {
+      recipientName: row.recipientName,
+      letterDate: row.letterDate,
+      programName: row.programName,
+      exclusionBasis: row.exclusionBasis as GweLetterInput["exclusionBasis"],
+      amount: row.amount,
+      issuingOfficer: row.issuingOfficer,
+      referenceNumber: String(row.id).padStart(6, "0"),
+    };
+
+    let certifierName = req.user?.email || "Sovereign Officer";
+    if (req.user?.dbId) {
+      const [row] = await db.select({ name: usersTable.name }).from(usersTable).where(eq(usersTable.id, req.user.dbId)).limit(1);
+      if (row?.name) certifierName = row.name;
+    }
+    const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
+
+    const result = await buildGweLetterPdf(input);
+    const stamped = await stampCertifiedCopy(result.buffer, certifierName, certDate);
+
+    const safeRecipient = row.recipientName.replace(/[^a-zA-Z0-9]/g, "-");
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `attachment; filename="gwe-letter-${row.id}-${safeRecipient}-certified.pdf"`);
+    res.send(stamped);
   } catch (err) {
     next(err);
   }

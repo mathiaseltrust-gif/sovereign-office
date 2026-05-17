@@ -1,9 +1,9 @@
 import { useQuery } from "@tanstack/react-query";
-import { api, type TrustInstrument } from "@/lib/api";
+import { api, getAuthToken, type TrustInstrument } from "@/lib/api";
 import { StatusBadge } from "@/components/status-badge";
 import { Layout } from "@/components/layout";
 import { Link } from "wouter";
-import { Plus, Search, FolderOpen, FileDown, ChevronRight } from "lucide-react";
+import { Plus, Search, FolderOpen, FileDown, ChevronRight, BadgeCheck } from "lucide-react";
 import { useState } from "react";
 import { format } from "date-fns";
 import { useAuth } from "@/lib/auth";
@@ -11,8 +11,40 @@ import { getRoleConfig } from "@/lib/role-config";
 
 export default function Instruments() {
   const [search, setSearch] = useState("");
-  const { user } = useAuth();
+  const { user, hasRole } = useAuth();
   const config = getRoleConfig(user?.roles ?? []);
+  const canCertify = (user?.roles ?? []).some((r) =>
+    ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(r)
+  );
+  const [downloading, setDownloading] = useState<number | null>(null);
+  const [certifyIds, setCertifyIds] = useState<Set<number>>(new Set());
+  const toggleCertify = (id: number) => setCertifyIds(prev => { const n = new Set(prev); n.has(id) ? n.delete(id) : n.add(id); return n; });
+
+  const downloadPdf = async (inst: TrustInstrument, certified: boolean) => {
+    setDownloading(inst.id);
+    try {
+      const token = getAuthToken() ?? undefined;
+      if (certified) {
+        const res = await fetch(`/api/trust/instruments/${inst.id}/certified-copy`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+          body: JSON.stringify({}),
+        });
+        if (!res.ok) throw new Error(`Certified copy failed: HTTP ${res.status}`);
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url; a.download = `instrument-${inst.id}-certified.pdf`; a.click();
+        URL.revokeObjectURL(url);
+      } else {
+        await api.downloadPdf(`/trust/instruments/${inst.id}/pdf`, `instrument-${inst.id}.pdf`);
+      }
+    } catch (err) {
+      alert(String(err));
+    } finally {
+      setDownloading(null);
+    }
+  };
 
   const { data: instruments = [], isLoading } = useQuery<TrustInstrument[]>({
     queryKey: ["instruments"],
@@ -129,22 +161,23 @@ export default function Instruments() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         {inst.pdfUrl && (
-                          <button
-                            onClick={async () => {
-                              try {
-                                await api.downloadPdf(
-                                  `/trust/instruments/${inst.id}/pdf`,
-                                  `instrument-${inst.id}.pdf`,
-                                );
-                              } catch (err) {
-                                alert(String(err));
-                              }
-                            }}
-                            className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                            title="Download PDF"
-                          >
-                            <FileDown className="w-3.5 h-3.5" />
-                          </button>
+                          <div className="inline-flex items-center gap-2">
+                            {canCertify && (
+                              <label className="flex items-center gap-1 text-xs text-muted-foreground cursor-pointer select-none" title="Download as Certified True and Exact Copy">
+                                <input type="checkbox" className="accent-blue-600" checked={certifyIds.has(inst.id)} onChange={() => toggleCertify(inst.id)} />
+                                <span className="hidden sm:inline text-[10px]">Cert.</span>
+                              </label>
+                            )}
+                            <button
+                              onClick={() => downloadPdf(inst, certifyIds.has(inst.id))}
+                              disabled={downloading === inst.id}
+                              className={`inline-flex items-center gap-1 text-xs hover:underline disabled:opacity-50 ${certifyIds.has(inst.id) ? "text-blue-700 dark:text-blue-400" : "text-primary"}`}
+                              title={certifyIds.has(inst.id) ? "Download Certified Copy" : "Download PDF"}
+                            >
+                              {certifyIds.has(inst.id) ? <BadgeCheck className="w-3.5 h-3.5" /> : <FileDown className="w-3.5 h-3.5" />}
+                              {downloading === inst.id ? "…" : ""}
+                            </button>
+                          </div>
                         )}
                       </td>
                       <td className="px-4 py-3">
