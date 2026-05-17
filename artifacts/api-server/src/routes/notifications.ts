@@ -3,6 +3,17 @@ import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db";
 import { eq, desc, and, isNull } from "drizzle-orm";
 import { requireAuth } from "../auth/entra-guard";
+import { createNotification } from "../sovereign/notification-engine";
+import type { NotificationCategory, NotificationSeverity } from "../sovereign/notification-engine";
+
+const VALID_CATEGORIES = new Set<NotificationCategory>([
+  "family_governance", "welfare_update", "trust_instrument", "recorder_filing",
+  "court_hearing", "tribal_announcement", "tro_alert", "red_flag_alert",
+  "task_assigned", "complaint_update", "direct_message", "enrollment_granted",
+  "lineage_review", "lineage_approved", "lineage_rejected",
+]);
+
+const VALID_SEVERITIES = new Set<NotificationSeverity>(["info", "warning", "critical", "emergency"]);
 
 const router = Router();
 
@@ -121,23 +132,33 @@ router.post("/", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const [created] = await db
-      .insert(notificationsTable)
-      .values({
-        userId: null,
-        channel: "dashboard",
-        category,
-        title,
-        message,
-        severity: severity ?? "info",
-        relatedId: relatedId ?? null,
-        relatedType: relatedType ?? null,
-        redFlag: redFlag ?? false,
-        troFlag: troFlag ?? false,
-        read: false,
-        metadata: {},
-      })
-      .returning();
+    if (!VALID_CATEGORIES.has(category as NotificationCategory)) {
+      res.status(400).json({ error: `Invalid category. Must be one of: ${[...VALID_CATEGORIES].join(", ")}` });
+      return;
+    }
+
+    const resolvedSeverity = (severity ?? "info") as NotificationSeverity;
+    if (!VALID_SEVERITIES.has(resolvedSeverity)) {
+      res.status(400).json({ error: `Invalid severity. Must be one of: ${[...VALID_SEVERITIES].join(", ")}` });
+      return;
+    }
+
+    const created = await createNotification({
+      userId: undefined,
+      category: category as NotificationCategory,
+      title,
+      message,
+      severity: resolvedSeverity,
+      relatedId: relatedId ?? undefined,
+      relatedType: relatedType ?? undefined,
+      redFlag: redFlag ?? false,
+      troFlag: troFlag ?? false,
+    });
+
+    if (!created) {
+      res.status(500).json({ error: "Failed to persist notification" });
+      return;
+    }
 
     res.status(201).json(created);
   } catch (err) {

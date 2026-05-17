@@ -1,6 +1,5 @@
-import { db } from "@workspace/db";
-import { notificationsTable, usersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { createNotification as engineCreateNotification } from "../sovereign/notification-engine";
+import type { NotificationCategory } from "../sovereign/notification-engine";
 import { logger } from "./logger";
 
 export interface NotifyOptions {
@@ -15,21 +14,16 @@ export interface NotifyOptions {
 }
 
 export async function createNotification(opts: NotifyOptions): Promise<void> {
-  try {
-    await db.insert(notificationsTable).values({
-      userId: opts.userId,
-      channel: "dashboard",
-      category: opts.category,
-      title: opts.title,
-      message: opts.message,
-      severity: opts.severity ?? "info",
-      relatedId: opts.relatedId,
-      relatedType: opts.relatedType,
-      metadata: opts.metadata ?? {},
-    });
-  } catch (err) {
-    logger.warn({ err, userId: opts.userId }, "Failed to create notification");
-  }
+  await engineCreateNotification({
+    userId: opts.userId,
+    category: opts.category as NotificationCategory,
+    title: opts.title,
+    message: opts.message,
+    severity: opts.severity ?? "info",
+    relatedId: opts.relatedId,
+    relatedType: opts.relatedType,
+    metadata: opts.metadata,
+  });
 }
 
 export async function notifyNewDirectMessage(opts: {
@@ -55,32 +49,6 @@ export async function notifyNewDirectMessage(opts: {
       senderId: opts.senderId,
       senderName: opts.senderName,
       threadId: opts.threadId,
-      emailQueued: true,
     },
   });
-
-  // Email stub — pick up any notification with metadata.emailQueued === true
-  // in a background job or dedicated email worker. No live mailer configured yet,
-  // so we log the intent so it is visible and traceable.
-  try {
-    const [recipient] = await db
-      .select({ email: usersTable.email, name: usersTable.name })
-      .from(usersTable)
-      .where(eq(usersTable.id, opts.recipientId))
-      .limit(1);
-
-    if (recipient?.email) {
-      logger.info(
-        {
-          to: recipient.email,
-          subject: title,
-          body: `You have a new message from ${opts.senderName}: "${message}"`,
-          channel: "email_queue",
-        },
-        "Direct message email notification queued (no mailer configured — log only)",
-      );
-    }
-  } catch (err) {
-    logger.warn({ err }, "Could not look up recipient email for DM notification");
-  }
 }

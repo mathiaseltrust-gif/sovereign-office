@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { createHash, createHmac, randomBytes } from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, familyLineageTable, profilesTable, notificationsTable } from "@workspace/db";
+import { usersTable, familyLineageTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
+import { createNotification } from "../../sovereign/notification-engine";
 
 const router = Router();
 
@@ -129,17 +130,15 @@ router.post("/:id/enroll", requireAuth, requireRole("trustee"), async (req, res,
         },
       });
 
-    // Send a welcome notification to the user's dashboard
-    await db.insert(notificationsTable).values({
+    // Send a welcome notification (in-app + email if opted in)
+    await createNotification({
       userId: user.id,
-      channel: "dashboard",
       category: "enrollment_granted",
       title: "Membership Access Granted",
       message: `Your tribal membership access has been granted by the Office of the Chief Justice. You may now log in with your email (${email})${temporaryPassword ? " and the temporary password provided to you" : " via Microsoft"}.`,
       severity: "info",
       relatedId: nodeId,
       relatedType: "family_lineage",
-      read: false,
     });
 
     res.status(created ? 201 : 200).json({

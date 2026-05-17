@@ -1,10 +1,11 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, familyUnitsTable, notificationsTable, profilesTable, usersTable } from "@workspace/db";
+import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
 import { logger } from "../../lib/logger";
+import { createNotification } from "../../sovereign/notification-engine";
 
 const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer"]);
 
@@ -640,16 +641,14 @@ router.post("/:id/verify", requireAuth, requireRole("trustee"), async (req, res,
           set: { lineageVerified: true, membershipVerified: true, updatedAt: new Date() },
         });
 
-      await db.insert(notificationsTable).values({
+      await createNotification({
         userId: node.linkedProfileUserId,
-        channel: "dashboard",
         category: "lineage_approved",
         title: "Lineage Claim Approved",
         message: "Your lineage claim has been reviewed and approved. You now have verified descendant membership.",
         severity: "info",
         relatedId: id,
         relatedType: "family_lineage",
-        read: false,
       });
     }
 
@@ -680,16 +679,14 @@ router.post("/:id/reject", requireAuth, requireRole("trustee"), async (req, res,
     }).where(eq(familyLineageTable.id, id));
 
     if (node.linkedProfileUserId) {
-      await db.insert(notificationsTable).values({
+      await createNotification({
         userId: node.linkedProfileUserId,
-        channel: "dashboard",
         category: "lineage_rejected",
         title: "Lineage Claim Not Verified",
         message: `Your lineage claim was reviewed and could not be verified. Reason: ${reason}`,
         severity: "warning",
         relatedId: id,
         relatedType: "family_lineage",
-        read: false,
       });
     }
 

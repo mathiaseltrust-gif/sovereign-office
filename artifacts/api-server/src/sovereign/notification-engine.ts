@@ -1,7 +1,9 @@
 import { db } from "@workspace/db";
-import { notificationsTable } from "@workspace/db";
+import { notificationsTable, usersTable, profilesTable } from "@workspace/db";
 import type { InsertNotification } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { sendNotificationEmail } from "../services/mailer";
 
 export type NotificationCategory =
   | "family_governance"
@@ -13,7 +15,12 @@ export type NotificationCategory =
   | "tro_alert"
   | "red_flag_alert"
   | "task_assigned"
-  | "complaint_update";
+  | "complaint_update"
+  | "direct_message"
+  | "enrollment_granted"
+  | "lineage_review"
+  | "lineage_approved"
+  | "lineage_rejected";
 
 export type NotificationSeverity = "info" | "warning" | "critical" | "emergency";
 
@@ -31,7 +38,29 @@ export interface NotificationInput {
   metadata?: Record<string, unknown>;
 }
 
-export async function createNotification(input: NotificationInput): Promise<void> {
+async function getUserEmailPreference(userId: number): Promise<{ email: string; name: string; emailOptIn: boolean } | null> {
+  try {
+    const [row] = await db
+      .select({
+        email: usersTable.email,
+        name: usersTable.name,
+        notificationPreferences: profilesTable.notificationPreferences,
+      })
+      .from(usersTable)
+      .leftJoin(profilesTable, eq(profilesTable.userId, usersTable.id))
+      .where(eq(usersTable.id, userId))
+      .limit(1);
+    if (!row) return null;
+    const prefs = (row.notificationPreferences ?? {}) as Record<string, unknown>;
+    const emailOptIn = typeof prefs.email === "boolean" ? prefs.email : false;
+    return { email: row.email, name: row.name, emailOptIn };
+  } catch (err) {
+    logger.error({ err, userId }, "Failed to fetch user email preferences");
+    return null;
+  }
+}
+
+export async function createNotification(input: NotificationInput): Promise<typeof notificationsTable.$inferSelect | null> {
   try {
     const record: InsertNotification = {
       userId: input.userId ?? null,
@@ -47,10 +76,54 @@ export async function createNotification(input: NotificationInput): Promise<void
       read: false,
       metadata: input.metadata ?? {},
     };
-    await db.insert(notificationsTable).values(record);
+    const [inserted] = await db.insert(notificationsTable).values(record).returning();
     logger.info({ category: input.category, severity: input.severity, redFlag: input.redFlag }, "Notification created");
+
+    // Email delivery — wrapped so failures never interrupt the notification write
+    try {
+      if (input.userId != null) {
+        const userInfo = await getUserEmailPreference(input.userId);
+        if (userInfo?.emailOptIn) {
+          await sendNotificationEmail({
+            to: userInfo.email,
+            name: userInfo.name,
+            category: input.category,
+            severity: input.severity,
+            title: input.title,
+            message: input.message,
+            metadata: input.metadata,
+          });
+        }
+      } else {
+        // Broadcast: DB-side filter for opted-in users, concurrent sends
+        const optedInUsers = await db
+          .select({ id: usersTable.id, email: usersTable.email, name: usersTable.name })
+          .from(usersTable)
+          .innerJoin(profilesTable, eq(profilesTable.userId, usersTable.id))
+          .where(sql`${profilesTable.notificationPreferences}->>'email' = 'true'`);
+
+        await Promise.all(
+          optedInUsers.map((u) =>
+            sendNotificationEmail({
+              to: u.email,
+              name: u.name,
+              category: input.category,
+              severity: input.severity,
+              title: input.title,
+              message: input.message,
+              metadata: input.metadata,
+            }),
+          ),
+        );
+      }
+    } catch (emailErr) {
+      logger.error({ emailErr }, "Email delivery error — notification was saved but email was not sent");
+    }
+
+    return inserted ?? null;
   } catch (err) {
     logger.error({ err }, "Failed to create notification");
+    return null;
   }
 }
 

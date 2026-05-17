@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireAdmin, requireRegisteredUser } from "../../auth/entra-guard";
+import { sendNotificationEmail } from "../../services/mailer";
 
 const router = Router();
 
@@ -256,6 +257,15 @@ router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, a
       res.status(404).json({ error: "User not found" });
       return;
     }
+
+    // Notify the member by email that their password was set (sendNotificationEmail logs failures internally)
+    await sendNotificationEmail({
+      to: updated[0].email,
+      name: updated[0].name,
+      category: "password_set",
+      title: "Your account password has been set",
+      message: "You can now sign in using your email address and the password that was set for you. If you did not request this change, please contact your administrator immediately.",
+    });
 
     res.json({ success: true, message: "Password set successfully." });
   } catch (err) {

@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, profilesTable, notificationsTable, usersTable } from "@workspace/db";
+import { familyLineageTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, ne, and, inArray, notInArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
+import { createNotification } from "../../sovereign/notification-engine";
 
 const router = Router();
 
@@ -118,24 +119,20 @@ async function notifyAdmins(pendingNodeId: number, submitterName: string, userId
     .from(usersTable)
     .where(inArray(usersTable.role, ["admin", "chief_justice", "trustee"]));
 
-  const inserts = adminUsers.map((admin) => ({
-    userId: admin.id,
-    channel: "dashboard" as const,
-    category: "lineage_review",
-    title: "Pending Lineage Review",
-    message: `${submitterName} has submitted a lineage claim (node #${pendingNodeId}) that requires admin review.`,
-    severity: "warning" as const,
-    relatedId: pendingNodeId,
-    relatedType: "family_lineage",
-    redFlag: false,
-    troFlag: false,
-    read: false,
-    metadata: { submitterId: userId },
-  }));
-
-  if (inserts.length > 0) {
-    await db.insert(notificationsTable).values(inserts);
-  }
+  await Promise.all(
+    adminUsers.map((admin) =>
+      createNotification({
+        userId: admin.id,
+        category: "lineage_review",
+        title: "Pending Lineage Review",
+        message: `${submitterName} has submitted a lineage claim (node #${pendingNodeId}) that requires admin review.`,
+        severity: "warning",
+        relatedId: pendingNodeId,
+        relatedType: "family_lineage",
+        metadata: { submitterId: userId },
+      }),
+    ),
+  );
 }
 
 router.post("/", requireAuth, async (req, res, next) => {
