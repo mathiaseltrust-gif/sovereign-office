@@ -7,6 +7,7 @@ import {
 } from "@workspace/db";
 import { eq, count, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 
@@ -88,6 +89,8 @@ router.post("/", requireAuth, async (req, res, next) => {
       instrumentType = inst[0].instrumentType;
     }
 
+    const tribalRef = await nextDocRef("trust_filing");
+
     const [filing] = await db
       .insert(trustFilingsTable)
       .values({
@@ -101,6 +104,7 @@ router.post("/", requireAuth, async (req, res, next) => {
         landClassification,
         notes,
         instrumentType,
+        tribalRef,
         filingReference: instrumentId ? `INST-${instrumentId}-${Date.now()}` : undefined,
       })
       .returning();

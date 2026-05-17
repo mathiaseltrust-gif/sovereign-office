@@ -1,5 +1,6 @@
 import app from "./app";
 import { logger } from "./lib/logger";
+import { ensureDocRefColumns } from "./lib/doc-ref";
 
 const rawPort = process.env["PORT"];
 
@@ -14,6 +15,10 @@ const port = Number(rawPort);
 if (Number.isNaN(port) || port <= 0) {
   throw new Error(`Invalid PORT value: "${rawPort}"`);
 }
+
+ensureDocRefColumns().catch((err) => {
+  logger.warn({ err }, "Could not initialize tribal document reference columns");
+});
 
 app.listen(port, (err) => {
   if (err) {

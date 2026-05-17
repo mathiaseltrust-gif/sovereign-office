@@ -13,6 +13,7 @@ import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText } from "../../lib/doctrine";
 import { runIntakeFilter } from "../../sovereign/intake-filter";
 import { notifyComplaintFiled, notifyRedFlag } from "../../sovereign/notification-engine";
+import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -35,12 +36,14 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
     const classification = classifyText(text);
     const intakeFilter = runIntakeFilter(text);
     const officerId = await findAvailableOfficer();
+    const tribalRef = await nextDocRef("complaint");
 
     const [complaint] = await db
       .insert(complaintsTable)
       .values({
         text: text.substring(0, 10000),
         pdfPath: req.file ? req.file.originalname : undefined,
+        tribalRef,
         classification: {
           ...classification,
           intakeFilter: {

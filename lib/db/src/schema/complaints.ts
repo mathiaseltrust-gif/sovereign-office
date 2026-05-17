@@ -8,6 +8,7 @@ export const complaintsTable = pgTable("complaints", {
   pdfPath: text("pdf_path"),
   classification: jsonb("classification").default({}),
   officerId: integer("officer_id"),
+  tribalRef: varchar("tribal_ref", { length: 50 }),
   status: varchar("status", { length: 50 }).notNull().default("open"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),

@@ -3,6 +3,7 @@ import { db } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
+import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 
@@ -147,6 +148,8 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
       culturalSignificance, historicalOccupancy,
     } = req.body as Record<string, unknown>;
 
+    const parcelRef = await nextDocRef("land_parcel");
+
     const result = await db.execute(sql`
       INSERT INTO land_parcels (
         tract_number, parcel_id, legal_description, acreage, classification,
@@ -156,7 +159,8 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
         beneficiary_stewardship_type, protection_restriction_status, tribal_code_ref,
         tribal_court_order_num, protected_status_basis, restriction_basis,
         enforcement_authority, federal_law_cross_ref, stewardship_purpose,
-        cultural_significance, historical_occupancy
+        cultural_significance, historical_occupancy,
+        tribal_ref
       ) VALUES (
         ${str(tractNumber)}, ${str(parcelId)}, ${str(legalDescription)},
         ${num(acreage)}, ${str(classification) ?? "protected_tribal_land"},
@@ -168,7 +172,8 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
         ${str(beneficiaryStewType)}, ${str(protectionRestrictionStatus)}, ${str(tribalCodeRef)},
         ${str(tribalCourtOrderNum)}, ${str(protectedStatusBasis)}, ${str(restrictionBasis)},
         ${str(enforcementAuthority)}, ${str(federalLawCrossRef)}, ${str(stewardshipPurpose)},
-        ${str(culturalSignificance)}, ${str(historicalOccupancy)}
+        ${str(culturalSignificance)}, ${str(historicalOccupancy)},
+        ${parcelRef}
       )
       RETURNING *
     `);

@@ -27,6 +27,7 @@ import {
 } from "../../sovereign/recorder-engine";
 import { getStateIntel, getIndianLandClassification } from "../../sovereign/state-intel";
 import { renderTemplate, getBuiltInTemplate, listBuiltInTemplates } from "../../sovereign/template-engine";
+import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 
@@ -354,6 +355,8 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
 
     const pdfResult = await buildRecorderPdf(pdfInput!);
 
+    const tribalRef = await nextDocRef("trust_instrument");
+
     const [instrument] = await db
       .insert(trustInstrumentsTable)
       .values({
@@ -376,6 +379,7 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
         tractNumber: (body.templateVariables?.find((v: {key:string;value:string}) => v.key === "TRACT NUMBER")?.value) as string | undefined,
         templateKey: body.templateKey,
         status: allErrors.length === 0 ? "valid" : "draft",
+        tribalRef,
       })
       .returning();
 

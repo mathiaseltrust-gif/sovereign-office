@@ -5,6 +5,7 @@ import { buildCourtDocumentPdf } from "../../lib/pdf-builder";
 import { db } from "@workspace/db";
 import { courtDocumentsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 
@@ -168,7 +169,22 @@ router.post("/generate", requireAuth, requireRole("officer"), async (req, res, n
       userEmail,
       runIntakeAnalysis: runIntakeAnalysis !== false,
     });
-    res.status(201).json(result);
+
+    // Assign a tribal reference number to the newly created court document
+    let tribalRef: string | undefined;
+    if (result && (result as { id?: number }).id) {
+      try {
+        tribalRef = await nextDocRef("court_document");
+        await db
+          .update(courtDocumentsTable)
+          .set({ tribalRef })
+          .where(eq(courtDocumentsTable.id, (result as { id: number }).id));
+      } catch {
+        // non-fatal — document is created, ref assignment failed
+      }
+    }
+
+    res.status(201).json(tribalRef ? { ...result, tribalRef } : result);
   } catch (err: unknown) {
     if (err instanceof Error && err.message.startsWith("Unknown court document template")) {
       res.status(400).json({ error: err.message });

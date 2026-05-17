@@ -20,6 +20,7 @@ export const courtDocumentsTable = pgTable("court_documents", {
   lawRefs: jsonb("law_refs").default([]),
   signatureBlock: text("signature_block"),
   recorderMetadata: jsonb("recorder_metadata").default({}),
+  tribalRef: varchar("tribal_ref", { length: 50 }),
   generatedBy: integer("generated_by"),
   auditLog: jsonb("audit_log").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),

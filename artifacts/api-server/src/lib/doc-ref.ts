@@ -1,19 +1,127 @@
 /**
  * Document Reference Number Utility
  *
- * Encodes document type, date, member ID, and document ID into a structured
- * reference number that can be decoded to retrieve the associated member and
- * document without any lookup table.
+ * Two numbering schemes:
  *
- * Format: {TYPE}-{YYMMDD}-U{memberId:03d}-D{docId:04d}
+ * 1. buildDocRef / parseDocRef — legacy per-member encoded ref
+ *    Format: {TYPE}-{YYMMDD}-U{memberId:03d}-D{docId:04d}
  *
- * Examples:
- *   NFR-260515-U006-D0042   → NFR doc #42, 2026-05-15, member #6
- *   INST-260515-U006-D0003  → Trust Instrument #3, 2026-05-15, member #6
- *   GWE-260515-U006-D0001   → GWE Letter #1, 2026-05-15, member #6
- *   VER-260515-U006-D0000   → Verification Letter, 2026-05-15, member #6
- *   TID-260515-U006-D0000   → Tribal ID card, 2026-05-15, member #6
+ * 2. nextDocRef — tribal ascending sequential reference (PRIMARY)
+ *    Format: {PREFIX}-{YYYY}-{NNNN}
+ *    Examples: LAND-2026-0001  COURT-2026-0042  INST-2026-0007
+ *    Counter resets each calendar year per document type.
+ *    Uses the tribal_doc_sequences table (auto-created on first use).
  */
+
+import { db } from "@workspace/db";
+import { sql } from "drizzle-orm";
+import { logger } from "./logger";
+
+// ── Tribal sequential references ─────────────────────────────────────────────
+
+export const DOC_TYPE_PREFIXES: Record<string, string> = {
+  land_parcel:      "LAND",
+  trust_instrument: "INST",
+  trust_filing:     "FILING",
+  court_document:   "COURT",
+  complaint:        "COMPL",
+  nfr_document:     "NFR",
+  land_lease:       "LEASE",
+  land_deed:        "DEED",
+  land_notice:      "NOTICE",
+  land_pipeline:    "LPIPE",
+  protective_order: "PROT",
+};
+
+let _seqTableEnsured = false;
+
+async function ensureSequenceTable(): Promise<void> {
+  if (_seqTableEnsured) return;
+  await db.execute(sql`
+    CREATE TABLE IF NOT EXISTS tribal_doc_sequences (
+      doc_type  VARCHAR(50) PRIMARY KEY,
+      prefix    VARCHAR(20) NOT NULL,
+      last_seq  INTEGER     NOT NULL DEFAULT 0,
+      year      INTEGER     NOT NULL DEFAULT 0
+    )
+  `);
+  _seqTableEnsured = true;
+}
+
+/**
+ * Atomically returns the next tribal reference number for a document type.
+ * Counter resets at the start of each calendar year.
+ *
+ * Example output: LAND-2026-0001
+ */
+export async function nextDocRef(docType: string): Promise<string> {
+  await ensureSequenceTable();
+
+  const prefix = DOC_TYPE_PREFIXES[docType] ?? docType.toUpperCase().slice(0, 10);
+  const currentYear = new Date().getFullYear();
+
+  const result = await db.execute<{ prefix: string; last_seq: number; year: number }>(sql`
+    INSERT INTO tribal_doc_sequences (doc_type, prefix, last_seq, year)
+    VALUES (${docType}, ${prefix}, 1, ${currentYear})
+    ON CONFLICT (doc_type) DO UPDATE SET
+      last_seq = CASE
+        WHEN tribal_doc_sequences.year = ${currentYear}
+        THEN tribal_doc_sequences.last_seq + 1
+        ELSE 1
+      END,
+      year   = ${currentYear},
+      prefix = ${prefix}
+    RETURNING prefix, last_seq, year
+  `);
+
+  const row = result.rows[0];
+  if (!row) throw new Error(`Failed to generate doc ref for type: ${docType}`);
+
+  const seq = String(row.last_seq).padStart(4, "0");
+  return `${row.prefix}-${row.year}-${seq}`;
+}
+
+/**
+ * Ensures the tribal_ref column exists on all document tables.
+ * Called once at server startup — safe to run multiple times.
+ */
+export async function ensureDocRefColumns(): Promise<void> {
+  await ensureSequenceTable();
+
+  const drizzleTables = [
+    "trust_instruments",
+    "complaints",
+    "court_documents",
+    "nfr_documents",
+    "trust_filings",
+  ];
+
+  for (const table of drizzleTables) {
+    try {
+      await db.execute(sql.raw(
+        `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS tribal_ref VARCHAR(50)`
+      ));
+    } catch (err) {
+      logger.warn({ table, err }, "Could not add tribal_ref column");
+    }
+  }
+
+  const rawSqlTables = ["land_parcels", "land_leases", "land_notices"];
+  for (const table of rawSqlTables) {
+    try {
+      await db.execute(sql.raw(
+        `ALTER TABLE ${table} ADD COLUMN IF NOT EXISTS tribal_ref VARCHAR(50)`
+      ));
+    } catch (err) {
+      logger.warn({ table, err }, "Could not add tribal_ref column");
+    }
+  }
+
+  logger.info("Tribal document reference columns ensured");
+}
+
+// ── Legacy per-member encoded refs ────────────────────────────────────────────
+
 export function buildDocRef(
   docType: "NFR" | "INST" | "GWE" | "VER" | "TID" | "WEL" | "CRT" | string,
   memberId: number,
@@ -28,10 +136,6 @@ export function buildDocRef(
   return `${docType}-${yy}${mm}${dd}-U${uid}-D${did}`;
 }
 
-/**
- * Parse a document reference number back to its component parts.
- * Returns null if the format is not recognized.
- */
 export function parseDocRef(ref: string): {
   docType: string;
   date: string;

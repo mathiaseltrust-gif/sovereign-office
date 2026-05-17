@@ -36,3 +36,4 @@ export * from "./sovereign-documents";
 export * from "./legal-provisions";
 export * from "./ancestral-timeline";
 export * from "./gedcom-staging";
+export * from "./tribal-doc-sequences";

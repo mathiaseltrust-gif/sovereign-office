@@ -17,6 +17,7 @@ export const trustFilingsTable = pgTable("trust_filings", {
   trustStatus: varchar("trust_status", { length: 100 }),
   landClassification: varchar("land_classification", { length: 100 }),
   notes: text("notes"),
+  tribalRef: varchar("tribal_ref", { length: 50 }),
   filingReference: text("filing_reference"),
   instrumentType: varchar("instrument_type", { length: 100 }),
   createdAt: timestamp("created_at").defaultNow().notNull(),
