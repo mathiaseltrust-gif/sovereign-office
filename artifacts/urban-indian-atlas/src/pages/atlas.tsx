@@ -1,14 +1,17 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import urbanLocationsData from "@/data/urban-locations.json";
 import sourcesData from "@/data/sources.json";
 import { AtlasMap } from "@/components/AtlasMap";
-import { AtlasSidebar } from "@/components/AtlasSidebar";
+import { AtlasSidebar, POLICY_ERA_RANGES } from "@/components/AtlasSidebar";
 import { AtlasTimeline } from "@/components/AtlasTimeline";
 import { AtlasDetailPanel } from "@/components/AtlasDetailPanel";
+import { PersonContextPanel } from "@/components/PersonContextPanel";
+import { ActivateAtlasButton } from "@/components/ActivateAtlasButton";
 import { SourcesModal } from "@/components/SourcesModal";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2 } from "lucide-react";
+import { getAtlasBearerToken, isAtlasAuthenticated, authHeaders } from "@/lib/atlasAuth";
 
 export type EventSeverity = "critical" | "high" | "moderate";
 export type Era = "colonial" | "early-republic" | "removal" | "reservation" | "post-civil-war" | "allotment" | "jim-crow" | "termination" | "wwii-migration" | "self-determination" | "modern";
@@ -38,6 +41,88 @@ export interface AtlasEvent {
   status: string;
   affected_regions: string[];
 }
+
+// AncestorRecord only contains safe, non-PII fields returned by /api/atlas/ancestors.
+// Notes, membershipStatus, and gender are NOT returned by the endpoint.
+export interface AncestorRecord {
+  id: number;
+  fullName: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthYear: number | null;
+  deathYear: number | null;
+  tribalNation: string | null;
+  generationalPosition: number | null;
+  isDeceased: boolean;
+  isAncestor: boolean;
+  lineageTags: unknown;
+  // Location from actual ancestralTimelineEvents records (the authoritative source).
+  // When this is present the map pin is treated as "from records" and shown differently
+  // from pins derived by tribal-nation keyword inference.
+  locationText: string | null;
+  hasTimelineLocation: boolean;
+}
+
+export interface AncestorContextMatch {
+  ancestorId: number;
+  fullName: string;
+  firstName: string | null;
+  lastName: string | null;
+  birthYear: number | null;
+  deathYear: number | null;
+  tribalNation: string | null;
+  generationalPosition: number | null;
+  atlasEventDbId: number;
+  eventId: string;
+  title: string;
+  year: number;
+  era: string;
+  eventType: string;
+  policyArea: string;
+  severityLevel: string;
+  affectedRegions: string[];
+  statesAffected: string[];
+  coordinateLat: number | null;
+  coordinateLng: number | null;
+  identityImpact: string | null;
+  reclassificationImpact: string | null;
+  ancestorRelevanceNote: string | null;
+  tags: string[];
+  relationshipType: string;
+  confidenceLevel: string;
+  locationMatch: boolean;
+}
+
+export interface ActiveLayers {
+  tribalTerritories: boolean;
+  ancestorLocations: boolean;
+  migrationPaths: boolean;
+  historicalEvents: boolean;
+  urbanization: boolean;
+  healthAccess: boolean;
+  boardingSchools: boolean;
+  // First-class thematic layers (default-on where relevant to continuity proof)
+  reclassification: boolean;    // Census reclassification / identity reassignment events
+  censusIdentity: boolean;      // Census-era identity markers (enrollment, blood quantum)
+  publicSchools: boolean;       // Public school policy impact areas
+  landJurisdiction: boolean;    // Land allotment / jurisdiction boundary events
+  federalActs: boolean;         // Acts of Congress affecting tribal status
+}
+
+const DEFAULT_LAYERS: ActiveLayers = {
+  tribalTerritories: true,
+  ancestorLocations: true,
+  migrationPaths: true,
+  historicalEvents: true,
+  urbanization: true,
+  healthAccess: true,
+  boardingSchools: false, // standalone boarding-school location pins — off by default
+  reclassification: true,
+  censusIdentity: true,
+  publicSchools: true,    // public/boarding-school policy events — on by default
+  landJurisdiction: true, // land allotment / jurisdiction events  — on by default
+  federalActs: true,
+};
 
 interface DbAtlasEvent {
   id: number;
@@ -70,6 +155,37 @@ interface DbAtlasEvent {
   coordinateLng: number | null;
 }
 
+interface DbContextMatch {
+  ancestor_id: number;
+  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  tribal_nation: string | null;
+  generational_position: number | null;
+  is_ancestor: boolean;
+  atlas_event_db_id: number;
+  event_id: string;
+  title: string;
+  year: number;
+  era: string;
+  event_type: string;
+  policy_area: string;
+  severity_level: string;
+  affected_regions: string[];
+  states_affected: string[];
+  coordinate_lat: number | null;
+  coordinate_lng: number | null;
+  identity_impact: string | null;
+  reclassification_impact: string | null;
+  ancestor_relevance_note: string | null;
+  tags: string[];
+  relationship_type: string;
+  confidence_level: string;
+  location_match: boolean;
+}
+
 function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
   return {
     id: e.eventId,
@@ -98,6 +214,38 @@ function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
   };
 }
 
+function dbToContextMatch(r: DbContextMatch): AncestorContextMatch {
+  return {
+    ancestorId: r.ancestor_id,
+    fullName: r.full_name,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    birthYear: r.birth_year,
+    deathYear: r.death_year,
+    tribalNation: r.tribal_nation,
+    generationalPosition: r.generational_position,
+    atlasEventDbId: r.atlas_event_db_id,
+    eventId: r.event_id,
+    title: r.title,
+    year: r.year,
+    era: r.era,
+    eventType: r.event_type,
+    policyArea: r.policy_area,
+    severityLevel: r.severity_level,
+    affectedRegions: r.affected_regions ?? [],
+    statesAffected: r.states_affected ?? [],
+    coordinateLat: r.coordinate_lat,
+    coordinateLng: r.coordinate_lng,
+    identityImpact: r.identity_impact,
+    reclassificationImpact: r.reclassification_impact,
+    ancestorRelevanceNote: r.ancestor_relevance_note,
+    tags: r.tags ?? [],
+    relationshipType: r.relationship_type,
+    confidenceLevel: r.confidence_level,
+    locationMatch: !!r.location_match,
+  };
+}
+
 async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
   const res = await fetch(`/api/atlas/events`);
   if (!res.ok) throw new Error("Failed to load atlas events");
@@ -105,19 +253,213 @@ async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
   return data.map(dbToAtlasEvent);
 }
 
+interface DbAncestorRow {
+  id: number;
+  full_name: string;
+  first_name: string | null;
+  last_name: string | null;
+  birth_year: number | null;
+  death_year: number | null;
+  tribal_nation: string | null;
+  generational_position: number | null;
+  is_ancestor: boolean;
+  is_deceased: boolean;
+  lineage_tags: unknown;
+  // From LATERAL JOIN to ancestral_timeline_events — real location records.
+  location_text: string | null;
+  has_timeline_location: boolean;
+}
+
+function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
+  return {
+    id: r.id,
+    fullName: r.full_name,
+    firstName: r.first_name,
+    lastName: r.last_name,
+    birthYear: r.birth_year,
+    deathYear: r.death_year,
+    tribalNation: r.tribal_nation,
+    generationalPosition: r.generational_position,
+    isDeceased: r.is_deceased,
+    isAncestor: r.is_ancestor,
+    lineageTags: r.lineage_tags,
+    locationText: r.location_text ?? null,
+    hasTimelineLocation: !!r.has_timeline_location,
+  };
+}
+
+async function fetchAncestors(): Promise<AncestorRecord[]> {
+  const tok = getAtlasBearerToken();
+  if (!tok) return [];
+  const res = await fetch(`/api/atlas/ancestors`, { headers: { Authorization: `Bearer ${tok}` } });
+  if (res.status === 401) return []; // not authenticated — return empty silently
+  if (!res.ok) throw new Error("Failed to load ancestors");
+  const rows = await res.json() as DbAncestorRow[];
+  return rows.map(dbToAncestorRecord);
+}
+
+async function fetchAncestorContext(): Promise<AncestorContextMatch[]> {
+  const tok = getAtlasBearerToken();
+  if (!tok) return [];
+  const res = await fetch(`/api/atlas/ancestors/context`, { headers: { Authorization: `Bearer ${tok}` } });
+  if (res.status === 401) return [];
+  if (!res.ok) throw new Error("Failed to load ancestor context");
+  const data = await res.json() as DbContextMatch[];
+  return data.map(dbToContextMatch);
+}
+
+// Client-side ancestor filter logic — covers all EXPOSURE_FILTER_GROUPS categories
+function ancestorMatchesExposureFilters(
+  ancestor: AncestorRecord,
+  contextMatches: AncestorContextMatch[],
+  activeFilters: string[]
+): boolean {
+  if (activeFilters.length === 0) return true;
+  const matches = contextMatches.filter(m => m.ancestorId === ancestor.id);
+
+  return activeFilters.every(filter => {
+    switch (filter) {
+      // Temporal
+      case "alive_during":
+        return matches.some(m => m.relationshipType === "alive_during");
+      case "near_contemporary":
+        return matches.some(m => m.relationshipType === "near_contemporary");
+      case "born_before":
+        return matches.some(m => m.relationshipType === "born_before");
+      // Location
+      case "location_match":
+        return matches.some(m => m.locationMatch);
+      case "has_tribal_nation":
+        return !!ancestor.tribalNation;
+      // Policy eras — check if ancestor was alive during era window
+      case "removal_era":
+      case "allotment_era":
+      case "boarding_school_era":
+      case "census_era":
+      case "jim_crow_era":
+      case "urban_relocation_era":
+      case "termination_era": {
+        const [start, end] = POLICY_ERA_RANGES[filter] ?? [0, 9999];
+        const born = ancestor.birthYear ?? 9999;
+        const died = ancestor.deathYear ?? 9999;
+        return born <= end && died >= start;
+      }
+      // Impact type — check matching event's policyArea or tags
+      case "reclassification_risk":
+        return matches.some(m =>
+          m.policyArea === "identity_classification" ||
+          (m.tags ?? []).some((t: string) => /reclassif|racial|classif/i.test(t)) ||
+          !!m.reclassificationImpact
+        );
+      case "health_access_impact":
+        return matches.some(m =>
+          m.policyArea === "healthcare" ||
+          (m.tags ?? []).some((t: string) => /health|ihs|medical/i.test(t))
+        );
+      case "land_displacement":
+        return matches.some(m =>
+          m.policyArea === "land_rights" ||
+          (m.tags ?? []).some((t: string) => /land|allot|remov|displace/i.test(t))
+        );
+      case "family_welfare_impact":
+        return matches.some(m =>
+          m.policyArea === "family_welfare" ||
+          (m.tags ?? []).some((t: string) => /famil|child|icwa|welfare|custody/i.test(t))
+        );
+      case "urban_migration_impact":
+        return matches.some(m =>
+          m.policyArea === "urban_relocation" ||
+          (m.tags ?? []).some((t: string) => /urban|reloc|migrat/i.test(t))
+        );
+      case "education_impact":
+        return matches.some(m =>
+          m.policyArea === "education" ||
+          (m.tags ?? []).some((t: string) => /school|boarding|education|mission/i.test(t))
+        );
+      // Location quality — based on actual timeline records vs. tribal-nation inference
+      case "has_location_data":
+        return ancestor.hasTimelineLocation;
+      case "needs_location_review":
+        // Only tribal nation available for inference; no verified place from records
+        return !ancestor.hasTimelineLocation;
+      // Date quality
+      case "has_dates":
+        return !!(ancestor.birthYear || ancestor.deathYear);
+      case "needs_review":
+        return !ancestor.birthYear && !ancestor.deathYear;
+      // Derived from context matches
+      case "public_school_impact":
+        return matches.some(m =>
+          m.policyArea === "education" ||
+          (m.tags ?? []).some((t: string) => /public.school|boarding|mission.school|education/i.test(t))
+        );
+      case "county_state_records":
+        // Matches events related to land/territory with a confirmed location match
+        // — signals the ancestor may appear in state or county-level record systems
+        return matches.some(m =>
+          m.locationMatch && (
+            m.policyArea === "land_rights" ||
+            m.policyArea === "identity_classification" ||
+            (m.tags ?? []).some((t: string) => /census|county|deed|state record|court record/i.test(t))
+          )
+        );
+      default:
+        return true;
+    }
+  });
+}
+
 export default function Atlas() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
+  const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [yearRange, setYearRange] = useState<[number, number]>([1790, new Date().getFullYear()]);
-  
+  const [atlasMode, setAtlasMode] = useState(false);
+  const [authenticated] = useState(() => isAtlasAuthenticated());
+
   const [activeEras, setActiveEras] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [activeSeverities, setActiveSeverities] = useState<string[]>([]);
   const [activePolicies, setActivePolicies] = useState<string[]>([]);
+  const [activeLayers, setActiveLayers] = useState<ActiveLayers>(DEFAULT_LAYERS);
+  const [activeExposureFilters, setActiveExposureFilters] = useState<string[]>([]);
+
+  // Read URL params on mount:
+  //   ?mode=atlas  — activate Atlas Mode immediately
+  //   ?person=N    — auto-select ancestor N and activate Atlas Mode
+  //                  (used by Community Dashboard Tree View "View in Atlas" links)
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("mode") === "atlas") {
+      setAtlasMode(true);
+    }
+    const personParam = params.get("person");
+    if (personParam) {
+      const personId = parseInt(personParam, 10);
+      if (!isNaN(personId)) {
+        setSelectedPersonId(personId);
+        setAtlasMode(true); // auto-activate Atlas Mode when a person is specified
+      }
+    }
+  }, []);
 
   const { data: events = [], isLoading, isError } = useQuery({
     queryKey: ["/api/atlas/events"],
     queryFn: fetchAtlasEvents,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: ancestors = [], isLoading: ancestorsLoading } = useQuery({
+    queryKey: ["/api/atlas/ancestors", authenticated],
+    queryFn: fetchAncestors,
+    enabled: atlasMode && authenticated,
+    staleTime: 5 * 60_000,
+  });
+
+  const { data: contextMatches = [] } = useQuery({
+    queryKey: ["/api/atlas/ancestors/context", authenticated],
+    queryFn: fetchAncestorContext,
+    enabled: atlasMode && authenticated,
     staleTime: 5 * 60_000,
   });
 
@@ -132,7 +474,48 @@ export default function Atlas() {
     });
   }, [events, yearRange, activeEras, activeTypes, activeSeverities, activePolicies]);
 
+  // Filter ancestors by timeline year range AND all active exposure filters.
+  // Timeline-aware: only ancestors whose lifespan window overlaps the active
+  // year range (with a ±30-year buffer for near-contemporary relevance) appear
+  // on the map — this is what "the timeline filter controls which ancestors appear".
+  const filteredAncestors = useMemo(() => {
+    if (!atlasMode) return [];
+    return ancestors.filter(ancestor => {
+      // Year-range visibility: ancestor lifespan must overlap [yearRange[0]-30, yearRange[1]+30]
+      const lifeStart = ancestor.birthYear ?? 1600;
+      const lifeEnd = ancestor.deathYear ?? new Date().getFullYear();
+      if (lifeEnd < yearRange[0] - 30 || lifeStart > yearRange[1] + 30) return false;
+      // Exposure filters
+      return ancestorMatchesExposureFilters(ancestor, contextMatches, activeExposureFilters);
+    });
+  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange]);
+
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+
+  const selectedAncestor = selectedPersonId !== null
+    ? ancestors.find(a => a.id === selectedPersonId) ?? null
+    : null;
+
+  const selectedAncestorContext = selectedPersonId !== null
+    ? contextMatches.filter(m => m.ancestorId === selectedPersonId)
+    : [];
+
+  const handleSelectPerson = (id: number) => {
+    setSelectedPersonId(id);
+    setSelectedEventId(null);
+  };
+
+  const handleSelectEvent = (id: string) => {
+    setSelectedEventId(id);
+    setSelectedPersonId(null);
+  };
+
+  const handleToggleAtlasMode = () => {
+    setAtlasMode(v => !v);
+    if (atlasMode) {
+      setSelectedPersonId(null);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -163,16 +546,30 @@ export default function Atlas() {
           <h1 className="font-serif text-xl text-primary font-medium tracking-wide">Urban Indian Continuity Atlas</h1>
           <div className="hidden md:block w-px h-4 bg-border" />
           <p className="hidden md:block text-xs text-muted-foreground tracking-wide uppercase">
-            Mapping identity, reclassification, migration, and survival across generations.
+            {atlasMode
+              ? "Atlas Mode — Ancestors, Tribal Territories & Historical Events"
+              : "Mapping identity, reclassification, migration, and survival across generations."}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          {atlasMode && ancestorsLoading && (
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+              Loading ancestors…
+            </div>
+          )}
           <div className="text-xs font-mono font-medium px-2 py-1 rounded bg-secondary/10 text-secondary-foreground" data-testid="event-count-badge">
             {filteredEvents.length} Events
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
+          <ActivateAtlasButton
+            atlasMode={atlasMode}
+            onToggle={handleToggleAtlasMode}
+            ancestorCount={filteredAncestors.length}
+            loading={atlasMode && ancestorsLoading}
+          />
+          <Button
+            variant="outline"
+            size="sm"
             className="text-xs font-serif italic gap-2 h-8"
             onClick={() => setIsSourcesOpen(true)}
             data-testid="sources-modal-button"
@@ -185,7 +582,7 @@ export default function Atlas() {
 
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
-        <AtlasSidebar 
+        <AtlasSidebar
           events={events}
           activeEras={activeEras}
           setActiveEras={setActiveEras}
@@ -195,36 +592,64 @@ export default function Atlas() {
           setActiveSeverities={setActiveSeverities}
           activePolicies={activePolicies}
           setActivePolicies={setActivePolicies}
+          atlasMode={atlasMode}
+          activeLayers={activeLayers}
+          setActiveLayers={setActiveLayers}
+          activeExposureFilters={activeExposureFilters}
+          setActiveExposureFilters={setActiveExposureFilters}
+          ancestorCount={filteredAncestors.length}
+          isAuthenticated={authenticated}
         />
-        
+
         <div className="flex-1 flex flex-col relative h-full">
-          <AtlasMap 
+          <AtlasMap
             events={events}
             filteredEvents={filteredEvents}
             selectedEventId={selectedEventId}
-            onSelectEvent={setSelectedEventId}
+            onSelectEvent={handleSelectEvent}
             urbanLocations={urbanLocationsData}
+            atlasMode={atlasMode}
+            ancestors={filteredAncestors}
+            selectedPersonId={selectedPersonId}
+            onSelectPerson={handleSelectPerson}
+            activeLayers={activeLayers}
+            yearRange={yearRange}
           />
-          
-          <AtlasTimeline 
+
+          <AtlasTimeline
             events={events}
             filteredEvents={filteredEvents}
             yearRange={yearRange}
             setYearRange={setYearRange}
             selectedEventId={selectedEventId}
-            onSelectEvent={setSelectedEventId}
+            onSelectEvent={handleSelectEvent}
           />
         </div>
 
-        <AtlasDetailPanel 
-          event={selectedEvent} 
-          onClose={() => setSelectedEventId(null)} 
-        />
+        {/* Event Detail Panel */}
+        {selectedEventId && !selectedPersonId && (
+          <AtlasDetailPanel
+            event={selectedEvent}
+            onClose={() => setSelectedEventId(null)}
+            atlasMode={atlasMode}
+            contextMatches={contextMatches}
+            onSelectPerson={handleSelectPerson}
+          />
+        )}
+
+        {/* Person Context Panel */}
+        {selectedPersonId && atlasMode && (
+          <PersonContextPanel
+            ancestor={selectedAncestor}
+            contextMatches={selectedAncestorContext}
+            onClose={() => setSelectedPersonId(null)}
+          />
+        )}
       </div>
 
-      <SourcesModal 
-        isOpen={isSourcesOpen} 
-        onClose={() => setIsSourcesOpen(false)} 
+      <SourcesModal
+        isOpen={isSourcesOpen}
+        onClose={() => setIsSourcesOpen(false)}
         sources={sourcesData}
       />
     </div>

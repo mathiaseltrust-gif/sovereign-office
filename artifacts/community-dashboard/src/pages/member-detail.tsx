@@ -22,6 +22,8 @@ import {
   Eye,
   MapPin,
   Layers,
+  Globe2,
+  ExternalLink,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -604,20 +606,36 @@ export default function MemberDetail() {
           {/* Family Connections */}
           <Card>
             <CardHeader className="bg-muted/30 border-b pb-3 pt-4">
-              <div className="flex items-center justify-between gap-2">
+              <div className="flex items-center justify-between gap-2 flex-wrap">
                 <CardTitle className="flex items-center gap-2 text-lg">
                   <Network className="h-5 w-5 text-primary" /> Family Connections
                 </CardTitle>
-                <div className="flex rounded-md overflow-hidden border border-border text-[10px] font-semibold shrink-0">
-                  {(["list", "tree"] as const).map(v => (
-                    <button
-                      key={v}
-                      onClick={() => setFamilyView(v)}
-                      className={`px-2.5 py-1 capitalize transition-colors ${familyView === v ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                <div className="flex items-center gap-2 shrink-0 flex-wrap justify-end">
+                  {/* "View in Atlas" — shown for deceased or ancestor records */}
+                  {(member.isDeceased || member.isAncestor) && (
+                    <a
+                      href={`/urban-indian-atlas/?mode=atlas&person=${member.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-primary/30 bg-primary/5 text-[10px] font-semibold text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
+                      data-testid="view-in-atlas-tree"
                     >
-                      {v}
-                    </button>
-                  ))}
+                      <Globe2 className="w-3 h-3" />
+                      View in Atlas
+                      <ExternalLink className="w-2.5 h-2.5 opacity-70" />
+                    </a>
+                  )}
+                  <div className="flex rounded-md overflow-hidden border border-border text-[10px] font-semibold">
+                    {(["list", "tree"] as const).map(v => (
+                      <button
+                        key={v}
+                        onClick={() => setFamilyView(v)}
+                        className={`px-2.5 py-1 capitalize transition-colors ${familyView === v ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                      >
+                        {v}
+                      </button>
+                    ))}
+                  </div>
                 </div>
               </div>
             </CardHeader>

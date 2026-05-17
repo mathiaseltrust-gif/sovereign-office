@@ -14,13 +14,15 @@ import {
   LogOut,
   GraduationCap,
   UserCircle,
+  Globe2,
+  ExternalLink,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { getSovereignSession } from "@/lib/utils";
 import { useChatManager } from "@/components/ChatManager";
 
-const navigation = [
+const navigation: { name: string; href: string; icon: React.ElementType; external?: boolean; externalHref?: string; badge?: string }[] = [
   { name: "Dashboard", href: "/", icon: Home },
   { name: "Family Directory", href: "/directory", icon: Users },
   { name: "Community Forum", href: "/forum", icon: MessageSquare },
@@ -28,6 +30,14 @@ const navigation = [
   { name: "SDU University", href: "/university", icon: GraduationCap },
   { name: "My Profile", href: "/profile", icon: UserCircle },
   { name: "Admin", href: "/admin", icon: Shield },
+  {
+    name: "Ancestral Atlas",
+    href: "#atlas",
+    icon: Globe2,
+    external: true,
+    externalHref: "/urban-indian-atlas/?mode=atlas",
+    badge: "Atlas",
+  },
 ];
 
 const MOBILE_NAV_HREFS = ["/", "/directory", "/forum", "/announcements", "/profile"];
@@ -40,9 +50,34 @@ function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
     <div className="space-y-0.5">
       {navigation.map((item) => {
         const isActive =
-          location === item.href ||
-          (item.href !== "/" && location.startsWith(item.href));
+          !item.external &&
+          (location === item.href ||
+          (item.href !== "/" && location.startsWith(item.href)));
         const showBadge = item.href === "/directory" && totalUnread > 0;
+
+        if (item.external && item.externalHref) {
+          return (
+            <a
+              key={item.name}
+              href={item.externalHref}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={onNavigate}
+              className="flex items-center gap-3 px-3 py-2.5 rounded-lg transition-colors cursor-pointer text-muted-foreground hover:bg-secondary hover:text-foreground group"
+              data-testid="ancestral-atlas-nav-link"
+            >
+              <item.icon className="h-4 w-4 shrink-0" />
+              <span className="font-medium text-sm">{item.name}</span>
+              {item.badge && (
+                <span className="ml-auto text-[9px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded bg-primary/15 text-primary border border-primary/20 group-hover:bg-primary/25 transition-colors">
+                  {item.badge}
+                </span>
+              )}
+              <ExternalLink className="w-3 h-3 opacity-40 group-hover:opacity-70 transition-opacity ml-0.5" />
+            </a>
+          );
+        }
+
         return (
           <Link key={item.name} href={item.href} onClick={onNavigate}>
             <div

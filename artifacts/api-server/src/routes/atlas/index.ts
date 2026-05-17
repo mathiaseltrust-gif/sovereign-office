@@ -3,6 +3,7 @@ import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { atlasEventsTable, type InsertAtlasEvent } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { sql } from "drizzle-orm";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 
 const router = Router();
@@ -14,6 +15,256 @@ router.get("/events", async (_req, res, next) => {
       .from(atlasEventsTable)
       .orderBy(atlasEventsTable.year);
     res.json(events);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/atlas/ancestors ────────────────────────────────────────────────
+// Auth-required. Returns ONLY the requesting user's own deceased lineage
+// entries (filtered by addedByMemberId). Only non-sensitive fields are
+// returned — no notes, no membershipStatus, no gender, no photoUrl.
+// The ancestor/deceased flag and lack of living-member data is enforced here.
+router.get("/ancestors", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId;
+    if (!userId) {
+      res.status(400).json({ error: "User must be registered in the system." });
+      return;
+    }
+
+    // LEFT JOIN LATERAL to ancestral_timeline_events to get the most recently
+    // recorded location string for each ancestor from actual user records.
+    // This is the authoritative source for ancestor placement on the map — the
+    // fallback (tribal nation keyword heuristic) is secondary.
+    const result = await db.execute(sql`
+      SELECT
+        fl.id,
+        fl.full_name,
+        fl.first_name,
+        fl.last_name,
+        fl.birth_year,
+        fl.death_year,
+        fl.tribal_nation,
+        fl.generational_position,
+        fl.is_ancestor,
+        fl.is_deceased,
+        fl.lineage_tags,
+        tl.location        AS location_text,
+        (tl.location IS NOT NULL) AS has_timeline_location
+      FROM family_lineage fl
+      LEFT JOIN LATERAL (
+        SELECT location
+        FROM ancestral_timeline_events
+        WHERE ancestor_id = fl.id AND location IS NOT NULL AND location != ''
+        ORDER BY created_at DESC
+        LIMIT 1
+      ) tl ON true
+      WHERE fl.added_by_member_id = ${userId}
+        AND fl.is_deceased = true
+      ORDER BY fl.generational_position NULLS LAST, fl.full_name NULLS LAST
+    `);
+
+    res.json(result.rows);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /api/atlas/ancestors/context ───────────────────────────────────────
+// Auth-required. Returns temporal + location overlap matches between the
+// requesting user's own deceased ancestors and historical atlas events.
+//
+// Match quality signals computed:
+//   relationship_type — alive_during | born_before | near_contemporary | era_overlap
+//   confidence_level  — high | moderate | low
+//   location_match    — true if tribal nation keyword maps to event's affected states
+//
+// Only safe, non-PII fields are returned (no notes, no gender, etc.)
+router.get("/ancestors/context", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId;
+    if (!userId) {
+      res.status(400).json({ error: "User must be registered in the system." });
+      return;
+    }
+
+    const result = await db.execute(sql`
+      SELECT
+        fl.id                AS ancestor_id,
+        fl.full_name,
+        fl.first_name,
+        fl.last_name,
+        fl.birth_year,
+        fl.death_year,
+        fl.tribal_nation,
+        fl.generational_position,
+        fl.is_ancestor,
+        ae.id                AS atlas_event_db_id,
+        ae.event_id,
+        ae.title,
+        ae.year,
+        ae.era,
+        ae.event_type,
+        ae.policy_area,
+        ae.severity_level,
+        ae.affected_regions,
+        ae.states_affected,
+        ae.coordinate_lat,
+        ae.coordinate_lng,
+        ae.identity_impact,
+        ae.reclassification_impact,
+        ae.ancestor_relevance_note,
+        ae.tags,
+        -- ── Relationship type ──────────────────────────────────────────────
+        CASE
+          WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NOT NULL
+            AND fl.birth_year <= ae.year AND fl.death_year >= ae.year
+            THEN 'alive_during'
+          WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NULL
+            AND fl.birth_year <= ae.year
+            THEN 'alive_during'
+          WHEN fl.birth_year IS NOT NULL AND fl.birth_year <= ae.year + 20
+            AND (fl.death_year IS NULL OR fl.death_year >= ae.year - 20)
+            THEN 'near_contemporary'
+          WHEN fl.birth_year IS NOT NULL AND fl.birth_year < ae.year
+            THEN 'born_before'
+          ELSE 'era_overlap'
+        END AS relationship_type,
+        -- ── Confidence level ───────────────────────────────────────────────
+        CASE
+          WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NOT NULL
+            AND fl.birth_year <= ae.year AND fl.death_year >= ae.year
+            THEN 'high'
+          WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NULL
+            AND fl.birth_year <= ae.year
+            THEN 'moderate'
+          WHEN fl.birth_year IS NOT NULL
+            AND ABS(fl.birth_year - ae.year) <= 20
+            THEN 'moderate'
+          ELSE 'low'
+        END AS confidence_level,
+        -- ── Location match: tribal nation keyword → event affected states ──
+        -- Maps well-known tribal nation name keywords to their primary
+        -- homeland states and checks against ae.states_affected.
+        CASE
+          WHEN fl.tribal_nation IS NULL THEN false
+          -- First word of tribal nation appears in affected_regions text
+          WHEN ae.affected_regions::text ILIKE '%' || SPLIT_PART(fl.tribal_nation, ' ', 1) || '%'
+            THEN true
+          -- Oklahoma nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%cherokee%','%choctaw%','%chickasaw%','%creek%','%muscogee%',
+              '%seminole%','%osage%','%comanche%','%kiowa%','%pawnee%',
+              '%quapaw%','%seneca-cayuga%','%modoc%','%miami%','%shawnee%',
+              '%ponca%','%tonkawa%','%caddo%','%wichita%'
+            ])
+            AND 'OK' = ANY(ae.states_affected)
+          ) THEN true
+          -- Southwest nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%navajo%','%diné%','%apache%','%pueblo%','%hopi%',
+              '%zuni%','%tohono%','%yavapai%','%havasupai%','%akimel%'
+            ])
+            AND ('AZ' = ANY(ae.states_affected) OR 'NM' = ANY(ae.states_affected))
+          ) THEN true
+          -- Northern Plains nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%lakota%','%sioux%','%cheyenne%','%blackfeet%','%blackfoot%',
+              '%crow%','%arikara%','%mandan%','%hidatsa%','%assiniboine%'
+            ])
+            AND ('SD' = ANY(ae.states_affected) OR 'ND' = ANY(ae.states_affected)
+                 OR 'MT' = ANY(ae.states_affected) OR 'WY' = ANY(ae.states_affected))
+          ) THEN true
+          -- Great Lakes / Midwest nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%ojibwe%','%chippewa%','%menominee%','%potawatomi%','%oneida%',
+              '%ho-chunk%','%winnebago%','%sauk%','%fox%','%mesquaki%'
+            ])
+            AND ('MN' = ANY(ae.states_affected) OR 'WI' = ANY(ae.states_affected)
+                 OR 'MI' = ANY(ae.states_affected) OR 'IL' = ANY(ae.states_affected))
+          ) THEN true
+          -- Southeast nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%lumbee%','%catawba%','%eastern band%','%coharie%','%waccamaw%',
+              '%tuscarora%','%meherrin%','%haliwa%'
+            ])
+            AND ('NC' = ANY(ae.states_affected) OR 'SC' = ANY(ae.states_affected)
+                 OR 'VA' = ANY(ae.states_affected))
+          ) THEN true
+          -- Southeast / Gulf states nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%mississippi choctaw%','%choctaw%','%muscogee%'
+            ])
+            AND ('MS' = ANY(ae.states_affected) OR 'AL' = ANY(ae.states_affected)
+                 OR 'LA' = ANY(ae.states_affected))
+          ) THEN true
+          -- Northeast nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%haudenosaunee%','%iroquois%','%mohawk%','%seneca%','%onondaga%',
+              '%cayuga%','%oneida%','%lenape%','%delaware%','%wampanoag%',
+              '%penobscot%','%passamaquoddy%','%abenaki%','%pequot%','%mohegan%',
+              '%narragansett%','%mashpee%'
+            ])
+            AND ('NY' = ANY(ae.states_affected) OR 'PA' = ANY(ae.states_affected)
+                 OR 'MA' = ANY(ae.states_affected) OR 'ME' = ANY(ae.states_affected)
+                 OR 'CT' = ANY(ae.states_affected) OR 'RI' = ANY(ae.states_affected))
+          ) THEN true
+          -- Pacific Northwest nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%nez perce%','%yakama%','%lummi%','%chinook%','%tulalip%',
+              '%puyallup%','%suquamish%','%makah%','%quinault%'
+            ])
+            AND ('WA' = ANY(ae.states_affected) OR 'OR' = ANY(ae.states_affected)
+                 OR 'ID' = ANY(ae.states_affected))
+          ) THEN true
+          -- California nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%yurok%','%karuk%','%hupa%','%pomo%','%miwok%','%ohlone%',
+              '%chumash%','%kumeyaay%','%cahuilla%','%tongva%','%luiseño%'
+            ])
+            AND 'CA' = ANY(ae.states_affected)
+          ) THEN true
+          -- Great Basin nations
+          WHEN (
+            fl.tribal_nation ILIKE ANY(ARRAY[
+              '%paiute%','%shoshone%','%ute%','%washoe%','%goshute%','%bannock%'
+            ])
+            AND ('NV' = ANY(ae.states_affected) OR 'UT' = ANY(ae.states_affected)
+                 OR 'ID' = ANY(ae.states_affected) OR 'CO' = ANY(ae.states_affected))
+          ) THEN true
+          ELSE false
+        END AS location_match
+      FROM family_lineage fl
+      CROSS JOIN atlas_events ae
+      WHERE
+        fl.added_by_member_id = ${userId}
+        AND fl.is_deceased = true
+        AND (fl.birth_year IS NOT NULL OR fl.death_year IS NOT NULL)
+        AND (
+          (fl.birth_year IS NULL OR fl.birth_year <= ae.year + 30)
+          AND (fl.death_year IS NULL OR fl.death_year >= ae.year - 30)
+        )
+      ORDER BY
+        fl.last_name NULLS LAST,
+        fl.first_name NULLS LAST,
+        CASE ae.severity_level
+          WHEN 'critical' THEN 0
+          WHEN 'high' THEN 1
+          ELSE 2
+        END,
+        ae.year
+    `);
+    res.json(result.rows);
   } catch (err) {
     next(err);
   }
