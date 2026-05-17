@@ -6,10 +6,20 @@ import { eq } from "drizzle-orm";
 import { computeDelegatedAuthorities, checkMedicalNoteAuthority, buildWhatNextInstructions } from "../../sovereign/delegated-authority";
 import { getLineageForUser } from "../../sovereign/family-tree-engine";
 import { logger } from "../../lib/logger";
+import {
+  MEDICAL_CENTER_NAME,
+  MEDICAL_CENTER_NPI,
+  MEDICAL_CENTER_ADDITIONAL_NPIS,
+  CHARITABLE_TRUST_NPI,
+  CHARITABLE_TRUST_TAXONOMY,
+  CHARITABLE_TRUST_TAXONOMY_LABEL,
+  MEDICAL_CENTER_DIRECTOR,
+  MEDICAL_CENTER_DIRECTOR_TITLE,
+  getMedicalCenterBlock,
+} from "../../lib/medical-center";
 
 const router = Router();
-
-const MEDICAL_CENTER = "Mathias El Tribe Medical Center";
+const MEDICAL_CENTER = MEDICAL_CENTER_NAME;
 
 router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next) => {
   try {
@@ -101,6 +111,9 @@ router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next
     const noteText = [
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       `${MEDICAL_CENTER.toUpperCase()}`,
+      `NPI: ${MEDICAL_CENTER_NPI}   Additional NPIs: ${MEDICAL_CENTER_ADDITIONAL_NPIS.join(", ")}`,
+      `Director: ${MEDICAL_CENTER_DIRECTOR}`,
+      `Charitable Trust NPI: ${CHARITABLE_TRUST_NPI} · ${CHARITABLE_TRUST_TAXONOMY_LABEL} (${CHARITABLE_TRUST_TAXONOMY})`,
       `Office of the Chief Justice & Trustee — Medical Records`,
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`,
       ``,

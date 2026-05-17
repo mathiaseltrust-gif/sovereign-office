@@ -10,6 +10,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { MEDICAL_ENTITY_IDS, MEDICAL_CENTER_DIRECTOR, MEDICAL_CENTER_DIRECTOR_TITLE, MEDICAL_CENTER_NPI } from "@/lib/medical-center";
 
 const MEDICAL_CENTER = "Mathias El Tribe Medical Center";
 
@@ -282,7 +283,34 @@ export default function MedicalProviderDashboard() {
           )}
         </div>
 
-        <div className="lg:col-span-1">
+        <div className="lg:col-span-1 space-y-4">
+          <div className="rounded-lg border bg-card p-4 space-y-3">
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Institutional Identifiers</p>
+            {MEDICAL_ENTITY_IDS.map((ent) => (
+              <div key={ent.npi} className="space-y-1 border-b last:border-0 pb-2 last:pb-0">
+                <p className="text-xs font-semibold text-foreground">{ent.entity}</p>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[10px] uppercase tracking-widest text-muted-foreground">NPI</span>
+                  <span className="font-mono text-xs font-bold text-foreground">{ent.npi}</span>
+                </div>
+                {ent.additionalNpis && (
+                  <p className="text-[10px] text-muted-foreground">
+                    Additional: {ent.additionalNpis.join(", ")}
+                  </p>
+                )}
+                {ent.taxonomyLabel && (
+                  <p className="text-[10px] text-muted-foreground">
+                    {ent.taxonomyLabel} · {ent.taxonomy}
+                  </p>
+                )}
+                <p className="text-[10px] text-muted-foreground leading-tight">{ent.role}</p>
+              </div>
+            ))}
+            <div className="pt-1 border-t">
+              <p className="text-[10px] text-muted-foreground">{MEDICAL_CENTER_DIRECTOR_TITLE}</p>
+              <p className="text-[10px] font-medium text-foreground">{MEDICAL_CENTER_DIRECTOR}</p>
+            </div>
+          </div>
           <WhatNextPanel compact />
         </div>
       </div>
