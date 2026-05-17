@@ -13,10 +13,12 @@ const router = Router();
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
-    const limit = Math.min(200, Math.max(1, parseInt(String(req.query.limit ?? "100"), 10)));
+    const rawLimit = Math.max(1, parseInt(String(req.query.limit ?? "100"), 10));
+    const isChief = (req.user?.roles ?? []).some((r) => CHIEF_ROLES.has(r));
+    // Chiefs/admins need all ~1000+ nodes to render the full tree; regular members see far fewer
+    const limit = Math.min(isChief ? 5000 : 500, rawLimit);
     const offset = (page - 1) * limit;
 
-    const isChief = (req.user?.roles ?? []).some((r) => CHIEF_ROLES.has(r));
     const currentUserId = req.user?.dbId ?? null;
 
     const baseSelect = {

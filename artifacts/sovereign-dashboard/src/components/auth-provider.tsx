@@ -108,6 +108,15 @@ const AuthContext = createContext<AuthContextType | null>(null);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const saved = loadSession();
+
+  // Prime _currentTokenGetter synchronously — BEFORE child components mount — so any
+  // useQuery that fires on the first render already has a valid bearer token available.
+  // The useEffect below keeps it in sync for subsequent login/logout/refresh events.
+  if (saved?.user) {
+    const eagerToken = saved.sessionToken ?? btoa(JSON.stringify(saved.user));
+    _currentTokenGetter = () => eagerToken;
+  }
+
   const [user, setUser] = useState<User | null>(saved?.user ?? null);
   const [mode, setMode] = useState<AuthMode | null>(saved?.mode ?? null);
   const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "member");

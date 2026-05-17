@@ -790,7 +790,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
     queryKey: ["lineage-nodes"],
     queryFn: async () => {
-      const r = await fetch("/api/lineage/nodes?limit=200", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      const r = await fetch("/api/lineage/nodes?limit=2000", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (!r.ok) throw new Error("Failed to load tree data");
       return r.json();
     },
