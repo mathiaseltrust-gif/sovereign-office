@@ -299,131 +299,77 @@ export function ChatWidget() {
     return nodes;
   };
 
+  const toggle = () => {
+    if (!open) {
+      openWithGreeting();
+    } else {
+      setOpen(false);
+    }
+  };
+
   return (
     <>
-      {/* Floating Chat Button */}
-      <button
-        onClick={openWithGreeting}
-        aria-label="Open Sovereign Office Assistant"
+      {/* Retractable Companion Tab — anchored at bottom-right, always visible */}
+      <div
         style={{
           position: "fixed",
-          bottom: 28,
-          right: 28,
-          width: 56,
-          height: 56,
-          borderRadius: "50%",
-          background: hasRedFlag ? "#b91c1c" : "#1a3a2a",
-          color: "#fff",
-          border: "none",
-          cursor: "pointer",
+          bottom: 0,
+          right: 24,
+          width: 340,
+          maxWidth: "calc(100vw - 32px)",
+          zIndex: 9997,
           display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 22,
-          boxShadow: hasRedFlag
-            ? "0 0 0 3px #fca5a5, 0 4px 20px rgba(185,28,28,0.5)"
-            : "0 4px 20px rgba(0,0,0,0.35)",
-          zIndex: 9998,
-          transition: "all 0.2s ease",
+          flexDirection: "column",
+          fontFamily: "'Georgia', serif",
         }}
       >
-        {open ? (
-          <span style={{ fontSize: 22, lineHeight: 1 }}>✕</span>
-        ) : (
-          <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-            alt="Sovereign Office Assistant"
-            style={{ width: 38, height: 38, objectFit: "contain", borderRadius: "50%" }}
-          />
-        )}
-        {unreadCount > 0 && !open && (
-          <span
-            style={{
-              position: "absolute",
-              top: -4,
-              right: -4,
-              background: "#dc2626",
-              color: "#fff",
-              fontSize: 11,
-              fontWeight: 700,
-              borderRadius: "50%",
-              width: 18,
-              height: 18,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              border: "2px solid #fff",
-            }}
-          >
-            {unreadCount}
-          </span>
-        )}
-      </button>
-
-      {/* Chat Panel */}
-      {open && (
-        <div
-          ref={panelRef}
-          style={{
-            position: "fixed",
-            bottom: 96,
-            right: 24,
-            width: 400,
-            maxWidth: "calc(100vw - 48px)",
-            height: 560,
-            maxHeight: "calc(100vh - 120px)",
-            background: "#fff",
-            borderRadius: 14,
-            boxShadow: "0 12px 48px rgba(0,0,0,0.22), 0 2px 8px rgba(0,0,0,0.12)",
-            display: "flex",
-            flexDirection: "column",
-            overflow: "hidden",
-            zIndex: 9997,
-            fontFamily: "'Georgia', serif",
-            fontSize: 14,
-          }}
-        >
-          {/* Header */}
+        {/* Expanded Chat Panel — slides above the tab */}
+        {open && (
           <div
+            ref={panelRef}
             style={{
-              background: hasRedFlag ? "#7f1d1d" : "#1a3a2a",
-              color: "#fff",
-              padding: "12px 16px",
+              background: "#fff",
+              borderRadius: "14px 14px 0 0",
+              boxShadow: "0 -4px 32px rgba(0,0,0,0.18), 0 2px 8px rgba(0,0,0,0.10)",
               display: "flex",
-              alignItems: "center",
-              gap: 10,
-              flexShrink: 0,
+              flexDirection: "column",
+              overflow: "hidden",
+              fontSize: 14,
+              height: 520,
+              maxHeight: "calc(100vh - 72px)",
             }}
           >
-            <img
-              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-              alt="Seal"
-              style={{ width: 28, height: 28, objectFit: "contain", flexShrink: 0 }}
-            />
-            <div style={{ flex: 1 }}>
-              <div style={{ fontWeight: 700, fontSize: 14, letterSpacing: 0.3 }}>
-                Sovereign Office Assistant
+            {/* Panel inner header (info only, no toggle — tab bar is the toggle) */}
+            <div
+              style={{
+                background: hasRedFlag ? "#7f1d1d" : "#1a3a2a",
+                color: "#fff",
+                padding: "10px 14px",
+                display: "flex",
+                alignItems: "center",
+                gap: 10,
+                flexShrink: 0,
+              }}
+            >
+              <img
+                src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+                alt="Seal"
+                style={{ width: 24, height: 24, objectFit: "contain", flexShrink: 0 }}
+              />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: 13, letterSpacing: 0.3 }}>
+                  Sovereign Office Companion
+                </div>
+                <div style={{ fontSize: 10, opacity: 0.75, marginTop: 1 }}>
+                  Mathias El Tribe · Chief Justice & Trustee
+                </div>
               </div>
-              <div style={{ fontSize: 11, opacity: 0.8, marginTop: 1 }}>
-                Mathias El Tribe — Office of the Chief Justice & Trustee
-              </div>
+              {hasRedFlag && (
+                <span style={{ background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 4, letterSpacing: 0.5 }}>
+                  RED FLAG
+                </span>
+              )}
             </div>
-            {hasRedFlag && (
-              <span
-                style={{
-                  background: "#dc2626",
-                  color: "#fff",
-                  fontSize: 10,
-                  fontWeight: 700,
-                  padding: "2px 6px",
-                  borderRadius: 4,
-                  letterSpacing: 0.5,
-                }}
-              >
-                RED FLAG
-              </span>
-            )}
-          </div>
 
           {/* Messages Area */}
           <div
@@ -951,7 +897,53 @@ export function ChatWidget() {
             </div>
           </div>
         </div>
-      )}
+        )}
+
+        {/* ── Tab Bar — always visible, click to expand/collapse ── */}
+        <button
+          onClick={toggle}
+          aria-label={open ? "Collapse Companion" : "Expand Sovereign Office Companion"}
+          style={{
+            width: "100%",
+            height: 46,
+            background: hasRedFlag ? "#7f1d1d" : (open ? "#162f21" : "#1a3a2a"),
+            color: "#fff",
+            border: "none",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            padding: "0 14px",
+            borderRadius: open ? "0" : "10px 10px 0 0",
+            boxShadow: open ? "none" : "0 -3px 14px rgba(0,0,0,0.22)",
+            borderTop: open ? "1px solid rgba(255,255,255,0.12)" : "none",
+            flexShrink: 0,
+            transition: "background 0.15s",
+          }}
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+            alt="Companion"
+            style={{ width: 22, height: 22, objectFit: "contain", borderRadius: "50%", flexShrink: 0 }}
+          />
+          <span style={{ flex: 1, textAlign: "left", fontWeight: 600, fontSize: 13, letterSpacing: 0.2, fontFamily: "'Georgia', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+            Sovereign Office Companion
+          </span>
+          {!open && unreadCount > 0 && (
+            <span style={{ background: "#dc2626", color: "#fff", fontSize: 10, fontWeight: 700, borderRadius: "50%", minWidth: 18, height: 18, display: "flex", alignItems: "center", justifyContent: "center", padding: "0 3px", flexShrink: 0 }}>
+              {unreadCount}
+            </span>
+          )}
+          {hasRedFlag && (
+            <span style={{ background: "#dc2626", color: "#fff", fontSize: 9, fontWeight: 700, padding: "2px 5px", borderRadius: 3, letterSpacing: 0.5, flexShrink: 0 }}>
+              ⚑
+            </span>
+          )}
+          <span style={{ fontSize: 11, opacity: 0.6, flexShrink: 0, marginLeft: 2 }}>
+            {open ? "▼" : "▲"}
+          </span>
+        </button>
+      </div>
 
       {/* Pulse animation style */}
       <style>{`
