@@ -80,7 +80,6 @@ const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
 const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
 const AtlasAdminPage = lazy(() => import("@/pages/atlas-admin"));
-const InvestigationDetailPage = lazy(() => import("@/pages/investigation-detail"));
 const InvestigationsListPage = lazy(() => import("@/pages/investigations-list"));
 
 const queryClient = new QueryClient({
@@ -459,13 +458,6 @@ function AppRouter() {
       </Route>
       <Route path="/investigations">
         {() => <ProtectedRoute component={InvestigationsListPage} />}
-      </Route>
-      <Route path="/investigations/:id">
-        {(params) => (
-          <ProtectedParamRoute>
-            <InvestigationDetailPage params={params} />
-          </ProtectedParamRoute>
-        )}
       </Route>
 
       <Route component={NotFound} />
