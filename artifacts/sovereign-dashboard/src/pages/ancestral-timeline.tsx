@@ -777,12 +777,13 @@ export default function AncestralTimelinePage() {
               </div>
             )}
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium tracking-[0.2em] text-indigo-400/70 uppercase mb-1">Ancestral Continuity Timeline</p>
+              <p className="text-[10px] font-medium tracking-[0.22em] text-indigo-400/60 uppercase mb-0.5">Urban Indian Continuity Atlas</p>
+              <p className="text-[10px] text-indigo-400/40 tracking-wide mb-2 italic">Mapping identity, reclassification, migration, and survival across generations.</p>
               <h1 className="text-2xl font-serif font-bold text-indigo-100 leading-tight">{ancestor.fullName}</h1>
               {lifespan && <p className="text-indigo-300/60 text-sm mt-1">{lifespan}</p>}
               {ancestor.tribalNation && <p className="text-indigo-200/40 text-sm">{ancestor.tribalNation}</p>}
               <p className="text-xs text-indigo-300/50 mt-3 max-w-xl leading-relaxed">
-                This timeline places {ancestor.firstName ?? "this ancestor"} beside the laws, treaties, removals, and racial classifications that acted upon them during their lifetime. Identity loss in records is not proof of nonexistence — it is evidence of interruption.
+                This atlas places {ancestor.firstName ?? "this ancestor"} beside the laws, treaties, removals, and racial classifications that acted upon them during their lifetime. Identity loss in records is not proof of nonexistence — it is evidence of interruption.
               </p>
             </div>
             <div className="text-right flex-shrink-0 space-y-1">

@@ -404,7 +404,7 @@ function AncestorDetail({ id }: { id: number }) {
           style={{ background: "linear-gradient(135deg,#0d1433,#080c1a)", border: "1px solid #1e2a4a", color: "#818cf8" }}
         >
           <BookOpen className="w-3 h-3" />
-          Ancestral Continuity Timeline
+          Urban Indian Continuity Atlas
         </Link>
       </div>
 
