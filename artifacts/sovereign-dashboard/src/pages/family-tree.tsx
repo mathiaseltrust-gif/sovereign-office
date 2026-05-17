@@ -979,6 +979,62 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setSelectedNodeId(selfNode.id);
   }, [positioned, user?.dbId]);
 
+  // "Show My Family" — bird's-eye view of 2–3 generations:
+  // grandparents → parents → self + siblings → children → grandchildren
+  const showMyFamilyView = useCallback(() => {
+    if (!containerRef.current || positioned.length === 0) return;
+    const selfNode =
+      positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
+      positioned.find((n) => (n.generationalPosition ?? 99) === 0) ??
+      positioned[0];
+    if (!selfNode) return;
+
+    const familyIds = new Set<number>();
+    familyIds.add(selfNode.id);
+
+    const parentIds = (selfNode.parentIds ?? []) as number[];
+    parentIds.forEach((pid) => familyIds.add(pid));
+
+    // Grandparents
+    positioned
+      .filter((n) => parentIds.includes(n.id))
+      .forEach((parent) => (parent.parentIds ?? []).forEach((gpid) => familyIds.add(gpid as number)));
+
+    // Siblings (share at least one parent with self)
+    if (parentIds.length > 0) {
+      positioned
+        .filter((n) => (n.parentIds ?? []).some((pid) => parentIds.includes(pid as number)))
+        .forEach((s) => familyIds.add(s.id));
+    }
+
+    // Children
+    const children = positioned.filter((n) => (n.parentIds ?? []).includes(selfNode.id));
+    children.forEach((c) => familyIds.add(c.id));
+
+    // Grandchildren
+    children.forEach((child) => {
+      positioned
+        .filter((n) => (n.parentIds ?? []).includes(child.id))
+        .forEach((gc) => familyIds.add(gc.id));
+    });
+
+    const familyNodes = positioned.filter((n) => familyIds.has(n.id));
+    if (familyNodes.length === 0) return;
+
+    const PAD = 100;
+    const minX = Math.min(...familyNodes.map((n) => n.x)) - PAD;
+    const maxX = Math.max(...familyNodes.map((n) => n.x + NODE_W)) + PAD;
+    const minY = Math.min(...familyNodes.map((n) => n.y)) - PAD;
+    const maxY = Math.max(...familyNodes.map((n) => n.y + NODE_H)) + PAD;
+
+    const { clientWidth: cw, clientHeight: ch } = containerRef.current;
+    const rawScale = Math.min(cw / (maxX - minX), ch / (maxY - minY));
+    // Bird's-eye feel: cap between 0.4× and 1.1×
+    const s = Math.min(Math.max(rawScale, 0.4), 1.1);
+    setTransform({ x: cw / 2 - ((minX + maxX) / 2) * s, y: ch / 2 - ((minY + maxY) / 2) * s, scale: s });
+    setSelectedNodeId(selfNode.id);
+  }, [positioned, user?.dbId]);
+
   useEffect(() => {
     if (positioned.length > 0) {
       if (hasRestoredSession.current) {
@@ -1198,7 +1254,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <UserPlus className="h-3.5 w-3.5" /> Add Person
           </Button>
         )}
-        <Button size="sm" variant="secondary" onClick={() => setShowMemberAddModal(true)} className="gap-1.5 h-8">
+        <Button size="sm" variant="secondary" onClick={showMyFamilyView} className="gap-1.5 h-8" title="Show my family — 2–3 generations bird's-eye view">
           <Users className="h-3.5 w-3.5" /> My Family
         </Button>
         {canEdit && (
