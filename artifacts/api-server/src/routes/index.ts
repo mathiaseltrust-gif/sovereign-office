@@ -74,10 +74,12 @@ import ancestryGedcomRouter from "./ancestry/gedcom";
 import templatesRouter from "./templates/index";
 import deedRouter from "./deed";
 import messagesRouter from "./messages/index";
+import unsubscribeRouter from "./unsubscribe";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
+router.use(unsubscribeRouter);
 
 router.use("/templates", templatesRouter);
 router.use("/deed", deedRouter);

@@ -1,3 +1,4 @@
+import { createHmac, timingSafeEqual } from "crypto";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
 import type { NotificationCategory } from "../sovereign/notification-engine";
@@ -17,9 +18,55 @@ if (!emailEnabled) {
   );
 }
 
+if (!process.env.SESSION_SECRET && process.env.NODE_ENV === "production") {
+  logger.error(
+    "SESSION_SECRET is not set in production — unsubscribe tokens will use a predictable fallback key. Set SESSION_SECRET immediately.",
+  );
+}
+
+if (!process.env.APP_URL && !process.env.REPLIT_DEV_DOMAIN) {
+  logger.warn(
+    "APP_URL and REPLIT_DEV_DOMAIN are both unset — unsubscribe links in emails will have no base URL and will be broken. Set APP_URL to the public root of the API server.",
+  );
+}
+
 const resend = emailEnabled ? new Resend(RESEND_API_KEY!) : null;
 
 export type MailerCategory = NotificationCategory | "password_set";
+
+const SESSION_SECRET = () => process.env.SESSION_SECRET ?? "dev-secret-change-me";
+
+export function generateUnsubscribeToken(email: string): string {
+  const payload = Buffer.from(email).toString("base64url");
+  const sig = createHmac("sha256", SESSION_SECRET()).update(payload).digest("base64url");
+  return `${payload}.${sig}`;
+}
+
+export function verifyUnsubscribeToken(token: string): string | null {
+  try {
+    const [payload, sig] = token.split(".");
+    if (!payload || !sig) return null;
+    const expected = createHmac("sha256", SESSION_SECRET()).update(payload).digest();
+    const actual = Buffer.from(sig, "base64url");
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) return null;
+    return Buffer.from(payload, "base64url").toString("utf8");
+  } catch {
+    return null;
+  }
+}
+
+function buildUnsubscribeUrl(email: string): string {
+  const token = generateUnsubscribeToken(email);
+  const base =
+    process.env.APP_URL ??
+    (process.env.REPLIT_DEV_DOMAIN ? `https://${process.env.REPLIT_DEV_DOMAIN}` : "");
+  return `${base}/api/unsubscribe?token=${encodeURIComponent(token)}`;
+}
+
+function appendUnsubscribeFooter(body: string, email: string): string {
+  const url = buildUnsubscribeUrl(email);
+  return `${body}\n---\nTo stop receiving these emails, unsubscribe here: ${url}\n`;
+}
 
 // Extend templates with extra categories used in lineage/messaging flows
 
@@ -135,7 +182,8 @@ export async function sendNotificationEmail(opts: SendNotificationEmailOptions):
 
   const template = TEMPLATES[opts.category] ?? FALLBACK_TEMPLATE;
   const subject = template.subject(opts.title);
-  const text = template.body(opts.name, opts.title, opts.message, opts.metadata);
+  const bodyWithoutFooter = template.body(opts.name, opts.title, opts.message, opts.metadata);
+  const text = appendUnsubscribeFooter(bodyWithoutFooter, opts.to);
 
   try {
     const result = await resend.emails.send({
