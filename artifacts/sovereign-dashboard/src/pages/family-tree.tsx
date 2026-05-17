@@ -1022,12 +1022,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // Default: zoom in on the current user's node (or root) and their direct connections
   const centerOnSelf = useCallback(() => {
     if (!containerRef.current || positioned.length === 0) return;
-    // 1. Node linked to the current logged-in user
-    // 2. Fallback: node with generational position 0 (root of tree)
+    // 1. Node linked to the current logged-in user (most reliable)
+    // 2. Fallback: layout root node — same logic as computeLayout (id=20 first, then min-gen reduce)
     // 3. Fallback: first positioned node
     const selfNode =
       positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
-      positioned.find((n) => (n.generationalPosition ?? 99) === 0) ??
+      positioned.find((n) => n.id === 20) ??
+      positioned.reduce((a, b) => ((a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b)) ??
       positioned[0];
     if (!selfNode) return;
     const { clientWidth, clientHeight } = containerRef.current;
@@ -1044,7 +1045,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     if (!containerRef.current || positioned.length === 0) return;
     const selfNode =
       positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
-      positioned.find((n) => (n.generationalPosition ?? 99) === 0) ??
+      positioned.find((n) => n.id === 20) ??
+      positioned.reduce((a, b) => ((a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b)) ??
       positioned[0];
     if (!selfNode) return;
 
@@ -1483,9 +1485,16 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                     key={node.id}
                     data-node="1"
                     onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
-                    style={{ position: "absolute", left: node.x, top: node.y, width: NODE_W, height: NODE_H }}
+                    style={{
+                      position: "absolute",
+                      left: node.x,
+                      top: node.y,
+                      width: NODE_W,
+                      height: NODE_H,
+                      zIndex: isSelected ? 20 : 1,
+                    }}
                     className={[
-                      "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between",
+                      "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:z-10",
                       bg, border,
                       isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
                       isMatch ? "ring-2 ring-amber-400 shadow-amber-200/60 shadow-md" : "",
@@ -1994,7 +2003,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
   }
 
   return (
-    <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300 }}>
+    <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300, paddingBottom: 56 }}>
       <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card z-10">
         <span className="font-semibold text-sm truncate">{n.fullName}</span>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none ml-2">✕</button>
