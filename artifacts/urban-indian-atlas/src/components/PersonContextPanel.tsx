@@ -390,6 +390,7 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
       {/* Continuity Report modal — rendered outside the sliding panel so it covers full screen */}
       {showReport && (
         <ContinuityReport
+          key={ancestor.id}
           ancestor={ancestor}
           contextMatches={contextMatches}
           onClose={() => setShowReport(false)}

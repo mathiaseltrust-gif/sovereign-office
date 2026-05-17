@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { X, Printer, AlertTriangle, FileText, MapPin, Clock, Users, ShieldAlert, CheckCircle2, PenLine } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import { X, Printer, AlertTriangle, FileText, MapPin, Clock, Users, ShieldAlert, CheckCircle2, PenLine, Trash2 } from "lucide-react";
 import type { AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
 import { USStateMapSnapshot } from "@/components/USStateMapSnapshot";
 
@@ -406,10 +406,62 @@ function buildPrintHtml(
 </html>`;
 }
 
+function storageKey(ancestorId: number) {
+  return `atlas_research_notes_${ancestorId}`;
+}
+
+interface PersistedNotes {
+  eventAnnotations: Record<string, string>;
+  researcherNotes: string;
+}
+
+function loadNotes(ancestorId: number): PersistedNotes {
+  try {
+    const raw = localStorage.getItem(storageKey(ancestorId));
+    if (raw) {
+      const parsed = JSON.parse(raw) as Partial<PersistedNotes>;
+      return {
+        eventAnnotations: parsed.eventAnnotations ?? {},
+        researcherNotes: parsed.researcherNotes ?? "",
+      };
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return { eventAnnotations: {}, researcherNotes: "" };
+}
+
+function saveNotes(ancestorId: number, notes: PersistedNotes) {
+  try {
+    localStorage.setItem(storageKey(ancestorId), JSON.stringify(notes));
+  } catch {
+    // ignore quota errors
+  }
+}
+
 export function ContinuityReport({ ancestor, contextMatches, onClose }: ContinuityReportProps) {
   const reportRef = useRef<HTMLDivElement>(null);
-  const [eventAnnotations, setEventAnnotations] = useState<Record<string, string>>({});
-  const [researcherNotes, setResearcherNotes] = useState("");
+
+  const [eventAnnotations, setEventAnnotations] = useState<Record<string, string>>(
+    () => loadNotes(ancestor.id).eventAnnotations
+  );
+  const [researcherNotes, setResearcherNotes] = useState<string>(
+    () => loadNotes(ancestor.id).researcherNotes
+  );
+
+  useEffect(() => {
+    saveNotes(ancestor.id, { eventAnnotations, researcherNotes });
+  }, [ancestor.id, eventAnnotations, researcherNotes]);
+
+  const handleClearNotes = () => {
+    try {
+      localStorage.removeItem(storageKey(ancestor.id));
+    } catch {
+      // ignore
+    }
+    setEventAnnotations({});
+    setResearcherNotes("");
+  };
 
   const lifespan = [ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ") || "Dates unknown";
   const eraLabel = inferEraLabel(ancestor.birthYear, ancestor.deathYear);
@@ -469,6 +521,15 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
             <span className="text-xs text-zinc-500 font-mono ml-1">— {ancestor.fullName}</span>
           </div>
           <div className="flex items-center gap-2">
+            <button
+              onClick={handleClearNotes}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded border border-zinc-300 text-zinc-600 text-xs font-medium hover:bg-red-50 hover:border-red-300 hover:text-red-700 transition-colors"
+              data-testid="clear-notes-button"
+              title="Clear all saved annotations and researcher notes for this ancestor"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              Clear notes
+            </button>
             <button
               onClick={handlePrint}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-zinc-800 text-white text-xs font-medium hover:bg-zinc-700 transition-colors"
@@ -735,7 +796,7 @@ export function ContinuityReport({ ancestor, contextMatches, onClose }: Continui
                 <PenLine className="w-3.5 h-3.5" /> VIII. Researcher Notes &amp; Citations
               </h2>
               <p className="text-[9.5px] text-zinc-500 leading-relaxed mb-3">
-                Add your own notes, primary source citations, or clarifying context below. These will appear in the printed output. Notes are not saved — add them before printing.
+                Add your own notes, primary source citations, or clarifying context below. These will appear in the printed output. Notes are automatically saved and restored the next time you open this ancestor's report.
               </p>
               <textarea
                 rows={6}
