@@ -2796,6 +2796,11 @@ export default function LandPage() {
   const [tab, setTab] = useState("overview");
   const qc = useQueryClient();
 
+  useEffect(() => {
+    qc.removeQueries({ queryKey: ["land-parcels"] });
+    qc.removeQueries({ queryKey: ["land-stats"] });
+  }, [qc]);
+
   async function q<T>(url: string): Promise<T> {
     const token = await getCurrentBearerToken();
     const r = await fetch(url, { cache: "no-store", headers: { Authorization: `Bearer ${token}` } });

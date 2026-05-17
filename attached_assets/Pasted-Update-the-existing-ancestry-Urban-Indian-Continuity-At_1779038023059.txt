@@ -1,0 +1,273 @@
+Update the existing ancestry + Urban Indian Continuity Atlas system.
+
+Important:
+Do not rebuild the app from scratch.
+Do not create a second disconnected app.
+Use the ancestry data that has already been extracted/imported.
+The goal is to make the extracted person, date, place, event, and classification data usable inside the interactive map / Atlas Mode.
+
+Core Requirement:
+The interactive map must display ancestor information that Replit already extracted from the ancestry import. If the data exists in JSON, database tables, state files, GEDCOM import output, CSV import output, or existing TSX components, connect that data to the Atlas map.
+
+Find and inspect the existing files for:
+- people/person records
+- family tree records
+- locations
+- events
+- GEDCOM import output
+- Ancestry import output
+- map components
+- timeline components
+- filter components
+- TSX files related to Tree, Map, Atlas, Person, Ancestor, Timeline, or Import
+
+Likely files may include:
+people.json
+persons.json
+ancestors.json
+familyTree.json
+locations.json
+personLocations.json
+events.json
+atlasEvents.json
+gedcom.ts
+importer.ts
+TreeView.tsx
+MapView.tsx
+AtlasMapView.tsx
+PersonMarker.tsx
+EventMarker.tsx
+Timeline.tsx
+FilterSidebar.tsx
+PersonPanel.tsx
+EventDetailPanel.tsx
+
+If the correct files do not exist, create them and connect them to the existing system.
+
+The system must support this flow:
+
+Tree View
+→ Map View
+→ Activate Atlas
+→ Atlas Mode opens with the same ancestors visible on the interactive map
+→ Timeline and filters determine which ancestors and historical events appear
+
+Person Data Display:
+Each ancestor marker on the map should be able to display:
+
+full name
+birth date
+birth place
+birth city
+birth county
+birth state
+birth coordinates
+death date
+death place
+death city
+death county
+death state
+death coordinates
+residence locations
+census locations
+school locations
+marriage locations
+burial locations
+recorded race/classification
+source record
+notes
+family line
+parents
+children
+spouses
+
+Location Verification:
+Use the already extracted location data.
+Normalize each place into:
+
+original_place_text
+city
+county
+state
+country
+latitude
+longitude
+location_type
+date
+source
+confidence_score
+needs_review
+
+If the location already has coordinates, use them.
+If the location only has city/state, infer county when possible.
+If county or coordinates are missing, mark it as needs_review instead of discarding it.
+
+Examples:
+Bakersfield, CA → Bakersfield, Kern County, California
+Southfield, MI → Southfield, Oakland County, Michigan
+
+Atlas Mode Logic:
+Atlas Mode must compare ancestors with historical events.
+
+For each ancestor, calculate:
+- whether the ancestor was alive during the event
+- whether the ancestor had a known location during the event period
+- whether the ancestor was within the affected region
+- whether the ancestor had records matching the policy type, such as census, public school, health, land, county/state, migration, or classification records
+
+Create a helper file if needed:
+historicalContextEngine.ts
+
+This engine should return:
+
+person_id
+event_id
+relationship_type
+distance_miles
+time_overlap
+location_overlap
+confidence_level
+explanation
+
+Relationship types:
+alive_during_event
+located_near_event
+recorded_during_policy_period
+possible_reclassification_context
+public_school_context
+urban_migration_context
+health_access_context
+land_or_jurisdiction_context
+county_or_state_record_context
+
+Atlas Filters:
+Add filters that can show ancestors by:
+
+Alive During Selected Event
+Located Near Selected Event
+Born Before Event
+Living During Policy Era
+Recorded in Census Period
+Connected to Public School Records
+Connected to Urban Migration
+Connected to Reclassification
+Connected to County/State Records
+Connected to Health Access Records
+Needs Location Review
+Has Verified Coordinates
+
+Map Display:
+In Atlas Mode, show:
+
+1. Ancestor markers
+2. Family clusters
+3. Migration paths
+4. Historical event markers
+5. Historical policy regions
+6. Timeline slider
+7. Filter panel
+8. Person detail panel
+9. Event detail panel
+10. Historical context panel
+
+When clicking an ancestor marker, show:
+
+Ancestor name
+life dates
+known locations
+location confidence
+recorded classification
+known community/identity notes
+events during lifetime
+events near known location
+possible reclassification/public school/urbanization context
+continuity note
+
+When clicking a historical event marker, show:
+
+event title
+date
+event type
+policy area
+summary
+identity impact
+reclassification impact
+continuity impact
+affected regions
+related ancestors alive during that event
+related ancestors near the affected region
+source citation
+
+Important wording:
+Do not say the ancestor was definitely affected unless the source proves it.
+Use:
+“potentially relevant”
+“historically connected”
+“may have affected”
+“requires source review”
+“record classification does not determine actual identity”
+
+TSX / Component Updates:
+Update or create these components as needed:
+
+AtlasMapView.tsx
+PersonMarker.tsx
+EventMarker.tsx
+ClusterLayer.tsx
+MigrationPathLayer.tsx
+AtlasTimeline.tsx
+AtlasFilterPanel.tsx
+PersonContextPanel.tsx
+EventDetailPanel.tsx
+HistoricalContextPanel.tsx
+ActivateAtlasButton.tsx
+
+Data / Utility Files:
+Update or create:
+
+people.ts or people.json
+personLocations.ts or personLocations.json
+atlasEvents.ts or atlasEvents.json
+historicalContextEngine.ts
+locationNormalizer.ts
+mapLayers.ts
+atlasFilters.ts
+
+UI Requirement:
+In the Tree View and normal Map View, add:
+
+Button:
+Activate Atlas
+
+When clicked:
+- open Atlas Mode
+- keep the same family tree data
+- keep the same person selection if one is selected
+- center the map on the selected person’s known locations if available
+- turn on ancestor markers, family clusters, migration paths, reclassification events, census events, public school events, urbanization events, health access events, and land/jurisdiction events
+
+Do not turn on boarding school events by default.
+
+Atlas Mode Default Layers:
+Ancestor Locations: ON
+Family Clusters: ON
+Migration Paths: ON
+Reclassification: ON
+Census Identity: ON
+Public Schools: ON
+Urbanization: ON
+Health Access: ON
+Land/Jurisdiction: ON
+Federal Acts: ON
+Boarding Schools: OFF
+
+Final User Experience:
+The user should be able to click an ancestor, then see:
+
+“This ancestor was alive during these events.”
+“This ancestor was located near these events.”
+“This ancestor had records during these classification periods.”
+“These policies may be historically relevant to this ancestor’s identity, location, education, health access, or continuity.”
+
+Main Goal:
+Make the already extracted ancestry information appear and function inside the interactive Atlas map, so the map becomes a living view of people, place, time, classification, and historical impact.
