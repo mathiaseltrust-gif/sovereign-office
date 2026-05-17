@@ -12,6 +12,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText, applyDoctrine } from "../../lib/doctrine";
 import { buildNfrRecorderPdf } from "../../lib/pdf-builder";
+import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../sovereign/nfr-review-engine";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -88,6 +89,42 @@ router.post("/", requireAuth, requireRole("officer"), upload.single("pdf"), asyn
       .update(nfrDocumentsTable)
       .set({ pdfUrl: nfrPdfUrl, updatedAt: new Date() })
       .where(eq(nfrDocumentsTable.id, nfr.id));
+
+    // Map doctrine action type → review engine signal type
+    const ACTION_TO_SIGNAL: Partial<Record<string, ReviewSignalType>> = {
+      foreclosure: "FORECLOSURE_ACTIVITY",
+      taxation: "TAX_OR_LIEN_ASSERTION",
+      mortgage: "TAX_OR_LIEN_ASSERTION",
+      seizure: "UNAUTHORIZED_LAND_ENCUMBRANCE",
+      forced_transfer: "UNAUTHORIZED_LAND_ENCUMBRANCE",
+      transfer: "UNAUTHORIZED_LAND_ENCUMBRANCE",
+      sale: "UNAUTHORIZED_LAND_ENCUMBRANCE",
+      trespass: "TRUST_LAND_INTERFERENCE",
+      probate: "TRUST_RESPONSIBILITY_BREACH",
+      complaint: "PROTECTED_RIGHTS_VIOLATION",
+      general: "PROTECTED_RIGHTS_VIOLATION",
+    };
+    const classifySignal: ReviewSignalType =
+      ACTION_TO_SIGNAL[actionType] ?? "PROTECTED_RIGHTS_VIOLATION";
+    const classifyUserId = req.user ? Number(req.user.id) : undefined;
+    triggerReviewEngine({
+      signalType: classifySignal,
+      triggeringEventType: "classification",
+      triggeringEventId: classification.id,
+      affectedUserId: classifyUserId,
+      affectedMatter: `Classification #${classification.id}: ${actorType}/${landStatus}/${actionType}`,
+      triggeringEntity: actorType,
+      evidenceSource: sourceType,
+      context: text.substring(0, 1000),
+    }).catch(() => {});
+    auditLog({
+      userId: classifyUserId,
+      action: "classification.create",
+      resourceType: "classification",
+      resourceId: classification.id,
+      afterValue: { actorType, landStatus, actionType, nfrId: nfr.id },
+      metadata: { signalType: classifySignal, sourceType },
+    }).catch(() => {});
 
     const dueDate = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
     const [calEvent] = await db

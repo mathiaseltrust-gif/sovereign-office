@@ -3,6 +3,7 @@ import multer from "multer";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { randomUUID } from "crypto";
+import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../sovereign/nfr-review-engine";
 
 const router = Router();
 
@@ -105,6 +106,43 @@ Document filename analysis: "${originalname}"`;
     const docId = randomUUID();
 
     logger.info({ filename: originalname, chars: cleanText.length, pages: pageCount, fileType, sessionId }, "Document uploaded for intake");
+
+    // Detect legal-threat signal from filename + first 500 chars of content
+    const probe = (originalname + " " + cleanText.substring(0, 500)).toLowerCase();
+    let uploadSignal: ReviewSignalType | null = null;
+    if (probe.includes("foreclos")) uploadSignal = "FORECLOSURE_ACTIVITY";
+    else if (probe.includes("tax lien") || probe.includes("property tax")) uploadSignal = "TAX_OR_LIEN_ASSERTION";
+    else if (probe.includes("lien")) uploadSignal = "TAX_OR_LIEN_ASSERTION";
+    else if (probe.includes("evict") || probe.includes("forced removal")) uploadSignal = "UNAUTHORIZED_LAND_ENCUMBRANCE";
+    else if (probe.includes("icwa") || probe.includes("custody") || probe.includes("adoption")) uploadSignal = "ICWA_PROCEEDING_DETECTED";
+    else if (probe.includes("identity") || probe.includes("enrollment") || probe.includes("blood quantum")) uploadSignal = "IDENTITY_CHALLENGED";
+    else if (probe.includes("trespass") || probe.includes("intrusion")) uploadSignal = "TRUST_LAND_INTERFERENCE";
+    else if (probe.includes("probate") || probe.includes("estate") || probe.includes("inheritance")) uploadSignal = "TRUST_RESPONSIBILITY_BREACH";
+    else if (probe.includes("treaty")) uploadSignal = "TREATY_RIGHT_NOT_INVOKED";
+    else if (probe.includes("termination") || probe.includes("disqualif")) uploadSignal = "FEDERAL_PROGRAM_ACCESS_DENIED";
+    else if (probe.includes("court order") || probe.includes("judgment") || probe.includes("subpoena")) uploadSignal = "JURISDICTIONAL_OVERREACH";
+    else if (probe.includes("demand") || probe.includes("cease and desist") || probe.includes("notice of default")) uploadSignal = "PROTECTED_RIGHTS_VIOLATION";
+
+    if (uploadSignal) {
+      const userId = req.user ? Number(req.user.id) : undefined;
+      triggerReviewEngine({
+        signalType: uploadSignal,
+        triggeringEventType: "document_upload",
+        triggeringEventId: undefined,
+        affectedUserId: userId,
+        affectedMatter: `Uploaded document: ${originalname}`,
+        triggeringEntity: "file_upload",
+        evidenceSource: `filename:${originalname}`,
+        context: cleanText.substring(0, 1000),
+      }).catch(() => {});
+      auditLog({
+        userId,
+        action: "document.upload",
+        resourceType: "document",
+        resourceRef: originalname,
+        metadata: { signalDetected: uploadSignal, fileType, sessionId, docId },
+      }).catch(() => {});
+    }
 
     res.json({
       session_id: sessionId,

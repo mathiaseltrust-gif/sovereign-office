@@ -480,6 +480,7 @@ router.put("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, 
     const id = Number(req.params.id);
     const { encumbranceType, title, description, source, dateIdentified,
       status, federalLawImplicated, tribalCodeRef, voidAbInitio, resolutionNotes } = req.body as Record<string, unknown>;
+    const before = await db.execute(sql`SELECT * FROM land_encumbrances WHERE id = ${id}`);
     await db.execute(sql`
       UPDATE land_encumbrances SET
         encumbrance_type = ${str(encumbranceType)}, title = ${str(title)},
@@ -493,7 +494,17 @@ router.put("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, 
       WHERE id = ${id}
     `);
     const updated = await db.execute(sql`SELECT * FROM land_encumbrances WHERE id = ${id}`);
-    res.json(updated.rows[0]);
+    const row = updated.rows[0] as Record<string, unknown> | undefined;
+    auditLog({
+      userId: req.user ? Number(req.user.id) : undefined,
+      action: "encumbrance.update",
+      resourceType: "land_encumbrance",
+      resourceId: id,
+      beforeValue: before.rows[0] as Record<string, unknown> | undefined,
+      afterValue: row,
+      metadata: { encumbranceType: str(encumbranceType), status: str(status) },
+    }).catch(() => {});
+    res.json(row);
   } catch (err) { next(err); }
 });
 
