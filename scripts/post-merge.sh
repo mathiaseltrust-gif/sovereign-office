@@ -1,7 +1,7 @@
 #!/bin/bash
 set -e
 pnpm install --frozen-lockfile
-pnpm --filter db push
+echo "No, add the constraint without truncating the table" | pnpm --filter db push
 
 # Required environment secrets for email delivery (set via Replit Secrets):
 #   RESEND_API_KEY    — API key from resend.com dashboard
