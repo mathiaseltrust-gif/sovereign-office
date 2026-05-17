@@ -62,6 +62,18 @@ const ACCESS_COLORS: Record<AccessLevel, string> = {
   full: "bg-green-100 text-green-800",
 };
 
+function orgLogo(file: string): string {
+  return `${import.meta.env.BASE_URL}${file}`;
+}
+
+const ORG_LOGOS: Partial<Record<string, string>> = {
+  supreme_court:    orgLogo("supreme-court-seal-color.png"),
+  charitable_trust: orgLogo("charitable-trust-logo.png"),
+  niac:             orgLogo("niac-logo.png"),
+  tribal_trust:     orgLogo("tribal-seal.png"),
+  // medical_center: orgLogo("medical-center-logo.png"),  ← add file to public/ when available
+};
+
 const ORG_COLOR_CLASSES: Record<string, string> = {
   red: "border-red-200 bg-red-50/30",
   blue: "border-blue-200 bg-blue-50/30",
@@ -137,9 +149,24 @@ export default function OrgOverviewPage() {
               <Card className={`${ORG_COLOR_CLASSES[org.color] ?? ORG_COLOR_CLASSES.zinc} border`}>
                 <CardHeader className="pb-2 pt-4">
                   <div className="flex items-start justify-between gap-2">
-                    <div>
-                      <p className="text-xs text-muted-foreground font-medium">{TYPE_LABELS[org.type]}</p>
-                      <CardTitle className="text-base font-serif font-bold mt-0.5">{org.shortName}</CardTitle>
+                    <div className="flex items-center gap-3">
+                      {ORG_LOGOS[org.id] ? (
+                        <img
+                          src={ORG_LOGOS[org.id]}
+                          alt={`${org.shortName} logo`}
+                          className="w-12 h-12 rounded-full object-contain shrink-0 bg-white/60 border border-border/40 shadow-sm p-0.5"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-muted/60 border border-border/40 flex items-center justify-center shrink-0">
+                          <span className="text-[10px] font-bold text-muted-foreground text-center leading-tight px-1">
+                            {org.shortName.split(" ").map(w => w[0]).join("").slice(0, 3)}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-xs text-muted-foreground font-medium">{TYPE_LABELS[org.type]}</p>
+                        <CardTitle className="text-base font-serif font-bold mt-0.5">{org.shortName}</CardTitle>
+                      </div>
                     </div>
                     <Badge className={`${ACCESS_COLORS[org.accessLevel]} text-xs shrink-0`}>
                       {org.accessLevel}
@@ -182,8 +209,19 @@ export default function OrgOverviewPage() {
             {inaccessible.map((org) => (
               <Card key={org.id} className="opacity-60 border">
                 <CardHeader className="pb-1 pt-4">
-                  <p className="text-xs text-muted-foreground">{TYPE_LABELS[org.type]}</p>
-                  <CardTitle className="text-sm font-serif font-semibold">{org.shortName}</CardTitle>
+                  <div className="flex items-center gap-2 mb-1">
+                    {ORG_LOGOS[org.id] ? (
+                      <img
+                        src={ORG_LOGOS[org.id]}
+                        alt={`${org.shortName} logo`}
+                        className="w-8 h-8 rounded-full object-contain bg-white/60 border border-border/40 p-0.5"
+                      />
+                    ) : null}
+                    <div>
+                      <p className="text-xs text-muted-foreground">{TYPE_LABELS[org.type]}</p>
+                      <CardTitle className="text-sm font-serif font-semibold">{org.shortName}</CardTitle>
+                    </div>
+                  </div>
                 </CardHeader>
                 <CardContent>
                   <p className="text-xs text-muted-foreground line-clamp-2">{org.description}</p>
