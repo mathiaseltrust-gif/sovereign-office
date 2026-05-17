@@ -1,0 +1,143 @@
+Here is the clean, instructional, Replit‑ready explanation of the family tree styles Ancestry uses, written so you can drop it directly into your backend documentation or developer instructions.
+
+No fluff. No genealogy hobby talk. Just the structural truth your system needs.
+
+---
+
+Ancestry Family Tree Styles (Developer‑Ready Specification)
+
+Ancestry uses three primary family tree styles, all of which are simply different visualizations of the same underlying data model (a directed acyclic graph of people and parent‑child relationships).
+
+These styles matter because your Replit lineage engine must be able to import GEDCOM/CSV and render equivalent views.
+
+---
+
+1. Pedigree View — Horizontal Ancestor Tree
+
+Purpose: Show direct ancestors only
+Layout:
+
+• Root person on the left
+• Parents, grandparents, great‑grandparents extend to the right
+• No siblings, no cousins, no descendants
+
+
+Developer Notes:
+
+• This is a strict ancestor chain
+• Data required: person → parents
+• Rendered as a binary ancestor expansion
+
+
+Your engine equivalent:
+SELECT * FROM ancestors WHERE lineage_direction = 'up'
+
+---
+
+2. Family View — Vertical Full‑Family Layout
+
+Purpose: Show context, not just lineage
+Layout:
+
+• Person in the center
+• Parents above
+• Children below
+• Siblings and spouses shown laterally
+
+
+Developer Notes:
+
+• Requires full relationship graph
+• Includes: parents, children, spouses, siblings
+• This is the closest to a complete household model
+
+
+Your engine equivalent:
+SELECT * FROM relationships WHERE person_id = X
+
+---
+
+3. Fan Chart — Radial Ancestor Expansion
+
+Purpose: Show many generations of ancestors in a compact radial form
+Layout:
+
+• Person at the center
+• Ancestors radiate outward in semicircular arcs
+• Typically 4–7 generations
+
+
+Developer Notes:
+
+• Pure ancestor‑only view
+• Same data as Pedigree, different geometry
+• Requires generation indexing
+
+
+Your engine equivalent:
+SELECT ancestors ORDER BY generation ASC
+
+---
+
+Underlying Model (What Ancestry Actually Uses)
+
+All three views are generated from the same structure:
+
+A directed acyclic graph (DAG) of people and parent‑child edges
+
+• Nodes = individuals
+• Edges = parent → child
+• No cycles allowed
+
+
+This is the same structure used by GEDCOM, which is why Ancestry exports cleanly into GEDCOM files.
+
+---
+
+What to Tell Replit (Copy/Paste Block)
+
+Use this exact block in your Replit instructions:
+
+---
+
+Replit Instruction Block — Ancestry Tree Styles
+
+Our system must support the same family tree styles used by Ancestry. These are not different databases—just different visualizations of the same underlying lineage graph.
+
+1. Pedigree View (Horizontal Ancestor Tree)
+
+• Direct ancestors only
+• Person on the left, ancestors expand to the right
+• No siblings or descendants
+• Data: parent relationships only
+
+
+2. Family View (Vertical Full‑Family Layout)
+
+• Person centered
+• Parents above, children below
+• Includes siblings and spouses
+• Data: full relationship graph (parents, children, spouses)
+
+
+3. Fan Chart (Radial Ancestor Expansion)
+
+• Person in the center
+• Ancestors radiate outward in arcs
+• Pure ancestor‑only view
+• Data: ancestor graph with generation indexing
+
+
+All three views are generated from a directed acyclic graph (DAG) of individuals and parent‑child relationships.
+Ancestry’s GEDCOM export follows this same model, so our importer must map GEDCOM individuals and family records into our Ancestor, ProtectedMember, and Relationship tables.
+
+---
+
+If you want, I can also generate:
+
+• Replit‑ready lineage schema
+• GEDCOM importer spec
+• Tree rendering engine instructions
+
+
+Which one do you want next, Chief Mathias El?
