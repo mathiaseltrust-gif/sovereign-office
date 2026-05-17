@@ -774,8 +774,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [filterProtection, setFilterProtection]   = useState("all");
   const [filterStatus, setFilterStatus]           = useState("all");
   const [filterDeceased, setFilterDeceased]       = useState("all");
-  const [showOrphans, setShowOrphans]             = useState(false);
-
   const filteredNodes = useMemo(() => nodes.filter((n) => {
     if (filterGender !== "all") {
       const g = (n.gender ?? "").toLowerCase();
@@ -800,26 +798,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   }, []);
 
   // ── Separate orphan nodes (no connections to anyone else) from the main tree
-  const { connectedNodes, orphanNodes } = useMemo(() => {
+  const connectedNodes = useMemo(() => {
     const nodeIdSet = new Set(filteredNodes.map((n) => n.id));
-    const connected: LineageNode[] = [];
-    const orphans: LineageNode[] = [];
-    for (const n of filteredNodes) {
-      const parents = (Array.isArray(n.parentIds) ? n.parentIds as number[] : []);
-      const children = (Array.isArray(n.childrenIds) ? n.childrenIds as number[] : []);
-      const hasLink = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
-      // GEDCOM records with NULL generational_position are from unrelated families
-      // in the GEDCOM file — they never got a BFS-assigned gen value, meaning they
-      // have no path back to the McCaster root. Hide them by default.
-      // Gen=0 GEDCOM records ARE real (same-generation cousins of Mathew).
+    return filteredNodes.filter((n) => {
+      const parents  = (Array.isArray(n.parentIds)    ? n.parentIds    as number[] : []);
+      const children = (Array.isArray(n.childrenIds)  ? n.childrenIds  as number[] : []);
+      const hasLink  = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
       const isUnrelatedGedcom = n.sourceType === "gedcom" && n.generationalPosition === null;
-      if (hasLink && !isUnrelatedGedcom) connected.push(n);
-      else orphans.push(n);
-    }
-    return { connectedNodes: connected, orphanNodes: orphans };
+      return hasLink && !isUnrelatedGedcom;
+    });
   }, [filteredNodes]);
 
-  const treeNodes = showOrphans ? filteredNodes : connectedNodes;
+  const treeNodes = connectedNodes;
 
   const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes), [treeNodes]);
   const edges = useMemo(() => buildEdges(positioned), [positioned]);
@@ -1172,20 +1162,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit whole tree to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
-        {orphanNodes.length > 0 && (
-          <Button
-            size="sm"
-            variant={showOrphans ? "default" : "outline"}
-            onClick={() => setShowOrphans((v) => !v)}
-            className="gap-1.5 h-8"
-            title="Toggle unconnected records (GEDCOM imports with no family links yet)"
-          >
-            {showOrphans ? "Hide" : "Show"} unconnected
-            <span className="ml-0.5 rounded-full bg-muted-foreground/20 px-1.5 text-[10px] font-bold">
-              {orphanNodes.length}
-            </span>
-          </Button>
-        )}
         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom in"
           onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>
           <Plus className="h-3.5 w-3.5" />
@@ -1230,11 +1206,9 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* Record count */}
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-          {showOrphans
-            ? <>{filteredNodes.length} <span className="opacity-60">of {nodes.length}</span></>
-            : activeFilterCount > 0
-              ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
-              : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
+          {activeFilterCount > 0
+            ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
+            : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
           }
           <span className="hidden sm:inline opacity-50"> · scroll to zoom</span>
         </span>
