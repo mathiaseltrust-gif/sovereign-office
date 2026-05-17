@@ -300,7 +300,7 @@ function d3RowCenters(count: number): number[] {
     d => d.ch ?? null,
   );
   tree<D>().nodeSize([MT_NW + MT_HGAP, MT_NH + MT_VGAP])(root);
-  const xs = (root.children ?? []).map(c => c.x);
+  const xs = (root.children ?? []).map(c => c.x ?? 0);
   const mid = (Math.min(...xs) + Math.max(...xs)) / 2;
   return xs.map(x => x - mid); // center around 0
 }
