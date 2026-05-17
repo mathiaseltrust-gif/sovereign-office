@@ -249,7 +249,7 @@ function EditEmailDialog({ open, onOpenChange, userName, userId, currentEmail, o
 }
 
 export default function AdminPage() {
-  const { activeRole } = useAuth();
+  const { activeRole, user } = useAuth();
   const { data: users, isLoading } = useListAdminUsers();
   const adminAction = useAdminAction();
   const queryClient = useQueryClient();
@@ -258,7 +258,9 @@ export default function AdminPage() {
   const [passwordDialogUser, setPasswordDialogUser] = useState<{ id: number; name: string } | null>(null);
   const [emailDialogUser, setEmailDialogUser] = useState<{ id: number; name: string; email: string } | null>(null);
 
-  if (activeRole !== "sovereign_admin") {
+  const isSovereignAdmin = activeRole === "sovereign_admin" || (user?.roles ?? []).includes("sovereign_admin");
+
+  if (!isSovereignAdmin) {
     return (
       <div data-testid="page-admin">
         <div className="mb-8">
