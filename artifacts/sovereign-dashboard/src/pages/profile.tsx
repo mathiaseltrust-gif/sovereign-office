@@ -112,147 +112,126 @@ function LandRecordPanel() {
   const em = (v?: string | null) => v || <span className="text-muted-foreground/40 italic text-[10px]">—</span>;
 
   if (isLoading) return (
-    <Card>
-      <CardHeader className="pb-2 pt-4 px-4">
-        <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
-          <MapPin className="h-3.5 w-3.5 text-primary" /> Land Record
-        </CardTitle>
-      </CardHeader>
-      <CardContent className="px-4 pb-4">
-        <div className="space-y-2">{[1, 2, 3].map(i => <div key={i} className="h-6 bg-muted animate-pulse rounded" />)}</div>
-      </CardContent>
-    </Card>
+    <div className="space-y-2 pt-2">
+      {[1, 2, 3].map(i => <div key={i} className="h-6 bg-muted animate-pulse rounded" />)}
+    </div>
   );
 
   return (
-    <Card>
-      <CardHeader className="pb-2 pt-4 px-4">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-xs uppercase tracking-widest flex items-center gap-2">
-            <MapPin className="h-3.5 w-3.5 text-primary" /> Land Record
-          </CardTitle>
-          {data?.selfExecuting && (
-            <Badge className="bg-green-600 hover:bg-green-600 text-white text-[9px] py-0">Self-Executing</Badge>
-          )}
-        </div>
-        <p className="text-xs text-muted-foreground mt-0.5">{data?.landClassification || "Tribal Land"}</p>
-      </CardHeader>
-      <CardContent className="px-4 pb-4 space-y-4">
-
-        {!editing && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Parcel (APN)</div>
-                <div className="text-xs font-mono">{em(data?.apn)}</div>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Tribal Land Code</div>
-                <div className="text-xs font-mono">{em(data?.tribalLandCode)}</div>
-              </div>
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 sm:col-span-2">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Property Address</div>
-                <div className="text-xs">{em(data?.mailingAddress)}</div>
-              </div>
-            </div>
-
+    <div className="space-y-4">
+      {!editing && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
             <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Legal Description</div>
-              <div className="text-xs leading-relaxed">{em(data?.legalDescription)}</div>
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Parcel (APN)</div>
+              <div className="text-xs font-mono">{em(data?.apn)}</div>
             </div>
-
-            {data?.docNumbers && data.docNumbers.length > 0 && (
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Recorded Documents</div>
-                <div className="flex flex-wrap gap-1.5">
-                  {data.docNumbers.map((d, i) => (
-                    <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-background border border-border">{d}</span>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {data?.landRestrictionBasis && data.landRestrictionBasis.length > 0 && (
-              <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Restriction Basis</div>
-                <div className="space-y-0.5">
-                  {data.landRestrictionBasis.map((b, i) => (
-                    <div key={i} className="text-[10px] flex items-start gap-1.5">
-                      <span className="text-green-600 shrink-0 mt-0.5">•</span>
-                      <span>{b}</span>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            <div className="flex items-center gap-3 flex-wrap">
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${data?.hasRecordedInstrument ? "border-green-300 text-green-700 bg-green-50" : "border-border text-muted-foreground"}`}>
-                Recorded Instrument: {data?.hasRecordedInstrument ? "Yes" : "No"}
-              </span>
-              <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${data?.selfExecuting ? "border-green-300 text-green-700 bg-green-50" : "border-border text-muted-foreground"}`}>
-                Self-Executing: {data?.selfExecuting ? "Yes" : "No"}
-              </span>
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Tribal Land Code</div>
+              <div className="text-xs font-mono">{em(data?.tribalLandCode)}</div>
             </div>
-
-            <button onClick={() => setEditing(true)} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
-              Edit land record
-            </button>
-          </div>
-        )}
-
-        {editing && (
-          <div className="space-y-3">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">APN</Label>
-                <Input className="text-xs h-8 font-mono" value={form.apn ?? ""} onChange={e => setForm(p => ({ ...p, apn: e.target.value }))} placeholder="514-364-11-00-1" />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tribal Land Code</Label>
-                <Input className="text-xs h-8 font-mono" value={form.tribalLandCode ?? ""} onChange={e => setForm(p => ({ ...p, tribalLandCode: e.target.value }))} placeholder="MET-TL-BC-001" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Property Address</Label>
-              <Input className="text-xs h-8" value={form.mailingAddress ?? ""} onChange={e => setForm(p => ({ ...p, mailingAddress: e.target.value }))} placeholder="Street, City, State ZIP" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Legal Description</Label>
-              <Textarea className="text-xs min-h-[70px]" value={form.legalDescription ?? ""} onChange={e => setForm(p => ({ ...p, legalDescription: e.target.value }))} placeholder="Lot description from deed..." />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Land Classification</Label>
-              <Input className="text-xs h-8" value={form.landClassification ?? ""} onChange={e => setForm(p => ({ ...p, landClassification: e.target.value }))} placeholder="e.g. Tribal Housing / General Welfare Land" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Document Numbers (comma-separated)</Label>
-              <Input className="text-xs h-8 font-mono" value={(form.docNumbers ?? []).join(", ")} onChange={e => setForm(p => ({ ...p, docNumbers: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))} placeholder="224042175, 223043047" />
-            </div>
-            <div className="space-y-1">
-              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Restriction Basis (one per line)</Label>
-              <Textarea className="text-xs min-h-[70px]" value={(form.landRestrictionBasis ?? []).join("\n")} onChange={e => setForm(p => ({ ...p, landRestrictionBasis: e.target.value.split("\n").map(s => s.trim()).filter(Boolean) }))} placeholder={"25 U.S.C. § 177 (Non-Intercourse Act)\nILCA provisions"} />
-            </div>
-            <div className="flex items-center gap-4">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={form.hasRecordedInstrument ?? false} onChange={e => setForm(p => ({ ...p, hasRecordedInstrument: e.target.checked }))} className="h-3 w-3" />
-                <span className="text-[10px] text-muted-foreground">Recorded Instrument on File</span>
-              </label>
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input type="checkbox" checked={form.selfExecuting ?? false} onChange={e => setForm(p => ({ ...p, selfExecuting: e.target.checked }))} className="h-3 w-3" />
-                <span className="text-[10px] text-muted-foreground">Self-Executing Protections</span>
-              </label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Button size="sm" className="h-7 text-xs" onClick={() => saveMut.mutate(form)} disabled={saveMut.isPending}>
-                {saveMut.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Save
-              </Button>
-              <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditing(false); if (data) setForm(data); }}>Cancel</Button>
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2 sm:col-span-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Property Address</div>
+              <div className="text-xs">{em(data?.mailingAddress)}</div>
             </div>
           </div>
-        )}
-      </CardContent>
-    </Card>
+
+          <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+            <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">Legal Description</div>
+            <div className="text-xs leading-relaxed">{em(data?.legalDescription)}</div>
+          </div>
+
+          {data?.docNumbers && data.docNumbers.length > 0 && (
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Recorded Documents</div>
+              <div className="flex flex-wrap gap-1.5">
+                {data.docNumbers.map((d, i) => (
+                  <span key={i} className="text-[10px] font-mono px-2 py-0.5 rounded bg-background border border-border">{d}</span>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {data?.landRestrictionBasis && data.landRestrictionBasis.length > 0 && (
+            <div className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+              <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">Restriction Basis</div>
+              <div className="space-y-0.5">
+                {data.landRestrictionBasis.map((b, i) => (
+                  <div key={i} className="text-[10px] flex items-start gap-1.5">
+                    <span className="text-green-600 shrink-0 mt-0.5">•</span>
+                    <span>{b}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          <div className="flex items-center gap-3 flex-wrap">
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${data?.hasRecordedInstrument ? "border-green-300 text-green-700 bg-green-50" : "border-border text-muted-foreground"}`}>
+              Recorded Instrument: {data?.hasRecordedInstrument ? "Yes" : "No"}
+            </span>
+            <span className={`text-[9px] font-bold px-2 py-0.5 rounded-full border ${data?.selfExecuting ? "border-green-300 text-green-700 bg-green-50" : "border-border text-muted-foreground"}`}>
+              Self-Executing: {data?.selfExecuting ? "Yes" : "No"}
+            </span>
+          </div>
+
+          <button onClick={() => setEditing(true)} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+            Edit parcel details
+          </button>
+        </div>
+      )}
+
+      {editing && (
+        <div className="space-y-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">APN</Label>
+              <Input className="text-xs h-8 font-mono" value={form.apn ?? ""} onChange={e => setForm(p => ({ ...p, apn: e.target.value }))} placeholder="514-364-11-00-1" />
+            </div>
+            <div className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tribal Land Code</Label>
+              <Input className="text-xs h-8 font-mono" value={form.tribalLandCode ?? ""} onChange={e => setForm(p => ({ ...p, tribalLandCode: e.target.value }))} placeholder="MET-TL-BC-001" />
+            </div>
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Property Address</Label>
+            <Input className="text-xs h-8" value={form.mailingAddress ?? ""} onChange={e => setForm(p => ({ ...p, mailingAddress: e.target.value }))} placeholder="Street, City, State ZIP" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Legal Description</Label>
+            <Textarea className="text-xs min-h-[70px]" value={form.legalDescription ?? ""} onChange={e => setForm(p => ({ ...p, legalDescription: e.target.value }))} placeholder="Lot description from deed..." />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Land Classification</Label>
+            <Input className="text-xs h-8" value={form.landClassification ?? ""} onChange={e => setForm(p => ({ ...p, landClassification: e.target.value }))} placeholder="e.g. Tribal Housing / General Welfare Land" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Document Numbers (comma-separated)</Label>
+            <Input className="text-xs h-8 font-mono" value={(form.docNumbers ?? []).join(", ")} onChange={e => setForm(p => ({ ...p, docNumbers: e.target.value.split(",").map(s => s.trim()).filter(Boolean) }))} placeholder="224042175, 223043047" />
+          </div>
+          <div className="space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Restriction Basis (one per line)</Label>
+            <Textarea className="text-xs min-h-[70px]" value={(form.landRestrictionBasis ?? []).join("\n")} onChange={e => setForm(p => ({ ...p, landRestrictionBasis: e.target.value.split("\n").map(s => s.trim()).filter(Boolean) }))} placeholder={"25 U.S.C. § 177 (Non-Intercourse Act)\nILCA provisions"} />
+          </div>
+          <div className="flex items-center gap-4">
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={form.hasRecordedInstrument ?? false} onChange={e => setForm(p => ({ ...p, hasRecordedInstrument: e.target.checked }))} className="h-3 w-3" />
+              <span className="text-[10px] text-muted-foreground">Recorded Instrument on File</span>
+            </label>
+            <label className="flex items-center gap-1.5 cursor-pointer">
+              <input type="checkbox" checked={form.selfExecuting ?? false} onChange={e => setForm(p => ({ ...p, selfExecuting: e.target.checked }))} className="h-3 w-3" />
+              <span className="text-[10px] text-muted-foreground">Self-Executing Protections</span>
+            </label>
+          </div>
+          <div className="flex items-center gap-2">
+            <Button size="sm" className="h-7 text-xs" onClick={() => saveMut.mutate(form)} disabled={saveMut.isPending}>
+              {saveMut.isPending && <Loader2 className="h-3 w-3 animate-spin mr-1" />} Save
+            </Button>
+            <Button size="sm" variant="outline" className="h-7 text-xs" onClick={() => { setEditing(false); if (data) setForm(data); }}>Cancel</Button>
+          </div>
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -2563,7 +2542,10 @@ export default function ProfilePage() {
             </div>
           </div>
 
-          <LandRecordPanel />
+          <div className="border-t border-border pt-4">
+            <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-3">Parcel Details</p>
+            <LandRecordPanel />
+          </div>
         </CardContent>
       </Card>
 
