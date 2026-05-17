@@ -110,6 +110,7 @@ export interface ActiveLayers {
   publicSchools: boolean;       // Public school policy impact areas
   landJurisdiction: boolean;    // Land allotment / jurisdiction boundary events
   federalActs: boolean;         // Acts of Congress affecting tribal status
+  treaties: boolean;            // Treaty events — shown as distinct diamond markers
 }
 
 const DEFAULT_LAYERS: ActiveLayers = {
@@ -125,6 +126,7 @@ const DEFAULT_LAYERS: ActiveLayers = {
   publicSchools: true,    // public/boarding-school policy events — on by default
   landJurisdiction: true, // land allotment / jurisdiction events  — on by default
   federalActs: true,
+  treaties: true,         // treaties — on by default (foundational to continuity proof)
 };
 
 interface DbAtlasEvent {

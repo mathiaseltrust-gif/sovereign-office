@@ -120,6 +120,8 @@ const LAYER_ITEMS: { key: keyof ActiveLayers; label: string; defaultOn: boolean;
   { key: "tribalTerritories", label: "Tribal Territories (time-aware)", defaultOn: true, group: "Territorial" },
   { key: "migrationPaths", label: "Removal & Migration Routes", defaultOn: true, group: "Territorial" },
   { key: "landJurisdiction", label: "Land Allotment / Jurisdiction", defaultOn: true, group: "Territorial" },
+  // Treaties
+  { key: "treaties", label: "Treaty Timeline", defaultOn: true, group: "Treaties" },
   // Identity & Classification
   { key: "reclassification", label: "Reclassification Events", defaultOn: true, group: "Identity & Classification" },
   { key: "censusIdentity", label: "Census Identity Markers", defaultOn: true, group: "Identity & Classification" },

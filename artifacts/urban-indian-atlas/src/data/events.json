@@ -1,5 +1,61 @@
 [
   {
+    "id": "evt-t001",
+    "title": "1778 Treaty of Fort Pitt — First U.S.-Tribal Treaty",
+    "short_title": "Treaty of Fort Pitt",
+    "year": 1778,
+    "date_start": "1778-09-17",
+    "date_end": null,
+    "era": "colonial",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "The first treaty between the United States and a Native nation, signed with the Delaware (Lenape) people. Promised tribal sovereignty, federal protection, and the possibility of Delaware statehood. Within years the U.S. violated every provision. Established the treaty-making relationship that would define — and betray — the next century of federal-Indian relations.",
+    "plain_language_summary": "The very first treaty signed between the U.S. government and a Native nation. The U.S. promised the Delaware people protection and partnership. Those promises were quickly broken.",
+    "identity_impact": "Recognized Delaware as a sovereign nation and negotiating partner — a legal status the U.S. would selectively honor and deny for the next two centuries.",
+    "reclassification_impact": null,
+    "continuity_impact": "Established treaty-making as the legal framework for federal-tribal relations. All subsequent treaty violations can be measured against this foundational promise.",
+    "family_impact": "Families in the Delaware nation lived under the expectation of U.S. protection that was never delivered.",
+    "public_school_impact": null,
+    "urbanization_impact": null,
+    "health_access_impact": null,
+    "housing_impact": null,
+    "labor_migration_impact": null,
+    "land_impact": "Recognized Delaware territorial rights. Violated within the decade as land pressure increased.",
+    "jurisdiction_impact": "Established precedent for treaty-based sovereignty and the federal trust responsibility.",
+    "modern_effect": "Cited in treaty rights litigation as evidence of the original federal commitment to tribal sovereignty. Illustrates the gap between stated federal promises and actual policy.",
+    "affected_people": "Delaware (Lenape) Nation",
+    "affected_regions": [
+      "Northeast",
+      "Mid-Atlantic"
+    ],
+    "states_affected": [
+      "Pennsylvania",
+      "Ohio",
+      "Delaware"
+    ],
+    "coordinates": [
+      40.4,
+      -80.0
+    ],
+    "source_title": "Treaty of Fort Pitt, 7 Stat. 13 (1778)",
+    "source_url": "https://avalon.law.yale.edu/18th_century/del001.asp",
+    "source_type": "Treaty",
+    "citation": "7 Stat. 13 (1778)",
+    "public_law_number": null,
+    "status": "violated",
+    "tags": [
+      "treaty",
+      "delaware",
+      "lenape",
+      "sovereignty",
+      "trust-responsibility",
+      "colonial"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "The Delaware people survived this betrayal and continue as the Lenape Nation. The treaty record proves federal acknowledgment of their sovereign status.",
+    "ancestor_relevance_note": "If your ancestor was Delaware/Lenape, this treaty establishes their nation's recognized sovereign status from the very founding of the United States."
+  },
+  {
     "id": "evt-001",
     "title": "Trade and Intercourse Act",
     "short_title": "Non-Intercourse Act",
@@ -24,16 +80,30 @@
     "jurisdiction_impact": "Federal government assumed exclusive authority over Indian land transactions, removing state jurisdiction.",
     "modern_effect": "Still active law. Used in eastern land claims litigation (Passamaquoddy, Oneida, Catawba). Any land taken without compliance may still be subject to claim.",
     "affected_people": "All tribal nations in the original 13 states and territories",
-    "affected_regions": ["Southeast", "Northeast", "Mid-Atlantic"],
-    "states_affected": ["All states"],
-    "coordinates": [38.5, -77.0],
+    "affected_regions": [
+      "Southeast",
+      "Northeast",
+      "Mid-Atlantic"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.5,
+      -77.0
+    ],
     "source_title": "Trade and Intercourse Act, 1 Stat. 137 (1790)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/1st-congress.php",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. § 177 (1790)",
     "public_law_number": null,
     "status": "active",
-    "tags": ["land", "trust", "federal-law", "foundational"],
+    "tags": [
+      "land",
+      "trust",
+      "federal-law",
+      "foundational"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Despite this law, Indigenous peoples had to repeatedly litigate to enforce it. The law's existence shows the federal government acknowledged ongoing tribal rights — even as violations continued.",
     "ancestor_relevance_note": "If an ancestor's land was taken without federal approval after 1790, the taking may be legally voidable."
@@ -63,16 +133,34 @@
     "jurisdiction_impact": "Extended federal reach into Indian education — an area previously outside federal authority.",
     "modern_effect": "Established precedent for federal control of Indian education that shaped all later Indian education policy.",
     "affected_people": "All Indigenous children near missionary and government schools in the East and South",
-    "affected_regions": ["Southeast", "Northeast", "Midwest"],
-    "states_affected": ["Virginia", "Georgia", "Mississippi", "Ohio", "New York"],
-    "coordinates": [35.5, -83.0],
+    "affected_regions": [
+      "Southeast",
+      "Northeast",
+      "Midwest"
+    ],
+    "states_affected": [
+      "Virginia",
+      "Georgia",
+      "Mississippi",
+      "Ohio",
+      "New York"
+    ],
+    "coordinates": [
+      35.5,
+      -83.0
+    ],
     "source_title": "Civilization Fund Act, 3 Stat. 516 (1819)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/15th-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of March 3, 1819, 3 Stat. 516",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["education", "schools", "assimilation", "identity"],
+    "tags": [
+      "education",
+      "schools",
+      "assimilation",
+      "identity"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "Many families resisted mission schools by continuing language and ceremony in private. Oral tradition carried what schools attempted to silence.",
     "ancestor_relevance_note": "If an ancestor attended a mission school between 1819 and 1873, school records may exist at the institution or at the National Archives."
@@ -102,19 +190,216 @@
     "jurisdiction_impact": "States gained de facto jurisdiction over Indian people who remained — in direct violation of Worcester v. Georgia (1832).",
     "modern_effect": "Reclassifications made during this era are the primary reason Southeast Indian families appear in records as non-Indian. These are documented harms, not settled identity facts.",
     "affected_people": "Choctaw, Cherokee, Creek, Chickasaw, Seminole, and dozens of smaller nations in the Southeast and Midwest",
-    "affected_regions": ["Southeast", "South", "Midwest"],
-    "states_affected": ["Mississippi", "Alabama", "Georgia", "Tennessee", "Florida", "Ohio", "Michigan"],
-    "coordinates": [32.3, -86.9],
+    "affected_regions": [
+      "Southeast",
+      "South",
+      "Midwest"
+    ],
+    "states_affected": [
+      "Mississippi",
+      "Alabama",
+      "Georgia",
+      "Tennessee",
+      "Florida",
+      "Ohio",
+      "Michigan"
+    ],
+    "coordinates": [
+      32.3,
+      -86.9
+    ],
     "source_title": "Indian Removal Act, 4 Stat. 411 (1830)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/21st-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of May 28, 1830, 4 Stat. 411",
     "public_law_number": null,
     "status": "superseded",
-    "tags": ["removal", "displacement", "reclassification", "identity", "land", "critical"],
+    "tags": [
+      "removal",
+      "displacement",
+      "reclassification",
+      "identity",
+      "land",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Thousands of Choctaw, Cherokee, and Creek people remained in their homelands rather than leave. They hid their identity, changed names, and intermarried — not because they ceased to be Indigenous but because survival required concealment. That concealment is documented in survival, not in records.",
     "ancestor_relevance_note": "If an ancestor lived in the Southeast between 1830 and 1870 and appears as 'colored,' 'mulatto,' or 'white' in records, this may be a removal-era reclassification, not their actual identity."
+  },
+  {
+    "id": "evt-t002",
+    "title": "1830 Treaty of Dancing Rabbit Creek — Choctaw Removal",
+    "short_title": "Treaty of Dancing Rabbit Creek",
+    "year": 1830,
+    "date_start": "1830-09-27",
+    "date_end": null,
+    "era": "removal",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "Signed under duress following the Indian Removal Act of 1830, this treaty required the Choctaw Nation to cede approximately 11 million acres in Mississippi and relocate to Indian Territory (present-day Oklahoma). The first and largest removal treaty in U.S. history. The Choctaw removal became a model — and warning — for all subsequent removals. Thousands died during the forced march. Chief Greenwood LeFlore and others signed under protest and threat. Article XIV allowed individual Choctaw to remain in Mississippi as citizens; the U.S. systematically denied them promised allotments, stripping land title from those who stayed.",
+    "plain_language_summary": "The Choctaw were forced to sign away their Mississippi homeland and walk to Oklahoma. It was the first major forced removal under the Indian Removal Act. Thousands died on the journey. Those who stayed in Mississippi were promised land but were cheated out of it.",
+    "identity_impact": "Article XIV Choctaw (those who remained in Mississippi) faced systematic disenrollment and racial reclassification. Their descendants continue fighting for federal recognition as Mississippi Band of Choctaw Indians.",
+    "reclassification_impact": "Choctaw who remained in Mississippi were reclassified as state citizens and later as \"colored\" under Mississippi law — erasing their tribal identity in state and federal records.",
+    "continuity_impact": "Severed Choctaw families between Mississippi and Oklahoma for generations. Article XIV provisions were never honored, leaving thousands landless and legally invisible.",
+    "family_impact": "Families were split — some removed to Oklahoma, others remained in Mississippi. Land promised under Article XIV was systematically denied, leaving families destitute.",
+    "public_school_impact": null,
+    "urbanization_impact": "Displacement from ancestral lands ultimately drove migration to urban areas.",
+    "health_access_impact": "Removal caused mass death from disease, exposure, and starvation during the march west.",
+    "housing_impact": "Loss of all Mississippi homeland. Those who stayed were denied promised land allotments.",
+    "labor_migration_impact": "Forced removal disrupted all traditional subsistence and economic systems.",
+    "land_impact": "Choctaw ceded all ~11 million acres in Mississippi. Article XIV land allotments promised to those remaining were systematically denied by the U.S. government.",
+    "jurisdiction_impact": "Established Indian Territory as the destination for removed nations. Choctaw Nation of Oklahoma retains treaty-based sovereign jurisdiction today.",
+    "modern_effect": "The Mississippi Band of Choctaw Indians and the Choctaw Nation of Oklahoma both trace direct legal ancestry to this treaty. Article XIV land claims remain unresolved. Treaty is cited in ongoing sovereignty litigation.",
+    "affected_people": "Choctaw Nation — approximately 20,000 people in Mississippi, Alabama, and surrounding territory",
+    "affected_regions": [
+      "Southeast"
+    ],
+    "states_affected": [
+      "Mississippi",
+      "Alabama",
+      "Louisiana",
+      "Oklahoma"
+    ],
+    "coordinates": [
+      33.0,
+      -88.8
+    ],
+    "source_title": "Treaty of Dancing Rabbit Creek, 7 Stat. 333 (1830)",
+    "source_url": "https://avalon.law.yale.edu/19th_century/nt001.asp",
+    "source_type": "Treaty",
+    "citation": "7 Stat. 333 (1830)",
+    "public_law_number": null,
+    "status": "active",
+    "tags": [
+      "treaty",
+      "choctaw",
+      "removal",
+      "mississippi",
+      "oklahoma",
+      "article-xiv",
+      "land-cession",
+      "dancing-rabbit-creek"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "The Choctaw Nation survived this removal and thrives today in both Mississippi and Oklahoma. Article XIV is legal proof that Choctaw families had the right to remain — a document ancestors can use to establish their Mississippi Choctaw lineage.",
+    "ancestor_relevance_note": "If your ancestor was Choctaw, this treaty is the central legal document of your family's history. Article XIV records list Choctaw who claimed the right to remain in Mississippi — your ancestor may appear in those enrollment records."
+  },
+  {
+    "id": "evt-t006",
+    "title": "1832 Treaty of Pontotoc Creek — Chickasaw Removal",
+    "short_title": "Treaty of Pontotoc Creek",
+    "year": 1832,
+    "date_start": "1832-10-20",
+    "date_end": null,
+    "era": "removal",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "Required the Chickasaw Nation to cede their Mississippi homelands and relocate west of the Mississippi River. Unlike the Choctaw removal, the Chickasaw successfully negotiated the purchase of Choctaw land in Indian Territory for their new home. Still, the removal caused tremendous suffering — families forced from ancestral lands, property stolen, promises broken. Chickasaw who remained faced the same reclassification and erasure as Choctaw Article XIV claimants.",
+    "plain_language_summary": "The Chickasaw Nation was forced to give up their Mississippi homeland. Unlike some other nations, they negotiated to buy land in Oklahoma from the Choctaw. The removal still caused great hardship and the loss of their ancestral territory.",
+    "identity_impact": "Chickasaw who remained in Mississippi faced reclassification. Those who removed negotiated a degree of self-governance that helped preserve Chickasaw Nation identity in Oklahoma.",
+    "reclassification_impact": "Chickasaw in Mississippi were reclassified as \"free persons of color\" or \"white\" in state census records — erasing their tribal identity.",
+    "continuity_impact": "The Chickasaw Nation of Oklahoma retains its sovereign status and prosperous government today, tracing direct sovereignty from this treaty era.",
+    "family_impact": "Families were split between those who removed and those who stayed. Land promised to those remaining was denied.",
+    "public_school_impact": null,
+    "urbanization_impact": null,
+    "health_access_impact": null,
+    "housing_impact": null,
+    "labor_migration_impact": null,
+    "land_impact": "Chickasaw ceded their Mississippi homeland. Successfully purchased Chickasaw District from Choctaw Nation in Indian Territory.",
+    "jurisdiction_impact": "Chickasaw Nation of Oklahoma retains treaty-based sovereign jurisdiction today.",
+    "modern_effect": "Chickasaw Nation of Oklahoma is one of the most financially successful tribal governments in the U.S. This treaty's removal is the starting point of that modern sovereignty story.",
+    "affected_people": "Chickasaw Nation — approximately 5,000 people in Mississippi, Tennessee, and Alabama",
+    "affected_regions": [
+      "Southeast"
+    ],
+    "states_affected": [
+      "Mississippi",
+      "Tennessee",
+      "Alabama",
+      "Oklahoma"
+    ],
+    "coordinates": [
+      34.2,
+      -89.0
+    ],
+    "source_title": "Treaty of Pontotoc Creek, 7 Stat. 381 (1832)",
+    "source_url": "https://avalon.law.yale.edu/19th_century/chick001.asp",
+    "source_type": "Treaty",
+    "citation": "7 Stat. 381 (1832)",
+    "public_law_number": null,
+    "status": "active",
+    "tags": [
+      "treaty",
+      "chickasaw",
+      "removal",
+      "mississippi",
+      "oklahoma",
+      "pontotoc",
+      "five-civilized-tribes"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "The Chickasaw Nation survived removal and today governs 7,648 square miles in Oklahoma. Your ancestor's removal is the legal foundation for that continuing sovereignty.",
+    "ancestor_relevance_note": "If your ancestor was Chickasaw, the Dawes Roll (Chickasaw Nation enrollment) links directly to this treaty era. Your ancestor may be listed in the original Chickasaw census records taken before removal."
+  },
+  {
+    "id": "evt-t003",
+    "title": "1835 Treaty of New Echota — Cherokee Removal (Trail of Tears)",
+    "short_title": "Treaty of New Echota",
+    "year": 1835,
+    "date_start": "1835-12-29",
+    "date_end": null,
+    "era": "removal",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "Signed by an unauthorized faction of the Cherokee Nation without authority of the elected tribal council or Principal Chief John Ross. The U.S. used this fraudulent treaty to justify removing over 16,000 Cherokee from their homelands in Georgia, Tennessee, and North Carolina. The resulting forced march — the Trail of Tears — killed an estimated 4,000 people. Over 15,000 Cherokee signed a protest petition; Congress ignored it. The treaty was a legal fiction used to erase a sovereign nation's right to remain on its land.",
+    "plain_language_summary": "A small group of Cherokee signed this treaty without authority to do so. The U.S. used it to force 16,000 Cherokee people off their land. The march to Oklahoma — the Trail of Tears — killed an estimated 4,000 people. The elected Cherokee leadership protested but was ignored.",
+    "identity_impact": "Eastern Band Cherokee (those who fled into the mountains of North Carolina) were not included in the removal and faced ongoing reclassification. Their sovereignty was not recognized by the U.S. until decades later.",
+    "reclassification_impact": "Cherokee who remained in North Carolina (Eastern Band) were repeatedly reclassified by state authorities. Plecker-era records in Virginia erased Cherokee identity for families near the Tennessee border.",
+    "continuity_impact": "Split the Cherokee Nation between Oklahoma and North Carolina permanently. The Eastern Band of Cherokee Indians retains its separate sovereign status today based on the refusal to comply with this treaty.",
+    "family_impact": "Families were split across state lines. Some fled to the mountains; others were marched west. Thousands died. Family records were disrupted across two nations.",
+    "public_school_impact": null,
+    "urbanization_impact": "Removal drove Cherokee diaspora across the Southeast and into urban areas over subsequent generations.",
+    "health_access_impact": "Trail of Tears killed an estimated 4,000 people from disease, exposure, and starvation.",
+    "housing_impact": "Loss of all Cherokee homelands in the East.",
+    "labor_migration_impact": null,
+    "land_impact": "Cherokee ceded all Eastern lands. Cherokee Nation of Oklahoma retains treaty-based land rights in Indian Territory.",
+    "jurisdiction_impact": "Cherokee Nation of Oklahoma and Eastern Band of Cherokee Indians both derive sovereign authority from the refusal and survival of this treaty's terms.",
+    "modern_effect": "Both the Cherokee Nation of Oklahoma and the Eastern Band of Cherokee Indians trace their legal sovereignty to resistance to this treaty. Used in current sovereignty and land rights cases.",
+    "affected_people": "Cherokee Nation — approximately 16,000 people across Georgia, Tennessee, North Carolina, and Alabama",
+    "affected_regions": [
+      "Southeast"
+    ],
+    "states_affected": [
+      "Georgia",
+      "Tennessee",
+      "North Carolina",
+      "Alabama",
+      "Oklahoma"
+    ],
+    "coordinates": [
+      34.5,
+      -84.9
+    ],
+    "source_title": "Treaty of New Echota, 7 Stat. 478 (1835)",
+    "source_url": "https://avalon.law.yale.edu/19th_century/chr1835.asp",
+    "source_type": "Treaty",
+    "citation": "7 Stat. 478 (1835)",
+    "public_law_number": null,
+    "status": "active",
+    "tags": [
+      "treaty",
+      "cherokee",
+      "removal",
+      "trail-of-tears",
+      "new-echota",
+      "georgia",
+      "north-carolina",
+      "oklahoma",
+      "eastern-band"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "The Cherokee survived — in two sovereign nations. The Eastern Band exist precisely because ancestors refused to comply with this treaty. That resistance is the foundation of their continuing sovereignty.",
+    "ancestor_relevance_note": "If your ancestor was Cherokee, the Dawes Roll, Baker Roll (Eastern Band), and the 1835-36 Cherokee Census are the key documents linked to this treaty. Your ancestor may be enrolled or listed as a resistor."
   },
   {
     "id": "evt-004",
@@ -141,19 +426,160 @@
     "jurisdiction_impact": "Federal authority over Indians became geographically bounded — a framework later used to deny services to urban Indians.",
     "modern_effect": "The reservation/urban binary created by this era is why many urban Indian families were later denied federal Indian health and education services.",
     "affected_people": "All tribal nations in the West, Midwest, and Plains",
-    "affected_regions": ["West", "Midwest", "Plains", "California"],
-    "states_affected": ["California", "Oregon", "New Mexico Territory", "Kansas Territory", "Minnesota"],
-    "coordinates": [38.0, -98.0],
+    "affected_regions": [
+      "West",
+      "Midwest",
+      "Plains",
+      "California"
+    ],
+    "states_affected": [
+      "California",
+      "Oregon",
+      "New Mexico Territory",
+      "Kansas Territory",
+      "Minnesota"
+    ],
+    "coordinates": [
+      38.0,
+      -98.0
+    ],
     "source_title": "Indian Appropriations Act, 9 Stat. 574 (1851)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/31st-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of Feb. 27, 1851, 9 Stat. 574",
     "public_law_number": null,
     "status": "superseded",
-    "tags": ["reservation", "land", "jurisdiction", "urban-indian"],
+    "tags": [
+      "reservation",
+      "land",
+      "jurisdiction",
+      "urban-indian"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "Tribal nations established internal governments, schools, and community structures on reservations, maintaining distinct political and cultural existence under confinement.",
     "ancestor_relevance_note": "Ancestors who lived near but not on reservations after 1851 may have been intentionally staying outside reservation boundaries to access labor markets or avoid federal control."
+  },
+  {
+    "id": "evt-t004",
+    "title": "1851 Treaty of Fort Laramie — Plains Nations Territory",
+    "short_title": "First Treaty of Fort Laramie",
+    "year": 1851,
+    "date_start": "1851-09-17",
+    "date_end": null,
+    "era": "reservation",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "Gathered the largest assembly of Plains nations in history — Lakota, Cheyenne, Arapaho, Crow, Assiniboine, Gros Ventre, Mandan, and Arikara. Recognized each nation's territorial boundaries and promised 0,000 in annuities for 50 years (Congress reduced it to 10). The U.S. used mapped boundaries to justify later removal; the nations used them to assert surviving treaty rights. The territorial boundaries drawn here remain the basis for current land claims.",
+    "plain_language_summary": "The U.S. met with most major Plains nations and drew a map of each nation's territory. The U.S. promised annual payments for 50 years. Congress cut it to 10. The boundaries on that map became the legal foundation for later land theft — and also for modern tribal land claims.",
+    "identity_impact": "Defined territorial nations as distinct political entities with recognized boundaries — a legal status that survives in treaty rights litigation today.",
+    "reclassification_impact": null,
+    "continuity_impact": "The territorial boundaries established here are still cited in contemporary land rights cases by the Lakota, Cheyenne, and Crow nations.",
+    "family_impact": "Promised security and annuities that were never reliably delivered. Families planned their survival around treaty promises.",
+    "public_school_impact": null,
+    "urbanization_impact": null,
+    "health_access_impact": null,
+    "housing_impact": null,
+    "labor_migration_impact": null,
+    "land_impact": "Drew explicit territorial boundaries for all signatory nations. Those boundaries were then used to define — and later violate — each nation's land rights.",
+    "jurisdiction_impact": "Established federal recognition of Plains nations' territorial sovereignty. Basis for ongoing land claims by multiple nations.",
+    "modern_effect": "Boundaries established in this treaty are cited in 21st-century land cases, including the ongoing Great Sioux Nation treaty rights litigation.",
+    "affected_people": "Lakota (Sioux), Northern Cheyenne, Arapaho, Crow, Assiniboine, Gros Ventre, Mandan, Arikara",
+    "affected_regions": [
+      "Plains",
+      "Mountain West"
+    ],
+    "states_affected": [
+      "Wyoming",
+      "Montana",
+      "South Dakota",
+      "North Dakota",
+      "Nebraska",
+      "Colorado"
+    ],
+    "coordinates": [
+      42.1,
+      -104.5
+    ],
+    "source_title": "Treaty of Fort Laramie, 11 Stat. 749 (1851)",
+    "source_url": "https://www.loc.gov/item/90898365/",
+    "source_type": "Treaty",
+    "citation": "11 Stat. 749 (1851)",
+    "public_law_number": null,
+    "status": "active",
+    "tags": [
+      "treaty",
+      "lakota",
+      "sioux",
+      "cheyenne",
+      "arapaho",
+      "crow",
+      "plains",
+      "fort-laramie",
+      "territory",
+      "annuities"
+    ],
+    "severity_level": "high",
+    "continuity_survival_note": "Multiple Plains nations have used this treaty's territorial boundaries in ongoing land rights cases. It proves federal recognition of their sovereign territories.",
+    "ancestor_relevance_note": "If your ancestor was Lakota, Cheyenne, Arapaho, or Crow, this treaty defined their recognized homeland. The annuity rolls from this treaty may list your ancestor's name."
+  },
+  {
+    "id": "evt-t005",
+    "title": "1868 Treaty of Fort Laramie — Great Sioux Nation Reservation",
+    "short_title": "Second Treaty of Fort Laramie",
+    "year": 1868,
+    "date_start": "1868-04-29",
+    "date_end": null,
+    "era": "reservation",
+    "event_type": "Treaty",
+    "policy_area": "Treaty Rights",
+    "description": "Ended Red Cloud's War and recognized the Great Sioux Reservation, including the Black Hills (Paha Sapa), as permanent Lakota territory. The U.S. agreed to abandon its Bozeman Trail forts. The discovery of gold in the Black Hills in 1874 led the U.S. to violate this treaty and take the Hills in 1877. The Supreme Court ruled in 1980 (United States v. Sioux Nation) that the Black Hills were taken illegally. The Lakota Nation has refused the .3 billion compensation award — they want the land.",
+    "plain_language_summary": "This treaty gave the Lakota the Black Hills forever. When gold was found there in 1874, the U.S. broke the treaty and took the land. The Supreme Court said in 1980 that the U.S. stole it. The Lakota refused the cash settlement — they still want their land back.",
+    "identity_impact": "Recognized the sovereign Lakota Nation and its right to self-governance within the Great Sioux Reservation — rights that persist under treaty law today.",
+    "reclassification_impact": null,
+    "continuity_impact": "The Great Sioux Nation's refusal to accept payment for the Black Hills represents the most powerful assertion of ongoing treaty rights in modern Indigenous law.",
+    "family_impact": "Lakota families were promised permanent security within the Great Sioux Reservation. That promise was broken within a decade when gold was discovered.",
+    "public_school_impact": null,
+    "urbanization_impact": null,
+    "health_access_impact": null,
+    "housing_impact": null,
+    "labor_migration_impact": null,
+    "land_impact": "Recognized the Black Hills and Great Sioux Reservation as permanent Lakota territory. Violated in 1877 when Congress unilaterally took the Black Hills. The .3B judgment (United States v. Sioux Nation, 1980) sits uncollected.",
+    "jurisdiction_impact": "Established the legal basis for ongoing Lakota treaty rights. Cited in every major Lakota sovereignty case from 1877 to the present.",
+    "modern_effect": "The Standing Rock Sioux Tribe cites this treaty in Dakota Access Pipeline litigation. The Black Hills claim remains open. Over .3 billion sits uncollected in a federal trust account because the Lakota insist on land, not money.",
+    "affected_people": "Great Sioux Nation — Oglala, Rosebud, Standing Rock, Cheyenne River, Crow Creek, Lower Brule, Yankton, Sisseton-Wahpeton",
+    "affected_regions": [
+      "Plains"
+    ],
+    "states_affected": [
+      "South Dakota",
+      "North Dakota",
+      "Nebraska",
+      "Wyoming",
+      "Montana"
+    ],
+    "coordinates": [
+      43.8,
+      -103.5
+    ],
+    "source_title": "Treaty of Fort Laramie, 15 Stat. 635 (1868)",
+    "source_url": "https://www.loc.gov/item/90898366/",
+    "source_type": "Treaty",
+    "citation": "15 Stat. 635 (1868)",
+    "public_law_number": null,
+    "status": "active",
+    "tags": [
+      "treaty",
+      "lakota",
+      "sioux",
+      "black-hills",
+      "great-sioux-nation",
+      "fort-laramie",
+      "red-cloud",
+      "standing-rock"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "The Lakota refusal of the $1.3B compensation proves that sovereignty — not money — is the goal. This treaty remains one of the most powerful demonstrations of ongoing treaty rights in the world.",
+    "ancestor_relevance_note": "If your ancestor was Lakota, the annuity rolls and census records from this treaty era are among the best-documented in Indigenous history. Your ancestor's name may appear in these federal records."
   },
   {
     "id": "evt-005",
@@ -180,16 +606,28 @@
     "jurisdiction_impact": "Moved Indian policy from bicameral treaty ratification to ordinary legislation — removing the constitutional treaty framework from future negotiations.",
     "modern_effect": "Prior treaties remain supreme law under Article VI. The end of treaty-making did not diminish existing treaty rights.",
     "affected_people": "All tribal nations",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Appropriations Act, 16 Stat. 544, § 1 (1871)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/41st-congress.php",
     "source_type": "Act of Congress",
     "citation": "16 Stat. 544, 566 (1871)",
     "public_law_number": null,
     "status": "active",
-    "tags": ["treaty", "federal-law", "sovereignty", "jurisdiction"],
+    "tags": [
+      "treaty",
+      "federal-law",
+      "sovereignty",
+      "jurisdiction"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Tribal nations continued asserting their treaty rights in federal courts throughout the post-1871 period and won. The end of treaty-making affected future negotiations, not past promises.",
     "ancestor_relevance_note": "Ancestors with treaty-era family records retain treaty rights today regardless of this 1871 act."
@@ -219,16 +657,39 @@
     "jurisdiction_impact": "Fee-patented lands removed from federal trust jurisdiction. Indians on fee land had no federal services.",
     "modern_effect": "Cobell settlement covered 1887–2009. Allotment-era probate fraud is still being litigated. Blood quantum requirements that restrict tribal membership derive from Dawes-era classifications.",
     "affected_people": "All tribal nations on reservations, primarily Plains, Southwest, and Pacific Northwest nations",
-    "affected_regions": ["Plains", "Southwest", "Pacific Northwest", "Midwest"],
-    "states_affected": ["Oklahoma", "South Dakota", "North Dakota", "Montana", "Minnesota", "Washington", "Oregon"],
-    "coordinates": [44.0, -100.0],
+    "affected_regions": [
+      "Plains",
+      "Southwest",
+      "Pacific Northwest",
+      "Midwest"
+    ],
+    "states_affected": [
+      "Oklahoma",
+      "South Dakota",
+      "North Dakota",
+      "Montana",
+      "Minnesota",
+      "Washington",
+      "Oregon"
+    ],
+    "coordinates": [
+      44.0,
+      -100.0
+    ],
     "source_title": "General Allotment Act (Dawes Act), 24 Stat. 388 (1887)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/49th-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of Feb. 8, 1887, 24 Stat. 388",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["land", "allotment", "identity", "blood-quantum", "reclassification", "critical"],
+    "tags": [
+      "land",
+      "allotment",
+      "identity",
+      "blood-quantum",
+      "reclassification",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Families maintained community ties even as land was lost. Tribal governance continued in modified forms. Many allottees retained their parcels through generational resistance to fee-patenting.",
     "ancestor_relevance_note": "If an ancestor appears on a Dawes Roll allotment schedule, their allotment number can be used to trace land records at the Bureau of Indian Affairs."
@@ -258,16 +719,38 @@
     "jurisdiction_impact": "Federal services were tied to census enumeration. Reclassified Indians lost eligibility for federal Indian programs.",
     "modern_effect": "The 2020 Census showed a 39% increase in people self-identifying as American Indian — not population growth but recovery from decades of under-reporting. Census misclassification is ongoing.",
     "affected_people": "All off-reservation and urban Indians, especially Southeastern nations, mixed-ancestry families",
-    "affected_regions": ["Southeast", "South", "Urban areas", "National"],
-    "states_affected": ["Mississippi", "Alabama", "North Carolina", "Virginia", "Louisiana", "California"],
-    "coordinates": [33.5, -86.8],
+    "affected_regions": [
+      "Southeast",
+      "South",
+      "Urban areas",
+      "National"
+    ],
+    "states_affected": [
+      "Mississippi",
+      "Alabama",
+      "North Carolina",
+      "Virginia",
+      "Louisiana",
+      "California"
+    ],
+    "coordinates": [
+      33.5,
+      -86.8
+    ],
     "source_title": "U.S. Census Bureau Enumerator Instructions, 1890–1950",
     "source_url": "https://www.census.gov/history/www/genealogy/decennial_census_records/",
     "source_type": "Census Materials",
     "citation": "U.S. Census Records, 1890–1960 (National Archives)",
     "public_law_number": null,
     "status": "ongoing",
-    "tags": ["census", "reclassification", "identity", "urban", "critical", "southeastern"],
+    "tags": [
+      "census",
+      "reclassification",
+      "identity",
+      "urban",
+      "critical",
+      "southeastern"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Despite census erasure, Indigenous families maintained identity through oral history, ceremony, kinship networks, and community institutions invisible to census takers.",
     "ancestor_relevance_note": "A census listing of 'W,' 'B,' or 'M' for an ancestor in a city or off-reservation area between 1890 and 1960 is a reclassification event, not evidence of non-Indian identity."
@@ -297,16 +780,35 @@
     "jurisdiction_impact": "State records overrode federal identity classifications in Virginia for all practical purposes.",
     "modern_effect": "Virginia Indian nations (Pamunkey, Monacan, Chickahominy, Rappahannock, and others) only received federal recognition in 2018. The 43-year record gap from Plecker is the primary evidence challenge for Virginia Indian families today.",
     "affected_people": "Pamunkey, Monacan, Chickahominy, Rappahannock, Mattaponi, and all Virginia Indian families",
-    "affected_regions": ["Mid-Atlantic", "Southeast"],
-    "states_affected": ["Virginia", "Maryland", "Washington D.C.", "Pennsylvania", "West Virginia"],
-    "coordinates": [37.4, -77.4],
+    "affected_regions": [
+      "Mid-Atlantic",
+      "Southeast"
+    ],
+    "states_affected": [
+      "Virginia",
+      "Maryland",
+      "Washington D.C.",
+      "Pennsylvania",
+      "West Virginia"
+    ],
+    "coordinates": [
+      37.4,
+      -77.4
+    ],
     "source_title": "Virginia Racial Integrity Act, Va. Code § 5099a (1924)",
     "source_url": "https://www.encyclopediavirginia.org/Racial_Integrity_Laws_of_the_1920s",
     "source_type": "State Records",
     "citation": "Virginia Acts of Assembly, 1924, Chapter 371",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["reclassification", "state-records", "virginia", "paper-genocide", "urban", "critical"],
+    "tags": [
+      "reclassification",
+      "state-records",
+      "virginia",
+      "paper-genocide",
+      "urban",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Virginia Indian nations maintained community ceremonies, language preservation efforts, and governance structures throughout Plecker's campaign — continuing to function as nations even as the state denied their existence on paper.",
     "ancestor_relevance_note": "Virginia ancestors listed as 'colored' or 'Negro' in state records between 1924 and 1967 may be victims of Plecker's reclassification campaign regardless of how they identified."
@@ -336,16 +838,28 @@
     "jurisdiction_impact": "Citizenship did not transfer jurisdiction over Indian lands or people from federal to state authority.",
     "modern_effect": "Any argument that 1924 made someone 'no longer Indian' has no basis in law.",
     "affected_people": "All Native people who were not already U.S. citizens",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Citizenship Act, 43 Stat. 253 (1924)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/68th-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of June 2, 1924, 43 Stat. 253",
     "public_law_number": null,
     "status": "active",
-    "tags": ["citizenship", "identity", "federal-law", "misclassification"],
+    "tags": [
+      "citizenship",
+      "identity",
+      "federal-law",
+      "misclassification"
+    ],
     "severity_level": "moderate",
     "continuity_survival_note": "Indigenous peoples had always been citizens of their own nations. U.S. citizenship added a layer without removing tribal political status — many nations issued their own citizenship cards throughout this period.",
     "ancestor_relevance_note": "Citizenship in 1924 did not change an ancestor's tribal status. Records that reclassify ancestors as simply 'American' after 1924 are using citizenship to erase tribal identity."
@@ -375,16 +889,29 @@
     "jurisdiction_impact": null,
     "modern_effect": "The Meriam Report is a primary source for quantifying the damages caused by federal Indian policy. Used in litigation to document the federal government's awareness of harm.",
     "affected_people": "All reservation-based Indian communities",
-    "affected_regions": ["National"],
-    "states_affected": ["All states with reservations"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states with reservations"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "The Problem of Indian Administration (Meriam Report), 1928",
     "source_url": "https://narf.org/nill/resources/meriam.html",
     "source_type": "Federal Reports",
     "citation": "Meriam, Lewis, et al., The Problem of Indian Administration (1928)",
     "public_law_number": null,
     "status": "historical",
-    "tags": ["health", "federal-report", "boarding-schools", "poverty", "documentation"],
+    "tags": [
+      "health",
+      "federal-report",
+      "boarding-schools",
+      "poverty",
+      "documentation"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "The report found that despite devastating conditions, Indian communities maintained ceremonies, languages, and community structures. Survival was documented, not just harm.",
     "ancestor_relevance_note": "The Meriam Report is a primary source for understanding conditions faced by ancestors on reservations in the late allotment era."
@@ -414,16 +941,29 @@
     "jurisdiction_impact": "Restored federal recognition of tribal governance structures. Authorized tribes to form governments and enter contracts.",
     "modern_effect": "IRA blood quantum enrollment requirements imposed on tribes in 1934 are still in effect in many nations. These are federal impositions on tribal membership, not traditional practice.",
     "affected_people": "All federally recognized tribal nations",
-    "affected_regions": ["National"],
-    "states_affected": ["All states with reservations"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states with reservations"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Reorganization Act, 48 Stat. 984 (1934)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/73rd-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of June 18, 1934, 48 Stat. 984",
     "public_law_number": null,
     "status": "active",
-    "tags": ["federal-law", "land", "sovereignty", "blood-quantum", "enrollment"],
+    "tags": [
+      "federal-law",
+      "land",
+      "sovereignty",
+      "blood-quantum",
+      "enrollment"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "The IRA acknowledged that tribal nations had survived and continued to function. The federal government's recognition of tribal governance was itself an acknowledgment of continuous political existence.",
     "ancestor_relevance_note": "If an ancestor voted in an IRA referendum (1934–1940), their name may appear in tribal election records — useful documentation of tribal political membership."
@@ -453,16 +993,36 @@
     "jurisdiction_impact": null,
     "modern_effect": "The urban Indian communities established in the 1940s are the foundation of today's urban Indian population in Los Angeles, Chicago, Minneapolis, Seattle, and the Bay Area.",
     "affected_people": "All tribal nations with members who entered military service or defense industry work",
-    "affected_regions": ["West Coast", "Midwest", "Great Lakes"],
-    "states_affected": ["California", "Illinois", "Michigan", "Washington", "Minnesota", "Wisconsin"],
-    "coordinates": [41.8, -87.6],
+    "affected_regions": [
+      "West Coast",
+      "Midwest",
+      "Great Lakes"
+    ],
+    "states_affected": [
+      "California",
+      "Illinois",
+      "Michigan",
+      "Washington",
+      "Minnesota",
+      "Wisconsin"
+    ],
+    "coordinates": [
+      41.8,
+      -87.6
+    ],
     "source_title": "Urban Indian America, Urban Indian Health Institute (2004)",
     "source_url": "https://www.uihi.org/resources/",
     "source_type": "Urban Indian Policy",
     "citation": "Urban Indian Health Institute, Gathering of Voices (2004)",
     "public_law_number": null,
     "status": "historical",
-    "tags": ["urban", "migration", "wwii", "community", "identity"],
+    "tags": [
+      "urban",
+      "migration",
+      "wwii",
+      "community",
+      "identity"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "Urban Indians in this period formed intertribal powwow circuits, church congregations, and mutual aid networks — maintaining distinct Indian community identity in cities without federal recognition or support.",
     "ancestor_relevance_note": "Ancestors who served in WWII or worked in defense industries may have city records (employment, military service, housing) from this period — often the first urban documentation for Indian families."
@@ -492,16 +1052,28 @@
     "jurisdiction_impact": null,
     "modern_effect": "Claims Commission findings are primary legal sources documenting specific federal violations and the land values involved. Used in ongoing litigation.",
     "affected_people": "All tribal nations filing claims against the United States",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Claims Commission Act, 60 Stat. 1049 (1946)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/79th-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of Aug. 13, 1946, 60 Stat. 1049",
     "public_law_number": null,
     "status": "terminated",
-    "tags": ["land", "claims", "federal-law", "trust"],
+    "tags": [
+      "land",
+      "claims",
+      "federal-law",
+      "trust"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "Tribes participated in the claims process as ongoing sovereign political entities — filing as nations asserting rights, not individuals seeking welfare.",
     "ancestor_relevance_note": "Claims Commission findings from 1946–1978 are searchable by tribe at the National Archives and document specific land-taking events."
@@ -531,16 +1103,37 @@
     "jurisdiction_impact": "Public Law 280 (1953) transferred criminal and civil jurisdiction over certain tribal lands to state governments — without tribal consent.",
     "modern_effect": "Restoration legislation reversed terminations for many nations. The Menominee, Klamath, and dozens of others regained federal recognition. Peoples administratively erased during termination retain inherent rights.",
     "affected_people": "Menominee, Klamath, Siletz, Western Oregon tribes, Paiute, and over 100 other nations",
-    "affected_regions": ["Pacific Northwest", "Great Lakes", "Southwest", "Plains"],
-    "states_affected": ["Wisconsin", "Oregon", "California", "Nevada", "Utah", "Nebraska"],
-    "coordinates": [44.8, -89.8],
+    "affected_regions": [
+      "Pacific Northwest",
+      "Great Lakes",
+      "Southwest",
+      "Plains"
+    ],
+    "states_affected": [
+      "Wisconsin",
+      "Oregon",
+      "California",
+      "Nevada",
+      "Utah",
+      "Nebraska"
+    ],
+    "coordinates": [
+      44.8,
+      -89.8
+    ],
     "source_title": "House Concurrent Resolution 108, 83rd Congress (1953)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/83rd-congress.php",
     "source_type": "Federal Policy",
     "citation": "H. Con. Res. 108, 83d Cong. (1953)",
     "public_law_number": null,
     "status": "reversed",
-    "tags": ["termination", "federal-recognition", "tribal-continuity", "urban", "critical"],
+    "tags": [
+      "termination",
+      "federal-recognition",
+      "tribal-continuity",
+      "urban",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Terminated nations continued to function as communities throughout termination. When restoration legislation passed, many nations resumed formal governance immediately — demonstrating uninterrupted continuity despite the administrative gap.",
     "ancestor_relevance_note": "Ancestors from terminated nations who moved to cities during 1953–1975 are urban Indians with full tribal rights — termination was a federal administrative act, not an identity change."
@@ -570,16 +1163,37 @@
     "jurisdiction_impact": "Urban relocatees lost access to federal Indian services without gaining any new city-based services for Indians.",
     "modern_effect": "The descendants of 1956–1972 relocatees make up a significant portion of today's urban Indian population. Los Angeles has the largest urban Indian population in the country — largely the result of this program.",
     "affected_people": "All tribal nations — approximately 35,000 people directly relocated; many more followed informally",
-    "affected_regions": ["West Coast", "Midwest", "Mountain West"],
-    "states_affected": ["California", "Illinois", "Minnesota", "Colorado", "Washington"],
-    "coordinates": [34.0, -118.2],
+    "affected_regions": [
+      "West Coast",
+      "Midwest",
+      "Mountain West"
+    ],
+    "states_affected": [
+      "California",
+      "Illinois",
+      "Minnesota",
+      "Colorado",
+      "Washington"
+    ],
+    "coordinates": [
+      34.0,
+      -118.2
+    ],
     "source_title": "Indian Relocation Act, 70 Stat. 986 (1956)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/84th-congress.php",
     "source_type": "Act of Congress",
     "citation": "Act of Aug. 3, 1956, 70 Stat. 986",
     "public_law_number": "Public Law 84-959",
     "status": "terminated",
-    "tags": ["urban", "relocation", "migration", "chicago", "los-angeles", "minneapolis", "critical"],
+    "tags": [
+      "urban",
+      "relocation",
+      "migration",
+      "chicago",
+      "los-angeles",
+      "minneapolis",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Within years of relocation, Indian people in every relocation city organized community centers, powwows, church congregations, sports leagues, and mutual aid networks. Urban Indian identity was not lost — it was remade in new settings.",
     "ancestor_relevance_note": "If an ancestor moved to Chicago, Los Angeles, Minneapolis, Denver, or the Bay Area in the late 1950s or 1960s, they may have been a formal relocation participant. BIA relocation records are at the National Archives."
@@ -609,16 +1223,28 @@
     "jurisdiction_impact": "Began process of returning PL 280 jurisdiction back to tribes in willing states. Set constitutional baseline for tribal court systems.",
     "modern_effect": "ICRA is the basis for due process challenges to tribal enrollment and disenrollment proceedings.",
     "affected_people": "All tribal members",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Civil Rights Act, 82 Stat. 77 (1968)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/90th-congress.php",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 1301–1304 (1968)",
     "public_law_number": "Public Law 90-284",
     "status": "active",
-    "tags": ["federal-law", "civil-rights", "sovereignty", "jurisdiction"],
+    "tags": [
+      "federal-law",
+      "civil-rights",
+      "sovereignty",
+      "jurisdiction"
+    ],
     "severity_level": "moderate",
     "continuity_survival_note": "The act's passage acknowledged that tribal governments had continued to function and continued to need a legal framework — an implicit recognition of continuous existence.",
     "ancestor_relevance_note": null
@@ -648,16 +1274,29 @@
     "jurisdiction_impact": "Extended federal Indian education jurisdiction into urban public school districts.",
     "modern_effect": "Title VI of the Indian Education Act (now codified at 20 U.S.C. §§ 7401–7492) continues to fund Indian education in public schools. Urban Indian students are eligible.",
     "affected_people": "Indian students in public schools, including urban students",
-    "affected_regions": ["National", "Urban areas"],
-    "states_affected": ["All states with Indian student enrollment in public schools"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National",
+      "Urban areas"
+    ],
+    "states_affected": [
+      "All states with Indian student enrollment in public schools"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Education Act, 86 Stat. 334 (1972)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/92nd-congress.php",
     "source_type": "Act of Congress",
     "citation": "20 U.S.C. §§ 7401–7492 (1972)",
     "public_law_number": "Public Law 92-318",
     "status": "active",
-    "tags": ["education", "public-schools", "urban", "federal-law"],
+    "tags": [
+      "education",
+      "public-schools",
+      "urban",
+      "federal-law"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "The act was the result of organized advocacy by urban Indian parents and community groups — demonstrating that urban Indian communities had developed political capacity to shape federal policy.",
     "ancestor_relevance_note": "If an ancestor attended a public school that received Title IV funding, school enrollment records from this era may identify them as Indian — useful documentation for family continuity."
@@ -687,16 +1326,29 @@
     "jurisdiction_impact": "Transferred operational authority over federal Indian programs to tribal control.",
     "modern_effect": "The 25 U.S.C. § 5304 definition of 'Indian' is the broadest in federal law. Any federal agency denying services to a person who meets this definition is violating the statute.",
     "affected_people": "All tribal nations and urban Indian organizations",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Self-Determination and Education Assistance Act, 88 Stat. 2203 (1975)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/93rd-congress.php",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 5301 et seq. (1975)",
     "public_law_number": "Public Law 93-638",
     "status": "active",
-    "tags": ["self-determination", "federal-law", "urban-indian", "identity", "health"],
+    "tags": [
+      "self-determination",
+      "federal-law",
+      "urban-indian",
+      "identity",
+      "health"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The act was won by tribal nations that had maintained political existence through termination, allotment, and removal — a direct acknowledgment by Congress of Indigenous political continuity.",
     "ancestor_relevance_note": "The ISDEAA definition of Indian (25 U.S.C. § 5304) covers descendants of historic tribes. It is the broadest statutory basis for claiming federal Indian status."
@@ -726,16 +1378,30 @@
     "jurisdiction_impact": "Extended federal Indian health jurisdiction into urban settings.",
     "modern_effect": "Urban Indian Health Organizations in 41 cities currently serve approximately 140,000 patients. Permanently reauthorized by the ACA in 2010. Urban Indians remain significantly underserved relative to reservation Indian health funding.",
     "affected_people": "Urban Indians in 41+ cities; reservation Indians through IHS",
-    "affected_regions": ["National", "Urban areas"],
-    "states_affected": ["All states with urban Indian health programs"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National",
+      "Urban areas"
+    ],
+    "states_affected": [
+      "All states with urban Indian health programs"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Health Care Improvement Act, 90 Stat. 1400 (1976)",
     "source_url": "https://www.ihs.gov/ihcia/",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 1601–1683 (1976, as amended 2010)",
     "public_law_number": "Public Law 94-437",
     "status": "active",
-    "tags": ["health", "urban-indian", "federal-law", "ihs", "trust-responsibility"],
+    "tags": [
+      "health",
+      "urban-indian",
+      "federal-law",
+      "ihs",
+      "trust-responsibility"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Urban Indian health organizations were created and sustained by community advocacy. Organizations like the Chicago American Indian Center and the Indian Health Board of Minneapolis existed before federal recognition — demonstrating that urban Indian communities built institutions independent of federal support.",
     "ancestor_relevance_note": "Urban Indian health program records may include patient records for ancestors who sought services at urban Indian health centers from 1976 onward."
@@ -765,16 +1431,29 @@
     "jurisdiction_impact": null,
     "modern_effect": "AIRFA and its 1994 amendments protect peyote ceremonies, sacred sites, and repatriation of ceremonial objects. Foundations of NAGPRA (1990).",
     "affected_people": "All Native peoples",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "American Indian Religious Freedom Act, 92 Stat. 469 (1978)",
     "source_url": "https://www.loc.gov/law/help/statutes-at-large/95th-congress.php",
     "source_type": "Act of Congress",
     "citation": "42 U.S.C. § 1996 (1978)",
     "public_law_number": "Public Law 95-341",
     "status": "active",
-    "tags": ["religion", "culture", "federal-law", "identity", "continuity"],
+    "tags": [
+      "religion",
+      "culture",
+      "federal-law",
+      "identity",
+      "continuity"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "The act was necessary precisely because Native ceremonial life had never stopped — it had been driven underground, practiced privately, and sustained through family transmission. The act formally acknowledged and protected what communities had always maintained.",
     "ancestor_relevance_note": null
@@ -804,16 +1483,30 @@
     "jurisdiction_impact": "Established tribal jurisdiction as paramount in Indian child custody cases regardless of where the child lived — including in cities.",
     "modern_effect": "ICWA is still in effect and currently under constitutional challenge (Brackeen v. Haaland, 2023 — Supreme Court upheld it 7-2). Urban Indian families with child welfare system involvement can invoke ICWA regardless of reservation proximity.",
     "affected_people": "All Indian families with children in state child welfare systems",
-    "affected_regions": ["National", "Urban areas"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National",
+      "Urban areas"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Child Welfare Act, 92 Stat. 3069 (1978)",
     "source_url": "https://www.nicwa.org/indian-child-welfare-act/",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 1901–1963 (1978)",
     "public_law_number": "Public Law 95-608",
     "status": "active",
-    "tags": ["family", "child-welfare", "urban", "federal-law", "identity"],
+    "tags": [
+      "family",
+      "child-welfare",
+      "urban",
+      "federal-law",
+      "identity"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "ICWA was won by urban Indian parents and tribal advocates who documented the mass removal of children. The law itself is evidence of ongoing Indigenous political advocacy and family survival.",
     "ancestor_relevance_note": "If an ancestor's child was involved in a state welfare proceeding, ICWA notification and tribal court records may exist. These records may document Indian identity in urban families."
@@ -843,16 +1536,32 @@
     "jurisdiction_impact": "Reaffirmed tribal authority to operate enterprises on tribal lands without state taxation.",
     "modern_effect": "Tribal gaming generates approximately $40 billion annually — more than all Las Vegas casinos combined. This economic base funds comprehensive tribal government services.",
     "affected_people": "Primarily tribes with reservation land in states permitting gaming",
-    "affected_regions": ["National"],
-    "states_affected": ["California", "Oklahoma", "Florida", "Washington", "Minnesota"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "California",
+      "Oklahoma",
+      "Florida",
+      "Washington",
+      "Minnesota"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Indian Gaming Regulatory Act, 102 Stat. 2467 (1988)",
     "source_url": "https://www.nigc.gov/laws-regulations/igra",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 2701 et seq. (1988)",
     "public_law_number": "Public Law 100-497",
     "status": "active",
-    "tags": ["gaming", "economic-development", "sovereignty", "federal-law"],
+    "tags": [
+      "gaming",
+      "economic-development",
+      "sovereignty",
+      "federal-law"
+    ],
     "severity_level": "moderate",
     "continuity_survival_note": "Gaming tribes used economic development to fund cultural revitalization — language programs, ceremonial sites, repatriation of ancestral remains. Economic sovereignty supported cultural sovereignty.",
     "ancestor_relevance_note": null
@@ -882,16 +1591,29 @@
     "jurisdiction_impact": null,
     "modern_effect": "As of 2023, over 6 million objects and 43,000 sets of remains have been reported under NAGPRA. The process continues. Urban Indian descendants can participate in repatriation claims.",
     "affected_people": "All tribal nations with ancestral remains or sacred objects in federal collections",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Native American Graves Protection and Repatriation Act, 104 Stat. 3048 (1990)",
     "source_url": "https://www.nps.gov/nagpra/",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 3001–3013 (1990)",
     "public_law_number": "Public Law 101-601",
     "status": "active",
-    "tags": ["repatriation", "cultural-heritage", "federal-law", "continuity", "identity"],
+    "tags": [
+      "repatriation",
+      "cultural-heritage",
+      "federal-law",
+      "continuity",
+      "identity"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "NAGPRA's premise is that living Indians have an ongoing relationship with their ancestors — rejecting the 'vanished race' narrative and affirming living cultural continuity.",
     "ancestor_relevance_note": "Families with ancestors whose remains may have been taken for museum collections can file NAGPRA claims through lineal descendant or tribal affiliation pathways."
@@ -921,16 +1643,29 @@
     "jurisdiction_impact": null,
     "modern_effect": "Cobell settlement established that the federal fiduciary duty is real and enforceable. The land consolidation component continues to reacquire fractionated allotments.",
     "affected_people": "Approximately 500,000 individual Indian trust account holders and their heirs",
-    "affected_regions": ["National"],
-    "states_affected": ["All states with allotted lands"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states with allotted lands"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Cobell v. Salazar, No. 1:96-cv-01285 (D.D.C. 2009)",
     "source_url": "https://www.cobellsettlement.com/",
     "source_type": "Court Cases",
     "citation": "Cobell v. Salazar, No. 1:96-cv-01285 (D.D.C. Dec. 8, 2009)",
     "public_law_number": null,
     "status": "settled",
-    "tags": ["trust", "land", "settlement", "cobell", "fiduciary"],
+    "tags": [
+      "trust",
+      "land",
+      "settlement",
+      "cobell",
+      "fiduciary"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Eloise Cobell's 13-year litigation on behalf of 500,000 account holders represents extraordinary Indigenous advocacy — maintaining legal pressure through decades of government obstruction.",
     "ancestor_relevance_note": "Heirs to Individual Indian Money accounts may be eligible for Cobell settlement payments. The National Archives holds IIM account records going back to 1887."
@@ -960,16 +1695,30 @@
     "jurisdiction_impact": null,
     "modern_effect": "Urban Indian health programs now operate with permanent authorization. Still significantly underfunded relative to reservation IHS per capita spending.",
     "affected_people": "All Indians, especially urban Indians served by Urban Indian Health Organizations",
-    "affected_regions": ["National", "Urban areas"],
-    "states_affected": ["All states with urban Indian health programs"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National",
+      "Urban areas"
+    ],
+    "states_affected": [
+      "All states with urban Indian health programs"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Patient Protection and Affordable Care Act, Pub. L. 111-148 (2010)",
     "source_url": "https://www.ihs.gov/ihcia/",
     "source_type": "Act of Congress",
     "citation": "25 U.S.C. §§ 1601–1683, as amended by Pub. L. 111-148 (2010)",
     "public_law_number": "Public Law 111-148",
     "status": "active",
-    "tags": ["health", "urban-indian", "federal-law", "ihs", "permanent"],
+    "tags": [
+      "health",
+      "urban-indian",
+      "federal-law",
+      "ihs",
+      "permanent"
+    ],
     "severity_level": "high",
     "continuity_survival_note": "Permanent reauthorization was won by sustained urban Indian health advocacy over decades — demonstrating that urban Indian communities had built lasting institutional and political capacity.",
     "ancestor_relevance_note": null
@@ -999,16 +1748,29 @@
     "jurisdiction_impact": "Agency-created jurisdictional distinctions (reservation vs. non-reservation) that limited Indian rights can be re-examined under independent statutory interpretation.",
     "modern_effect": "Active — the Indian law implications of Loper Bright are still developing. Most significant near-term areas: IHS eligibility, BIA identity determinations, treaty right interpretations, land trust applications.",
     "affected_people": "All persons with claims against federal agency Indian policy decisions",
-    "affected_regions": ["National"],
-    "states_affected": ["All states"],
-    "coordinates": [38.9, -77.0],
+    "affected_regions": [
+      "National"
+    ],
+    "states_affected": [
+      "All states"
+    ],
+    "coordinates": [
+      38.9,
+      -77.0
+    ],
     "source_title": "Loper Bright Enterprises v. Raimondo, 603 U.S. ___ (2024)",
     "source_url": "https://www.supremecourt.gov/opinions/23pdf/22-451_7m58.pdf",
     "source_type": "Court Cases",
     "citation": "Loper Bright Enterprises v. Raimondo, 603 U.S. ___ (2024)",
     "public_law_number": null,
     "status": "active",
-    "tags": ["federal-law", "court-decision", "identity", "agency", "modern"],
+    "tags": [
+      "federal-law",
+      "court-decision",
+      "identity",
+      "agency",
+      "modern"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The end of Chevron deference opens new pathways for Indian communities to challenge decades of agency policy that narrowed Indian rights through administrative interpretation rather than statutory text.",
     "ancestor_relevance_note": "Federal agency determinations about an ancestor's Indian status that relied on agency interpretation rather than statutory text can now be challenged on independent judicial review."

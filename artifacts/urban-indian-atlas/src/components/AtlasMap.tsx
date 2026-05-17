@@ -396,9 +396,9 @@ export function AtlasMap({
         {/* ── Historical Events ──────────────────────────────────────────────
             Events are split into thematic sub-layers controlled by the new
             first-class layer toggles. Each event belongs to at most one
-            thematic layer; if none match it falls through to the catch-all
-            `historicalEvents` layer.
+            thematic layer; treaties are rendered separately as diamond markers.
              Layer priority (first match wins):
+              treaties          — Treaty events (distinct diamond marker)
               reclassification  — Census Classification / Reclassification
               censusIdentity    — Tribal Enrollment / Blood Quantum / Identity
               federalActs       — Act of Congress / Federal Policy
@@ -414,17 +414,16 @@ export function AtlasMap({
           const ti = (evt.title ?? "").toLowerCase();
 
           // Determine which thematic layer this event belongs to
-          const isReclassification = et.includes("census classif") || et.includes("reclassif") || pa.includes("reclassif") || pa.includes("census classif");
-          const isCensusIdentity = et.includes("tribal enrollment") || et.includes("blood quantum") || pa.includes("enrollment") || pa.includes("blood quantum") || (pa.includes("identity") && !isReclassification);
-          const isFederalAct = et.includes("act of congress") || et.includes("federal policy") || et.includes("federal act") || pa.includes("federal legislation");
-          const isPublicSchool = pa.includes("education") || et.includes("school") || ti.includes("boarding school") || ti.includes("public school");
-          const isLandJurisdiction = pa.includes("land allotment") || pa.includes("allotment") || et.includes("removal") || pa.includes("jurisdiction");
+          const isTreaty = et === "treaty" || pa.includes("treaty rights") || pa === "treaty";
+          const isReclassification = !isTreaty && (et.includes("census classif") || et.includes("reclassif") || pa.includes("reclassif") || pa.includes("census classif"));
+          const isCensusIdentity = !isTreaty && (et.includes("tribal enrollment") || et.includes("blood quantum") || pa.includes("enrollment") || pa.includes("blood quantum") || (pa.includes("identity") && !isReclassification));
+          const isFederalAct = !isTreaty && (et.includes("act of congress") || et.includes("federal policy") || et.includes("federal act") || pa.includes("federal legislation"));
+          const isPublicSchool = !isTreaty && (pa.includes("education") || et.includes("school") || ti.includes("boarding school") || ti.includes("public school"));
+          const isLandJurisdiction = !isTreaty && (pa.includes("land allotment") || pa.includes("allotment") || et.includes("removal") || pa.includes("jurisdiction"));
+          const isBoardingSchool = !isTreaty && (ti.includes("boarding school") || et.includes("boarding school") || pa.includes("boarding school"));
 
-          // boardingSchools: a dedicated toggle for boarding/public-school events,
-          // kept separate from publicSchools so both can be toggled independently.
-          // Note: a boarding-school event can match BOTH isPublicSchool and
-          // isBoardingSchool — it is shown if EITHER of its layers is on.
-          const isBoardingSchool = ti.includes("boarding school") || et.includes("boarding school") || pa.includes("boarding school");
+          // Treaty events: rendered as special diamond markers (handled in separate pass below)
+          if (isTreaty) return null;
 
           // Layer visibility check — first-match wins for thematic layers
           const visible =
@@ -459,6 +458,56 @@ export function AtlasMap({
             </CircleMarker>
           );
         })}
+
+        {/* ── Treaty Markers — rendered as distinct diamond/scroll icons ────────
+            Treaties are shown with a unique diamond SVG marker in deep indigo
+            so they stand apart from all other event markers.
+        ── */}
+        {activeLayers.treaties && events
+          .filter(evt => {
+            const et = (evt.event_type ?? "").toLowerCase();
+            const pa = (evt.policy_area ?? "").toLowerCase();
+            return et === "treaty" || pa.includes("treaty rights") || pa === "treaty";
+          })
+          .map(evt => {
+            const isFilteredOut = isEventFilteredOut(evt.id);
+            const isSelected = evt.id === selectedEventId;
+            const size = isSelected ? 20 : 14;
+            const color = "#4a3080";
+            const borderColor = isSelected ? "#000" : "#fff";
+            const borderWidth = isSelected ? 3 : 2;
+            const opacity = isFilteredOut ? 0.25 : 1;
+            // Diamond SVG as a DivIcon
+            const icon = L.divIcon({
+              className: "",
+              html: `<div style="opacity:${opacity};filter:drop-shadow(0 1px 3px rgba(74,48,128,0.7))">
+                <svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="10,1 19,10 10,19 1,10"
+                    fill="${color}"
+                    stroke="${borderColor}"
+                    stroke-width="${borderWidth}"
+                  />
+                  <text x="10" y="14" text-anchor="middle" font-size="9" fill="white" font-family="serif" font-weight="bold">T</text>
+                </svg>
+              </div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            });
+            return (
+              <Marker
+                key={evt.id}
+                position={evt.coordinates}
+                icon={icon}
+                eventHandlers={{ click: () => onSelectEvent(evt.id) }}
+              >
+                <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+                  <div className="font-serif font-semibold" style={{ color: "#4a3080" }}>⬦ {evt.title}</div>
+                  <div className="text-xs text-muted-foreground">{evt.year} · Treaty</div>
+                </Tooltip>
+              </Marker>
+            );
+          })
+        }
 
         {/* ── Ancestor Markers (Atlas Mode) ──────────────────────────────────
             Two visual states:
@@ -578,58 +627,83 @@ export function AtlasMap({
 
       </MapContainer>
 
-      {/* Atlas Mode layer legend overlay */}
-      {atlasMode && (
-        <div className="absolute bottom-4 left-4 bg-background/90 border border-border rounded-lg p-3 z-10 text-xs space-y-1.5 shadow-lg max-w-[220px]">
-          <p className="font-mono font-semibold text-[10px] uppercase tracking-widest text-muted-foreground mb-2">Map Legend</p>
-          {activeLayers.tribalTerritories && (
-            <div className="flex items-center gap-2">
-              <svg width="18" height="14" viewBox="0 0 18 14" fill="none" xmlns="http://www.w3.org/2000/svg">
-                <polygon points="9,1 17,6 14,13 4,13 1,6" fill="rgba(196,168,112,0.22)" stroke="#8a7050" strokeWidth="1.5"/>
-              </svg>
-              <span className="text-muted-foreground">Tribal Territory (time-aware)</span>
-            </div>
-          )}
-          {activeLayers.ancestorLocations && (
-            <>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#2d8c6e] border-2 border-white shadow" />
-                <span className="text-muted-foreground">Ancestor (verified coordinates)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#7c9cbc] border-2 border-white shadow" />
-                <span className="text-muted-foreground">Ancestor (from records)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-3 h-3 rounded-full bg-[#9a9aaa]" style={{ border: "2px dashed #ccc" }} />
-                <span className="text-muted-foreground">Ancestor (location needs review)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-4 flex items-center">
-                  <div className="w-4 h-4 rounded-full bg-[#5b8db8] border-2 border-white flex items-center justify-center text-white" style={{ fontSize: 8, fontWeight: 700 }}>N</div>
-                </div>
-                <span className="text-muted-foreground">Family cluster (N ancestors)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-5 h-0.5" style={{ borderTop: "1.5px dashed #8a7050", opacity: 0.55 }} />
-                <span className="text-muted-foreground">Migration arc (homeland → recorded location)</span>
-              </div>
-            </>
-          )}
-          {activeLayers.migrationPaths && (
-            <div className="flex items-center gap-2">
-              <div className="w-5 h-0.5 bg-[#8a4b38] opacity-60" style={{ borderTop: "2px dashed #8a4b38" }} />
-              <span className="text-muted-foreground">Removal Route</span>
-            </div>
-          )}
-          {activeLayers.historicalEvents && (
-            <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#a64115]" />
-              <span className="text-muted-foreground">Historical Event</span>
-            </div>
-          )}
+      {/* ── Persistent Map Legend — always visible, bottom-right of the map canvas ──
+          Positioned as a sibling of MapContainer (not inside it) to avoid
+          Leaflet z-index interference. Uses z-[1000] to clear all Leaflet panes.
+      ── */}
+      <div
+        className="absolute bottom-10 right-2 bg-background/95 border border-border/70 rounded-lg shadow-lg text-xs space-y-1.5 pointer-events-none select-none"
+        style={{ zIndex: 1000, padding: "8px 10px", minWidth: 170, maxWidth: 210 }}
+      >
+        <p className="font-mono font-semibold text-[9px] uppercase tracking-widest text-muted-foreground mb-1.5">Map Legend</p>
+
+        {/* Severity markers — always shown */}
+        <div className="space-y-1">
+          <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-0.5">Event Severity</p>
+          <div className="flex items-center gap-2">
+            <div className="w-3 h-3 rounded-full bg-[#a64115] border border-white shadow-sm flex-shrink-0" />
+            <span className="text-muted-foreground leading-tight">Critical</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2.5 h-2.5 rounded-full bg-[#c29b40] border border-white shadow-sm flex-shrink-0" />
+            <span className="text-muted-foreground leading-tight">High</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <div className="w-2 h-2 rounded-full bg-[#5c744c] border border-white shadow-sm flex-shrink-0" />
+            <span className="text-muted-foreground leading-tight">Moderate</span>
+          </div>
         </div>
-      )}
+
+        {/* Treaty marker */}
+        {activeLayers.treaties && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <svg width="14" height="14" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+              <polygon points="10,1 19,10 10,19 1,10" fill="#4a3080" stroke="white" strokeWidth="2"/>
+              <text x="10" y="14" textAnchor="middle" fontSize="9" fill="white" fontFamily="serif" fontWeight="bold">T</text>
+            </svg>
+            <span className="text-muted-foreground leading-tight">Treaty</span>
+          </div>
+        )}
+
+        {/* Territorial markers */}
+        {activeLayers.tribalTerritories && (
+          <div className="flex items-center gap-2 pt-0.5">
+            <svg width="18" height="12" viewBox="0 0 18 12" fill="none" xmlns="http://www.w3.org/2000/svg" className="flex-shrink-0">
+              <polygon points="9,1 17,5 14,11 4,11 1,5" fill="rgba(196,168,112,0.28)" stroke="#8a7050" strokeWidth="1.5"/>
+            </svg>
+            <span className="text-muted-foreground leading-tight">Tribal Territory</span>
+          </div>
+        )}
+        {activeLayers.migrationPaths && (
+          <div className="flex items-center gap-2">
+            <div className="w-5 h-0.5 flex-shrink-0" style={{ borderTop: "2px dashed #8a4b38", opacity: 0.7 }} />
+            <span className="text-muted-foreground leading-tight">Removal Route</span>
+          </div>
+        )}
+
+        {/* Atlas Mode ancestor markers */}
+        {atlasMode && activeLayers.ancestorLocations && (
+          <div className="space-y-1 pt-0.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-0.5">Ancestors</p>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#2d8c6e] border-2 border-white shadow flex-shrink-0" />
+              <span className="text-muted-foreground leading-tight">Verified location</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#7c9cbc] border-2 border-white shadow flex-shrink-0" />
+              <span className="text-muted-foreground leading-tight">From records</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-3 h-3 rounded-full bg-[#9a9aaa] flex-shrink-0" style={{ border: "2px dashed #ccc" }} />
+              <span className="text-muted-foreground leading-tight">Inferred (needs review)</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "1.5px dashed #8a7050", opacity: 0.55 }} />
+              <span className="text-muted-foreground leading-tight">Migration arc</span>
+            </div>
+          </div>
+        )}
+      </div>
     </div>
   );
 }
