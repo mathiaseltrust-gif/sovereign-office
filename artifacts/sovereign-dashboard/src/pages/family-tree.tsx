@@ -616,6 +616,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [filterProtection, setFilterProtection]   = useState("all");
   const [filterStatus, setFilterStatus]           = useState("all");
   const [filterDeceased, setFilterDeceased]       = useState("all");
+  const [showOrphans, setShowOrphans]             = useState(false);
 
   const filteredNodes = useMemo(() => nodes.filter((n) => {
     if (filterGender !== "all") {
@@ -640,7 +641,24 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setFilterStatus("all"); setFilterDeceased("all");
   }, []);
 
-  const { positioned, totalW, totalH } = useMemo(() => computeLayout(filteredNodes), [filteredNodes]);
+  // ── Separate orphan nodes (no connections to anyone else) from the main tree
+  const { connectedNodes, orphanNodes } = useMemo(() => {
+    const nodeIdSet = new Set(filteredNodes.map((n) => n.id));
+    const connected: LineageNode[] = [];
+    const orphans: LineageNode[] = [];
+    for (const n of filteredNodes) {
+      const parents = (Array.isArray(n.parentIds) ? n.parentIds as number[] : []);
+      const children = (Array.isArray(n.childrenIds) ? n.childrenIds as number[] : []);
+      const hasLink = parents.some((id) => nodeIdSet.has(id)) || children.some((id) => nodeIdSet.has(id));
+      if (hasLink) connected.push(n);
+      else orphans.push(n);
+    }
+    return { connectedNodes: connected, orphanNodes: orphans };
+  }, [filteredNodes]);
+
+  const treeNodes = showOrphans ? filteredNodes : connectedNodes;
+
+  const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes), [treeNodes]);
   const edges = useMemo(() => buildEdges(positioned), [positioned]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -947,6 +965,20 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit whole tree to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
+        {orphanNodes.length > 0 && (
+          <Button
+            size="sm"
+            variant={showOrphans ? "default" : "outline"}
+            onClick={() => setShowOrphans((v) => !v)}
+            className="gap-1.5 h-8"
+            title="Toggle unconnected records (GEDCOM imports with no family links yet)"
+          >
+            {showOrphans ? "Hide" : "Show"} unconnected
+            <span className="ml-0.5 rounded-full bg-muted-foreground/20 px-1.5 text-[10px] font-bold">
+              {orphanNodes.length}
+            </span>
+          </Button>
+        )}
         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom in"
           onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>
           <Plus className="h-3.5 w-3.5" />
@@ -991,9 +1023,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* Record count */}
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-          {activeFilterCount > 0
+          {showOrphans
             ? <>{filteredNodes.length} <span className="opacity-60">of {nodes.length}</span></>
-            : <>{nodes.length} people</>
+            : activeFilterCount > 0
+              ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
+              : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
           }
           <span className="hidden sm:inline opacity-50"> · scroll to zoom</span>
         </span>
@@ -1006,7 +1040,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             {[
               { label: "Gender",     value: filterGender,     set: setFilterGender,     opts: [["all","All"],["male","Male"],["female","Female"],["other","Other"]] },
               { label: "Status",     value: filterStatus,     set: setFilterStatus,     opts: [["all","All"],["verified","Verified"],["pending","Pending"],["rejected","Rejected"]] },
-              { label: "Source",     value: filterSource,     set: setFilterSource,     opts: [["all","All"],["manual","Manual"],["gedcom","GEDCOM"],["member","Member"]] },
+              { label: "Source",     value: filterSource,     set: setFilterSource,     opts: [["all","All"],["manual","Manual"],["gedcom","GEDCOM"],["member_self","Member"]] },
               { label: "Living",     value: filterDeceased,   set: setFilterDeceased,   opts: [["all","All"],["living","Living"],["deceased","Deceased"]] },
               { label: "Protection", value: filterProtection, set: setFilterProtection, opts: [["all","All"],["ancestor","Ancestor"],["descendant","Descendant"],["pending","Pending"]] },
             ].map(({ label, value, set, opts }) => (
