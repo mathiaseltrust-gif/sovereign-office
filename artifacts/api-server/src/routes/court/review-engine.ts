@@ -133,6 +133,78 @@ router.put("/investigations/:id", requireAuth, requireRole("officer"), async (re
   }
 });
 
+// ── PATCH /court/review-engine/investigations/:id/followthrough/:step ──────
+// Mark a single requiredFollowthrough item complete (or revert to pending)
+router.patch("/investigations/:id/followthrough/:step", requireAuth, requireRole("officer"), async (req, res, next) => {
+  try {
+    const id = Number(req.params.id);
+    const step = Number(req.params.step);
+    const userId = req.user?.dbId ?? null;
+    const { status } = req.body as { status?: string };
+
+    const ALLOWED_STATUSES = ["pending", "complete", "done", "in_progress", "waived"];
+    if (!status) {
+      res.status(400).json({ error: "status is required" });
+      return;
+    }
+    if (!ALLOWED_STATUSES.includes(status)) {
+      res.status(400).json({ error: `Invalid status. Allowed values: ${ALLOWED_STATUSES.join(", ")}` });
+      return;
+    }
+
+    const [existing] = await db
+      .select()
+      .from(nfrInvestigationsTable)
+      .where(eq(nfrInvestigationsTable.id, id))
+      .limit(1);
+
+    if (!existing) {
+      res.status(404).json({ error: "Investigation not found" });
+      return;
+    }
+
+    const items: Array<{ step: number; item: string; status: string; completedAt?: string }> =
+      (existing.requiredFollowthrough as Array<{ step: number; item: string; status: string; completedAt?: string }> | null) ?? [];
+
+    const itemIndex = items.findIndex(f => f.step === step);
+    if (itemIndex === -1) {
+      res.status(404).json({ error: "Followthrough item not found" });
+      return;
+    }
+
+    const prevStatus = items[itemIndex].status;
+    const updatedItem = {
+      ...items[itemIndex],
+      status,
+      completedAt: status === "complete" ? new Date().toISOString() : items[itemIndex].completedAt,
+    };
+    if (status !== "complete") delete updatedItem.completedAt;
+
+    const updatedItems = items.map((f, i) => (i === itemIndex ? updatedItem : f));
+
+    const [updated] = await db
+      .update(nfrInvestigationsTable)
+      .set({ requiredFollowthrough: updatedItems, updatedAt: new Date() })
+      .where(eq(nfrInvestigationsTable.id, id))
+      .returning();
+
+    await auditLog({
+      userId,
+      action: "FOLLOWTHROUGH_ITEM_UPDATED",
+      resourceType: "nfr_investigation",
+      resourceId: id,
+      beforeValue: { step, status: prevStatus },
+      afterValue: { step, status, completedAt: updatedItem.completedAt ?? null },
+      metadata: { item: updatedItem.item },
+    });
+
+    logger.info({ investigationId: id, step, status, userId }, "Followthrough item updated");
+    res.json(updated);
+  } catch (err) {
+    next(err);
+  }
+});
+
 // ── POST /court/review-engine/trigger ─────────────────────────────────────
 // Manual trigger — from any dashboard or admin action
 router.post("/trigger", requireAuth, requireRole("officer"), async (req, res, next) => {

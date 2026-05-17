@@ -516,6 +516,7 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
   const [selectedReviewerId, setSelectedReviewerId] = useState("");
   const [selectedActions, setSelectedActions] = useState<Set<string>>(new Set());
   const [activeTab, setActiveTab] = useState("overview");
+  const [followthroughUpdating, setFollowthroughUpdating] = useState<Set<number>>(new Set());
 
   const token = getCurrentBearerToken();
 
@@ -564,6 +565,26 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
       toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
     } finally {
       setUpdating(false);
+    }
+  }
+
+  async function patchFollowthrough(step: number, currentStatus: string) {
+    const newStatus = (currentStatus === "complete" || currentStatus === "done") ? "pending" : "complete";
+    setFollowthroughUpdating(prev => new Set(prev).add(step));
+    try {
+      const res = await fetch(`/api/court/review-engine/investigations/${id}/followthrough/${step}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        credentials: "include",
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      await refetch();
+      toast({ title: newStatus === "complete" ? "Item marked complete" : "Item marked pending" });
+    } catch (err) {
+      toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
+    } finally {
+      setFollowthroughUpdating(prev => { const next = new Set(prev); next.delete(step); return next; });
     }
   }
 
@@ -1126,20 +1147,36 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
                   <CardHeader><CardTitle className="text-sm uppercase tracking-widest">Required Followthrough</CardTitle></CardHeader>
                   <CardContent>
                     <ol className="space-y-2">
-                      {inv.requiredFollowthrough.map(f => (
-                        <li key={f.step} className="flex items-start gap-3 text-sm">
-                          <span className={`shrink-0 w-5 h-5 rounded-full flex items-center justify-center text-[10px] font-bold mt-0.5 ${f.status === "complete" || f.status === "done" ? "bg-green-100 text-green-700" : "bg-muted text-muted-foreground"}`}>
-                            {f.step}
-                          </span>
-                          <div className="flex-1 min-w-0">
-                            <span className={f.status === "complete" || f.status === "done" ? "line-through text-muted-foreground" : ""}>{f.item}</span>
-                            {f.completedAt && <p className="text-[10px] text-muted-foreground mt-0.5">Completed {new Date(f.completedAt).toLocaleDateString()}</p>}
-                          </div>
-                          <span className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground">
-                            <span className={`w-2 h-2 rounded-full ${stepDot(f.status)}`} />{f.status}
-                          </span>
-                        </li>
-                      ))}
+                      {inv.requiredFollowthrough.map(f => {
+                        const isDone = f.status === "complete" || f.status === "done";
+                        const isPending = followthroughUpdating.has(f.step);
+                        return (
+                          <li key={f.step} className="flex items-start gap-3 text-sm">
+                            <button
+                              type="button"
+                              disabled={isPending}
+                              onClick={() => patchFollowthrough(f.step, f.status)}
+                              className={`shrink-0 w-5 h-5 rounded border-2 flex items-center justify-center mt-0.5 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+                                isPending
+                                  ? "border-muted-foreground/30 bg-muted opacity-50 cursor-wait"
+                                  : isDone
+                                  ? "border-green-600 bg-green-600 cursor-pointer hover:bg-green-700 hover:border-green-700"
+                                  : "border-muted-foreground/40 bg-background cursor-pointer hover:border-primary"
+                              }`}
+                              title={isDone ? "Mark as pending" : "Mark as complete"}
+                            >
+                              {isDone && <span className="text-white text-[9px] font-bold leading-none">✓</span>}
+                            </button>
+                            <div className="flex-1 min-w-0">
+                              <span className={isDone ? "line-through text-muted-foreground" : ""}>{f.item}</span>
+                              {f.completedAt && <p className="text-[10px] text-green-700 mt-0.5">Completed {new Date(f.completedAt).toLocaleDateString()}</p>}
+                            </div>
+                            <span className="shrink-0 flex items-center gap-1 text-xs text-muted-foreground">
+                              <span className={`w-2 h-2 rounded-full ${stepDot(f.status)}`} />{f.status}
+                            </span>
+                          </li>
+                        );
+                      })}
                     </ol>
                   </CardContent>
                 </Card>
