@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable, legalProvisionsTable } from "@workspace/db";
-import { eq, desc, and, gte, lte } from "drizzle-orm";
+import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
@@ -178,6 +178,82 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     }
   }
 
+  // ── Tribal Land Registry ──────────────────────────────────────────────────
+  let tribalLandRegistryContext = "";
+  try {
+    const [parcelsResult, leasesResult, encResult] = await Promise.all([
+      db.execute(sql`SELECT parcel_id, tract_number, legal_description, acreage, classification,
+        status, county, state, internal_tribal_status, jurisdictional_status,
+        protection_restriction_status, stewardship_purpose, notes, lat, lng
+        FROM land_parcels WHERE status != 'archived' ORDER BY created_at DESC LIMIT 20`),
+      db.execute(sql`SELECT lp.parcel_id, lp.tract_number, ll.lessee_name, ll.lease_type,
+        ll.start_date, ll.end_date, ll.annual_rent, ll.status
+        FROM land_leases ll LEFT JOIN land_parcels lp ON ll.parcel_id = lp.id
+        WHERE ll.status = 'active' LIMIT 10`),
+      db.execute(sql`SELECT lp.parcel_id, lp.tract_number, le.title, le.encumbrance_type,
+        le.void_ab_initio, le.status
+        FROM land_encumbrances le LEFT JOIN land_parcels lp ON le.parcel_id = lp.id
+        WHERE le.status = 'active' LIMIT 10`),
+    ]);
+
+    const INTERNAL_STATUS_LABELS: Record<string, string> = {
+      tribal_government_land: "Tribal Government Land",
+      tribal_trust_stewardship: "Tribal Trust Stewardship",
+      protected_tribal_land: "Protected Tribal Land",
+      restricted_tribal_status: "Restricted Tribal Status",
+      beneficiary_stewardship: "Beneficiary Stewardship",
+      sacred_cultural_land: "Sacred / Cultural Land",
+      federal_indian_law_implicated: "Federal Indian Law Implicated",
+      jurisdictional_review: "Jurisdictional Review Triggered",
+    };
+    const JURIS_LABELS: Record<string, string> = {
+      exclusive_tribal: "Exclusive Tribal Jurisdiction",
+      concurrent: "Concurrent Jurisdiction",
+      contested: "Contested Jurisdiction",
+      federal_overlay: "Federal Overlay",
+      state_challenged: "State Challenged",
+    };
+
+    if (parcelsResult.rows.length > 0) {
+      const parcelLines = parcelsResult.rows.map((p: any) => {
+        const parts: string[] = [];
+        const id = p.tract_number || p.parcel_id || `#${p.id}`;
+        parts.push(`  Parcel: ${id}`);
+        if (p.legal_description) parts.push(`  Address/Description: ${String(p.legal_description).slice(0, 120)}`);
+        if (p.county || p.state) parts.push(`  Location: ${[p.county, p.state].filter(Boolean).join(", ")}`);
+        if (p.acreage) parts.push(`  Acreage: ${Number(p.acreage).toLocaleString("en-US", { maximumFractionDigits: 2 })} ac`);
+        if (p.internal_tribal_status) parts.push(`  Tribal Status: ${INTERNAL_STATUS_LABELS[p.internal_tribal_status] ?? p.internal_tribal_status}`);
+        if (p.jurisdictional_status) parts.push(`  Jurisdiction: ${JURIS_LABELS[p.jurisdictional_status] ?? p.jurisdictional_status}`);
+        if (p.protection_restriction_status) parts.push(`  Protection: ${p.protection_restriction_status}`);
+        if (p.stewardship_purpose) parts.push(`  Purpose: ${p.stewardship_purpose}`);
+        if (p.lat && p.lng) parts.push(`  Coordinates: ${p.lat}, ${p.lng}`);
+        if (p.notes) parts.push(`  Notes: ${String(p.notes).slice(0, 200)}`);
+        return parts.join("\n");
+      });
+
+      const leaseLines = leasesResult.rows.length > 0
+        ? "\n\nACTIVE LEASES:\n" + leasesResult.rows.map((l: any) => {
+            const id = l.tract_number || l.parcel_id || "Unknown Parcel";
+            return `  • ${id} — ${l.lessee_name ?? "Unknown Lessee"} | Type: ${l.lease_type ?? "—"} | Rent: $${Number(l.annual_rent ?? 0).toLocaleString("en-US")} /yr | Ends: ${l.end_date ?? "—"}`;
+          }).join("\n")
+        : "";
+
+      const encLines = encResult.rows.length > 0
+        ? "\n\nACTIVE ENCUMBRANCES / DECLARATIONS:\n" + encResult.rows.map((e: any) => {
+            const id = e.tract_number || e.parcel_id || "No Parcel";
+            const voidNote = e.void_ab_initio ? " [VOID AB INITIO — declared without legal force]" : "";
+            return `  • ${id} — ${e.title ?? "Untitled"} (${e.encumbrance_type ?? "—"})${voidNote}`;
+          }).join("\n")
+        : "";
+
+      tribalLandRegistryContext = `\n\nTRIBAL LAND REGISTRY — Mathias El Tribe (${parcelsResult.rows.length} parcel${parcelsResult.rows.length !== 1 ? "s" : ""} on record):\n` +
+        parcelLines.join("\n\n") + leaseLines + encLines +
+        `\n\nThis land is held under tribal sovereign authority pursuant to METC Title 4 and the Indian Non-Intercourse Act (25 U.S.C. § 177). All parcels carry inherent anti-alienation protections. When the member asks about tribal lands, assets, leases, or encumbrances, speak to these records directly and with authority.`;
+    }
+  } catch {
+    // Non-fatal — land registry is supplemental context
+  }
+
   const now30 = new Date(Date.now() + 30 * 86400000);
   const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault, activeProvisions] = await Promise.all([
     db.select({ content: kiConversationsTable.content, createdAt: kiConversationsTable.createdAt })
@@ -343,7 +419,7 @@ THE MEMBER:
 • Today: ${today()}
 ${protectionNote ? `\n${protectionNote}` : ""}
 ${governorPrefix ? `\nSovereign posture for this member:\n${governorPrefix}` : ""}
-${rightsContext}${landContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
+${rightsContext}${landContext}${tribalLandRegistryContext}${familyContext}${importantDatesContext}${calendarContext}${profileCompletenessContext}
 ${SOVEREIGN_LAW_FOUNDATION}
 ${provisionsContext}
 ${knowledgeContext}${intelligenceContext}${diaryPatternNote}${diaryContext}
