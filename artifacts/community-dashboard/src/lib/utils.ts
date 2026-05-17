@@ -6,6 +6,7 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 const SOVEREIGN_LS_KEY = "sovereign_auth_v3";
+export const COMMUNITY_TOKEN_KEY = "community_auth_token";
 
 function tryParseSsoToken(token: string): { id: string; email: string; name: string; roles: string[] } | null {
   try {
@@ -33,6 +34,7 @@ export function getSovereignSession(): { id: string; email: string; name: string
     const user = tryParseSsoToken(ssoToken);
     if (user) {
       localStorage.setItem("community_auth_user", JSON.stringify(user));
+      localStorage.setItem(COMMUNITY_TOKEN_KEY, ssoToken);
       const url = new URL(window.location.href);
       url.searchParams.delete("sso_token");
       window.history.replaceState({}, "", url.toString());

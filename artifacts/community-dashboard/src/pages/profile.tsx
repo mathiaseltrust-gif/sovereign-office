@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { getSovereignSession } from "@/lib/utils";
+import { getSovereignSession, COMMUNITY_TOKEN_KEY } from "@/lib/utils";
 import { Loader2, Bell, Mail, Shield, User, Lock, ExternalLink } from "lucide-react";
 
 const EMAIL_NOTIFICATION_TOGGLES = [
@@ -26,6 +26,10 @@ function getCommunityAuthToken(): string | null {
       const s = JSON.parse(raw) as { sessionToken?: string };
       if (s.sessionToken) return s.sessionToken;
     }
+  } catch { /* ignore */ }
+  try {
+    const communityToken = localStorage.getItem(COMMUNITY_TOKEN_KEY);
+    if (communityToken) return communityToken;
   } catch { /* ignore */ }
   return null;
 }

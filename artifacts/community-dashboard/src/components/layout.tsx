@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useLocation } from "wouter";
+import { COMMUNITY_TOKEN_KEY } from "@/lib/utils";
 import {
   Home,
   MessageSquare,
@@ -29,7 +30,8 @@ const navigation = [
   { name: "Admin", href: "/admin", icon: Shield },
 ];
 
-const mobileNav = navigation.slice(0, 4);
+const MOBILE_NAV_HREFS = ["/", "/directory", "/forum", "/announcements", "/profile"];
+const mobileNav = navigation.filter((item) => MOBILE_NAV_HREFS.includes(item.href));
 
 function NavLinks({ onNavigate }: { onNavigate?: () => void }) {
   const [location] = useLocation();
@@ -185,7 +187,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             <Button
               variant="ghost"
               className="w-full justify-start gap-2 text-sm text-muted-foreground"
-              onClick={() => { localStorage.removeItem("community_auth_user"); setSessionUser(null); }}
+              onClick={() => { localStorage.removeItem("community_auth_user"); localStorage.removeItem(COMMUNITY_TOKEN_KEY); setSessionUser(null); }}
             >
               <LogOut className="h-4 w-4" />
               Sign out
