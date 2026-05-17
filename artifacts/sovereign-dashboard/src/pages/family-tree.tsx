@@ -45,6 +45,7 @@ interface LineageNode {
   addedByMemberId?: number | null;
   supportingDocumentName?: string | null;
   visibility?: string | null;
+  photoUrl?: string | null;
   createdAt?: string;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
@@ -753,12 +754,31 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setTransform({ x, y, scale });
   }, [totalW, totalH]);
 
+  // Default: zoom in on the current user's node (or root) and their direct connections
+  const centerOnSelf = useCallback(() => {
+    if (!containerRef.current || positioned.length === 0) return;
+    // 1. Node linked to the current logged-in user
+    // 2. Fallback: node with generational position 0 (root of tree)
+    // 3. Fallback: first positioned node
+    const selfNode =
+      positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
+      positioned.find((n) => (n.generationalPosition ?? 99) === 0) ??
+      positioned[0];
+    if (!selfNode) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const scale = 1.1;
+    const x = clientWidth  / 2 - (selfNode.x + NODE_W / 2) * scale;
+    const y = clientHeight / 2 - (selfNode.y + NODE_H / 2) * scale;
+    setTransform({ x, y, scale });
+    setSelectedNodeId(selfNode.id);
+  }, [positioned, user?.dbId]);
+
   useEffect(() => {
     if (positioned.length > 0) {
       if (hasRestoredSession.current) {
         hasRestoredSession.current = false;
       } else {
-        fitToScreen();
+        centerOnSelf();
       }
     }
   }, [positioned.length > 0]);
@@ -921,7 +941,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
 
         {/* View controls */}
-        <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit tree to screen">
+        <Button size="sm" variant="outline" onClick={centerOnSelf} className="gap-1 h-8" title="Center on my node">
+          <Users className="h-3.5 w-3.5" /> Me
+        </Button>
+        <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit whole tree to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
         <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom in"
@@ -1122,9 +1145,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       node.sourceType === "archived" ? "opacity-40" : "",
                     ].join(" ")}
                   >
-                    {/* Top row: gender dot · name · membership dot */}
+                    {/* Top row: photo/gender dot · name · membership dot */}
                     <div className="flex items-start gap-1.5">
-                      <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${genderDot}`} title={node.gender ?? "unknown"} />
+                      {node.photoUrl ? (
+                        <img
+                          src={node.photoUrl}
+                          alt={node.fullName}
+                          className="w-7 h-7 rounded-full object-cover shrink-0 border border-border/60"
+                          onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                        />
+                      ) : (
+                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${genderDot}`} title={node.gender ?? "unknown"} />
+                      )}
                       <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
                         {node.fullName}
                       </span>

@@ -49,6 +49,7 @@ router.get("/", requireAuth, async (req, res, next) => {
       addedByMemberId: familyLineageTable.addedByMemberId,
       supportingDocumentName: familyLineageTable.supportingDocumentName,
       visibility: familyLineageTable.visibility,
+      photoUrl: familyLineageTable.photoUrl,
       createdAt: familyLineageTable.createdAt,
     };
 
