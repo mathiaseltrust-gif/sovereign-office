@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, text, jsonb, varchar, boolean, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, text, jsonb, varchar, boolean, timestamp, doublePrecision } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 import { usersTable } from "./users";
@@ -39,6 +39,8 @@ export const familyLineageTable = pgTable("family_lineage", {
   addedByMemberId: integer("added_by_member_id").references(() => usersTable.id, { onDelete: "set null" }),
   supportingDocumentName: varchar("supporting_document_name", { length: 500 }),
   visibility: varchar("visibility", { length: 50 }).default("private").notNull(),
+  locationLat: doublePrecision("location_lat"),
+  locationLng: doublePrecision("location_lng"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

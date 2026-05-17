@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, ancestralMemoriesTable, importantDatesTable } from "@workspace/db";
-import { eq, and, or, desc } from "drizzle-orm";
+import { eq, and, desc } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 
 const router = Router();
@@ -153,6 +153,80 @@ router.post("/:id/memories", requireAuth, async (req, res, next) => {
       .returning();
 
     res.status(201).json(created);
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── PATCH /api/ancestors/:id/location ─────────────────────────────────────
+// Set (or clear) verified lat/lng coordinates for an ancestor record.
+// Only the owner (addedByMemberId) may update their own ancestor's location.
+router.patch("/:id/location", requireAuth, async (req, res, next) => {
+  try {
+    const ancestorId = Number(req.params.id);
+    const userId = req.user?.dbId;
+    if (!ancestorId) {
+      res.status(400).json({ error: "Invalid ancestor id" });
+      return;
+    }
+
+    const { lat, lng } = req.body as { lat?: unknown; lng?: unknown };
+
+    // Validate: both must be present or both null (to clear)
+    const clearing = lat == null && lng == null;
+    let latNum = 0;
+    let lngNum = 0;
+    if (!clearing) {
+      if (lat == null || lng == null) {
+        res.status(400).json({ error: "Both lat and lng are required, or both must be null to clear" });
+        return;
+      }
+      latNum = Number(lat);
+      lngNum = Number(lng);
+      if (!Number.isFinite(latNum) || !Number.isFinite(lngNum)) {
+        res.status(400).json({ error: "lat and lng must be finite numbers" });
+        return;
+      }
+      if (latNum < -90 || latNum > 90) {
+        res.status(400).json({ error: "lat must be between -90 and 90" });
+        return;
+      }
+      if (lngNum < -180 || lngNum > 180) {
+        res.status(400).json({ error: "lng must be between -180 and 180" });
+        return;
+      }
+    }
+
+    const [ancestor] = await db
+      .select({ id: familyLineageTable.id, addedByMemberId: familyLineageTable.addedByMemberId })
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.id, ancestorId))
+      .limit(1);
+
+    if (!ancestor) {
+      res.status(404).json({ error: "Ancestor not found" });
+      return;
+    }
+    if (ancestor.addedByMemberId !== userId) {
+      res.status(403).json({ error: "You can only update ancestors you added" });
+      return;
+    }
+
+    const [updated] = await db
+      .update(familyLineageTable)
+      .set({
+        locationLat: clearing ? null : latNum,
+        locationLng: clearing ? null : lngNum,
+        updatedAt: new Date(),
+      })
+      .where(eq(familyLineageTable.id, ancestorId))
+      .returning({
+        id: familyLineageTable.id,
+        locationLat: familyLineageTable.locationLat,
+        locationLng: familyLineageTable.locationLng,
+      });
+
+    res.json(updated);
   } catch (err) {
     next(err);
   }

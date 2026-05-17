@@ -208,6 +208,8 @@ router.get("/:id", async (req, res, next) => {
       welfareEligible: member.welfareEligible,
       lineageTags: (member.lineageTags as string[]) ?? [],
       sourceType: member.sourceType,
+      locationLat: member.locationLat ?? null,
+      locationLng: member.locationLng ?? null,
       updatedAt: member.updatedAt.toISOString(),
       parents: parentIds.map((pid) => byId.get(pid)).filter(Boolean).map(toSummary),
       children: childrenIds.map((cid) => byId.get(cid)).filter(Boolean).map(toSummary),

@@ -56,7 +56,10 @@ export interface AncestorRecord {
   isDeceased: boolean;
   isAncestor: boolean;
   lineageTags: unknown;
-  // Location from actual ancestralTimelineEvents records (the authoritative source).
+  // Verified lat/lng stored directly on the family_lineage record (highest priority).
+  locationLat: number | null;
+  locationLng: number | null;
+  // Location from actual ancestralTimelineEvents records (secondary source).
   // When this is present the map pin is treated as "from records" and shown differently
   // from pins derived by tribal-nation keyword inference.
   locationText: string | null;
@@ -265,6 +268,9 @@ interface DbAncestorRow {
   is_ancestor: boolean;
   is_deceased: boolean;
   lineage_tags: unknown;
+  // Verified lat/lng stored directly on family_lineage (highest priority).
+  location_lat: number | null;
+  location_lng: number | null;
   // From LATERAL JOIN to ancestral_timeline_events — real location records.
   location_text: string | null;
   has_timeline_location: boolean;
@@ -283,6 +289,8 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     isDeceased: r.is_deceased,
     isAncestor: r.is_ancestor,
     lineageTags: r.lineage_tags,
+    locationLat: r.location_lat ?? null,
+    locationLng: r.location_lng ?? null,
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
   };

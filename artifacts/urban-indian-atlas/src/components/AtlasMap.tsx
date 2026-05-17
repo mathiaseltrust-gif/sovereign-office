@@ -152,18 +152,28 @@ function geocodeText(text: string): [number, number] | null {
 // Resolves an ancestor's map coordinate with a source label and optional
 // "home" coordinate (tribal nation centroid) for migration arc rendering.
 //
-// Priority: (1) locationText from actual ancestralTimelineEvents records,
-//           (2) tribalNation keyword fallback (inferred, not from user records).
+// Priority: (1) verified lat/lng stored on family_lineage record (documentary-quality),
+//           (2) locationText from ancestralTimelineEvents records,
+//           (3) tribalNation keyword fallback (inferred, not from user records).
 //
-// homeCoord is only set when locationText is used — it is the tribal-nation
-// centroid that the person migrated FROM. If both exist and differ by more
-// than ~0.5°, a per-ancestor migration arc is drawn on the map.
+// homeCoord is only set when source is "timeline_record" — it is the tribal-nation
+// centroid that the person migrated FROM. Verified coords are taken as authoritative
+// and no migration arc is drawn (the verified point IS the definitive location).
 function resolveAncestorCoord(ancestor: AncestorRecord): {
   coord: [number, number];
-  source: "timeline_record" | "tribal_nation";
+  source: "verified_coords" | "timeline_record" | "tribal_nation";
   homeCoord: [number, number] | null; // tribal homeland, for migration arc
 } | null {
   const tribalCoord = ancestor.tribalNation ? geocodeText(ancestor.tribalNation) : null;
+
+  // Highest priority: verified lat/lng stored directly on the family_lineage record
+  if (ancestor.locationLat != null && ancestor.locationLng != null) {
+    return {
+      coord: [ancestor.locationLat, ancestor.locationLng],
+      source: "verified_coords",
+      homeCoord: null, // verified point is definitive — no migration arc
+    };
+  }
 
   if (ancestor.locationText) {
     const coord = geocodeText(ancestor.locationText);
@@ -189,14 +199,18 @@ const CLUSTER_THRESHOLD_DEG = 0.5;
 interface AncestorPlot {
   ancestor: AncestorRecord;
   coord: [number, number];
-  source: "timeline_record" | "tribal_nation";
+  source: "verified_coords" | "timeline_record" | "tribal_nation";
   homeCoord: [number, number] | null;
 }
 
 interface AncestorCluster {
   centroid: [number, number];
   members: AncestorPlot[];
-  hasVerified: boolean; // at least one "timeline_record" member
+  hasVerified: boolean; // at least one "verified_coords" or "timeline_record" member
+}
+
+function isVerifiedSource(source: AncestorPlot["source"]): boolean {
+  return source === "verified_coords" || source === "timeline_record";
 }
 
 function clusterAncestors(plots: AncestorPlot[]): AncestorCluster[] {
@@ -208,14 +222,14 @@ function clusterAncestors(plots: AncestorPlot[]): AncestorCluster[] {
     );
     if (nearby) {
       nearby.members.push(plot);
-      if (plot.source === "timeline_record") nearby.hasVerified = true;
+      if (isVerifiedSource(plot.source)) nearby.hasVerified = true;
       // Recompute centroid
       nearby.centroid = [
         nearby.members.reduce((s, m) => s + m.coord[0], 0) / nearby.members.length,
         nearby.members.reduce((s, m) => s + m.coord[1], 0) / nearby.members.length,
       ] as [number, number];
     } else {
-      clusters.push({ centroid: plot.coord, members: [plot], hasVerified: plot.source === "timeline_record" });
+      clusters.push({ centroid: plot.coord, members: [plot], hasVerified: isVerifiedSource(plot.source) });
     }
   }
   return clusters;
@@ -486,15 +500,32 @@ export function AtlasMap({
             // Single-ancestor marker
             const { ancestor, coord, source } = cluster.members[0];
             const isSelected = ancestor.id === selectedPersonId;
-            const fromRecords = source === "timeline_record";
+            const isVerifiedCoords = source === "verified_coords";
+            const isFromRecords = source === "timeline_record";
+            // Color scheme: verified_coords → solid green-teal pin
+            //               timeline_record → blue pin
+            //               tribal_nation   → grey dashed pin
+            const pinColor = isVerifiedCoords ? "#2d8c6e" : isFromRecords ? "#7c9cbc" : "#9a9aaa";
+            const pinColorSel = isVerifiedCoords ? "#1e6b54" : isFromRecords ? "#5b8db8" : "#8a8a9a";
+            const pinBorder = source === "tribal_nation" ? "2px dashed #ccc" : "2px solid #fff";
+            const pinShadow = isVerifiedCoords
+              ? "rgba(45,140,110,0.9)"
+              : isFromRecords
+                ? "rgba(124,156,188,0.8)"
+                : "rgba(0,0,0,0.2)";
             const icon = L.divIcon({
               className: "",
               html: isSelected
-                ? `<div style="width:20px;height:20px;border-radius:50%;background:${fromRecords ? "#5b8db8" : "#8a8a9a"};border:3px solid #fff;box-shadow:0 0 10px ${fromRecords ? "rgba(91,141,184,0.9)" : "rgba(138,138,154,0.6)"};"></div>`
-                : `<div style="width:14px;height:14px;border-radius:50%;background:${fromRecords ? "#7c9cbc" : "#9a9aaa"};border:${fromRecords ? "2px solid #fff" : "2px dashed #ccc"};box-shadow:0 0 6px ${fromRecords ? "rgba(124,156,188,0.8)" : "rgba(0,0,0,0.2)"};"></div>`,
+                ? `<div style="width:20px;height:20px;border-radius:50%;background:${pinColorSel};border:3px solid #fff;box-shadow:0 0 10px ${pinShadow};"></div>`
+                : `<div style="width:14px;height:14px;border-radius:50%;background:${pinColor};border:${pinBorder};box-shadow:0 0 6px ${pinShadow};"></div>`,
               iconSize: isSelected ? [20, 20] : [14, 14],
               iconAnchor: isSelected ? [10, 10] : [7, 7],
             });
+            const locationLabel = isVerifiedCoords
+              ? `Verified location: ${ancestor.locationLat?.toFixed(4)}, ${ancestor.locationLng?.toFixed(4)}`
+              : isFromRecords
+                ? `Location: from records — "${ancestor.locationText}"`
+                : "Location: inferred from tribal nation (needs review)";
             return (
               <Marker
                 key={`person-${ancestor.id}`}
@@ -512,11 +543,7 @@ export function AtlasMap({
                   {ancestor.tribalNation && (
                     <div className="text-xs italic text-amber-600/80">{ancestor.tribalNation}</div>
                   )}
-                  <div className="text-[10px] mt-1 opacity-60">
-                    {fromRecords
-                      ? `Location: from records — "${ancestor.locationText}"`
-                      : "Location: inferred from tribal nation (needs review)"}
-                  </div>
+                  <div className="text-[10px] mt-1 opacity-60">{locationLabel}</div>
                 </Tooltip>
               </Marker>
             );
@@ -565,6 +592,10 @@ export function AtlasMap({
           )}
           {activeLayers.ancestorLocations && (
             <>
+              <div className="flex items-center gap-2">
+                <div className="w-3 h-3 rounded-full bg-[#2d8c6e] border-2 border-white shadow" />
+                <span className="text-muted-foreground">Ancestor (verified coordinates)</span>
+              </div>
               <div className="flex items-center gap-2">
                 <div className="w-3 h-3 rounded-full bg-[#7c9cbc] border-2 border-white shadow" />
                 <span className="text-muted-foreground">Ancestor (from records)</span>
