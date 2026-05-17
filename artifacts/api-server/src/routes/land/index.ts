@@ -1,9 +1,17 @@
 import { Router, type Request, type Response, type NextFunction } from "express";
 import { db } from "@workspace/db";
-import { sql } from "drizzle-orm";
+import { profilesTable, usersTable } from "@workspace/db";
+import { sql, eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { nextDocRef } from "../../lib/doc-ref";
+import {
+  checkEligibility,
+  getOrAssignLandCode,
+  deriveLocationCode,
+  buildLandCode,
+  nextSeqForLocation,
+} from "../../sovereign/land-code-service";
 
 const router = Router();
 
@@ -874,6 +882,116 @@ router.delete("/assignments/:id", requireAuth, requireLandWrite, async (req, res
   try {
     await db.execute(sql`DELETE FROM land_member_assignments WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
+  } catch (err) { next(err); }
+});
+
+// ── LAND CODE & ELIGIBILITY ───────────────────────────────────────────────────
+
+/**
+ * GET /api/land/eligibility
+ * Check eligibility for the authenticated user themselves.
+ */
+router.get("/eligibility", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user?.dbId) { res.status(401).json({ error: "Authentication required." }); return; }
+    const result = await checkEligibility(req.user.dbId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/land/eligibility/:userId
+ * Check eligibility for any member.
+ * Members may only check themselves; trustees/officers may check anyone.
+ */
+router.get("/eligibility/:userId", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user?.dbId) { res.status(401).json({ error: "Authentication required." }); return; }
+    const targetId = Number(req.params.userId);
+    const roles: string[] = req.user.roles ?? [];
+    const canCheckOthers = ["trustee", "officer", "sovereign_admin", "admin", "chief_justice"].some(r => roles.includes(r));
+    if (!canCheckOthers && req.user.dbId !== targetId) {
+      res.status(403).json({ error: "You may only check your own eligibility." });
+      return;
+    }
+    const result = await checkEligibility(targetId);
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/land/land-code/preview
+ * Preview what land code would be assigned for a given location — no save.
+ * Query params: county, city, address
+ */
+router.get("/land-code/preview", requireAuth, async (req, res, next) => {
+  try {
+    const county  = String(req.query.county  ?? "").trim() || null;
+    const city    = String(req.query.city    ?? "").trim() || null;
+    const address = String(req.query.address ?? "").trim() || null;
+    const locCode = deriveLocationCode(county, city, address);
+    const seq     = await nextSeqForLocation(locCode);
+    const code    = buildLandCode(locCode, seq);
+    res.json({ code, locationCode: locCode, seq, preview: true });
+  } catch (err) { next(err); }
+});
+
+/**
+ * POST /api/land/land-code/assign
+ * Assign (or return existing) tribal land code for a user.
+ * Body: { userId, county?, city?, address?, dryRun? }
+ * Trustees/officers may assign for any user; members may assign for themselves.
+ */
+router.post("/land-code/assign", requireAuth, async (req, res, next) => {
+  try {
+    if (!req.user?.dbId) { res.status(401).json({ error: "Authentication required." }); return; }
+    const { userId, county, city, address, dryRun } = req.body as {
+      userId?: number; county?: string; city?: string; address?: string; dryRun?: boolean;
+    };
+
+    const targetId = userId ?? req.user.dbId;
+    const roles: string[] = req.user.roles ?? [];
+    const canAssignOthers = ["trustee", "officer", "sovereign_admin", "admin", "chief_justice"].some(r => roles.includes(r));
+    if (!canAssignOthers && req.user.dbId !== targetId) {
+      res.status(403).json({ error: "You may only assign a land code for yourself." });
+      return;
+    }
+
+    const result = await getOrAssignLandCode(targetId, { county, city, address, dryRun: dryRun ?? false });
+    res.json(result);
+  } catch (err) { next(err); }
+});
+
+/**
+ * GET /api/land/land-code/:userId
+ * Look up the current tribal land code for a user.
+ */
+router.get("/land-code/:userId", requireAuth, async (req, res, next) => {
+  try {
+    const targetId = Number(req.params.userId);
+    const roles: string[] = req.user?.roles ?? [];
+    const canViewOthers = ["trustee", "officer", "sovereign_admin", "admin", "chief_justice"].some(r => roles.includes(r));
+    if (!canViewOthers && req.user?.dbId !== targetId) {
+      res.status(403).json({ error: "Access denied." });
+      return;
+    }
+    const [prof] = await db
+      .select({ tribalLandCode: profilesTable.tribalLandCode, apn: profilesTable.apn, legalName: profilesTable.legalName })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, targetId))
+      .limit(1);
+    const [user] = await db
+      .select({ name: usersTable.name })
+      .from(usersTable)
+      .where(eq(usersTable.id, targetId))
+      .limit(1);
+    res.json({
+      userId: targetId,
+      name: prof?.legalName ?? user?.name ?? null,
+      tribalLandCode: prof?.tribalLandCode ?? null,
+      apn: prof?.apn ?? null,
+      hasCode: !!prof?.tribalLandCode,
+    });
   } catch (err) { next(err); }
 });
 

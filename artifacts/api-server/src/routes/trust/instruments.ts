@@ -22,6 +22,7 @@ import {
   stampCertifiedCopy,
   type PdfBuildInput,
 } from "../../lib/pdf-builder";
+import { getOrAssignLandCode } from "../../sovereign/land-code-service";
 import {
   validateRecorderDocument,
   validateMargins,
@@ -318,6 +319,8 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
       templateKey?: string;
       templateVariables?: Array<{ key: string; value: string }>;
       pdfInput?: Partial<PdfBuildInput>;
+      /** Optional: DB user ID of the beneficiary/grantor — triggers land code auto-assignment for that person */
+      beneficiaryUserId?: number;
     };
 
     let pdfInput: PdfBuildInput | null = null;
@@ -378,21 +381,26 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
       pdfInput = { ...pdfInput!, ...body.pdfInput };
     }
 
-    // Enrich PDF with tribal identity from DB for the authenticated user
+    // Enrich PDF with tribal identity + auto-assign land code for the beneficiary/grantor
     if (req.user?.dbId && pdfInput) {
       try {
+        // beneficiaryUserId: the person whose land is being conveyed (Grantor).
+        // If not provided by the trustee, default to the authenticated user.
+        const beneficiaryId: number = body.beneficiaryUserId ?? req.user.dbId;
         const uid = req.user.dbId;
+
         const [[lineage], [prof]] = await Promise.all([
           db.select({
             tribalEnrollmentNumber: familyLineageTable.tribalEnrollmentNumber,
             tribalIdNumber: familyLineageTable.tribalIdNumber,
             tribalNation: familyLineageTable.tribalNation,
           }).from(familyLineageTable)
-            .where(eq(familyLineageTable.userId, uid))
+            .where(eq(familyLineageTable.userId, beneficiaryId))
             .orderBy(familyLineageTable.id)
             .limit(1),
-          db.select().from(profilesTable).where(eq(profilesTable.userId, uid)).limit(1),
+          db.select().from(profilesTable).where(eq(profilesTable.userId, beneficiaryId)).limit(1),
         ]);
+
         // Grantor enrollment row in parties
         if (lineage?.tribalEnrollmentNumber || lineage?.tribalIdNumber) {
           const enrollLine = [
@@ -404,21 +412,35 @@ router.post("/", requireAuth, requireRole("trustee"), async (req, res, next) => 
             pdfInput.parties = { ...pdfInput.parties, "Enrollment No.": enrollLine };
           }
         }
+
         // Recorder header identity metadata
         const rm = pdfInput.recorderMetadata;
         if (!rm.enrollmentNo && lineage?.tribalEnrollmentNumber) {
           pdfInput.recorderMetadata = {
             ...rm,
-            enrollmentNo:  lineage.tribalEnrollmentNumber ?? undefined,
-            tribalIdNo:    lineage.tribalIdNumber         ?? undefined,
-            tribalNation:  lineage.tribalNation           ?? undefined,
+            enrollmentNo: lineage.tribalEnrollmentNumber ?? undefined,
+            tribalIdNo:   lineage.tribalIdNumber         ?? undefined,
+            tribalNation: lineage.tribalNation           ?? undefined,
           };
         }
-        const tribalLandCode = (prof as Record<string, unknown>)?.tribalLandCode as string | undefined;
-        const docNumbers     = (prof as Record<string, unknown>)?.docNumbers     as string[] | undefined;
+
+        // Land code — auto-assign if beneficiary doesn't have one yet
+        const existingLandCode = (prof as Record<string, unknown>)?.tribalLandCode as string | undefined;
+        const county  = pdfInput.recorderMetadata.county  ?? undefined;
+        const address = (prof as Record<string, unknown>)?.mailingAddress as string | undefined;
+        const landCodeResult = await getOrAssignLandCode(beneficiaryId, { county, address });
+        const tribalLandCode = landCodeResult.code;
+
         if (tribalLandCode && !pdfInput.recorderMetadata.tribalLandCode) {
           pdfInput.recorderMetadata = { ...pdfInput.recorderMetadata, tribalLandCode };
         }
+        if (landCodeResult.isNew) {
+          // Add newly assigned code to parties block so it appears on the instrument
+          pdfInput.parties = { ...pdfInput.parties, "Land Code": tribalLandCode };
+        }
+
+        // Prior recorded instruments
+        const docNumbers = (prof as Record<string, unknown>)?.docNumbers as string[] | undefined;
         if (docNumbers?.length && !pdfInput.recorderMetadata.priorInstruments) {
           pdfInput.recorderMetadata = {
             ...pdfInput.recorderMetadata,
