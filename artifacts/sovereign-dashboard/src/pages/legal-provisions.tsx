@@ -8,7 +8,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useToast } from "@/hooks/use-toast";
-import { BookOpen, ChevronDown, ChevronUp, Plus, ToggleLeft, ToggleRight, Trash2, Edit2, X, Check, Scale } from "lucide-react";
+import { BookOpen, ChevronDown, ChevronUp, Plus, ToggleLeft, ToggleRight, Trash2, Edit2, X, Check, Scale, Bot, Eye, EyeOff } from "lucide-react";
 
 interface LegalProvision {
   id: number;
@@ -277,6 +277,71 @@ function NewProvisionForm({ onCreated }: { onCreated: () => void }) {
   );
 }
 
+function CompanionContextPreview() {
+  const [open, setOpen] = useState(false);
+
+  const { data: activeProvisions, isLoading } = useQuery<LegalProvision[]>({
+    queryKey: ["legal-provisions-active"],
+    queryFn: async () => {
+      const r = await fetch("/api/legal-provisions/active", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) throw new Error("Failed to load");
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
+  const previewText = (activeProvisions ?? []).map((p, i) =>
+    [
+      `─── PROVISION ${i + 1}: ${p.title.toUpperCase()} ───`,
+      `Category: ${p.category}`,
+      `Purpose: ${p.purpose}`,
+      ``,
+      p.content,
+      p.keyStatutes?.length ? `\nKey Statutes: ${p.keyStatutes.join(" | ")}` : "",
+      p.companionCategories?.length ? `Topics: ${p.companionCategories.join(", ")}` : "",
+    ].filter(Boolean).join("\n")
+  ).join("\n\n");
+
+  return (
+    <div className="rounded-lg border border-amber-200 bg-amber-50/60">
+      <button
+        className="w-full flex items-center gap-3 px-4 py-3 text-left"
+        onClick={() => setOpen((o) => !o)}
+      >
+        <Bot className="w-4 h-4 text-amber-700 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold text-amber-900">What COMPANION Sees</p>
+          <p className="text-xs text-amber-700 mt-0.5">
+            {isLoading ? "Loading…" : `${(activeProvisions ?? []).length} active provision${(activeProvisions ?? []).length !== 1 ? "s" : ""} injected into every COMPANION session`}
+          </p>
+        </div>
+        {open ? <EyeOff className="w-4 h-4 text-amber-600 shrink-0" /> : <Eye className="w-4 h-4 text-amber-600 shrink-0" />}
+      </button>
+
+      {open && (
+        <div className="px-4 pb-4 space-y-3">
+          {isLoading ? (
+            <div className="h-24 rounded bg-amber-100 animate-pulse" />
+          ) : (activeProvisions ?? []).length === 0 ? (
+            <p className="text-xs text-amber-700 italic">No active provisions — COMPANION will not receive any provision context until at least one is activated.</p>
+          ) : (
+            <>
+              <p className="text-xs text-amber-700">
+                The block below is appended verbatim to COMPANION's system context before every response. Activating or deactivating a provision takes effect on the next conversation.
+              </p>
+              <div className="rounded-md border border-amber-200 bg-zinc-950 text-zinc-100 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap overflow-x-auto max-h-96 overflow-y-auto">
+                {previewText}
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function LegalProvisionsPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
@@ -371,6 +436,9 @@ export default function LegalProvisionsPage() {
           Review and formal analysis may be appropriate."</em> This keeps guidance grounded, responsible, and credible while empowering members with knowledge.
         </p>
       </div>
+
+      {/* What COMPANION Sees */}
+      <CompanionContextPreview />
 
       {/* Filter + New Provision */}
       <div className="flex items-center gap-3 flex-wrap">

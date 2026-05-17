@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { roleGovernorsTable, governorActivationLogTable, userGovernorSessionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { seedDefaultGovernors, setSessionGovernor, getSessionGovernor } from "../../sovereign/role-governor";
+import { seedDefaultGovernors, setSessionGovernor, getSessionGovernor, getGovernorByRole, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
 import { logger } from "../../lib/logger";
 import type { Request, Response, NextFunction } from "express";
 
@@ -45,6 +45,28 @@ router.get("/log", requireAuth, requireSovereignAdmin, async (_req, res, next) =
       .orderBy(desc(governorActivationLogTable.createdAt))
       .limit(100);
     res.json({ log });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/companion-preview", requireAuth, requireSovereignAdmin, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId ?? null;
+    const userRole = (req.user?.roles?.[0]) ?? "member";
+    const roleKey = normalizeRoleKey(userRole);
+
+    let governor = userId ? await getSessionGovernor(userId).catch(() => null) : null;
+    const source: "session" | "role" | "none" = governor ? "session" : "role";
+    if (!governor) governor = await getGovernorByRole(roleKey).catch(() => null);
+
+    if (!governor) {
+      res.json({ governor: null, systemPromptPrefix: null, source: "none" });
+      return;
+    }
+
+    const systemPromptPrefix = buildGovernorSystemPromptPrefix(governor);
+    res.json({ governor, systemPromptPrefix, source });
   } catch (err) {
     next(err);
   }

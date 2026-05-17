@@ -13,6 +13,7 @@ import { callAzureOpenAI, getAzureOpenAIClient } from "../../lib/azure-openai";
 import { ensureLawDbSeeded, listAllFederalLaw, listAllTribalLaw, listAllDoctrines } from "../../sovereign/law-db";
 import {
   getGovernorByRole,
+  getSessionGovernor,
   normalizeRoleKey,
   buildGovernorSystemPromptPrefix,
 } from "../../sovereign/role-governor";
@@ -386,9 +387,10 @@ router.post("/guidance", requireAuth, async (req, res, next) => {
       }
     }
 
-    // Map DB role → governor role key
+    // Map DB role → governor role key; prefer any session-activated governor
     const roleKey = normalizeRoleKey(userRole);
-    const governor = await getGovernorByRole(roleKey);
+    let governor = userId ? await getSessionGovernor(userId).catch(() => null) : null;
+    if (!governor) governor = await getGovernorByRole(roleKey).catch(() => null);
 
     // Fetch active delegations and business memberships for this user
     const delegationCtx = userId ? await fetchDelegationContext(userId) : { delegations: [], businessMemberships: [] };

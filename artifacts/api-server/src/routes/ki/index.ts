@@ -5,7 +5,7 @@ import { eq, desc, and, gte, lte } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
-import { getGovernorByRole, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
+import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
 import { accumulateIntelligence, getCompanionIntelContext } from "../../sovereign/intelligence-accumulator";
 import { logger } from "../../lib/logger";
 
@@ -99,7 +99,8 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     lineageSummary = gateway.lineageSummary || "";
 
     const roleKey = normalizeRoleKey(role);
-    const governor = await getGovernorByRole(roleKey).catch(() => null);
+    let governor = await getSessionGovernor(userId).catch(() => null);
+    if (!governor) governor = await getGovernorByRole(roleKey).catch(() => null);
     if (governor) governorPrefix = buildGovernorSystemPromptPrefix(governor);
 
     // Compute this member's specific rights profile + inherited lineage rights

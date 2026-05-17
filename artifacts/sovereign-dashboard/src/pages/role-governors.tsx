@@ -20,6 +20,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Redirect } from "wouter";
+import { Bot, Info } from "lucide-react";
 
 interface RoleGovernor {
   id: number;
@@ -344,6 +345,95 @@ function GovernorCard({ governor, sessionToken, onActivated }: GovernorCardProps
   );
 }
 
+interface CompanionPreviewPanelProps {
+  apiBase: string;
+  sessionToken: string | null;
+}
+
+function CompanionPreviewPanel({ apiBase, sessionToken }: CompanionPreviewPanelProps) {
+  const { data, isLoading, error } = useQuery({
+    queryKey: ["governors-companion-preview"],
+    queryFn: async () => {
+      const res = await fetch(`${apiBase}/api/governors/companion-preview`, {
+        headers: getAuthHeaders(sessionToken),
+      });
+      if (!res.ok) throw new Error("Failed to load COMPANION preview");
+      return res.json() as Promise<{
+        governor: RoleGovernor | null;
+        systemPromptPrefix: string | null;
+        source: "session" | "role" | "none";
+      }>;
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <div className="space-y-3">
+        <Skeleton className="h-12 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  if (error || !data?.governor) {
+    return (
+      <div className="rounded-md border border-muted bg-muted/20 p-6 text-center text-sm text-muted-foreground">
+        No governor is currently active. Activate a governor to see its COMPANION context.
+      </div>
+    );
+  }
+
+  const { governor, systemPromptPrefix, source } = data;
+
+  return (
+    <div className="space-y-5">
+      <div className="rounded-lg border bg-card p-4 space-y-3">
+        <div className="flex items-center gap-3">
+          <Bot className="w-5 h-5 text-primary shrink-0" />
+          <div>
+            <p className="font-semibold text-sm">Currently active in COMPANION: <span className="text-primary">{governor.displayName}</span></p>
+            <p className="text-xs text-muted-foreground mt-0.5">
+              Source:{" "}
+              {source === "session"
+                ? "Session governor (you activated this manually)"
+                : "Role-matched governor (default for your role)"}
+            </p>
+          </div>
+          <span className="ml-auto inline-flex items-center gap-1 rounded-full bg-green-100 text-green-800 text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 border border-green-300">
+            <span className="w-1.5 h-1.5 rounded-full bg-green-500" />
+            Live
+          </span>
+        </div>
+
+        <div className="rounded-md bg-muted/30 p-3 space-y-1.5">
+          <div className="flex items-center gap-1.5 mb-2">
+            <Info className="w-3.5 h-3.5 text-muted-foreground" />
+            <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Applies to</p>
+          </div>
+          <ul className="text-xs text-muted-foreground space-y-0.5 list-disc list-inside">
+            <li>Every COMPANION (Kaya) chat session</li>
+            <li>All AI document drafting requests</li>
+            <li>Court document generation</li>
+            <li>Community AI guidance sessions</li>
+          </ul>
+        </div>
+      </div>
+
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+          Exact text injected into COMPANION's system prompt
+        </p>
+        <div className="rounded-md border bg-zinc-950 text-zinc-100 p-4 font-mono text-xs leading-relaxed whitespace-pre-wrap overflow-x-auto max-h-[520px] overflow-y-auto">
+          {systemPromptPrefix}
+        </div>
+        <p className="text-xs text-muted-foreground">
+          This block is prepended verbatim to COMPANION's system instructions before every response. Activating a different governor replaces it immediately.
+        </p>
+      </div>
+    </div>
+  );
+}
+
 function formatDate(iso: string): string {
   try {
     return new Date(iso).toLocaleString("en-US", { dateStyle: "medium", timeStyle: "short" });
@@ -412,6 +502,10 @@ export default function RoleGovernorsPage() {
       <Tabs defaultValue="governors">
         <TabsList>
           <TabsTrigger value="governors">Role Governors</TabsTrigger>
+          <TabsTrigger value="companion" className="gap-1.5">
+            <Bot className="w-3.5 h-3.5" />
+            COMPANION Preview
+          </TabsTrigger>
           <TabsTrigger value="log">Activation Log</TabsTrigger>
         </TabsList>
 
@@ -445,6 +539,10 @@ export default function RoleGovernorsPage() {
               ))}
             </div>
           )}
+        </TabsContent>
+
+        <TabsContent value="companion" className="mt-4">
+          <CompanionPreviewPanel apiBase={getApiBase()} sessionToken={sessionToken} />
         </TabsContent>
 
         <TabsContent value="log" className="mt-4">
