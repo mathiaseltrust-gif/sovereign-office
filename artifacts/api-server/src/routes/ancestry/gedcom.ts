@@ -236,28 +236,20 @@ router.get("/staging", requireAuth, requireAdminOrTrustee, async (req, res, next
     const matchType = req.query.matchType as string | undefined;
     const status = req.query.status as string | undefined;
 
-    const conditions: ReturnType<typeof eq>[] = [];
+    const conditions = [];
     if (batchId) conditions.push(eq(gedcomStagingTable.batchId, batchId));
     if (matchType) conditions.push(eq(gedcomStagingTable.matchType, matchType));
     if (status) conditions.push(eq(gedcomStagingTable.status, status));
 
-    let query = db.select().from(gedcomStagingTable).orderBy(
+    const orderBy = [
       sql`CASE match_type WHEN 'exact' THEN 0 WHEN 'probable' THEN 1 WHEN 'possible' THEN 2 ELSE 3 END`,
-      gedcomStagingTable.fullName
-    );
+      gedcomStagingTable.fullName,
+    ] as const;
 
-    if (conditions.length > 0) {
-      const rows = await db.select().from(gedcomStagingTable)
-        .where(conditions.length === 1 ? conditions[0] : sql`${conditions[0]}`)
-        .orderBy(
-          sql`CASE match_type WHEN 'exact' THEN 0 WHEN 'probable' THEN 1 WHEN 'possible' THEN 2 ELSE 3 END`,
-          gedcomStagingTable.fullName,
-        );
-      res.json(rows);
-      return;
-    }
+    const rows = conditions.length > 0
+      ? await db.select().from(gedcomStagingTable).where(and(...conditions)).orderBy(...orderBy)
+      : await db.select().from(gedcomStagingTable).orderBy(...orderBy);
 
-    const rows = await query;
     res.json(rows);
   } catch (err) { next(err); }
 });
