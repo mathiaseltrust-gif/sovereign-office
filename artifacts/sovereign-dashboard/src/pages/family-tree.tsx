@@ -828,6 +828,120 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     return missing.length > 0 ? [...base, ...missing] : base;
   })();
 
+  // ── Generational zoom — which depth-level of the tree is visible ─────────
+  // 1 = Household (self + spouse + children)
+  // 2 = + Parents of self and spouse
+  // 3 = + Grandparents
+  // 4 = + Great-grandparents
+  // 5 = 2× Great-grandparents
+  // 99 = Full tree (no depth restriction)
+  const [generationDepth, setGenerationDepth] = useState(1);
+
+  const DEPTH_MAX = 99;
+  const DEPTH_LABELS: Record<number, string> = {
+    1: "Household",
+    2: "+ Parents",
+    3: "+ Grandparents",
+    4: "+ Great-grand",
+    5: "2× Great-grand",
+    6: "3× Great-grand",
+    7: "4× Great-grand",
+  };
+  const depthLabel = generationDepth >= DEPTH_MAX ? "Full Tree" : (DEPTH_LABELS[generationDepth] ?? `${generationDepth - 2}× Great-grand`);
+
+  // Self node resolved from raw data (not from positioned, to avoid circular dependency)
+  const selfNodeRaw = useMemo(() => {
+    return nodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)
+      ?? nodes.find((n) => n.id === 20)
+      ?? null;
+  }, [nodes, user?.dbId]);
+
+  // BFS outward from selfNodeRaw to collect visible node IDs for the given depth level
+  const depthVisibleIds = useMemo((): Set<number> | null => {
+    if (generationDepth >= DEPTH_MAX) return null; // null = show all
+    if (!selfNodeRaw) return null;
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+
+    const included = new Set<number>();
+    included.add(selfNodeRaw.id);
+
+    // Always include self's spouses
+    const selfSpouseIds = (selfNodeRaw.spouseIds ?? []) as number[];
+    selfSpouseIds.forEach((id) => included.add(id));
+
+    // Level 1 always: direct children of self (and spouses' children with self)
+    const selfChildren = nodes.filter((n) =>
+      (n.parentIds ?? []).some((pid) => included.has(pid as number))
+    );
+    selfChildren.forEach((n) => included.add(n.id));
+
+    if (generationDepth <= 1) return included;
+
+    // Ancestor BFS — each level adds one generation up
+    // Start from self + all spouses for ancestor traversal
+    let upFrontier: number[] = [selfNodeRaw.id, ...selfSpouseIds];
+    for (let lvl = 1; lvl <= generationDepth - 1; lvl++) {
+      const nextFrontier: number[] = [];
+      for (const uid of upFrontier) {
+        const node = byId.get(uid);
+        if (!node) continue;
+        for (const pid of (node.parentIds ?? []) as number[]) {
+          if (!included.has(pid)) {
+            included.add(pid);
+            nextFrontier.push(pid);
+            // Include this ancestor's spouse(s)
+            const parent = byId.get(pid);
+            if (parent) {
+              (parent.spouseIds ?? []).forEach((sid) => included.add(sid as number));
+            }
+          }
+        }
+      }
+      upFrontier = nextFrontier;
+
+      // Descendant BFS — level 2 shows grandchildren, level 3 great-grandchildren, etc.
+      if (lvl >= 1) {
+        const childFrontier = [...included];
+        for (const cid of childFrontier) {
+          nodes.filter((n) => (n.parentIds ?? []).includes(cid as never)).forEach((n) => included.add(n.id));
+        }
+      }
+    }
+
+    return included;
+  }, [nodes, selfNodeRaw, generationDepth]);
+
+  // ── Member access restriction ─────────────────────────────────────────────
+  // Non-privileged members see only nodes connected to their own lineage path
+  // (ancestors they share in common with the tree root, plus their own household).
+  const memberAccessFilter = useMemo((): Set<number> | null => {
+    const privilegedRoles = new Set(["sovereign_admin", "admin", "trustee", "elder", "officer"]);
+    if ((user?.roles ?? []).some((r) => privilegedRoles.has(r))) return null; // no restriction
+    const memberNode = nodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId);
+    if (!memberNode) return new Set<number>(); // no lineage node → see nothing
+    const byId = new Map(nodes.map((n) => [n.id, n]));
+    const visible = new Set<number>();
+    visible.add(memberNode.id);
+    // Include member's household
+    (memberNode.spouseIds ?? []).forEach((id) => visible.add(id as number));
+    nodes.filter((n) => (n.parentIds ?? []).includes(memberNode.id as never)).forEach((n) => visible.add(n.id));
+    // BFS up: collect all ancestors (these are the "common ancestors" they share)
+    const queue: number[] = [...(memberNode.parentIds ?? []) as number[]];
+    const visited = new Set<number>();
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visited.has(id)) continue;
+      visited.add(id);
+      visible.add(id);
+      const node = byId.get(id);
+      if (node) {
+        (node.spouseIds ?? []).forEach((sid) => visible.add(sid as number));
+        (node.parentIds ?? []).forEach((pid) => queue.push(pid as number));
+      }
+    }
+    return visible;
+  }, [nodes, user?.dbId, user?.roles]);
+
   // ── Filter state ─────────────────────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false);
   const [filterGender, setFilterGender]           = useState("all");
@@ -836,6 +950,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [filterStatus, setFilterStatus]           = useState("all");
   const [filterDeceased, setFilterDeceased]       = useState("all");
   const filteredNodes = useMemo(() => nodes.filter((n) => {
+    if (memberAccessFilter !== null && !memberAccessFilter.has(n.id)) return false;
+    if (depthVisibleIds    !== null && !depthVisibleIds.has(n.id))    return false;
     if (filterGender !== "all") {
       const g = (n.gender ?? "").toLowerCase();
       if (filterGender === "male"   && g !== "male")                        return false;
@@ -848,7 +964,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     if (filterDeceased === "living"   &&  n.isDeceased) return false;
     if (filterDeceased === "deceased" && !n.isDeceased) return false;
     return true;
-  }), [nodes, filterGender, filterSource, filterProtection, filterStatus, filterDeceased]);
+  }), [nodes, memberAccessFilter, depthVisibleIds, filterGender, filterSource, filterProtection, filterStatus, filterDeceased]);
 
   const activeFilterCount = [filterGender, filterSource, filterProtection, filterStatus, filterDeceased]
     .filter((v) => v !== "all").length;
@@ -1039,60 +1155,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   // "Show My Family" — bird's-eye view of 2–3 generations:
   // grandparents → parents → self + siblings → children → grandchildren
+  // showMyFamilyView: reset depth to household (Level 1) and fit to screen
   const showMyFamilyView = useCallback(() => {
-    if (!containerRef.current || positioned.length === 0) return;
-    const selfNode =
-      positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
-      positioned.find((n) => n.id === 20) ??
-      positioned.reduce((a, b) => ((a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b)) ??
-      positioned[0];
-    if (!selfNode) return;
-
-    const familyIds = new Set<number>();
-    familyIds.add(selfNode.id);
-
-    const parentIds = (selfNode.parentIds ?? []) as number[];
-    parentIds.forEach((pid) => familyIds.add(pid));
-
-    // Grandparents
-    positioned
-      .filter((n) => parentIds.includes(n.id))
-      .forEach((parent) => (parent.parentIds ?? []).forEach((gpid) => familyIds.add(gpid as number)));
-
-    // Siblings (share at least one parent with self)
-    if (parentIds.length > 0) {
-      positioned
-        .filter((n) => (n.parentIds ?? []).some((pid) => parentIds.includes(pid as number)))
-        .forEach((s) => familyIds.add(s.id));
-    }
-
-    // Children
-    const children = positioned.filter((n) => (n.parentIds ?? []).includes(selfNode.id));
-    children.forEach((c) => familyIds.add(c.id));
-
-    // Grandchildren
-    children.forEach((child) => {
-      positioned
-        .filter((n) => (n.parentIds ?? []).includes(child.id))
-        .forEach((gc) => familyIds.add(gc.id));
-    });
-
-    const familyNodes = positioned.filter((n) => familyIds.has(n.id));
-    if (familyNodes.length === 0) return;
-
-    const PAD = 100;
-    const minX = Math.min(...familyNodes.map((n) => n.x)) - PAD;
-    const maxX = Math.max(...familyNodes.map((n) => n.x + NODE_W)) + PAD;
-    const minY = Math.min(...familyNodes.map((n) => n.y)) - PAD;
-    const maxY = Math.max(...familyNodes.map((n) => n.y + NODE_H)) + PAD;
-
-    const { clientWidth: cw, clientHeight: ch } = containerRef.current;
-    const rawScale = Math.min(cw / (maxX - minX), ch / (maxY - minY));
-    // Bird's-eye feel: cap between 0.4× and 1.1×
-    const s = Math.min(Math.max(rawScale, 0.4), 1.1);
-    setTransform({ x: cw / 2 - ((minX + maxX) / 2) * s, y: ch / 2 - ((minY + maxY) / 2) * s, scale: s });
-    setSelectedNodeId(selfNode.id);
-  }, [positioned, user?.dbId]);
+    setGenerationDepth(1);
+    // fitToScreen is called by the generationDepth useEffect below
+  }, []);
 
   useEffect(() => {
     if (positioned.length > 0) {
@@ -1103,6 +1170,15 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       }
     }
   }, [positioned.length > 0]);
+
+  // Auto-fit viewport whenever the generation depth changes so the view snaps to the
+  // newly visible set of nodes without the user having to press "Fit" manually.
+  useEffect(() => {
+    if (positioned.length === 0) return;
+    // Small delay ensures the layout has settled after the depth filter re-renders
+    const id = setTimeout(() => fitToScreen(), 60);
+    return () => clearTimeout(id);
+  }, [generationDepth]);
 
   useEffect(() => {
     const id = setTimeout(() => {
@@ -1292,17 +1368,36 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <Button size="sm" variant="outline" onClick={centerOnSelf} className="gap-1 h-8" title="Center on my node">
           <Users className="h-3.5 w-3.5" /> Me
         </Button>
-        <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit whole tree to screen">
+        <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit current view to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
-        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom in"
-          onClick={() => setTransform((p) => ({ ...p, scale: Math.min(3, p.scale * 1.25) }))}>
-          <Plus className="h-3.5 w-3.5" />
-        </Button>
-        <Button size="sm" variant="ghost" className="h-8 w-8 p-0" title="Zoom out"
-          onClick={() => setTransform((p) => ({ ...p, scale: Math.max(0.15, p.scale / 1.25) }))}>
-          <Minus className="h-3.5 w-3.5" />
-        </Button>
+
+        {/* Generational depth stepper — + zooms in (fewer generations), – zooms out (more) */}
+        <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
+          <button
+            className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            title="Show fewer generations (zoom in)"
+            disabled={generationDepth <= 1}
+            onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+          <span
+            className="px-2 h-8 flex items-center text-xs font-medium min-w-[110px] justify-center cursor-pointer select-none"
+            title="Click to show full tree"
+            onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? 1 : DEPTH_MAX)}
+          >
+            {depthLabel}
+          </span>
+          <button
+            className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+            title="Show more generations (zoom out)"
+            disabled={generationDepth >= DEPTH_MAX}
+            onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? DEPTH_MAX : d + 1)}
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         {/* Divider */}
         <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
@@ -1313,9 +1408,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <UserPlus className="h-3.5 w-3.5" /> Add Person
           </Button>
         )}
-        <Button size="sm" variant="secondary" onClick={showMyFamilyView} className="gap-1.5 h-8" title="Show my family — 2–3 generations bird's-eye view">
-          <Users className="h-3.5 w-3.5" /> My Family
-        </Button>
         {canEdit && (
           <>
             <input
