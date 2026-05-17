@@ -19,14 +19,67 @@ Rights that exist whether or not you were properly informed of them are still op
   {
     title: "Trust Responsibility",
     category: "trust_responsibility",
-    purpose: "Federal fiduciary obligations to tribal people -- enforceable, self-executing, and not conditional on administrative lists.",
-    content: `The federal trust responsibility is an enforceable U.S. fiduciary duty to protect tribal land, resources, and sovereignty. It applies to the broad statutory definition of Indian -- not to any administrative checklist.
+    purpose: "Federal fiduciary obligations to tribal people and Indian beneficiaries -- legally enforceable, not merely political language, and not conditioned on administrative lists, BIA recognition status, or CDIB possession.",
+    content: `WHAT IT IS — LEGAL & STRUCTURAL FOUNDATION
 
-Administrative silence does not extinguish the trust responsibility. The Snyder Act provides the broadest appropriations and trust-responsibility foundation for the "benefit, care, and assistance of Indians throughout the United States."
+Federal Indian law recognizes a unique trust relationship between the United States and Indian tribes and Indian people. This relationship developed through treaties, federal dealings, congressional enactments, territorial expansion, protection obligations, and the continued existence of tribal nations and communities within the United States legal framework.
 
-The trust responsibility can exist independently from administrative convenience structures. Post-Loper Bright (2024), federal agencies may no longer rely solely on their own interpretation of ambiguous statutes -- narrowing arguments based on agency interpretation are now legally vulnerable.`,
-    keyStatutes: ["Snyder Act (25 U.S.C. ss 13)", "Federal Trust Responsibility doctrine", "Loper Bright Enterprises v. Raimondo (2024) -- Chevron overturned", "Passamaquoddy v. Morton, 528 F.2d 370"],
-    companionCategories: ["Trust Responsibility", "Federal Obligations", "Self-Executing Rights"],
+The federal trust responsibility is not merely political language. Courts have repeatedly recognized that federal agencies and officials dealing with Indian affairs may carry fiduciary obligations, heightened duties of protection, and legally enforceable responsibilities involving tribal lands, tribal assets, governmental functions, treaty obligations, protected Indian interests, and beneficiary welfare.
+
+Congress codified portions of these duties through statutes governing Indian affairs, trust assets, health services, self-determination programs, tribal property, and federal administration involving Indian tribes and Indian beneficiaries. Courts have repeatedly held that these obligations are to be interpreted liberally in favor of protected tribal and Indian interests under the Indian Canons of Construction.
+
+The trust responsibility is not limited solely to reservation boundaries, administrative rosters, BIA recognition systems, or possession of a CDIB card. Federal Indian law protections may extend to protected tribal interests, identifiable tribal communities, tribal governmental functions, tribal beneficiaries, restricted property interests, treaty rights, and federally protected Indian affairs implicated by statute, federal dealings, or trust obligations.
+
+When governmental actions affect tribal lands, tribal governmental operations, protected Indian interests, beneficiary welfare, trust assets, jurisdictional integrity, or federally protected tribal functions, multiple overlapping legal frameworks may become implicated simultaneously -- including federal trust responsibility doctrines, the Non-Intercourse Act, federal preemption principles, Indian Country doctrines, tribal governmental protections, fiduciary obligations, treaty protections, and federal constitutional and statutory safeguards.
+
+The trust responsibility has operational consequences. Courts have recognized liability, enforcement obligations, fiduciary standards, limits on state interference, protections for tribal property, protections for tribal governmental functions, and remedies for breaches of federal duties involving Indian affairs and tribal interests.
+
+KEY CASES — SCOPE, ENFORCEMENT & OPERATIONAL EFFECT
+
+Seminole Nation v. United States, 316 U.S. 286 (1942): Established that the federal government must meet "the most exacting fiduciary standards" in its dealings involving Indian affairs and protected tribal interests.
+
+United States v. Mitchell, 463 U.S. 206 (1983): Confirmed that the United States may be held liable for breach of fiduciary duties involving management of Indian trust resources and assets.
+
+Cobell v. Salazar, 573 F.3d 808 (D.C. Cir. 2009): Recognized enforceable federal trust-accounting obligations and large-scale fiduciary breaches involving Indian trust management.
+
+United States v. White Mountain Apache Tribe, 537 U.S. 465 (2003): Confirmed fiduciary duties may arise where the United States occupies, controls, or uses tribal property or assets.
+
+Morton v. Ruiz, 415 U.S. 199 (1974): Held that agencies administering Indian programs cannot impose unpublished or arbitrary eligibility restrictions inconsistent with federal obligations and lawful standards.
+
+Joint Tribal Council of the Passamaquoddy Tribe v. Morton, 528 F.2d 370 (1st Cir. 1975): Confirmed that federal obligations under the Non-Intercourse Act may apply even where the government disputed formal administrative recognition status.
+
+White Mountain Apache Tribe v. Bracker, 448 U.S. 136 (1980): Recognized that federal and tribal interests may preempt state taxation and regulatory interference involving tribal operations and Indian affairs.
+
+Worcester v. Georgia, 31 U.S. 515 (1832): Established foundational principles limiting unauthorized state interference in tribal affairs and recognizing the distinct legal status of tribal nations and communities.
+
+McGirt v. Oklahoma, 591 U.S. ___ (2020): Reaffirmed that tribal jurisdiction and reservation status remain effective unless Congress clearly provides otherwise.
+
+United States v. Jicarilla Apache Nation, 564 U.S. 162 (2011): Recognized that the federal government acts in a trust relationship with Indian tribes and that fiduciary principles remain central to federal Indian law analysis.
+
+ENFORCEMENT & RESPONSE PATHWAYS
+
+Where actions potentially impair tribal lands, tribal governmental functions, protected tribal interests, trust assets, beneficiary welfare, tribal jurisdiction, or federally protected Indian affairs, appropriate responses may include: administrative notice; preservation demands; jurisdictional objections; federal-agency review requests; protective-order enforcement; federal trust responsibility assertions; federal preemption challenges; tribal court remedies; and actions in appropriate federal forums, including the United States Court of Federal Claims where applicable.
+
+The existence of a trust responsibility is not merely symbolic. Courts have repeatedly recognized that breaches of federal obligations involving Indian affairs may carry enforceable legal consequences.`,
+    keyStatutes: [
+      "Snyder Act (25 U.S.C. ss 13)",
+      "Federal Trust Responsibility doctrine",
+      "Non-Intercourse Act (25 U.S.C. ss 177)",
+      "Indian Country Jurisdiction (18 U.S.C. ss 1151)",
+      "Seminole Nation v. United States, 316 U.S. 286 (1942)",
+      "United States v. Mitchell, 463 U.S. 206 (1983)",
+      "Cobell v. Salazar, 573 F.3d 808 (D.C. Cir. 2009)",
+      "United States v. White Mountain Apache Tribe, 537 U.S. 465 (2003)",
+      "Morton v. Ruiz, 415 U.S. 199 (1974)",
+      "Passamaquoddy Tribe v. Morton, 528 F.2d 370 (1st Cir. 1975)",
+      "White Mountain Apache Tribe v. Bracker, 448 U.S. 136 (1980)",
+      "McGirt v. Oklahoma, 591 U.S. ___ (2020)",
+      "United States v. Jicarilla Apache Nation, 564 U.S. 162 (2011)",
+      "Worcester v. Georgia, 31 U.S. 515 (1832)",
+      "Indian Canons of Construction -- ambiguities resolved in favor of tribal and Indian interests",
+      "Loper Bright Enterprises v. Raimondo (2024) -- administrative deference overturned",
+    ],
+    companionCategories: ["Trust Responsibility", "Federal Obligations", "Self-Executing Rights", "Fiduciary Enforcement", "Overlapping Protections", "Tribal Governmental Facility Protection", "Enforcement & Response Pathways"],
   },
   {
     title: "Land & Territory",
