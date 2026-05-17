@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useListComplaints, useGetComplaint, getGetComplaintQueryKey, useCreateComplaint, getListComplaintsQueryKey } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -12,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Link } from "wouter";
+import { Gavel } from "lucide-react";
+import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
 
 interface OfficerEntry { id: number; name: string; email: string; }
 
@@ -128,6 +130,8 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
   const { toast } = useToast();
   const [officerId, setOfficerId] = useState("");
   const [updating, setUpdating] = useState(false);
+  const [investigationOpen, setInvestigationOpen] = useState(false);
+  const isOfficer = useIsOfficer();
 
   const token = getCurrentBearerToken();
   const { data: officers = [] } = useQuery<OfficerEntry[]>({
@@ -211,7 +215,7 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
       <Card className="mb-4">
         <CardHeader><CardTitle className="text-sm">Officer Actions</CardTitle></CardHeader>
         <CardContent className="space-y-4">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <Button
               size="sm"
               variant={complaint.status === "open" ? "default" : "outline"}
@@ -228,6 +232,17 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
             >
               Reopen
             </Button>
+            {isOfficer && (
+              <Button
+                size="sm"
+                variant="outline"
+                data-testid="button-open-investigation-complaint"
+                onClick={() => setInvestigationOpen(true)}
+                className="border-amber-700/50 text-amber-400 hover:bg-amber-900/20 hover:border-amber-600 ml-auto"
+              >
+                <Gavel className="w-3.5 h-3.5 mr-1.5" /> Open Investigation
+              </Button>
+            )}
           </div>
           <form onSubmit={handleAssignOfficer} className="flex items-end gap-2">
             <div className="flex-1">
@@ -263,6 +278,15 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
           </form>
         </CardContent>
       </Card>
+
+      {investigationOpen && complaint && (
+        <OpenInvestigationModal
+          onClose={() => setInvestigationOpen(false)}
+          defaultSignalType="NOTICES_SENT_NO_RESPONSE"
+          affectedMatter={`Complaint #${complaint.id}`}
+          sourceLabel={`Complaint #${complaint.id}`}
+        />
+      )}
     </div>
   );
 }

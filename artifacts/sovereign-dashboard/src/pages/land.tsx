@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,6 +11,7 @@ import {
   ArrowRight, MapPin, FileText, BarChart3, ChevronRight, Gavel, BookOpen,
   Map, FileArchive, CalendarDays, Users, Link2, Calendar, CheckCircle2, XCircle, ExternalLink, Search,
 } from "lucide-react";
+import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -1022,6 +1023,8 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
   const [filterInternal, setFilterInternal] = useState("");
   const [filterJuris, setFilterJuris] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
+  const [investigationParcel, setInvestigationParcel] = useState<Parcel | null>(null);
+  const isOfficer = useIsOfficer();
 
   const filtered = parcels.filter(p =>
     (!filterStatus || p.status === filterStatus) &&
@@ -1108,6 +1111,16 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
                 <td className="px-4 py-3 text-xs text-muted-foreground">{[p.county, p.state].filter(Boolean).join(", ") || "—"}</td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
+                    {isOfficer && (
+                      <button
+                        onClick={() => setInvestigationParcel(p)}
+                        title="Open Investigation"
+                        data-testid={`button-open-investigation-parcel-${p.id}`}
+                        className="p-1 rounded hover:bg-amber-900/30 text-muted-foreground hover:text-amber-400"
+                      >
+                        <Gavel className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                     <button onClick={() => { setEditing(p); setModal("edit"); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
                     <button onClick={() => del(p.id)} disabled={deleting === p.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                       {deleting === p.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
@@ -1123,6 +1136,16 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
 
       {(modal === "add" || modal === "edit") && (
         <ParcelModal parcel={modal === "edit" ? editing ?? undefined : undefined} onClose={() => setModal(null)} onSaved={() => { setModal(null); onRefresh(); }} />
+      )}
+
+      {investigationParcel && (
+        <OpenInvestigationModal
+          onClose={() => setInvestigationParcel(null)}
+          defaultSignalType="UNAUTHORIZED_LAND_ENCUMBRANCE"
+          affectedParcelId={investigationParcel.id}
+          affectedMatter={investigationParcel.tract_number || `Parcel #${investigationParcel.id}`}
+          sourceLabel={`Parcel ${investigationParcel.tract_number || `#${investigationParcel.id}`}${investigationParcel.county ? ` — ${investigationParcel.county}, ${investigationParcel.state}` : ""}`}
+        />
       )}
     </div>
   );
@@ -1305,7 +1328,9 @@ function EncumbrancesTab({ encumbrances, parcels, onRefresh }: { encumbrances: E
   const [editing, setEditing] = useState<Encumbrance | null>(null);
   const [filterType, setFilterType] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
+  const [investigationTarget, setInvestigationTarget] = useState<Encumbrance | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
+  const isOfficer = useIsOfficer();
 
   const filtered = encumbrances.filter(e =>
     (!filterType || e.encumbrance_type === filterType) &&
@@ -1380,6 +1405,16 @@ function EncumbrancesTab({ encumbrances, parcels, onRefresh }: { encumbrances: E
                 )}
               </div>
               <div className="flex items-center gap-1 shrink-0">
+                {isOfficer && (
+                  <button
+                    onClick={() => setInvestigationTarget(e)}
+                    title="Open Investigation"
+                    data-testid={`button-open-investigation-enc-${e.id}`}
+                    className="p-1 rounded hover:bg-amber-900/30 text-muted-foreground hover:text-amber-400"
+                  >
+                    <Gavel className="w-3.5 h-3.5" />
+                  </button>
+                )}
                 <button onClick={() => { setEditing(e); setModal(true); }} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"><Edit2 className="w-3.5 h-3.5" /></button>
                 <button onClick={() => del(e.id)} disabled={deleting === e.id} className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-red-400">
                   {deleting === e.id ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
@@ -1391,6 +1426,17 @@ function EncumbrancesTab({ encumbrances, parcels, onRefresh }: { encumbrances: E
       </div>
 
       {modal && <EncumbranceModal enc={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
+
+      {investigationTarget && (
+        <OpenInvestigationModal
+          onClose={() => setInvestigationTarget(null)}
+          defaultSignalType="UNAUTHORIZED_LAND_ENCUMBRANCE"
+          defaultTriggeringEntity={investigationTarget.source ?? ""}
+          affectedParcelId={investigationTarget.parcel_id ?? undefined}
+          affectedMatter={investigationTarget.title || investigationTarget.encumbrance_type}
+          sourceLabel={`Encumbrance #${investigationTarget.id}${investigationTarget.title ? ` — ${investigationTarget.title}` : ""}`}
+        />
+      )}
     </div>
   );
 }

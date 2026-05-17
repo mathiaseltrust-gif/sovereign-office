@@ -57,6 +57,9 @@ interface Investigation {
   externalActions: ActionItem[] | null;
   requiredFollowthrough: FollowthroughItem[] | null;
   summary: string | null;
+  affectedParcelId: number | null;
+  affectedUserId: number | null;
+  affectedInstrumentId: number | null;
   createdAt: string;
   updatedAt: string;
   signals: Signal[];
@@ -719,6 +722,28 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
                       </div>
                     ))}
                   </div>
+                  {(inv.affectedParcelId || inv.affectedUserId || inv.affectedInstrumentId) && (
+                    <div className="mt-4 pt-4 border-t grid grid-cols-2 gap-x-8 gap-y-3 text-sm">
+                      {inv.affectedParcelId && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Affected Parcel</p>
+                          <p className="font-medium text-foreground">#{inv.affectedParcelId}</p>
+                        </div>
+                      )}
+                      {inv.affectedUserId && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Affected User</p>
+                          <p className="font-medium text-foreground">#{inv.affectedUserId}</p>
+                        </div>
+                      )}
+                      {inv.affectedInstrumentId && (
+                        <div>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground mb-0.5">Affected Instrument</p>
+                          <p className="font-medium text-foreground">#{inv.affectedInstrumentId}</p>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
 
@@ -1299,10 +1324,10 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
 
               {/* Evidence categories */}
               <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                {["Notices", "Court Documents", "Photographs / Screenshots", "Recordings", "PDFs", "Correspondence", "Agency Letters", "Other"].map(cat => (
-                  <div key={cat} className="border rounded p-2 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
+                {["Notices", "Court Documents", "Photographs / Screenshots", "Recordings", "PDFs", "Correspondence", "Agency Letters", "Other"].map(category => (
+                  <div key={category} className="border rounded p-2 text-center cursor-pointer hover:border-primary/50 hover:bg-primary/5 transition-colors"
                     onClick={() => toast({ title: "Evidence upload", description: "Document attachment requires backend storage configuration." })}>
-                    <p className="text-xs font-medium">{cat}</p>
+                    <p className="text-xs font-medium">{category}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">0 files</p>
                   </div>
                 ))}
@@ -1396,3 +1421,6 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
     </div>
   );
 }
+
+// Suppress unused import warning for Label (used in Select pattern above)
+void Label;

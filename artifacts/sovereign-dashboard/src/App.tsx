@@ -24,6 +24,7 @@ const InstrumentDetail = lazy(() => import("@/pages/instrument-detail"));
 const FilingsListPage = lazy(() => import("@/pages/filings").then(m => ({ default: m.FilingsListPage })));
 const FilingDetailPage = lazy(() => import("@/pages/filings").then(m => ({ default: m.FilingDetailPage })));
 const NfrPage = lazy(() => import("@/pages/nfr"));
+const InvestigationDetailPage = lazy(() => import("@/pages/investigation-detail"));
 const ClassifyPage = lazy(() => import("@/pages/classify"));
 const ComplaintsListPage = lazy(() => import("@/pages/complaints").then(m => ({ default: m.ComplaintsListPage })));
 const ComplaintDetailPage = lazy(() => import("@/pages/complaints").then(m => ({ default: m.ComplaintDetailPage })));
@@ -210,6 +211,13 @@ function AppRouter() {
       </Route>
       <Route path="/nfr">
         {() => <ProtectedRoute component={NfrPage} />}
+      </Route>
+      <Route path="/investigations/:id">
+        {(params) => (
+          <ProtectedParamRoute>
+            <InvestigationDetailPage params={params} />
+          </ProtectedParamRoute>
+        )}
       </Route>
       <Route path="/classify">
         {() => <ProtectedRoute component={ClassifyPage} />}

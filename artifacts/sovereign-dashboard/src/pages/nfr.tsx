@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useListNfrs, useExportNfrPdf, getListNfrsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -5,13 +6,17 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
+import { Gavel } from "lucide-react";
+import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
 
 export default function NfrPage() {
   const { data: nfrs, isLoading } = useListNfrs();
   const exportPdf = useExportNfrPdf();
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const isOfficer = useIsOfficer();
+  const [investigationNfrId, setInvestigationNfrId] = useState<number | null>(null);
 
   const handleExport = (id: number) => {
     exportPdf.mutate({ id }, {
@@ -30,6 +35,10 @@ export default function NfrPage() {
     const blob = await r.blob();
     window.open(URL.createObjectURL(blob));
   };
+
+  const investigationNfr = investigationNfrId != null
+    ? (nfrs ?? []).find(n => n.id === investigationNfrId)
+    : null;
 
   return (
     <div data-testid="page-nfr">
@@ -56,6 +65,17 @@ export default function NfrPage() {
                 </div>
                 <div className="flex items-center gap-2 ml-4">
                   <Badge variant="outline">{n.status}</Badge>
+                  {isOfficer && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      data-testid={`button-open-investigation-nfr-${n.id}`}
+                      onClick={() => setInvestigationNfrId(n.id)}
+                      className="border-amber-700/50 text-amber-400 hover:bg-amber-900/20 hover:border-amber-600"
+                    >
+                      <Gavel className="w-3.5 h-3.5 mr-1.5" /> Open Investigation
+                    </Button>
+                  )}
                   {!n.pdfUrl ? (
                     <Button size="sm" variant="outline" data-testid={`button-export-pdf-${n.id}`} onClick={() => handleExport(n.id)} disabled={exportPdf.isPending}>
                       Generate PDF
@@ -70,6 +90,15 @@ export default function NfrPage() {
             </Card>
           ))}
         </div>
+      )}
+
+      {investigationNfr != null && (
+        <OpenInvestigationModal
+          onClose={() => setInvestigationNfrId(null)}
+          defaultSignalType="TRUST_RESPONSIBILITY_BREACH"
+          affectedMatter={`NFR #${investigationNfr.id}`}
+          sourceLabel={`NFR #${investigationNfr.id}`}
+        />
       )}
     </div>
   );
