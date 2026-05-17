@@ -265,11 +265,92 @@ function TribalIdCard({ member }: { member: {
   );
 }
 
+// ─── Mini Family Tree ──────────────────────────────────────────────────────────
+
+type FamilyPerson = { id: number; fullName?: string | null; firstName?: string | null; lastName?: string | null; birthYear?: number | null; photoFilename?: string | null };
+
+function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: boolean }) {
+  const initials = `${person.firstName?.charAt(0) ?? ""}${person.lastName?.charAt(0) ?? ""}`;
+  return (
+    <Link href={`/directory/${person.id}`}>
+      <div className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border text-center cursor-pointer transition-colors w-[90px] shrink-0 ${
+        isMain ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-muted/40 border-border hover:bg-muted/60 hover:border-primary/30"
+      }`}>
+        <Avatar className="h-8 w-8">
+          <AvatarImage src={`/assets/${person.photoFilename || ""}`} className="object-cover" />
+          <AvatarFallback className={`text-xs font-bold ${isMain ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>{initials}</AvatarFallback>
+        </Avatar>
+        <span className="text-[10px] font-medium leading-tight line-clamp-2">{person.fullName ?? "—"}</span>
+        {person.birthYear && <span className="text-[9px] text-muted-foreground">b. {person.birthYear}</span>}
+      </div>
+    </Link>
+  );
+}
+
+function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyPerson[] | null; spouses?: FamilyPerson[] | null; children?: FamilyPerson[] | null } }) {
+  const parents = member.parents ?? [];
+  const spouses = member.spouses ?? [];
+  const children = member.children ?? [];
+  const hasAny = parents.length > 0 || spouses.length > 0 || children.length > 0;
+
+  if (!hasAny) return (
+    <div className="p-8 text-center text-muted-foreground text-sm">No family connections recorded in the directory.</div>
+  );
+
+  return (
+    <div className="p-4 select-none overflow-x-auto">
+      <div className="flex flex-col items-center gap-0 min-w-fit mx-auto">
+
+        {/* Parents row */}
+        {parents.length > 0 && (
+          <>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {parents.map(p => <TreeNode key={p.id} person={p} />)}
+            </div>
+            <div className="flex flex-col items-center">
+              <div className="w-px h-4 bg-border mt-1" />
+              <div className="w-2 h-2 rounded-full border-2 border-border bg-background" />
+              <div className="w-px h-3 bg-border" />
+            </div>
+          </>
+        )}
+
+        {/* Member + spouses row */}
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          <TreeNode person={member} isMain />
+          {spouses.map((s, i) => (
+            <React.Fragment key={s.id}>
+              <span className="text-muted-foreground text-sm font-light select-none">⁓</span>
+              <TreeNode person={s} />
+            </React.Fragment>
+          ))}
+        </div>
+
+        {/* Children row */}
+        {children.length > 0 && (
+          <>
+            <div className="flex flex-col items-center">
+              <div className="w-px h-3 bg-border mt-1" />
+              <div className="w-2 h-2 rounded-full border-2 border-border bg-background" />
+              <div className="w-px h-4 bg-border" />
+            </div>
+            <div className="flex gap-3 flex-wrap justify-center">
+              {children.map(c => <TreeNode key={c.id} person={c} />)}
+            </div>
+          </>
+        )}
+
+      </div>
+    </div>
+  );
+}
+
 // ─── Page ──────────────────────────────────────────────────────────────────────
 
 export default function MemberDetail() {
   const params = useParams();
   const id = params.id ? parseInt(params.id, 10) : 0;
+  const [familyView, setFamilyView] = useState<"list" | "tree">("list");
 
   const { data: member, isLoading, error } = useGetCommunityMember(id, {
     query: {
@@ -425,83 +506,106 @@ export default function MemberDetail() {
 
           {/* Family Connections */}
           <Card>
-            <CardHeader className="bg-muted/30 border-b pb-4">
-              <CardTitle className="flex items-center gap-2 text-lg">
-                <Network className="h-5 w-5 text-primary" /> Family Connections
-              </CardTitle>
+            <CardHeader className="bg-muted/30 border-b pb-3 pt-4">
+              <div className="flex items-center justify-between gap-2">
+                <CardTitle className="flex items-center gap-2 text-lg">
+                  <Network className="h-5 w-5 text-primary" /> Family Connections
+                </CardTitle>
+                <div className="flex rounded-md overflow-hidden border border-border text-[10px] font-semibold shrink-0">
+                  {(["list", "tree"] as const).map(v => (
+                    <button
+                      key={v}
+                      onClick={() => setFamilyView(v)}
+                      className={`px-2.5 py-1 capitalize transition-colors ${familyView === v ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+                    >
+                      {v}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </CardHeader>
             <CardContent className="p-0">
-              {member.parents && member.parents.length > 0 && (
-                <div className="p-4 border-b">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parents</h4>
-                  <div className="space-y-3">
-                    {member.parents.map(parent => (
-                      <Link key={parent.id} href={`/directory/${parent.id}`}>
-                        <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={`/assets/${parent.photoFilename || ""}`} />
-                            <AvatarFallback className="text-xs bg-primary/10">{parent.firstName?.charAt(0) || ""}{parent.lastName?.charAt(0) || ""}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium group-hover:text-primary transition-colors">{parent.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{parent.birthYear ? `b. ${parent.birthYear}` : ''}</span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+
+              {familyView === "tree" && (
+                <FamilyMiniTree member={member} />
               )}
 
-              {member.spouses && member.spouses.length > 0 && (
-                <div className="p-4 border-b">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Spouses</h4>
-                  <div className="space-y-3">
-                    {member.spouses.map(spouse => (
-                      <Link key={spouse.id} href={`/directory/${spouse.id}`}>
-                        <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={`/assets/${spouse.photoFilename || ""}`} />
-                            <AvatarFallback className="text-xs bg-primary/10">{spouse.firstName?.charAt(0) || ""}{spouse.lastName?.charAt(0) || ""}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium group-hover:text-primary transition-colors">{spouse.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{spouse.birthYear ? `b. ${spouse.birthYear}` : ''}</span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
+              {familyView === "list" && (
+                <>
+                  {member.parents && member.parents.length > 0 && (
+                    <div className="p-4 border-b">
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parents</h4>
+                      <div className="space-y-3">
+                        {member.parents.map(parent => (
+                          <Link key={parent.id} href={`/directory/${parent.id}`}>
+                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={`/assets/${parent.photoFilename || ""}`} />
+                                <AvatarFallback className="text-xs bg-primary/10">{parent.firstName?.charAt(0) || ""}{parent.lastName?.charAt(0) || ""}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium group-hover:text-primary transition-colors">{parent.fullName}</span>
+                                <span className="text-xs text-muted-foreground">{parent.birthYear ? `b. ${parent.birthYear}` : ''}</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {member.spouses && member.spouses.length > 0 && (
+                    <div className="p-4 border-b">
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Spouses</h4>
+                      <div className="space-y-3">
+                        {member.spouses.map(spouse => (
+                          <Link key={spouse.id} href={`/directory/${spouse.id}`}>
+                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={`/assets/${spouse.photoFilename || ""}`} />
+                                <AvatarFallback className="text-xs bg-primary/10">{spouse.firstName?.charAt(0) || ""}{spouse.lastName?.charAt(0) || ""}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium group-hover:text-primary transition-colors">{spouse.fullName}</span>
+                                <span className="text-xs text-muted-foreground">{spouse.birthYear ? `b. ${spouse.birthYear}` : ''}</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {member.children && member.children.length > 0 && (
+                    <div className="p-4">
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Children</h4>
+                      <div className="space-y-3">
+                        {member.children.map(child => (
+                          <Link key={child.id} href={`/directory/${child.id}`}>
+                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={`/assets/${child.photoFilename || ""}`} />
+                                <AvatarFallback className="text-xs bg-primary/10">{child.firstName?.charAt(0) || ""}{child.lastName?.charAt(0) || ""}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium group-hover:text-primary transition-colors">{child.fullName}</span>
+                                <span className="text-xs text-muted-foreground">{child.birthYear ? `b. ${child.birthYear}` : ''}</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {(!member.parents?.length && !member.children?.length && !member.spouses?.length) && (
+                    <div className="p-8 text-center text-muted-foreground text-sm">
+                      No family connections recorded in the directory.
+                    </div>
+                  )}
+                </>
               )}
 
-              {member.children && member.children.length > 0 && (
-                <div className="p-4">
-                  <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Children</h4>
-                  <div className="space-y-3">
-                    {member.children.map(child => (
-                      <Link key={child.id} href={`/directory/${child.id}`}>
-                        <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
-                          <Avatar className="h-8 w-8">
-                            <AvatarImage src={`/assets/${child.photoFilename || ""}`} />
-                            <AvatarFallback className="text-xs bg-primary/10">{child.firstName?.charAt(0) || ""}{child.lastName?.charAt(0) || ""}</AvatarFallback>
-                          </Avatar>
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium group-hover:text-primary transition-colors">{child.fullName}</span>
-                            <span className="text-xs text-muted-foreground">{child.birthYear ? `b. ${child.birthYear}` : ''}</span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {(!member.parents?.length && !member.children?.length && !member.spouses?.length) && (
-                <div className="p-8 text-center text-muted-foreground text-sm">
-                  No family connections recorded in the directory.
-                </div>
-              )}
             </CardContent>
           </Card>
 
