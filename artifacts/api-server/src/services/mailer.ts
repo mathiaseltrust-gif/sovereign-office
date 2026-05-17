@@ -2,6 +2,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
 import type { NotificationCategory } from "../sovereign/notification-engine";
+import { generateHtmlEmail } from "./email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;
 const RESEND_FROM_EMAIL = process.env.RESEND_FROM_EMAIL;
@@ -184,6 +185,7 @@ export async function sendNotificationEmail(opts: SendNotificationEmailOptions):
   const subject = template.subject(opts.title);
   const bodyWithoutFooter = template.body(opts.name, opts.title, opts.message, opts.metadata);
   const text = appendUnsubscribeFooter(bodyWithoutFooter, opts.to);
+  const html = generateHtmlEmail(opts.category, opts.severity, opts.name, opts.title, opts.message);
 
   try {
     const result = await resend.emails.send({
@@ -191,6 +193,7 @@ export async function sendNotificationEmail(opts: SendNotificationEmailOptions):
       to: opts.to,
       subject,
       text,
+      html,
     });
     logger.info({ to: opts.to, category: opts.category, id: result.data?.id }, "Notification email sent");
   } catch (err) {
