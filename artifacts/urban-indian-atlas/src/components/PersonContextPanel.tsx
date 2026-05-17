@@ -1,8 +1,10 @@
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Info, AlertTriangle, MapPin, Clock, Users, FileText, CheckCircle2, ShieldAlert, BookOpen } from "lucide-react";
+import { X, Info, AlertTriangle, MapPin, Clock, Users, FileText, CheckCircle2, ShieldAlert, BookOpen, Printer } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import type { AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
+import { ContinuityReport } from "@/components/ContinuityReport";
 
 interface PersonContextPanelProps {
   ancestor: AncestorRecord | null;
@@ -62,6 +64,8 @@ function ContextDisclaimer() {
 }
 
 export function PersonContextPanel({ ancestor, contextMatches, onClose }: PersonContextPanelProps) {
+  const [showReport, setShowReport] = useState(false);
+
   if (!ancestor) return null;
 
   const lifespan = [ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ") || "Dates unknown";
@@ -140,9 +144,20 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
             </div>
             <Badge variant="outline" className="font-mono bg-background text-xs">Ancestor Record</Badge>
           </div>
-          <button onClick={onClose} className="p-1 rounded hover:bg-muted" data-testid="person-panel-close">
-            <X className="w-5 h-5 opacity-70" />
-          </button>
+          <div className="flex items-center gap-1.5">
+            <button
+              onClick={() => setShowReport(true)}
+              className="flex items-center gap-1.5 px-2.5 py-1.5 rounded bg-primary/15 text-primary hover:bg-primary/25 transition-colors text-xs font-medium border border-primary/25"
+              data-testid="generate-report-button"
+              title="Generate printable Continuity Report for this ancestor"
+            >
+              <Printer className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Generate Continuity Report</span>
+            </button>
+            <button onClick={onClose} className="p-1 rounded hover:bg-muted" data-testid="person-panel-close">
+              <X className="w-5 h-5 opacity-70" />
+            </button>
+          </div>
         </div>
 
         <ScrollArea className="flex-1">
@@ -371,6 +386,15 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
           </div>
         </ScrollArea>
       </motion.div>
+
+      {/* Continuity Report modal — rendered outside the sliding panel so it covers full screen */}
+      {showReport && (
+        <ContinuityReport
+          ancestor={ancestor}
+          contextMatches={contextMatches}
+          onClose={() => setShowReport(false)}
+        />
+      )}
     </AnimatePresence>
   );
 }
