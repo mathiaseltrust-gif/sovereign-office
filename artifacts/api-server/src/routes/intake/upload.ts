@@ -124,12 +124,11 @@ Document filename analysis: "${originalname}"`;
     else if (probe.includes("demand") || probe.includes("cease and desist") || probe.includes("notice of default")) uploadSignal = "PROTECTED_RIGHTS_VIOLATION";
 
     if (uploadSignal) {
-      const userId = req.user ? Number(req.user.id) : undefined;
+      const userId = req.user ? Number(req.user.id) : null;
       triggerReviewEngine({
         signalType: uploadSignal,
-        triggeringEventType: "document_upload",
-        triggeringEventId: undefined,
-        affectedUserId: userId,
+        eventType: "document_upload",
+        affectedUserId: userId ?? undefined,
         affectedMatter: `Uploaded document: ${originalname}`,
         triggeringEntity: "file_upload",
         evidenceSource: `filename:${originalname}`,

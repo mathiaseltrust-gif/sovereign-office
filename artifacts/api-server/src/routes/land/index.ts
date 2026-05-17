@@ -496,7 +496,7 @@ router.put("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, 
     const updated = await db.execute(sql`SELECT * FROM land_encumbrances WHERE id = ${id}`);
     const row = updated.rows[0] as Record<string, unknown> | undefined;
     auditLog({
-      userId: req.user ? Number(req.user.id) : undefined,
+      userId: req.user ? Number(req.user.id) : null,
       action: "encumbrance.update",
       resourceType: "land_encumbrance",
       resourceId: id,

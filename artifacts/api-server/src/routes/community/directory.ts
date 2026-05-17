@@ -175,6 +175,19 @@ router.get("/:id", async (req, res, next) => {
         .where(sql`${familyLineageTable.id} = ANY(ARRAY[${sql.raw(allRelatedIds.join(","))}]::int[])`);
     }
 
+    // Compute siblings: members sharing at least one parent, excluding self.
+    // Uses @> to check if the stored parent_ids JSONB array contains a given integer value.
+    let siblingRows: typeof member[] = [];
+    if (parentIds.length > 0) {
+      siblingRows = await db
+        .select()
+        .from(familyLineageTable)
+        .where(sql`
+          ${familyLineageTable.id} != ${id}
+          AND ${familyLineageTable.parentIds}::jsonb @> ANY(ARRAY[${sql.raw(parentIds.map(p => `'[${p}]'::jsonb`).join(","))}])
+        `);
+    }
+
     const toSummary = (r: typeof member) => ({
       id: r.id,
       fullName: r.fullName,
@@ -214,6 +227,7 @@ router.get("/:id", async (req, res, next) => {
       parents: parentIds.map((pid) => byId.get(pid)).filter(Boolean).map(toSummary),
       children: childrenIds.map((cid) => byId.get(cid)).filter(Boolean).map(toSummary),
       spouses: spouseIds.map((sid) => byId.get(sid)).filter(Boolean).map(toSummary),
+      siblings: siblingRows.map(toSummary),
     });
   } catch (err) {
     next(err);

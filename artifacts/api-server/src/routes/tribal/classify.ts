@@ -106,12 +106,12 @@ router.post("/", requireAuth, requireRole("officer"), upload.single("pdf"), asyn
     };
     const classifySignal: ReviewSignalType =
       ACTION_TO_SIGNAL[actionType] ?? "PROTECTED_RIGHTS_VIOLATION";
-    const classifyUserId = req.user ? Number(req.user.id) : undefined;
+    const classifyUserId = req.user ? Number(req.user.id) : null;
     triggerReviewEngine({
       signalType: classifySignal,
-      triggeringEventType: "classification",
-      triggeringEventId: classification.id,
-      affectedUserId: classifyUserId,
+      eventType: "complaint_filed",
+      eventId: classification.id,
+      affectedUserId: classifyUserId ?? undefined,
       affectedMatter: `Classification #${classification.id}: ${actorType}/${landStatus}/${actionType}`,
       triggeringEntity: actorType,
       evidenceSource: sourceType,

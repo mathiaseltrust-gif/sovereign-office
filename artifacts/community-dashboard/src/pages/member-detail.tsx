@@ -464,16 +464,19 @@ function d3RowCenters(count: number): number[] {
   return xs.map(x => x - mid); // center around 0
 }
 
-function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyPerson[] | null; spouses?: FamilyPerson[] | null; children?: FamilyPerson[] | null } }) {
+function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyPerson[] | null; spouses?: FamilyPerson[] | null; children?: FamilyPerson[] | null; siblings?: FamilyPerson[] | null } }) {
   const parents  = member.parents  ?? [];
   const spouses  = member.spouses  ?? [];
   const children = member.children ?? [];
-  const hasAny   = parents.length > 0 || spouses.length > 0 || children.length > 0;
+  const siblings = member.siblings ?? [];
+  const hasAny   = parents.length > 0 || spouses.length > 0 || children.length > 0 || siblings.length > 0;
 
   const parentCx  = useMemo(() => d3RowCenters(parents.length),  [parents.length]);
   const childCx   = useMemo(() => d3RowCenters(children.length), [children.length]);
   // Spouses extend to the right of member; member center = 0
   const spouseCx  = spouses.map((_, i) => (MT_NW + 20) * (i + 1));
+  // Siblings extend to the left of member
+  const siblingCx = siblings.map((_, i) => -((MT_NW + 20) * (i + 1)));
 
   const hasParents  = parents.length  > 0;
   const hasChildren = children.length > 0;
@@ -483,7 +486,7 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
   const childRowY  = memberRowY + MT_NH + MT_VGAP;
 
   // SVG bounds: collect all node centers and compute required width
-  const allLeft  = [...parentCx, ...childCx, 0].map(x => x - MT_NW / 2);
+  const allLeft  = [...parentCx, ...childCx, 0, ...siblingCx].map(x => x - MT_NW / 2);
   const allRight = [...parentCx, ...childCx, 0, ...spouseCx].map(x => x + MT_NW / 2);
   const minRelX  = Math.min(...allLeft)  - MT_PAD;
   const maxRelX  = Math.max(...allRight) + MT_PAD;
@@ -541,6 +544,13 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
             fill="none" stroke="#64748b" strokeWidth={1.5} opacity={0.4} />
         ))}
 
+        {/* Sibling dashed connector */}
+        {siblings.length > 0 && (
+          <line x1={cx - MT_NW / 2} y1={memberRowY + MT_NH / 2}
+            x2={cx + siblingCx[siblings.length - 1] - MT_NW / 2} y2={memberRowY + MT_NH / 2}
+            stroke="#a855f7" strokeWidth={1.2} strokeDasharray="4 3" opacity={0.45} />
+        )}
+
         {/* Spouse dashed connector */}
         {spouses.length > 0 && (
           <line x1={cx + MT_NW / 2} y1={memberRowY + MT_NH / 2}
@@ -579,6 +589,18 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
           return (
             <g key={`s-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${s.id}`; }}>
               {nodeRect(nx, ny, false, false)}
+              {nodeLabel(nx, ny, s, false)}
+            </g>
+          );
+        })}
+
+        {/* Sibling nodes */}
+        {siblings.map((s, i) => {
+          const nx = cx + siblingCx[i] - MT_NW / 2;
+          const ny = memberRowY;
+          return (
+            <g key={`sib-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${s.id}`; }}>
+              <rect x={nx} y={ny} width={MT_NW} height={MT_NH} rx={8} fill="rgb(250 245 255 / 0.8)" stroke="#a855f7" strokeWidth={1.5} />
               {nodeLabel(nx, ny, s, false)}
             </g>
           );
@@ -821,6 +843,31 @@ export default function MemberDetail() {
 
               {familyView === "list" && (
                 <>
+                  {(member as typeof member & { siblings?: typeof member.parents }).siblings && (member as typeof member & { siblings?: typeof member.parents }).siblings!.length > 0 && (
+                    <div className="p-4 border-b">
+                      <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3 flex items-center gap-2">
+                        <span className="inline-block w-2 h-2 rounded-full bg-purple-400" />
+                        Siblings
+                      </h4>
+                      <div className="space-y-3">
+                        {(member as typeof member & { siblings?: typeof member.parents }).siblings!.map(sibling => (
+                          <Link key={sibling.id} href={`/directory/${sibling.id}`}>
+                            <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
+                              <Avatar className="h-8 w-8">
+                                <AvatarImage src={`/assets/${sibling.photoFilename || ""}`} />
+                                <AvatarFallback className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">{sibling.firstName?.charAt(0) || ""}{sibling.lastName?.charAt(0) || ""}</AvatarFallback>
+                              </Avatar>
+                              <div className="flex flex-col">
+                                <span className="text-sm font-medium group-hover:text-primary transition-colors">{sibling.fullName}</span>
+                                <span className="text-xs text-muted-foreground">{sibling.birthYear ? `b. ${sibling.birthYear}` : ''}</span>
+                              </div>
+                            </div>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
                   {member.parents && member.parents.length > 0 && (
                     <div className="p-4 border-b">
                       <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parents</h4>
@@ -887,7 +934,7 @@ export default function MemberDetail() {
                     </div>
                   )}
 
-                  {(!member.parents?.length && !member.children?.length && !member.spouses?.length) && (
+                  {(!member.parents?.length && !member.children?.length && !member.spouses?.length && !(member as typeof member & { siblings?: unknown[] }).siblings?.length) && (
                     <div className="p-8 text-center text-muted-foreground text-sm">
                       No family connections recorded in the directory.
                     </div>
