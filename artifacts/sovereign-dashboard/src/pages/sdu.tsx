@@ -24,13 +24,13 @@ const PROGRAMS = [
     title: "Federal Indian Law Practicum",
     level: "Intermediate",
     levelColor: "bg-teal-100 text-teal-800 dark:bg-teal-900/40 dark:text-teal-300",
-    desc: "Deep study of BIA regulations, Indian Civil Rights Act, ICWA, ISDEAA, and trust responsibilities. Prepares members for advocacy, compliance, and legal self-representation.",
+    desc: "Deep study of federal Indian law frameworks — Indian Civil Rights Act, ICWA, ISDEAA, treaty rights, and federal trust responsibilities. Prepares members for advocacy, compliance, and legal self-representation.",
   },
   {
     title: "Tribal Business & Enterprise",
     level: "Applied",
     levelColor: "bg-violet-100 text-violet-800 dark:bg-violet-900/40 dark:text-violet-300",
-    desc: "Practical education on forming and operating Indian Economic Enterprises, SBA certification, BIA financing, and sovereign contracting. Includes business planning and model canvas workshops.",
+    desc: "Practical education on forming and operating Indian Economic Enterprises, SBA 8(a) certification, federal Indian enterprise financing (25 U.S.C. § 1544), and sovereign contracting. Includes business planning and model canvas workshops.",
   },
   {
     title: "Self-Determination Administration",
@@ -182,8 +182,10 @@ const FRAMEWORKS: Framework[] = [
 // ── Legal Framework ───────────────────────────────────────────────────────────
 
 const LEGAL_FRAMEWORK = [
-  { code: "25 U.S.C. § 5321", title: "ISDEAA — Self-Determination Contracts", desc: "Authorizes tribes to administer federal education programs through self-determination contracts, replacing BIA-run programs with tribal-run ones." },
+  { code: "25 U.S.C. § 5321", title: "ISDEAA — Self-Determination Contracts", desc: "Authorizes tribes to administer federal education programs through self-determination contracts, replacing federally-run programs with tribal-run ones." },
   { code: "25 U.S.C. § 5322", title: "ISDEAA — Self-Governance Compacts", desc: "Allows tribes to compact entire program areas including education into block grants administered under tribal authority." },
+  { code: "25 U.S.C. § 450b", title: "ISDEAA — Definition of Indian Tribe", desc: "Section 4 of ISDEAA defines 'Indian tribe' as the controlling statutory definition for self-determination contracting. An 'Indian' under this section means an individual who is a member of an Indian tribe, or is certified as an Indian artisan by an Indian tribe." },
+  { code: "25 C.F.R. § 169.8", title: "Tribal Administration of Federal Programs", desc: "A tribe or tribal organization may contract or compact under ISDEAA (25 U.S.C. 450f et seq.) to administer on the federal government's behalf any eligible portion of a program. Tribal offices and federal offices have concurrent inquiry authority." },
   { code: "20 U.S.C. § 7441", title: "Native American Language Programs", desc: "Federal support for indigenous language education and preservation programs." },
   { code: "26 U.S.C. § 501(c)(3)", title: "Nonprofit Tax-Exempt Status", desc: "SDU operates as a tax-exempt nonprofit. Donations are tax-deductible and the institution may receive foundation grants and federal education funding." },
 ];
@@ -413,26 +415,57 @@ export default function SduPage() {
 
       {/* ── Hero ── */}
       <div className="rounded-2xl overflow-hidden border border-teal-800/60 bg-gradient-to-br from-teal-950 via-teal-900/90 to-slate-900 p-6">
-        <div className="flex items-center gap-5">
+        <div className="flex items-start gap-5 flex-wrap">
           <img
             src={`${import.meta.env.BASE_URL}sdu-mascot.png`}
             alt="SDU Mascot"
             className="h-20 w-20 object-contain shrink-0 rounded-full border-2 border-teal-400/40 bg-teal-900/50"
           />
-          <div>
+          <div className="flex-1 min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-[0.2em] text-teal-400/60 mb-1">
-              Nonprofit Indigenous Education System — ISDEAA
+              Nonprofit Indigenous Education System — ISDEAA · 25 U.S.C. § 5321
             </p>
             <h1 className="text-3xl font-serif font-bold text-teal-50">Self Determination University</h1>
-            <p className="text-teal-300/60 text-sm mt-1">
-              25 U.S.C. § 5321 · Educating members in sovereign rights and self-determined practice
+            <p className="text-teal-200/70 text-sm mt-2 leading-relaxed max-w-2xl">
+              <span className="font-semibold text-teal-100">SDU (n.)</span> — A grassroots movement fighting for ancestral sovereignty and self-governance awareness. Knowledge is earned through lived experience — not granted by external systems. Treaty rights, ancestral governance, and a sovereign legacy is encoded in our DNA.
             </p>
             <div className="flex flex-wrap gap-2 mt-3">
               <Badge className="bg-teal-700/60 border-teal-600 text-teal-200 text-xs">Nonprofit — 501(c)(3)</Badge>
               <Badge className="bg-slate-800/60 border-slate-600 text-slate-300 text-xs">ISDEAA Authorized</Badge>
               <Badge className="bg-green-900/40 border-green-700 text-green-300 text-xs">Active</Badge>
+              <a
+                href="https://selfdeterminationuniversity.org"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1 text-[11px] text-teal-400/80 hover:text-teal-300 transition-colors underline underline-offset-2"
+              >
+                selfdeterminationuniversity.org ↗
+              </a>
             </div>
           </div>
+        </div>
+      </div>
+
+      {/* ── Founding Motto Banner ── */}
+      <div className="rounded-xl border border-amber-700/50 bg-gradient-to-r from-amber-950/60 via-orange-950/50 to-amber-950/60 px-6 py-5 text-center">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-amber-500/70 mb-2">Founding Principle</p>
+        <p className="text-xl md:text-2xl font-serif font-bold text-amber-100 leading-snug">
+          My ability to govern myself is <span className="text-amber-400">inherited.</span>
+        </p>
+        <p className="text-xl md:text-2xl font-serif font-bold text-amber-100 leading-snug">
+          It's not granted.
+        </p>
+        <p className="text-xs text-amber-600/60 mt-3 font-mono">— Self Determination University · selfdeterminationuniversity.org</p>
+      </div>
+
+      {/* ── Attunement Quote ── */}
+      <div className="rounded-xl border border-teal-700/40 bg-teal-950/30 px-5 py-4 flex gap-4 items-start">
+        <div className="text-3xl text-teal-500/40 font-serif leading-none shrink-0">"</div>
+        <div>
+          <p className="text-base font-serif text-teal-100/90 leading-relaxed">
+            Self-determination is not something you reach. It's a reality you <span className="font-bold text-teal-300">attune to.</span>
+          </p>
+          <p className="text-[11px] text-teal-500/60 mt-2 font-mono uppercase tracking-wider">Self Determination University</p>
         </div>
       </div>
 
@@ -483,8 +516,53 @@ export default function SduPage() {
                     <p className="text-sm font-medium">25 U.S.C. § 5321 — ISDEAA Self-Determination Contracts</p>
                     <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
                       Under ISDEAA, the Mathias El Tribe may contract or compact to administer federal education programs
-                      directly. SDU is the institutional vehicle for that authority.
+                      directly. SDU is the institutional vehicle for that authority. Under 25 C.F.R. § 169.8, a tribe or tribal
+                      organization may administer on the federal government's behalf any eligible portion of a program by contract
+                      or compact — placing tribal offices on equal footing with federal offices for member inquiries.
                     </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* ── Brand Visuals ── */}
+              <Card className="shadow-none">
+                <CardContent className="p-5">
+                  <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground mb-3">SDU Visual Identity</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <div className="rounded-lg overflow-hidden border bg-white">
+                        <img
+                          src={`${import.meta.env.BASE_URL}sdu-brand.png`}
+                          alt="SDU T-Shirt — Official Brand"
+                          className="w-full object-contain max-h-64"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground text-center leading-tight">
+                        SDU Official Brand — COPPER Collection
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <div className="rounded-lg overflow-hidden border">
+                        <img
+                          src={`${import.meta.env.BASE_URL}sdu-poster.png`}
+                          alt="SDU Poster — Self-Determination is not something you reach"
+                          className="w-full object-contain max-h-64"
+                        />
+                      </div>
+                      <p className="text-[11px] text-muted-foreground text-center leading-tight">
+                        SDU Attunement Poster
+                      </p>
+                    </div>
+                  </div>
+                  <div className="mt-3 text-center">
+                    <a
+                      href="https://selfdeterminationuniversity.org"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-xs text-teal-600 dark:text-teal-400 hover:underline"
+                    >
+                      selfdeterminationuniversity.org ↗
+                    </a>
                   </div>
                 </CardContent>
               </Card>
