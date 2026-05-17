@@ -1803,9 +1803,6 @@ export default function ProfilePage() {
       {/* ── Your Protections — identity standing, land status, rights ── */}
       <ProtectionsPanel />
 
-      {/* ── Land Record — parcel, legal description, tribal code, restrictions ── */}
-      <LandRecordPanel />
-
       {/* ── Tribal Identity Document — download card, all members ── */}
       <Card className="overflow-hidden border-indigo-800/30">
         <CardContent className="p-0">
@@ -2564,46 +2561,9 @@ export default function ProfilePage() {
                 );
               })()}
             </div>
-            <div className="space-y-1.5">
-              <Label htmlFor="apn-field" className="text-xs font-semibold uppercase tracking-wider">APN (Assessor's Parcel Number)</Label>
-              <Input
-                id="apn-field"
-                value={fields.apn}
-                onChange={e => setFields(f => ({ ...f, apn: e.target.value }))}
-                placeholder="e.g. 123-456-789-000"
-                className="text-sm font-mono"
-              />
-              <p className="text-[10px] text-muted-foreground">Auto-fills trust deeds, recorder filings, and property instruments.</p>
-            </div>
           </div>
 
-          <div className="space-y-1.5">
-            <Label htmlFor="legal-description-field" className="text-xs font-semibold uppercase tracking-wider">Legal Description of Land</Label>
-            <Textarea
-              id="legal-description-field"
-              value={fields.legalDescription}
-              onChange={e => setFields(f => ({ ...f, legalDescription: e.target.value }))}
-              placeholder="e.g. Lot 7, Block 3, Townsite of Durant, as per plat recorded in Book 12, Page 48 of the County Clerk records…"
-              className="text-sm font-mono leading-relaxed"
-              rows={3}
-            />
-            <p className="text-[10px] text-muted-foreground">
-              Exact legal description as it appears on the deed, allotment record, or BIA instrument. Auto-populates drafted documents and is used to detect discrepancies during document intake.
-            </p>
-          </div>
-
-          <label className="flex items-center gap-2.5 cursor-pointer">
-            <input
-              type="checkbox"
-              className="w-4 h-4 accent-primary"
-              checked={hasRecordedInstrument}
-              onChange={e => setHasRecordedInstrument(e.target.checked)}
-            />
-            <div>
-              <span className="text-sm font-medium">Recorded instrument on file</span>
-              <p className="text-[10px] text-muted-foreground mt-0.5">Check if a deed, allotment, or trust document has been recorded with the county recorder or BIA LTRO.</p>
-            </div>
-          </label>
+          <LandRecordPanel />
         </CardContent>
       </Card>
 
