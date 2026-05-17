@@ -766,7 +766,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       positioned[0];
     if (!selfNode) return;
     const { clientWidth, clientHeight } = containerRef.current;
-    const scale = 1.1;
+    const scale = 1.8;
     const x = clientWidth  / 2 - (selfNode.x + NODE_W / 2) * scale;
     const y = clientHeight / 2 - (selfNode.y + NODE_H / 2) * scale;
     setTransform({ x, y, scale });
@@ -1402,6 +1402,28 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
     onError: (err: Error) => toast({ title: "Enrollment failed", description: err.message, variant: "destructive" }),
   });
 
+  const linkSelfMutation = useMutation({
+    mutationFn: async (nodeId: number) => {
+      const r = await fetch(`/api/lineage/nodes/${nodeId}/link-self`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Failed to link"); }
+      return r.json() as Promise<{ linked: boolean; fullName: string; alreadyLinked?: boolean }>;
+    },
+    onSuccess: (data) => {
+      toast({
+        title: data.alreadyLinked ? "Already linked" : `Linked — "${data.fullName}" is now your node`,
+        description: data.alreadyLinked ? "This node is already linked to your profile." : "The Me button will now center on you.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] });
+      queryClient.invalidateQueries({ queryKey: ["family-tree"] });
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Could not link", description: err.message, variant: "destructive" }),
+  });
+
   const updateEnrollMutation = useMutation({
     mutationFn: async (updates: { role?: string; name?: string }) => {
       const r = await fetch(`/api/lineage/nodes/${n.id}/enroll`, {
@@ -1463,10 +1485,47 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
             {n.linkedProfileUserId && (
               <div className="flex gap-2 items-center">
                 <span className="text-muted-foreground w-28 shrink-0">Linked user</span>
-                <a href="/sovereign-dashboard/profile" className="text-primary underline text-sm hover:opacity-80">View profile</a>
+                {n.linkedProfileUserId === currentUserId ? (
+                  <span className="text-xs font-semibold text-green-700 dark:text-green-400">You</span>
+                ) : (
+                  <a href="/sovereign-dashboard/profile" className="text-primary underline text-sm hover:opacity-80">View profile</a>
+                )}
               </div>
             )}
           </div>
+
+          {/* ── "This is me" self-link button ──────────────────────────── */}
+          {currentUserId && (!n.linkedProfileUserId || n.linkedProfileUserId === currentUserId) && (
+            <div className={`rounded-md border px-3 py-2.5 flex items-center justify-between gap-3 ${
+              n.linkedProfileUserId === currentUserId
+                ? "border-green-300 bg-green-50 dark:bg-green-950/30"
+                : "border-primary/30 bg-primary/5"
+            }`}>
+              <div>
+                <p className="text-xs font-semibold text-foreground">
+                  {n.linkedProfileUserId === currentUserId ? "This is your node" : "Is this you?"}
+                </p>
+                <p className="text-[11px] text-muted-foreground mt-0.5">
+                  {n.linkedProfileUserId === currentUserId
+                    ? "The Me button centers on this node at 1.8× zoom."
+                    : "Link this node to your account so the Me button finds you."}
+                </p>
+              </div>
+              {n.linkedProfileUserId === currentUserId ? (
+                <span className="text-green-600 shrink-0">✓</span>
+              ) : (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="h-7 text-xs shrink-0 border-primary text-primary hover:bg-primary hover:text-primary-foreground"
+                  disabled={linkSelfMutation.isPending}
+                  onClick={() => linkSelfMutation.mutate(n.id)}
+                >
+                  {linkSelfMutation.isPending ? "Linking…" : "This is me"}
+                </Button>
+              )}
+            </div>
+          )}
 
           <div className="space-y-1">
             <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Eligibility</p>

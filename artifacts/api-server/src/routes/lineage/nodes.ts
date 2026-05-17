@@ -526,6 +526,54 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
   }
 });
 
+// ── POST /:id/link-self — any authenticated user may link their account to a node ──
+// Rules:
+// - The node must not already be linked to a DIFFERENT user
+// - A user may only have one node linked to them (we clear any prior link first)
+router.post("/:id/link-self", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseInt(String(req.params.id), 10);
+    if (isNaN(id)) { res.status(400).json({ error: "Invalid ID" }); return; }
+
+    const userId = req.user?.dbId;
+    if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+    const [node] = await db.select({
+      id: familyLineageTable.id,
+      fullName: familyLineageTable.fullName,
+      linkedProfileUserId: familyLineageTable.linkedProfileUserId,
+    }).from(familyLineageTable).where(eq(familyLineageTable.id, id)).limit(1);
+
+    if (!node) { res.status(404).json({ error: "Node not found" }); return; }
+
+    // Already linked to someone else → refuse
+    if (node.linkedProfileUserId && node.linkedProfileUserId !== userId) {
+      res.status(409).json({ error: "This node is already linked to another user's account." });
+      return;
+    }
+
+    // Already linked to me → idempotent success
+    if (node.linkedProfileUserId === userId) {
+      res.json({ linked: true, nodeId: id, fullName: node.fullName, alreadyLinked: true });
+      return;
+    }
+
+    // Clear any prior self-link for this user (only one "me" node allowed)
+    await db.update(familyLineageTable)
+      .set({ linkedProfileUserId: null, updatedAt: new Date() })
+      .where(eq(familyLineageTable.linkedProfileUserId, userId));
+
+    // Set the link
+    await db.update(familyLineageTable)
+      .set({ linkedProfileUserId: userId, updatedAt: new Date() })
+      .where(eq(familyLineageTable.id, id));
+
+    res.json({ linked: true, nodeId: id, fullName: node.fullName });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.post("/:id/verify", requireAuth, requireRole("trustee"), async (req, res, next) => {
   try {
     const id = parseInt(String(req.params.id), 10);
