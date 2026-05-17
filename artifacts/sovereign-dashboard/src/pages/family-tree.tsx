@@ -221,13 +221,10 @@ function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = []): { 
     byGen.get(gen)!.push(n);
   }
 
-  // Sort: non-negative gens ascending (gen 0 = root at top, gen 5 = oldest ancestors below),
-  // then negative gens ascending in abs value (gen -1 = children just below ancestors, gen -2 = grandchildren, etc.)
-  const sortedGens = [...byGen.keys()].sort((a, b) => {
-    if (a >= 0 && b >= 0) return a - b;
-    if (a < 0 && b < 0) return b - a;
-    return a >= 0 ? -1 : 1;
-  });
+  // Natural family tree order: oldest ancestors at top (highest gen number),
+  // self (gen=0) in the middle, children (gen=-1) and grandchildren (gen=-2) below.
+  // Simple descending sort: 5 → 4 → 3 → 2 → 1 → 0 → -1 → -2
+  const sortedGens = [...byGen.keys()].sort((a, b) => b - a);
 
   // ── Sort within each generation: root → paternal (left) → maternal (right) ─
   for (const [gen, arr] of byGen) {
@@ -1032,7 +1029,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       positioned[0];
     if (!selfNode) return;
     const { clientWidth, clientHeight } = containerRef.current;
-    const scale = 1.8;
+    // 1.2× shows self + direct parents above + children below in the viewport
+    const scale = 1.2;
     const x = clientWidth  / 2 - (selfNode.x + NODE_W / 2) * scale;
     const y = clientHeight / 2 - (selfNode.y + NODE_H / 2) * scale;
     setTransform({ x, y, scale });
@@ -1101,7 +1099,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       if (hasRestoredSession.current) {
         hasRestoredSession.current = false;
       } else {
-        centerOnSelf();
+        showMyFamilyView();
       }
     }
   }, [positioned.length > 0]);
