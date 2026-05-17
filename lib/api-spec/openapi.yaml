@@ -39,6 +39,8 @@ tags:
     description: Community discussion forum posts and replies
   - name: community-ai
     description: AI-assisted legal guidance for community members
+  - name: atlas
+    description: Urban Indian Continuity Atlas event management
 paths:
   /court/welfare:
     get:
@@ -878,6 +880,82 @@ paths:
                 items:
                   $ref: "#/components/schemas/AiGuidanceRecord"
 
+  /atlas/events:
+    get:
+      operationId: listAtlasEvents
+      tags: [atlas]
+      summary: List all atlas events
+      responses:
+        "200":
+          description: List of atlas events
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/AtlasEventRecord"
+    post:
+      operationId: createAtlasEvent
+      tags: [atlas]
+      summary: Create a new atlas event
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtlasEventInput"
+      responses:
+        "201":
+          description: Created atlas event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasEventRecord"
+
+  /atlas/events/intake:
+    post:
+      operationId: atlasEventIntake
+      tags: [atlas]
+      summary: AI-extract atlas event fields from raw legal text
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtlasEventIntakeInput"
+      responses:
+        "200":
+          description: Extracted event fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasEventExtracted"
+
+  /atlas/events/{id}:
+    patch:
+      operationId: updateAtlasEvent
+      tags: [atlas]
+      summary: Update an existing atlas event (no deletion allowed)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AtlasEventUpdate"
+      responses:
+        "200":
+          description: Updated atlas event
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AtlasEventRecord"
+
+
 components:
   schemas:
     CommunityMember:
@@ -1455,3 +1533,148 @@ components:
         createdAt: { type: string }
         updatedAt: { type: string }
       required: [id, welfareAct, instrumentType, status, troSensitive, emergencyOrder, createdAt, updatedAt]
+
+    AtlasEventRecord:
+      type: object
+      properties:
+        id: { type: integer }
+        eventId: { type: string }
+        title: { type: string }
+        shortTitle: { type: ["string", "null"] }
+        year: { type: integer }
+        dateStart: { type: ["string", "null"] }
+        dateEnd: { type: ["string", "null"] }
+        era: { type: string }
+        eventType: { type: string }
+        policyArea: { type: string }
+        description: { type: string }
+        plainLanguageSummary: { type: string }
+        severityLevel: { type: string }
+        status: { type: string }
+        identityImpact: { type: ["string", "null"] }
+        reclassificationImpact: { type: ["string", "null"] }
+        continuityImpact: { type: ["string", "null"] }
+        continuitySurvivalNote: { type: ["string", "null"] }
+        familyImpact: { type: ["string", "null"] }
+        urbanizationImpact: { type: ["string", "null"] }
+        healthAccessImpact: { type: ["string", "null"] }
+        publicSchoolImpact: { type: ["string", "null"] }
+        landImpact: { type: ["string", "null"] }
+        jurisdictionImpact: { type: ["string", "null"] }
+        housingImpact: { type: ["string", "null"] }
+        laborMigrationImpact: { type: ["string", "null"] }
+        modernEffect: { type: ["string", "null"] }
+        ancestorRelevanceNote: { type: ["string", "null"] }
+        affectedPeople: { type: ["string", "null"] }
+        affectedRegions: { type: array, items: { type: string } }
+        statesAffected: { type: array, items: { type: string } }
+        coordinateLat: { type: ["number", "null"] }
+        coordinateLng: { type: ["number", "null"] }
+        sourceTitle: { type: string }
+        sourceUrl: { type: string }
+        sourceType: { type: ["string", "null"] }
+        citation: { type: ["string", "null"] }
+        publicLawNumber: { type: ["string", "null"] }
+        tags: { type: array, items: { type: string } }
+        createdAt: { type: string }
+        updatedAt: { type: string }
+      required: [id, eventId, title, year, era, eventType, policyArea, description, plainLanguageSummary, severityLevel, status, affectedRegions, statesAffected, sourceTitle, sourceUrl, tags, createdAt, updatedAt]
+
+    AtlasEventInput:
+      type: object
+      properties:
+        eventId: { type: string }
+        title: { type: string }
+        shortTitle: { type: string }
+        year: { type: integer }
+        dateStart: { type: string }
+        dateEnd: { type: string }
+        era: { type: string }
+        eventType: { type: string }
+        policyArea: { type: string }
+        description: { type: string }
+        plainLanguageSummary: { type: string }
+        severityLevel: { type: string }
+        status: { type: string }
+        identityImpact: { type: string }
+        reclassificationImpact: { type: string }
+        continuityImpact: { type: string }
+        continuitySurvivalNote: { type: string }
+        familyImpact: { type: string }
+        urbanizationImpact: { type: string }
+        healthAccessImpact: { type: string }
+        publicSchoolImpact: { type: string }
+        landImpact: { type: string }
+        jurisdictionImpact: { type: string }
+        housingImpact: { type: string }
+        laborMigrationImpact: { type: string }
+        modernEffect: { type: string }
+        ancestorRelevanceNote: { type: string }
+        affectedPeople: { type: string }
+        affectedRegions: { type: array, items: { type: string } }
+        statesAffected: { type: array, items: { type: string } }
+        coordinateLat: { type: number }
+        coordinateLng: { type: number }
+        sourceTitle: { type: string }
+        sourceUrl: { type: string }
+        sourceType: { type: string }
+        citation: { type: string }
+        publicLawNumber: { type: string }
+        tags: { type: array, items: { type: string } }
+      required: [eventId, title, year, era, eventType, policyArea, description, plainLanguageSummary]
+
+    AtlasEventUpdate:
+      type: object
+      properties:
+        title: { type: string }
+        shortTitle: { type: string }
+        year: { type: integer }
+        dateStart: { type: string }
+        dateEnd: { type: string }
+        era: { type: string }
+        eventType: { type: string }
+        policyArea: { type: string }
+        description: { type: string }
+        plainLanguageSummary: { type: string }
+        severityLevel: { type: string }
+        status: { type: string }
+        identityImpact: { type: string }
+        reclassificationImpact: { type: string }
+        continuityImpact: { type: string }
+        continuitySurvivalNote: { type: string }
+        familyImpact: { type: string }
+        urbanizationImpact: { type: string }
+        healthAccessImpact: { type: string }
+        publicSchoolImpact: { type: string }
+        landImpact: { type: string }
+        jurisdictionImpact: { type: string }
+        housingImpact: { type: string }
+        laborMigrationImpact: { type: string }
+        modernEffect: { type: string }
+        ancestorRelevanceNote: { type: string }
+        affectedPeople: { type: string }
+        affectedRegions: { type: array, items: { type: string } }
+        statesAffected: { type: array, items: { type: string } }
+        coordinateLat: { type: number }
+        coordinateLng: { type: number }
+        sourceTitle: { type: string }
+        sourceUrl: { type: string }
+        sourceType: { type: string }
+        citation: { type: string }
+        publicLawNumber: { type: string }
+        tags: { type: array, items: { type: string } }
+
+    AtlasEventIntakeInput:
+      type: object
+      properties:
+        rawText: { type: string }
+      required: [rawText]
+
+    AtlasEventExtracted:
+      type: object
+      properties:
+        extracted:
+          $ref: "#/components/schemas/AtlasEventInput"
+        confidence: { type: string }
+        notes: { type: string }
+      required: [extracted, confidence]

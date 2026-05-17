@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import eventsData from "@/data/events.json";
+import { useQuery } from "@tanstack/react-query";
 import urbanLocationsData from "@/data/urban-locations.json";
 import sourcesData from "@/data/sources.json";
 import { AtlasMap } from "@/components/AtlasMap";
@@ -8,7 +8,7 @@ import { AtlasTimeline } from "@/components/AtlasTimeline";
 import { AtlasDetailPanel } from "@/components/AtlasDetailPanel";
 import { SourcesModal } from "@/components/SourcesModal";
 import { Button } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
 
 export type EventSeverity = "critical" | "high" | "moderate";
 export type Era = "colonial" | "early-republic" | "removal" | "reservation" | "post-civil-war" | "allotment" | "jim-crow" | "termination" | "wwii-migration" | "self-determination" | "modern";
@@ -39,19 +39,88 @@ export interface AtlasEvent {
   affected_regions: string[];
 }
 
+interface DbAtlasEvent {
+  id: number;
+  eventId: string;
+  title: string;
+  shortTitle: string | null;
+  year: number;
+  dateStart: string | null;
+  dateEnd: string | null;
+  era: string;
+  eventType: string;
+  policyArea: string;
+  description: string;
+  plainLanguageSummary: string;
+  severityLevel: string;
+  status: string;
+  identityImpact: string | null;
+  reclassificationImpact: string | null;
+  continuitySurvivalNote: string | null;
+  familyImpact: string | null;
+  urbanizationImpact: string | null;
+  healthAccessImpact: string | null;
+  ancestorRelevanceNote: string | null;
+  modernEffect: string | null;
+  sourceTitle: string;
+  sourceUrl: string;
+  tags: string[];
+  affectedRegions: string[];
+  coordinateLat: number | null;
+  coordinateLng: number | null;
+}
+
+function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
+  return {
+    id: e.eventId,
+    title: e.title,
+    year: e.year,
+    era: e.era,
+    event_type: e.eventType,
+    policy_area: e.policyArea,
+    severity_level: (e.severityLevel as EventSeverity) || "moderate",
+    description: e.description,
+    plain_language_summary: e.plainLanguageSummary,
+    coordinates: [e.coordinateLat ?? 38.5, e.coordinateLng ?? -97.0],
+    identity_impact: e.identityImpact ?? null,
+    reclassification_impact: e.reclassificationImpact ?? null,
+    continuity_survival_note: e.continuitySurvivalNote ?? null,
+    family_impact: e.familyImpact ?? null,
+    urbanization_impact: e.urbanizationImpact ?? null,
+    health_access_impact: e.healthAccessImpact ?? null,
+    ancestor_relevance_note: e.ancestorRelevanceNote ?? null,
+    modern_effect: e.modernEffect ?? null,
+    source_title: e.sourceTitle,
+    source_url: e.sourceUrl,
+    tags: e.tags,
+    status: e.status,
+    affected_regions: e.affectedRegions,
+  };
+}
+
+async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
+  const res = await fetch(`/api/atlas/events`);
+  if (!res.ok) throw new Error("Failed to load atlas events");
+  const data = await res.json() as DbAtlasEvent[];
+  return data.map(dbToAtlasEvent);
+}
+
 export default function Atlas() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [yearRange, setYearRange] = useState<[number, number]>([1790, 2024]);
   
-  // Filters
   const [activeEras, setActiveEras] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
   const [activeSeverities, setActiveSeverities] = useState<string[]>([]);
   const [activePolicies, setActivePolicies] = useState<string[]>([]);
 
-  const events = eventsData as unknown as AtlasEvent[];
-  
+  const { data: events = [], isLoading, isError } = useQuery({
+    queryKey: ["/api/atlas/events"],
+    queryFn: fetchAtlasEvents,
+    staleTime: 5 * 60_000,
+  });
+
   const filteredEvents = useMemo(() => {
     return events.filter((e) => {
       if (e.year < yearRange[0] || e.year > yearRange[1]) return false;
@@ -64,6 +133,27 @@ export default function Atlas() {
   }, [events, yearRange, activeEras, activeTypes, activeSeverities, activePolicies]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-[100dvh] bg-background">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="w-8 h-8 animate-spin text-primary" />
+          <p className="text-sm font-serif text-muted-foreground">Loading Atlas…</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="flex items-center justify-center h-[100dvh] bg-background">
+        <div className="flex flex-col items-center gap-3 max-w-sm text-center">
+          <p className="text-sm font-serif text-destructive">Failed to load Atlas events. Please refresh or check the API server.</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex flex-col h-[100dvh] w-full overflow-hidden bg-background text-foreground selection:bg-primary/20">

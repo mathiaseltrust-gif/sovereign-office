@@ -76,6 +76,7 @@ import templatesRouter from "./templates/index";
 import deedRouter from "./deed";
 import messagesRouter from "./messages/index";
 import unsubscribeRouter from "./unsubscribe";
+import atlasRouter from "./atlas/index";
 
 const router: IRouter = Router();
 
@@ -157,5 +158,6 @@ router.use("/land", landRouter);
 router.use("/ancestry/exposure", ancestryExposureRouter);
 router.use("/ancestry/gedcom", ancestryGedcomRouter);
 router.use("/messages", messagesRouter);
+router.use("/atlas", atlasRouter);
 
 export default router;

@@ -24,6 +24,11 @@ import type {
   AiGuidanceInput,
   AiGuidanceRecord,
   AiGuidanceResponse,
+  AtlasEventExtracted,
+  AtlasEventInput,
+  AtlasEventIntakeInput,
+  AtlasEventRecord,
+  AtlasEventUpdate,
   CalendarEvent,
   ClassifyInput,
   ClassifyResponse,
@@ -3669,3 +3674,337 @@ export function useListAiGuidanceHistory<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary List all atlas events
+ */
+export const getListAtlasEventsUrl = () => {
+  return `/api/atlas/events`;
+};
+
+export const listAtlasEvents = async (
+  options?: RequestInit,
+): Promise<AtlasEventRecord[]> => {
+  return customFetch<AtlasEventRecord[]>(getListAtlasEventsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListAtlasEventsQueryKey = () => {
+  return [`/api/atlas/events`] as const;
+};
+
+export const getListAtlasEventsQueryOptions = <
+  TData = Awaited<ReturnType<typeof listAtlasEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAtlasEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListAtlasEventsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listAtlasEvents>>> = ({
+    signal,
+  }) => listAtlasEvents({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listAtlasEvents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListAtlasEventsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listAtlasEvents>>
+>;
+export type ListAtlasEventsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List all atlas events
+ */
+
+export function useListAtlasEvents<
+  TData = Awaited<ReturnType<typeof listAtlasEvents>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof listAtlasEvents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListAtlasEventsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a new atlas event
+ */
+export const getCreateAtlasEventUrl = () => {
+  return `/api/atlas/events`;
+};
+
+export const createAtlasEvent = async (
+  atlasEventInput: AtlasEventInput,
+  options?: RequestInit,
+): Promise<AtlasEventRecord> => {
+  return customFetch<AtlasEventRecord>(getCreateAtlasEventUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(atlasEventInput),
+  });
+};
+
+export const getCreateAtlasEventMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAtlasEvent>>,
+    TError,
+    { data: BodyType<AtlasEventInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createAtlasEvent>>,
+  TError,
+  { data: BodyType<AtlasEventInput> },
+  TContext
+> => {
+  const mutationKey = ["createAtlasEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createAtlasEvent>>,
+    { data: BodyType<AtlasEventInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createAtlasEvent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateAtlasEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createAtlasEvent>>
+>;
+export type CreateAtlasEventMutationBody = BodyType<AtlasEventInput>;
+export type CreateAtlasEventMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a new atlas event
+ */
+export const useCreateAtlasEvent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createAtlasEvent>>,
+    TError,
+    { data: BodyType<AtlasEventInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createAtlasEvent>>,
+  TError,
+  { data: BodyType<AtlasEventInput> },
+  TContext
+> => {
+  return useMutation(getCreateAtlasEventMutationOptions(options));
+};
+
+/**
+ * @summary AI-extract atlas event fields from raw legal text
+ */
+export const getAtlasEventIntakeUrl = () => {
+  return `/api/atlas/events/intake`;
+};
+
+export const atlasEventIntake = async (
+  atlasEventIntakeInput: AtlasEventIntakeInput,
+  options?: RequestInit,
+): Promise<AtlasEventExtracted> => {
+  return customFetch<AtlasEventExtracted>(getAtlasEventIntakeUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(atlasEventIntakeInput),
+  });
+};
+
+export const getAtlasEventIntakeMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof atlasEventIntake>>,
+    TError,
+    { data: BodyType<AtlasEventIntakeInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof atlasEventIntake>>,
+  TError,
+  { data: BodyType<AtlasEventIntakeInput> },
+  TContext
+> => {
+  const mutationKey = ["atlasEventIntake"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof atlasEventIntake>>,
+    { data: BodyType<AtlasEventIntakeInput> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return atlasEventIntake(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AtlasEventIntakeMutationResult = NonNullable<
+  Awaited<ReturnType<typeof atlasEventIntake>>
+>;
+export type AtlasEventIntakeMutationBody = BodyType<AtlasEventIntakeInput>;
+export type AtlasEventIntakeMutationError = ErrorType<unknown>;
+
+/**
+ * @summary AI-extract atlas event fields from raw legal text
+ */
+export const useAtlasEventIntake = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof atlasEventIntake>>,
+    TError,
+    { data: BodyType<AtlasEventIntakeInput> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof atlasEventIntake>>,
+  TError,
+  { data: BodyType<AtlasEventIntakeInput> },
+  TContext
+> => {
+  return useMutation(getAtlasEventIntakeMutationOptions(options));
+};
+
+/**
+ * @summary Update an existing atlas event (no deletion allowed)
+ */
+export const getUpdateAtlasEventUrl = (id: number) => {
+  return `/api/atlas/events/${id}`;
+};
+
+export const updateAtlasEvent = async (
+  id: number,
+  atlasEventUpdate: AtlasEventUpdate,
+  options?: RequestInit,
+): Promise<AtlasEventRecord> => {
+  return customFetch<AtlasEventRecord>(getUpdateAtlasEventUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(atlasEventUpdate),
+  });
+};
+
+export const getUpdateAtlasEventMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAtlasEvent>>,
+    TError,
+    { id: number; data: BodyType<AtlasEventUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateAtlasEvent>>,
+  TError,
+  { id: number; data: BodyType<AtlasEventUpdate> },
+  TContext
+> => {
+  const mutationKey = ["updateAtlasEvent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateAtlasEvent>>,
+    { id: number; data: BodyType<AtlasEventUpdate> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateAtlasEvent(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateAtlasEventMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateAtlasEvent>>
+>;
+export type UpdateAtlasEventMutationBody = BodyType<AtlasEventUpdate>;
+export type UpdateAtlasEventMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Update an existing atlas event (no deletion allowed)
+ */
+export const useUpdateAtlasEvent = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateAtlasEvent>>,
+    TError,
+    { id: number; data: BodyType<AtlasEventUpdate> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateAtlasEvent>>,
+  TError,
+  { id: number; data: BodyType<AtlasEventUpdate> },
+  TContext
+> => {
+  return useMutation(getUpdateAtlasEventMutationOptions(options));
+};

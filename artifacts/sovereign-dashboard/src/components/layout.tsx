@@ -10,7 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
-  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge,
+  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map,
 } from "lucide-react";
 import { useState } from "react";
 
@@ -97,6 +97,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/tasks",               label: "Tasks",                icon: CheckSquare },
         { href: "/admin/lineage-import",label: "Lineage Registry",     icon: Database },
         { href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },
+        { href: "/atlas-admin",         label: "Atlas Events",         icon: Map },
         { href: "/m365",                label: "Microsoft 365",        icon: Monitor },
         { href: "/role-governors",      label: "Role Governor", highlight: true, icon: ShieldCheck },
       ],

@@ -691,6 +691,164 @@ export interface WelfareInstrumentRecord {
   updatedAt: string;
 }
 
+export interface AtlasEventRecord {
+  id: number;
+  eventId: string;
+  title: string;
+  /** @nullable */
+  shortTitle?: string | null;
+  year: number;
+  /** @nullable */
+  dateStart?: string | null;
+  /** @nullable */
+  dateEnd?: string | null;
+  era: string;
+  eventType: string;
+  policyArea: string;
+  description: string;
+  plainLanguageSummary: string;
+  severityLevel: string;
+  status: string;
+  /** @nullable */
+  identityImpact?: string | null;
+  /** @nullable */
+  reclassificationImpact?: string | null;
+  /** @nullable */
+  continuityImpact?: string | null;
+  /** @nullable */
+  continuitySurvivalNote?: string | null;
+  /** @nullable */
+  familyImpact?: string | null;
+  /** @nullable */
+  urbanizationImpact?: string | null;
+  /** @nullable */
+  healthAccessImpact?: string | null;
+  /** @nullable */
+  publicSchoolImpact?: string | null;
+  /** @nullable */
+  landImpact?: string | null;
+  /** @nullable */
+  jurisdictionImpact?: string | null;
+  /** @nullable */
+  housingImpact?: string | null;
+  /** @nullable */
+  laborMigrationImpact?: string | null;
+  /** @nullable */
+  modernEffect?: string | null;
+  /** @nullable */
+  ancestorRelevanceNote?: string | null;
+  /** @nullable */
+  affectedPeople?: string | null;
+  affectedRegions: string[];
+  statesAffected: string[];
+  /** @nullable */
+  coordinateLat?: number | null;
+  /** @nullable */
+  coordinateLng?: number | null;
+  sourceTitle: string;
+  sourceUrl: string;
+  /** @nullable */
+  sourceType?: string | null;
+  /** @nullable */
+  citation?: string | null;
+  /** @nullable */
+  publicLawNumber?: string | null;
+  tags: string[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AtlasEventInput {
+  eventId: string;
+  title: string;
+  shortTitle?: string;
+  year: number;
+  dateStart?: string;
+  dateEnd?: string;
+  era: string;
+  eventType: string;
+  policyArea: string;
+  description: string;
+  plainLanguageSummary: string;
+  severityLevel?: string;
+  status?: string;
+  identityImpact?: string;
+  reclassificationImpact?: string;
+  continuityImpact?: string;
+  continuitySurvivalNote?: string;
+  familyImpact?: string;
+  urbanizationImpact?: string;
+  healthAccessImpact?: string;
+  publicSchoolImpact?: string;
+  landImpact?: string;
+  jurisdictionImpact?: string;
+  housingImpact?: string;
+  laborMigrationImpact?: string;
+  modernEffect?: string;
+  ancestorRelevanceNote?: string;
+  affectedPeople?: string;
+  affectedRegions?: string[];
+  statesAffected?: string[];
+  coordinateLat?: number;
+  coordinateLng?: number;
+  sourceTitle?: string;
+  sourceUrl?: string;
+  sourceType?: string;
+  citation?: string;
+  publicLawNumber?: string;
+  tags?: string[];
+}
+
+export interface AtlasEventUpdate {
+  title?: string;
+  shortTitle?: string;
+  year?: number;
+  dateStart?: string;
+  dateEnd?: string;
+  era?: string;
+  eventType?: string;
+  policyArea?: string;
+  description?: string;
+  plainLanguageSummary?: string;
+  severityLevel?: string;
+  status?: string;
+  identityImpact?: string;
+  reclassificationImpact?: string;
+  continuityImpact?: string;
+  continuitySurvivalNote?: string;
+  familyImpact?: string;
+  urbanizationImpact?: string;
+  healthAccessImpact?: string;
+  publicSchoolImpact?: string;
+  landImpact?: string;
+  jurisdictionImpact?: string;
+  housingImpact?: string;
+  laborMigrationImpact?: string;
+  modernEffect?: string;
+  ancestorRelevanceNote?: string;
+  affectedPeople?: string;
+  affectedRegions?: string[];
+  statesAffected?: string[];
+  coordinateLat?: number;
+  coordinateLng?: number;
+  sourceTitle?: string;
+  sourceUrl?: string;
+  sourceType?: string;
+  citation?: string;
+  publicLawNumber?: string;
+  tags?: string[];
+}
+
+export interface AtlasEventIntakeInput {
+  rawText: string;
+}
+
+export interface AtlasEventExtracted {
+  extracted: AtlasEventInput;
+  confidence: string;
+  notes?: string;
+}
+
 export type ListInstrumentTemplates200 = {
   templates?: string[];
 };

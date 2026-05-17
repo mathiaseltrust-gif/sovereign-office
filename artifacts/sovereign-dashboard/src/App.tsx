@@ -78,6 +78,7 @@ const LandPage = lazy(() => import("@/pages/land"));
 const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
 const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
+const AtlasAdminPage = lazy(() => import("@/pages/atlas-admin"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -442,6 +443,9 @@ function AppRouter() {
       </Route>
       <Route path="/admin/email-preview">
         {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
+      </Route>
+      <Route path="/atlas-admin">
+        {() => <ProtectedRoute component={AtlasAdminPage} />}
       </Route>
 
       <Route component={NotFound} />
