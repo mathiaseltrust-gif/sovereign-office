@@ -114,6 +114,8 @@ const FALLBACK_CONFIG: CategoryConfig = {
   callToAction: "View in Dashboard",
 };
 
+export const EMAIL_PREVIEW_CATEGORIES = Object.keys(CATEGORY_CONFIGS) as MailerCategory[];
+
 export function generateHtmlEmail(
   category: MailerCategory,
   severity: string | undefined,

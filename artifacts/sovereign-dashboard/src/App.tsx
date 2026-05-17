@@ -77,6 +77,7 @@ const SduDefinitionsPage = lazy(() => import("@/pages/sdu-definitions"));
 const LandPage = lazy(() => import("@/pages/land"));
 const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
 const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
+const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -438,6 +439,9 @@ function AppRouter() {
       </Route>
       <Route path="/gedcom-import">
         {() => <ProtectedRoute component={GedcomImportPage} />}
+      </Route>
+      <Route path="/admin/email-preview">
+        {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
       </Route>
 
       <Route component={NotFound} />

@@ -117,6 +117,7 @@ const ADMIN_SECTIONS = [
   { href: "/templates", label: "Templates", description: "Manage trust, court, and NFR document templates" },
   { href: "/role-delegation", label: "Role Delegation", description: "Grant and revoke role-based permissions" },
   { href: "/audit-logs", label: "Audit Logs", description: "System-wide audit trail and event log" },
+  { href: "/admin/email-preview", label: "Email Preview", description: "Preview notification email templates before they are sent" },
   { href: "/admin", label: "System Configuration", description: "Entra ID integration, bootstrap, system settings" },
 ];
 
