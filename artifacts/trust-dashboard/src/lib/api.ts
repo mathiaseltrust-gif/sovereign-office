@@ -35,8 +35,30 @@ function tryParseSsoToken(token: string): { id: string; email: string; name: str
 }
 
 export function getAuthToken(): string | null {
-  const sovereign = JSON.parse(localStorage.getItem(SOVEREIGN_LS_KEY) ?? "null") as { sessionToken?: string } | null;
-  return sovereign?.sessionToken ?? localStorage.getItem("trust_auth_token");
+  const sovereign = JSON.parse(localStorage.getItem(SOVEREIGN_LS_KEY) ?? "null") as {
+    sessionToken?: string;
+    user?: { id?: string | number; email?: string; name?: string; roles?: string[] };
+  } | null;
+
+  // Prefer a real HMAC-signed session JWT (password / Microsoft login)
+  if (sovereign?.sessionToken) return sovereign.sessionToken;
+
+  // Dev mode: sovereign stores user but no sessionToken — synthesize a base64 dev token
+  // so the API's parseDevToken() can authenticate the request without a real JWT
+  if (sovereign?.user?.email) {
+    const u = sovereign.user;
+    const id = String(u.id ?? u.email ?? "");
+    if (id && u.email) {
+      return btoa(JSON.stringify({
+        id,
+        email: u.email,
+        name: u.name ?? u.email,
+        roles: Array.isArray(u.roles) ? u.roles : ["member"],
+      }));
+    }
+  }
+
+  return localStorage.getItem("trust_auth_token");
 }
 
 export function setAuthSession(user: { id: string; email: string; name: string; roles: string[] }) {

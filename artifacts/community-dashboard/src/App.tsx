@@ -31,8 +31,24 @@ function getSessionToken(): string | null {
   try {
     const raw = localStorage.getItem("sovereign_auth_v3");
     if (raw) {
-      const s = JSON.parse(raw) as { token?: string };
-      if (s.token) return s.token;
+      const s = JSON.parse(raw) as {
+        sessionToken?: string;
+        user?: { id?: string | number; email?: string; name?: string; roles?: string[] };
+      };
+      if (s.sessionToken) return s.sessionToken;
+      // Dev mode: no sessionToken — synthesize a dev token from stored user
+      if (s.user?.email) {
+        const u = s.user;
+        const id = String(u.id ?? u.email ?? "");
+        if (id && u.email) {
+          return btoa(JSON.stringify({
+            id,
+            email: u.email,
+            name: u.name ?? u.email,
+            roles: Array.isArray(u.roles) ? u.roles : ["member"],
+          }));
+        }
+      }
     }
   } catch { /* ignore */ }
   return null;

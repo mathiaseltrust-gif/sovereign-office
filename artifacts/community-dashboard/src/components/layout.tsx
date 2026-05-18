@@ -16,6 +16,7 @@ import {
   UserCircle,
   Globe2,
   ExternalLink,
+  TreePine,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,14 @@ const navigation: { name: string; href: string; icon: React.ElementType; externa
   { name: "SDU University", href: "/university", icon: GraduationCap },
   { name: "My Profile", href: "/profile", icon: UserCircle },
   { name: "Admin", href: "/admin", icon: Shield },
+  {
+    name: "Tribal Heritage",
+    href: "#heritage",
+    icon: TreePine,
+    external: true,
+    externalHref: "/sovereign-dashboard/ancestral-affiliations",
+    badge: "Heritage",
+  },
   {
     name: "Ancestral Atlas",
     href: "#atlas",

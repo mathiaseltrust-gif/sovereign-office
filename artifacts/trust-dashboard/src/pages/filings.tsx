@@ -6,7 +6,7 @@ import { Layout } from "@/components/layout";
 import { Link } from "wouter";
 import { CheckCircle2, XCircle, FileText, Search, BadgeCheck } from "lucide-react";
 import { format } from "date-fns";
-import { useState } from "react";
+import { useState, Fragment } from "react";
 
 export default function Filings() {
   const { hasRole, user } = useAuth();
@@ -168,8 +168,8 @@ export default function Filings() {
                 </thead>
                 <tbody className="divide-y divide-card-border">
                   {filtered.map((filing) => (
-                    <>
-                      <tr key={filing.id} className="hover:bg-muted/20 transition-colors">
+                    <Fragment key={filing.id}>
+                      <tr className="hover:bg-muted/20 transition-colors">
                         <td className="px-4 py-3 text-muted-foreground text-xs">
                           {filing.filingNumber ?? <span className="italic text-muted-foreground/60">Pending</span>}
                         </td>
@@ -274,7 +274,7 @@ export default function Filings() {
                           </td>
                         </tr>
                       )}
-                    </>
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
