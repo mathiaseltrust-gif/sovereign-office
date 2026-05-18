@@ -97,7 +97,7 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     title: "Sovereign Business Formation",
     intakeLabel: "Sovereign Business Formation",
     subtitle: "Companion explores your business idea before we begin the formal formation process.",
-    opening: "Welcome, Family.\n\nI'm Companion. Before we begin formal business formation under inherent tribal authority, I'd like to understand your idea. I'll ask you a few focused questions — one at a time.\n\nIf you have a business plan, articles of incorporation, or any existing documents, upload them and I'll pull out what's relevant.",
+    opening: "Hi, Family.\n\nI'm Companion. Before we begin our formal business formation — in a way that protects your inherent rights, under the tribe's inherent authority — I'd like to understand your idea a little better. I'll ask you a few focused questions, one at a time.\n\nIf you have a business plan, articles of incorporation, or any existing documents, upload them and I'll pull out what's relevant.",
     questions: [
       "What kind of business are you thinking about building, and what does it do?",
       "What name are you considering for the business?",

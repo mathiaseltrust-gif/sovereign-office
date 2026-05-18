@@ -53,6 +53,7 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         fl.location_lat,
         fl.location_lng,
         fl.location_address,
+        fl.photo_url,
         tl.location        AS location_text,
         (tl.location IS NOT NULL) AS has_timeline_location
       FROM family_lineage fl

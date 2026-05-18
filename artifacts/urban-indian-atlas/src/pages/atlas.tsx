@@ -68,6 +68,7 @@ export interface AncestorRecord {
   // from pins derived by tribal-nation keyword inference.
   locationText: string | null;
   hasTimelineLocation: boolean;
+  photoUrl: string | null;
 }
 
 export interface AncestorContextMatch {
@@ -285,6 +286,7 @@ interface DbAncestorRow {
   // From LATERAL JOIN to ancestral_timeline_events — real location records.
   location_text: string | null;
   has_timeline_location: boolean;
+  photo_url: string | null;
 }
 
 function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
@@ -309,6 +311,7 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     locationAddress: r.location_address ?? null,
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
+    photoUrl: r.photo_url ?? null,
   };
 }
 

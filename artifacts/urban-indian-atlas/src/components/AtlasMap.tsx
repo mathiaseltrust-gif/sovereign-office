@@ -689,11 +689,15 @@ export function AtlasMap({
             const borderStyle = source === "tribal_nation"
               ? `border:2px dashed rgba(255,255,255,0.55);`
               : `border:2.5px solid rgba(255,255,255,0.9);`;
+            const hasPhoto = !!ancestor.photoUrl;
+            const bgStyle = hasPhoto
+              ? `background-image:url(${ancestor.photoUrl});background-size:cover;background-position:center;background-color:${color};`
+              : `background:${color};`;
             const icon = L.divIcon({
               className: "",
               html: `<div style="
                 width:${size}px;height:${size}px;border-radius:50%;
-                background:${color};
+                ${bgStyle}
                 ${borderStyle}
                 ${outerRing}
                 display:flex;align-items:center;justify-content:center;
@@ -702,7 +706,7 @@ export function AtlasMap({
                 letter-spacing:0.5px;
                 cursor:pointer;
                 opacity:${source === "tribal_nation" ? 0.82 : 1};
-              ">${initials}</div>`,
+              ">${hasPhoto ? "" : initials}</div>`,
               iconSize: [size, size],
               iconAnchor: [size / 2, size / 2],
             });
