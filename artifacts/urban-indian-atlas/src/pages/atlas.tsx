@@ -284,20 +284,24 @@ interface DbAncestorRow {
 }
 
 function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
+  // node-postgres returns numeric columns as strings from raw SQL queries.
+  // Parse them defensively so coordinate resolution works correctly.
+  const parsedLat = r.location_lat != null ? parseFloat(String(r.location_lat)) : null;
+  const parsedLng = r.location_lng != null ? parseFloat(String(r.location_lng)) : null;
   return {
     id: r.id,
     fullName: r.full_name,
     firstName: r.first_name,
     lastName: r.last_name,
-    birthYear: r.birth_year,
-    deathYear: r.death_year,
+    birthYear: r.birth_year != null ? parseInt(String(r.birth_year), 10) : null,
+    deathYear: r.death_year != null ? parseInt(String(r.death_year), 10) : null,
     tribalNation: r.tribal_nation,
-    generationalPosition: r.generational_position,
+    generationalPosition: r.generational_position != null ? parseInt(String(r.generational_position), 10) : null,
     isDeceased: r.is_deceased,
     isAncestor: r.is_ancestor,
     lineageTags: r.lineage_tags,
-    locationLat: r.location_lat ?? null,
-    locationLng: r.location_lng ?? null,
+    locationLat: parsedLat != null && !isNaN(parsedLat) ? parsedLat : null,
+    locationLng: parsedLng != null && !isNaN(parsedLng) ? parsedLng : null,
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
   };
@@ -307,7 +311,7 @@ async function fetchAncestors(): Promise<AncestorRecord[]> {
   const tok = getAtlasBearerToken();
   if (!tok) return [];
   const res = await fetch(`/api/atlas/ancestors`, { headers: { Authorization: `Bearer ${tok}` } });
-  if (res.status === 401) return []; // not authenticated — return empty silently
+  if (res.status === 401) throw new Error("UNAUTHORIZED"); // token present but expired/invalid
   if (!res.ok) throw new Error("Failed to load ancestors");
   const rows = await res.json() as DbAncestorRow[];
   return rows.map(dbToAncestorRecord);
@@ -467,12 +471,18 @@ export default function Atlas() {
     staleTime: 5 * 60_000,
   });
 
-  const { data: ancestors = [], isLoading: ancestorsLoading } = useQuery({
+  const { data: ancestors = [], isLoading: ancestorsLoading, isError: ancestorsFetchError, error: ancestorsError } = useQuery({
     queryKey: ["/api/atlas/ancestors", atlasMode, authenticated],
     queryFn: fetchAncestors,
     enabled: atlasMode && authenticated,
     staleTime: 5 * 60_000,
+    retry: (failureCount, error) => {
+      // Don't retry unauthorized — token is invalid/expired until user re-auths
+      if ((error as Error)?.message === "UNAUTHORIZED") return false;
+      return failureCount < 2;
+    },
   });
+  const ancestorsSessionExpired = ancestorsFetchError && (ancestorsError as Error)?.message === "UNAUTHORIZED";
 
   const { data: contextMatches = [] } = useQuery({
     queryKey: ["/api/atlas/ancestors/context", atlasMode, authenticated],
@@ -581,7 +591,17 @@ export default function Atlas() {
               Sign into the Sovereign Dashboard to see ancestor pins
             </div>
           )}
-          {atlasMode && authenticated && !ancestorsLoading && ancestors.length === 0 && (
+          {atlasMode && authenticated && !ancestorsLoading && ancestorsSessionExpired && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-600/70 bg-blue-50/10 border border-blue-500/20 rounded px-2 py-1">
+              Session expired — sign in again to see ancestor pins
+            </div>
+          )}
+          {atlasMode && authenticated && !ancestorsLoading && ancestorsFetchError && !ancestorsSessionExpired && (
+            <div className="flex items-center gap-1.5 text-xs text-red-600/80 bg-red-50/10 border border-red-500/20 rounded px-2 py-1">
+              Could not load ancestor data — please refresh
+            </div>
+          )}
+          {atlasMode && authenticated && !ancestorsLoading && !ancestorsFetchError && ancestors.length === 0 && (
             <div className="flex items-center gap-1.5 text-xs text-amber-600/80 bg-amber-50/10 border border-amber-500/20 rounded px-2 py-1">
               No ancestor data found — add family records to see ancestor pins
             </div>
