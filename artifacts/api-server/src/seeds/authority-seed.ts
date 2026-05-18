@@ -2,10 +2,10 @@
  * Authority Directory — Seed Data
  *
  * Populates:
- *   - authority_matter_routing: routing rules for every supported matter type
- *   - authority_legal_map: federal/tribal legal authority for key issue types
- *   - authority_agencies: core California agencies (supplemented by live data ingestion)
- *   - authority_jurisdiction: core California jurisdictions
+ *   - matter_type_routing: routing rules for every supported matter type
+ *   - legal_authority_map: federal/tribal legal authority for key issue types
+ *   - agency_directory: core California agencies (supplemented by live data ingestion)
+ *   - jurisdiction_directory: core California jurisdictions
  *
  * Safe to run multiple times — uses ON CONFLICT DO NOTHING / upsert patterns.
  */
@@ -154,6 +154,84 @@ const MATTER_ROUTING_RULES = [
     tribalLawApplicable: "25 U.S.C. § 5108; Indian Reorganization Act, 25 U.S.C. §§ 5101–5144",
   },
   {
+    matterType: "utility_shutoff",
+    matterLabel: "Utility Shutoff — Water, Gas, Electric, or Telecom",
+    primaryEntityType: "state_utility_regulator",
+    oversightEntityType: "state_public_utilities_commission",
+    requiredNoticeTemplate: "utility_dispute_notice",
+    escalationTemplate: "jurisdictional_enforcement_notice",
+    legalFlagGroup: ["utility_rights", "life_safety", "tribal_land"],
+    primaryRecipientNote: "File complaint with State PUC; assert tribal immunity if on tribal land",
+    oversightRecipientNote: "Notify CA PUC, CPUC General Order 96-B, and tribal energy office",
+    escalationPath: "state_puc → administrative_law_judge → federal_FCC_or_FERC",
+    tribalLawApplicable: "Tribal utility codes; FCC tribal broadband; FERC jurisdiction over interstate gas",
+  },
+  {
+    matterType: "recorder_refusal",
+    matterLabel: "County Recorder Refusal to Record Tribal Document",
+    primaryEntityType: "county_recorder",
+    oversightEntityType: "state_attorney_general",
+    requiredNoticeTemplate: "recorder_refusal_response",
+    escalationTemplate: "jurisdictional_enforcement_notice",
+    legalFlagGroup: ["trust_land", "federal_approval_required", "recording_rights"],
+    primaryRecipientNote: "Issue formal demand to county recorder citing state recording statutes and federal law",
+    oversightRecipientNote: "Notify State AG tribal affairs unit and BIA Realty",
+    escalationPath: "county_recorder → state_AG → federal_court",
+    tribalLawApplicable: "25 U.S.C. § 177; Gov. Code § 27201 et seq. (CA); 25 C.F.R. Part 150",
+  },
+  {
+    matterType: "health_plan_denial",
+    matterLabel: "Medi-Cal / Medicare / Indian Health Service Denial",
+    primaryEntityType: "health_plan_or_managed_care",
+    oversightEntityType: "cms_or_dhcs",
+    requiredNoticeTemplate: "health_appeal_notice",
+    escalationTemplate: "ihs_referral_demand",
+    legalFlagGroup: ["health_rights", "indian_health_service", "medi_cal"],
+    primaryRecipientNote: "File administrative appeal with health plan; assert IHS priority right if eligible",
+    oversightRecipientNote: "Notify CMS, DHCS, and IHS Area Office as applicable",
+    escalationPath: "health_plan_appeal → state_DMHC → CMS → federal_court",
+    tribalLawApplicable: "25 U.S.C. §§ 1601–1683 (Indian Health Care Improvement Act); 42 C.F.R. Part 136",
+  },
+  {
+    matterType: "agency_denial",
+    matterLabel: "Government Agency Benefits or Services Denial",
+    primaryEntityType: "denying_agency",
+    oversightEntityType: "federal_or_state_oversight_body",
+    requiredNoticeTemplate: "agency_appeal_notice",
+    escalationTemplate: "jurisdictional_enforcement_notice",
+    legalFlagGroup: ["due_process", "federal_trust", "equal_access"],
+    primaryRecipientNote: "File formal administrative appeal within denial notice deadline",
+    oversightRecipientNote: "Notify oversight body and BIA if federal benefit is involved",
+    escalationPath: "internal_appeal → administrative_law_judge → federal_circuit_court",
+    tribalLawApplicable: "5 U.S.C. § 706 (APA); 25 U.S.C. § 5301 (tribal self-determination)",
+  },
+  {
+    matterType: "code_enforcement",
+    matterLabel: "Code Enforcement Action on Indian or Tribal Land",
+    primaryEntityType: "tribal_government",
+    oversightEntityType: "federal_bia",
+    requiredNoticeTemplate: "jurisdictional_statement",
+    escalationTemplate: "state_prohibition_notice",
+    legalFlagGroup: ["tribal_sovereignty", "Indian_country", "state_law_inapplicable"],
+    primaryRecipientNote: "Assert tribal jurisdiction — county/city code enforcement does not apply in Indian country",
+    oversightRecipientNote: "Notify BIA and tribal council; request federal intervention if needed",
+    escalationPath: "tribal_council → BIA → federal_court",
+    tribalLawApplicable: "Worcester v. Georgia; 25 U.S.C. § 1301; 18 U.S.C. § 1151 (Indian country definition)",
+  },
+  {
+    matterType: "property_classification",
+    matterLabel: "Property Classification Dispute / Private Contractor Under State Authority",
+    primaryEntityType: "county_assessor",
+    oversightEntityType: "state_board_of_equalization",
+    requiredNoticeTemplate: "board_of_review_petition",
+    escalationTemplate: "nfr",
+    legalFlagGroup: ["trust_land", "property_rights", "state_authority_limits"],
+    primaryRecipientNote: "Challenge classification with county assessor citing federal trust status and governing case law",
+    oversightRecipientNote: "Notify State Board of Equalization and BIA if trust land is involved",
+    escalationPath: "county_assessor → county_board_of_review → state_tax_tribunal → federal_court",
+    tribalLawApplicable: "25 U.S.C. § 5108; Bryan v. Itasca County, 426 U.S. 373 (1976)",
+  },
+  {
     matterType: "general",
     matterLabel: "General Sovereign Matter",
     primaryEntityType: "tribal_government",
@@ -267,6 +345,104 @@ const LEGAL_AUTHORITY_MAP = [
     appliesWhen: "Land is being placed into or is confirmed to be held in trust by the United States",
     warningOrLimit: "BIA approval required for all trust land transactions. Maintain chain of title documentation. Record trust instruments with BIA Realty.",
     templateLanguageSnippet: "The United States holds the above-referenced land in trust for the benefit of the [Tribe/Individual] pursuant to 25 U.S.C. § 5108 and the Federal Trust Responsibility established in United States v. Mitchell, 463 U.S. 206 (1983).",
+    reviewRequired: true,
+  },
+  {
+    issueType: "utility_shutoff",
+    authorityName: "Utility Rights on Tribal and Indian Land",
+    federalAuthority: "FCC Tribal Broadband Order; FERC jurisdiction; 25 U.S.C. § 5601",
+    stateAuthority: "CA Public Utilities Code § 779.1 (CPUC); CPUC General Order 96-B",
+    tribalAuthority: "Tribal Utility Authority Code",
+    uscReference: "25 U.S.C. § 5601",
+    cfrReference: "47 C.F.R. § 54.400 (FCC); 18 C.F.R. § 38 (FERC)",
+    caseLawReference: "Pacific Gas & Electric Co. v. State Energy Resources Conservation and Development Comm'n, 461 U.S. 190 (1983)",
+    appliesWhen: "Utility shutoff threatened or executed on tribal land or for tribal members asserting immunity",
+    warningOrLimit: "Life-safety shutoffs require 48-hour notice minimum. Tribal land may have separate rate authority. File CPUC complaint within 90 days.",
+    templateLanguageSnippet: "Pursuant to California Public Utilities Code § 779.1 and CPUC General Order 96-B, we dispute the above-referenced disconnection and demand immediate restoration of service pending resolution of this complaint.",
+    reviewRequired: true,
+  },
+  {
+    issueType: "recorder_refusal",
+    authorityName: "Recording Rights — Tribal Documents and Trust Land Instruments",
+    federalAuthority: "25 U.S.C. § 177; 25 C.F.R. Part 150",
+    stateAuthority: "Cal. Gov. Code § 27201 (mandatory recording); Cal. Gov. Code § 27361 (fees)",
+    tribalAuthority: "Tribal Recording Ordinance",
+    uscReference: "25 U.S.C. §§ 177, 5108",
+    cfrReference: "25 C.F.R. Part 150",
+    caseLawReference: "United States v. Candelaria, 271 U.S. 432 (1926)",
+    appliesWhen: "County recorder refuses to record a tribal deed, trust patent, or Indian land instrument",
+    warningOrLimit: "County recorder has a ministerial duty to record properly tendered documents. Refusal may violate Gov. Code § 27201. BIA recording available as alternative.",
+    templateLanguageSnippet: "Pursuant to California Government Code § 27201, the County Recorder has a ministerial duty to record the tendered instrument. Refusal to record is contrary to law. We demand immediate recording or a written statement of deficiency within 5 business days.",
+    reviewRequired: true,
+  },
+  {
+    issueType: "health_plan_denial",
+    authorityName: "Indian Health Care Improvement Act — IHS Priority Rights",
+    federalAuthority: "25 U.S.C. §§ 1601–1683 (IHCIA); 42 U.S.C. § 1396 (Medicaid)",
+    stateAuthority: "Cal. Welf. & Inst. Code § 14005 (Medi-Cal); DMHC oversight",
+    tribalAuthority: "Tribal Health Program Operating Agreement",
+    uscReference: "25 U.S.C. § 1623",
+    cfrReference: "42 C.F.R. Part 136 (IHS); 42 C.F.R. Part 438 (managed care)",
+    caseLawReference: "Ramah Navajo Chapter v. Lujan, 112 F.3d 1455 (10th Cir. 1997)",
+    appliesWhen: "Medi-Cal, Medicare, IHS, or managed care plan denies benefits to an Indian or AI/AN individual",
+    warningOrLimit: "AI/AN individuals have priority rights to IHS services regardless of other coverage. Medi-Cal cannot make IHS the payer of last resort in violation of 25 U.S.C. § 1623.",
+    templateLanguageSnippet: "The above-referenced beneficiary is an American Indian/Alaska Native individual entitled to health services under the Indian Health Care Improvement Act, 25 U.S.C. §§ 1601–1683. Pursuant to 25 U.S.C. § 1623, Medicaid/Medi-Cal may not reduce Indian health benefits.",
+    reviewRequired: true,
+  },
+  {
+    issueType: "agency_denial",
+    authorityName: "Administrative Procedures Act — Agency Action Review",
+    federalAuthority: "5 U.S.C. § 706 (APA); 25 U.S.C. § 5301 (Indian Self-Determination Act)",
+    stateAuthority: "Cal. Gov. Code § 11500 et seq. (APA); Cal. Welf. & Inst. Code § 10950 (fair hearing)",
+    tribalAuthority: "Tribal administrative codes",
+    uscReference: "5 U.S.C. § 706",
+    cfrReference: null,
+    caseLawReference: "Chevron U.S.A. Inc. v. NRDC, 467 U.S. 837 (1984); Loper Bright Enterprises v. Raimondo, 603 U.S. 369 (2024)",
+    appliesWhen: "Federal or state agency denies benefits, permit, or program participation",
+    warningOrLimit: "Administrative exhaustion required before judicial review. Strict deadlines apply — typically 30–90 days from denial. File administrative appeal immediately.",
+    templateLanguageSnippet: "Pursuant to 5 U.S.C. § 706, we appeal the above-referenced agency action as arbitrary, capricious, and contrary to law. We request a fair hearing and the opportunity to present evidence within [deadline] days.",
+    reviewRequired: true,
+  },
+  {
+    issueType: "code_enforcement",
+    authorityName: "State Code Enforcement Inapplicable in Indian Country",
+    federalAuthority: "18 U.S.C. § 1151 (Indian country); 25 U.S.C. § 1301",
+    stateAuthority: null,
+    tribalAuthority: "Tribal Building and Safety Code",
+    uscReference: "18 U.S.C. § 1151",
+    cfrReference: null,
+    caseLawReference: "Worcester v. Georgia, 31 U.S. 515 (1832); Cabazon Band v. California, 480 U.S. 202 (1987)",
+    appliesWhen: "State or county code enforcement action initiated against structure on tribal or Indian land",
+    warningOrLimit: "State and county building and safety codes generally do not apply in Indian country. Challenge jurisdiction immediately. Tribal building code controls.",
+    templateLanguageSnippet: "The above-referenced property is located within Indian country as defined by 18 U.S.C. § 1151. State and county code enforcement jurisdiction does not extend to Indian country pursuant to Worcester v. Georgia, 31 U.S. 515 (1832).",
+    reviewRequired: true,
+  },
+  {
+    issueType: "property_classification",
+    authorityName: "Property Classification — Bryan v. Itasca County and Trust Land Exemptions",
+    federalAuthority: "25 U.S.C. § 5108; Bryan v. Itasca County, 426 U.S. 373 (1976)",
+    stateAuthority: "Cal. Rev. & Tax. Code § 217.1 (tribal property exemption); Cal. Const. Art. XIII § 3(f)",
+    tribalAuthority: "Tribal Tax and Property Code",
+    uscReference: "25 U.S.C. § 5108",
+    cfrReference: "25 C.F.R. Part 162 (leasehold interests)",
+    caseLawReference: "Bryan v. Itasca County, 426 U.S. 373 (1976); Cass County v. Leech Lake Band, 524 U.S. 103 (1998)",
+    appliesWhen: "County assessor classifies tribal or trust property as taxable, or private contractor assertion under state authority over tribal land",
+    warningOrLimit: "Trust land exempt from state and county property taxation. Bryan v. Itasca County bars state taxation on reservations absent express congressional authorization.",
+    templateLanguageSnippet: "Pursuant to Bryan v. Itasca County, 426 U.S. 373 (1976), and 25 U.S.C. § 5108, the above-referenced property held in trust is exempt from state and county taxation. The current classification is improper and must be corrected.",
+    reviewRequired: true,
+  },
+  {
+    issueType: "tax_assessment",
+    authorityName: "IRS — Federal Tax Obligations and Tribal Exemptions",
+    federalAuthority: "26 U.S.C. § 7871 (tribal governments treated as states); 26 U.S.C. § 139E (general welfare exclusion)",
+    stateAuthority: "Cal. Rev. & Tax. Code § 17131.8 (CA general welfare exclusion)",
+    tribalAuthority: "Tribal Tax Ordinance",
+    uscReference: "26 U.S.C. §§ 7871, 139E",
+    cfrReference: "26 C.F.R. § 1.61-1 (gross income); Rev. Rul. 2009-22 (general welfare)",
+    caseLawReference: "Squire v. Capoeman, 351 U.S. 1 (1956); Chickasaw Nation v. United States, 534 U.S. 84 (2001)",
+    appliesWhen: "IRS or state FTB asserts income or property tax obligation against tribal member income derived from Indian country",
+    warningOrLimit: "Income derived by tribal members from activities on their own reservation is generally exempt from federal income tax. Trust allotment income exempt under Squire v. Capoeman.",
+    templateLanguageSnippet: "Pursuant to Squire v. Capoeman, 351 U.S. 1 (1956), income derived by an enrolled member of a federally recognized Indian tribe from trust allotment land is exempt from federal income taxation.",
     reviewRequired: true,
   },
   {
@@ -451,7 +627,7 @@ async function seed() {
   for (const rule of MATTER_ROUTING_RULES) {
     try {
       await db.execute(sql`
-        INSERT INTO authority_matter_routing (
+        INSERT INTO matter_type_routing (
           matter_type, matter_label, primary_entity_type, oversight_entity_type,
           required_notice_template, escalation_template, legal_flag_group,
           primary_recipient_note, oversight_recipient_note, escalation_path, tribal_law_applicable
@@ -492,7 +668,7 @@ async function seed() {
   for (const map of LEGAL_AUTHORITY_MAP) {
     try {
       await db.execute(sql`
-        INSERT INTO authority_legal_map (
+        INSERT INTO legal_authority_map (
           issue_type, authority_name, federal_authority, state_authority, tribal_authority,
           usc_reference, cfr_reference, case_law_reference, applies_when, warning_or_limit,
           template_language_snippet, review_required
@@ -516,7 +692,7 @@ async function seed() {
   for (const agency of CALIFORNIA_AGENCIES) {
     try {
       await db.execute(sql`
-        INSERT INTO authority_agencies (
+        INSERT INTO agency_directory (
           agency_name, agency_type, government_level, state_code, county, city,
           physical_address, website, parent_agency, oversight_agency, confidence_score
         ) VALUES (
@@ -544,7 +720,7 @@ async function seed() {
       const flagsLiteral = `{${jur.jurisdictionFlags.map(f => `"${f}"`).join(",")}}`;
       await db.execute(
         sql.raw(`
-          INSERT INTO authority_jurisdiction (
+          INSERT INTO jurisdiction_directory (
             state_code, state_name, county, fips_code, tribal_land_flag, jurisdiction_flags
           ) VALUES (
             '${jur.stateCode.replace(/'/g, "''")}',

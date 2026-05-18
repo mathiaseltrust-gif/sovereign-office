@@ -2,7 +2,7 @@ import { pgTable, serial, text, boolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorityLegalMapTable = pgTable("authority_legal_map", {
+export const authorityLegalMapTable = pgTable("legal_authority_map", {
   id: serial("id").primaryKey(),
   issueType: text("issue_type").notNull(),
   authorityName: text("authority_name").notNull(),

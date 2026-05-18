@@ -4,7 +4,7 @@
  * POST /api/authority/agencies        — manually add or upsert an agency (trustee/admin only)
  */
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { requireAuth, requireAnyRole } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { authorityAgenciesTable } from "@workspace/db";
 import { eq, ilike, and, or, asc, SQL, sql } from "drizzle-orm";
@@ -92,7 +92,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => {
+router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, res, next) => {
   try {
     const {
       agencyName,

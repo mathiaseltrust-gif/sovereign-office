@@ -9,7 +9,7 @@
  * Returns a summary of records upserted and updates lastSyncedAt.
  */
 import { Router } from "express";
-import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { requireAuth, requireAdmin } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { authorityJurisdictionTable, authorityAgenciesTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
@@ -97,7 +97,7 @@ async function ingestCensusCounties(): Promise<{ upserted: number; failed: numbe
         const [stateAbbr, stateInfo] = stateEntry;
 
         await db.execute(sql.raw(`
-          INSERT INTO authority_jurisdiction (state_code, state_name, county, fips_code, tribal_land_flag, last_synced_at)
+          INSERT INTO jurisdiction_directory (state_code, state_name, county, fips_code, tribal_land_flag, last_synced_at)
           VALUES ('${stateAbbr}', '${stateInfo.name.replace(/'/g, "''")}', '${countyName.replace(/'/g, "''")}', '${fipsCode}', false, NOW())
           ON CONFLICT DO NOTHING
         `));
@@ -132,7 +132,7 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
           const type = rec["Agency Type"] ?? rec["type"] ?? "state_agency";
           if (!name) continue;
           await db.execute(sql.raw(`
-            INSERT INTO authority_agencies (agency_name, agency_type, government_level, state_code, confidence_score, last_synced_at)
+            INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, confidence_score, last_synced_at)
             VALUES ('${name.replace(/'/g, "''")}', '${String(type).replace(/'/g, "''")}', 'state', 'CA', 0.7, '${now}')
             ON CONFLICT DO NOTHING
           `));
@@ -155,7 +155,7 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
       try {
         const name = `${county} ${role.suffix}`;
         await db.execute(sql.raw(`
-          INSERT INTO authority_agencies (agency_name, agency_type, government_level, state_code, county, confidence_score, last_synced_at)
+          INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, county, confidence_score, last_synced_at)
           VALUES ('${name.replace(/'/g, "''")}', '${role.type}', 'county', 'CA', '${county.replace(/'/g, "''")}', 0.75, '${now}')
           ON CONFLICT DO NOTHING
         `));
@@ -181,7 +181,7 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
   for (const ag of caStateAgencies) {
     try {
       await db.execute(sql.raw(`
-        INSERT INTO authority_agencies (agency_name, agency_type, government_level, state_code, website, confidence_score, last_synced_at)
+        INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, website, confidence_score, last_synced_at)
         VALUES ('${ag.name.replace(/'/g, "''")}', '${ag.type}', 'state', 'CA', '${ag.web}', 0.95, '${now}')
         ON CONFLICT DO NOTHING
       `));
@@ -202,7 +202,7 @@ async function ingestFederalAgencies(): Promise<{ upserted: number; failed: numb
   for (const agency of FEDERAL_AGENCIES) {
     try {
       await db.execute(sql.raw(`
-        INSERT INTO authority_agencies (agency_name, agency_type, government_level, physical_address, website, confidence_score, last_synced_at)
+        INSERT INTO agency_directory (agency_name, agency_type, government_level, physical_address, website, confidence_score, last_synced_at)
         VALUES ('${agency.name.replace(/'/g, "''")}', '${agency.type}', 'federal', '${agency.address.replace(/'/g, "''")}', '${agency.website}', 0.98, '${now}')
         ON CONFLICT DO NOTHING
       `));
@@ -215,7 +215,7 @@ async function ingestFederalAgencies(): Promise<{ upserted: number; failed: numb
 
 // ── Sync endpoint ─────────────────────────────────────────────────────────────
 
-router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
+router.get("/", requireAuth, requireAdmin, async (_req, res, next) => {
   try {
     logger.info("authority.sync: starting ingestion jobs");
     const syncStart = Date.now();

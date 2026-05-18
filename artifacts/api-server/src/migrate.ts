@@ -156,8 +156,35 @@ const migrations = [
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
   )`,
 
+  // Authority Directory — safe renames for existing authority_* tables to spec names
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_jurisdiction' AND table_schema = 'public')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'jurisdiction_directory' AND table_schema = 'public')
+    THEN ALTER TABLE authority_jurisdiction RENAME TO jurisdiction_directory; END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_agencies' AND table_schema = 'public')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'agency_directory' AND table_schema = 'public')
+    THEN ALTER TABLE authority_agencies RENAME TO agency_directory; END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_matter_routing' AND table_schema = 'public')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'matter_type_routing' AND table_schema = 'public')
+    THEN ALTER TABLE authority_matter_routing RENAME TO matter_type_routing; END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_legal_map' AND table_schema = 'public')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'legal_authority_map' AND table_schema = 'public')
+    THEN ALTER TABLE authority_legal_map RENAME TO legal_authority_map; END IF;
+  END $$`,
+  `DO $$ BEGIN
+    IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_intake_extractions' AND table_schema = 'public')
+      AND NOT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'document_intake_extractions' AND table_schema = 'public')
+    THEN ALTER TABLE authority_intake_extractions RENAME TO document_intake_extractions; END IF;
+  END $$`,
+
   // Authority Directory — jurisdiction reference table
-  `CREATE TABLE IF NOT EXISTS authority_jurisdiction (
+  `CREATE TABLE IF NOT EXISTS jurisdiction_directory (
     id SERIAL PRIMARY KEY,
     country VARCHAR(10) NOT NULL DEFAULT 'US',
     state_code VARCHAR(5) NOT NULL,
@@ -173,12 +200,12 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
-  `CREATE INDEX IF NOT EXISTS auth_jur_state_idx ON authority_jurisdiction(state_code)`,
-  `CREATE INDEX IF NOT EXISTS auth_jur_fips_idx ON authority_jurisdiction(fips_code)`,
-  `CREATE INDEX IF NOT EXISTS auth_jur_state_county_idx ON authority_jurisdiction(state_code, county)`,
+  `CREATE INDEX IF NOT EXISTS jur_dir_state_idx ON jurisdiction_directory(state_code)`,
+  `CREATE INDEX IF NOT EXISTS jur_dir_fips_idx ON jurisdiction_directory(fips_code)`,
+  `CREATE INDEX IF NOT EXISTS jur_dir_state_county_idx ON jurisdiction_directory(state_code, county)`,
 
   // Authority Directory — agency directory
-  `CREATE TABLE IF NOT EXISTS authority_agencies (
+  `CREATE TABLE IF NOT EXISTS agency_directory (
     id SERIAL PRIMARY KEY,
     agency_name TEXT NOT NULL,
     agency_type TEXT NOT NULL,
@@ -200,13 +227,13 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
-  `CREATE INDEX IF NOT EXISTS auth_ag_state_idx ON authority_agencies(state_code)`,
-  `CREATE INDEX IF NOT EXISTS auth_ag_state_county_idx ON authority_agencies(state_code, county)`,
-  `CREATE INDEX IF NOT EXISTS auth_ag_level_idx ON authority_agencies(government_level)`,
-  `CREATE INDEX IF NOT EXISTS auth_ag_type_idx ON authority_agencies(agency_type)`,
+  `CREATE INDEX IF NOT EXISTS ag_dir_state_idx ON agency_directory(state_code)`,
+  `CREATE INDEX IF NOT EXISTS ag_dir_state_county_idx ON agency_directory(state_code, county)`,
+  `CREATE INDEX IF NOT EXISTS ag_dir_level_idx ON agency_directory(government_level)`,
+  `CREATE INDEX IF NOT EXISTS ag_dir_type_idx ON agency_directory(agency_type)`,
 
   // Authority Directory — matter type routing rules
-  `CREATE TABLE IF NOT EXISTS authority_matter_routing (
+  `CREATE TABLE IF NOT EXISTS matter_type_routing (
     id SERIAL PRIMARY KEY,
     matter_type TEXT NOT NULL UNIQUE,
     matter_label TEXT NOT NULL,
@@ -224,7 +251,7 @@ const migrations = [
   )`,
 
   // Authority Directory — legal authority mapping
-  `CREATE TABLE IF NOT EXISTS authority_legal_map (
+  `CREATE TABLE IF NOT EXISTS legal_authority_map (
     id SERIAL PRIMARY KEY,
     issue_type TEXT NOT NULL,
     authority_name TEXT NOT NULL,
@@ -243,7 +270,7 @@ const migrations = [
   )`,
 
   // Authority Directory — AI document intake extractions
-  `CREATE TABLE IF NOT EXISTS authority_intake_extractions (
+  `CREATE TABLE IF NOT EXISTS document_intake_extractions (
     id SERIAL PRIMARY KEY,
     submitted_by_user_id INTEGER,
     raw_document_text TEXT,

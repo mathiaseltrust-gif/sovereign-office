@@ -2,7 +2,7 @@ import { pgTable, serial, text, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorityMatterRoutingTable = pgTable("authority_matter_routing", {
+export const authorityMatterRoutingTable = pgTable("matter_type_routing", {
   id: serial("id").primaryKey(),
   matterType: text("matter_type").notNull().unique(),
   matterLabel: text("matter_label").notNull(),

@@ -2,7 +2,7 @@ import { pgTable, serial, integer, text, boolean, jsonb, timestamp } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorityIntakeExtractionsTable = pgTable("authority_intake_extractions", {
+export const authorityIntakeExtractionsTable = pgTable("document_intake_extractions", {
   id: serial("id").primaryKey(),
   submittedByUserId: integer("submitted_by_user_id"),
   rawDocumentText: text("raw_document_text"),

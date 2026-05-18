@@ -2,7 +2,7 @@ import { pgTable, serial, text, boolean, timestamp, varchar, index } from "drizz
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorityJurisdictionTable = pgTable("authority_jurisdiction", {
+export const authorityJurisdictionTable = pgTable("jurisdiction_directory", {
   id: serial("id").primaryKey(),
   country: varchar("country", { length: 10 }).notNull().default("US"),
   stateCode: varchar("state_code", { length: 5 }).notNull(),
@@ -18,9 +18,9 @@ export const authorityJurisdictionTable = pgTable("authority_jurisdiction", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
-  index("auth_jur_state_idx").on(t.stateCode),
-  index("auth_jur_fips_idx").on(t.fipsCode),
-  index("auth_jur_state_county_idx").on(t.stateCode, t.county),
+  index("jur_dir_state_idx").on(t.stateCode),
+  index("jur_dir_fips_idx").on(t.fipsCode),
+  index("jur_dir_state_county_idx").on(t.stateCode, t.county),
 ]);
 
 export const insertAuthorityJurisdictionSchema = createInsertSchema(authorityJurisdictionTable).omit({

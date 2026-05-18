@@ -2,7 +2,7 @@ import { pgTable, serial, text, boolean, real, timestamp, varchar, index } from 
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-export const authorityAgenciesTable = pgTable("authority_agencies", {
+export const authorityAgenciesTable = pgTable("agency_directory", {
   id: serial("id").primaryKey(),
   agencyName: text("agency_name").notNull(),
   agencyType: text("agency_type").notNull(),
@@ -24,10 +24,10 @@ export const authorityAgenciesTable = pgTable("authority_agencies", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 }, (t) => [
-  index("auth_ag_state_idx").on(t.stateCode),
-  index("auth_ag_state_county_idx").on(t.stateCode, t.county),
-  index("auth_ag_level_idx").on(t.governmentLevel),
-  index("auth_ag_type_idx").on(t.agencyType),
+  index("ag_dir_state_idx").on(t.stateCode),
+  index("ag_dir_state_county_idx").on(t.stateCode, t.county),
+  index("ag_dir_level_idx").on(t.governmentLevel),
+  index("ag_dir_type_idx").on(t.agencyType),
 ]);
 
 export const insertAuthorityAgencySchema = createInsertSchema(authorityAgenciesTable).omit({

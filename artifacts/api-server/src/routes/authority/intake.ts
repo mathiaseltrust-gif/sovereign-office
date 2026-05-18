@@ -177,7 +177,7 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
           .from(authorityAgenciesTable)
           .where(conditions.length === 1 ? conditions[0] : and(...(conditions as [SQL<unknown>, ...SQL<unknown>[]])))
           .limit(5)
-          .orderBy(asc(authorityAgenciesTable.confidenceScore));
+          .orderBy(desc(authorityAgenciesTable.confidenceScore));
         matchedAgencyId = matchedAgencies[0]?.id ?? null;
       }
     }

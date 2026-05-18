@@ -27,6 +27,16 @@ ensureDocRefColumns().catch((err) => {
   logger.warn({ err }, "Could not initialize tribal document reference columns");
 });
 
+// Authority directory: baseline ingestion runs once at startup (non-blocking)
+import("./routes/authority/sync").then(({ default: _syncRouter }) => {
+  // Trigger a lightweight startup ingest for federal + CA structural agencies
+  import("./lib/authority-startup-ingest").then(({ runStartupIngest }) => {
+    runStartupIngest().catch((err: unknown) => {
+      logger.warn({ err }, "Authority startup ingest failed (non-fatal)");
+    });
+  }).catch(() => { /* module not yet available — skip */ });
+}).catch(() => { /* skip */ });
+
 startRedisSubscriber();
 startDigestProcessor();
 
