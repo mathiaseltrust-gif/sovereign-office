@@ -4,7 +4,39 @@ import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   Fingerprint, Landmark, Stethoscope, ShieldAlert, Building2,
   ArrowLeft, CheckCircle, FileText, Upload, Loader2, AlertCircle, Paperclip, X,
+  Globe, Calendar, Hash, MapPin, Users, Zap, ShieldCheck, BadgeCheck,
 } from "lucide-react";
+
+// ─── Document Intelligence types ─────────────────────────────────────────────
+
+interface DocIntelResult {
+  documentClass: string;
+  documentType: string;
+  isOfficial: boolean;
+  filingAuthority: string | null;
+  filingState: string | null;
+  filingDate: string | null;
+  filingNumber: string | null;
+  entityName: string | null;
+  entityType: string | null;
+  entityNumber: string | null;
+  formedIn: string | null;
+  principalAddress: string | null;
+  typeOfBusiness: string | null;
+  parties: Array<{ name: string; role: string }>;
+  tribalFlags: string[];
+  tribalLogic: string[];
+  logicSummary: string;
+  recommendedAction: string;
+  intakeAnswers: {
+    businessType: string | null;
+    businessName: string | null;
+    targetCommunity: string | null;
+    existingActivity: string | null;
+    vision: string | null;
+  };
+  _tier?: string;
+}
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -194,6 +226,9 @@ export default function IntakeCompanionPage() {
   const [extractedAnswers, setExtractedAnswers] = useState<(string | null)[]>([]);
   const [extracting, setExtracting] = useState(false);
   const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+  const [docIntelResult, setDocIntelResult] = useState<DocIntelResult | null>(null);
+  const [entitySaveStatus, setEntitySaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedConceptId, setSavedConceptId] = useState<number | null>(null);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -220,6 +255,9 @@ export default function IntakeCompanionPage() {
     setExtractedAnswers([]);
     setPendingFiles([]);
     setExtracting(false);
+    setDocIntelResult(null);
+    setEntitySaveStatus("idle");
+    setSavedConceptId(null);
   }, [intakeType]);
 
   // Auto-ask first question after opening
@@ -257,6 +295,43 @@ export default function IntakeCompanionPage() {
     inputRef.current?.focus();
   }, []);
 
+  // ─── Save extracted entity to tribal system ─────────────────────────────────
+
+  async function saveEntityFromIntel() {
+    if (!docIntelResult) return;
+    setEntitySaveStatus("saving");
+    try {
+      const token = getCurrentBearerToken();
+      const res = await fetch(`${API}/api/business/concepts`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          title: docIntelResult.entityName ?? "Unnamed Entity",
+          description: [
+            docIntelResult.typeOfBusiness ?? "",
+            docIntelResult.principalAddress ? `Address: ${docIntelResult.principalAddress}` : "",
+            docIntelResult.entityNumber ? `Entity No: ${docIntelResult.entityNumber}` : "",
+            docIntelResult.filingState ? `Formed in: ${docIntelResult.filingState}` : "",
+            docIntelResult.filingDate ? `Filed: ${docIntelResult.filingDate}` : "",
+          ].filter(Boolean).join("\n"),
+          structure: docIntelResult.entityType ?? "",
+          status: "draft",
+          aiSummary: docIntelResult.logicSummary,
+          protections: docIntelResult.tribalLogic,
+        }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json() as { id?: number };
+      setSavedConceptId(data.id ?? null);
+      setEntitySaveStatus("saved");
+    } catch {
+      setEntitySaveStatus("error");
+    }
+  }
+
   // ─── Document extraction ────────────────────────────────────────────────────
 
   async function handleDocumentUpload(files: FileList | null) {
@@ -265,8 +340,10 @@ export default function IntakeCompanionPage() {
     const fileArray = Array.from(files);
     setPendingFiles(fileArray);
     setExtracting(true);
+    setDocIntelResult(null);
+    setEntitySaveStatus("idle");
+    setSavedConceptId(null);
 
-    // Show Companion "reading" message
     const fileNames = fileArray.map((f) => f.name).join(", ");
     setMessages((prev) => [
       ...prev,
@@ -280,7 +357,7 @@ export default function IntakeCompanionPage() {
       const token = getCurrentBearerToken();
 
       // Upload each file and collect extracted text
-      const textParts: string[] = [];
+      const uploadResults: Array<{ text: string; filename: string }> = [];
       for (const file of fileArray) {
         const form = new FormData();
         form.append("file", file);
@@ -294,12 +371,60 @@ export default function IntakeCompanionPage() {
           throw new Error(err.error ?? `Could not read ${file.name}`);
         }
         const data = await r.json() as { text: string; filename: string };
-        textParts.push(`=== ${data.filename} ===\n${data.text}`);
+        uploadResults.push(data);
       }
 
-      const combinedText = textParts.join("\n\n");
+      // ── Business intake: run document intelligence layer first ──────────────
+      if (intakeType === "business" && uploadResults.length > 0) {
+        const first = uploadResults[0];
+        const intelRes = await fetch(`${API}/api/business/document-intelligence`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+          body: JSON.stringify({ text: first.text, filename: first.filename }),
+        });
 
-      // Ask KAYA to extract answers to the intake questions
+        if (intelRes.ok) {
+          const intel = await intelRes.json() as DocIntelResult;
+          setDocIntelResult(intel);
+
+          // Pre-fill Q&A answers from intel extraction
+          setExtractedAnswers((prev) => {
+            const next = [...prev];
+            if (intel.intakeAnswers.businessType && !next[0]) next[0] = intel.intakeAnswers.businessType;
+            if (intel.intakeAnswers.businessName && !next[1]) next[1] = intel.intakeAnswers.businessName;
+            if (intel.intakeAnswers.targetCommunity && !next[2]) next[2] = intel.intakeAnswers.targetCommunity;
+            if (intel.intakeAnswers.existingActivity && !next[3]) next[3] = intel.intakeAnswers.existingActivity;
+            return next;
+          });
+
+          const entityLabel = intel.entityName
+            ? `**${intel.entityName}** (${intel.entityType ?? "Entity"})`
+            : "the document";
+
+          const companionMsg = intel.entityName
+            ? `I've analyzed "${first.filename}" and found an existing registered entity — ${entityLabel}. I've extracted the key details below.\n\nWould you like me to register this entity in the tribal system? Or continue building out the formation intake?`
+            : `I've reviewed "${first.filename}" — it's a ${intel.documentType}. Here's what I found:`;
+
+          setMessages((prev) => [
+            ...prev.filter((m) => m.role !== "assistant-extracting"),
+            { role: "assistant", content: companionMsg },
+          ]);
+
+          // Pre-fill current step input
+          const preAnswers: (string | null)[] = [];
+          if (intel.intakeAnswers.businessType) preAnswers[0] = intel.intakeAnswers.businessType;
+          if (intel.intakeAnswers.businessName) preAnswers[1] = intel.intakeAnswers.businessName;
+          if (intel.intakeAnswers.existingActivity) preAnswers[3] = intel.intakeAnswers.existingActivity;
+          if (preAnswers[stepIndex]) setInput(preAnswers[stepIndex] ?? "");
+          return;
+        }
+      }
+
+      // ── Standard extraction for all other intake types ──────────────────────
+      const combinedText = uploadResults.map((u) => `=== ${u.filename} ===\n${u.text}`).join("\n\n");
       const extractionPrompt = buildExtractionPrompt(config.questions, combinedText);
       const kayaRes = await fetch(`${API}/api/kaya/chat`, {
         method: "POST",
@@ -307,49 +432,35 @@ export default function IntakeCompanionPage() {
           "Content-Type": "application/json",
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({
-          message: extractionPrompt,
-          history: [],
-        }),
+        body: JSON.stringify({ message: extractionPrompt, history: [] }),
       });
 
       if (!kayaRes.ok) throw new Error("Extraction failed");
       const kayaData = await kayaRes.json() as { reply?: string; message?: string };
       const rawReply = kayaData.reply ?? kayaData.message ?? "";
 
-      // Parse the extraction result
       const extracted = parseExtractionResponse(rawReply, config.questions.length);
       setExtractedAnswers(extracted);
 
-      // Build a summary of what was found
       const found = extracted
         .map((val, i) => val ? `• ${config.questions[i]}\n  ${val}` : null)
         .filter(Boolean);
-
       const notFoundCount = extracted.filter((v) => !v).length;
 
-      let companionMsg = "";
-      if (found.length === 0) {
-        companionMsg =
-          `I reviewed ${fileArray.length === 1 ? "that document" : "those documents"} but couldn't find clear answers to these intake questions. The text may be image-only or the information may not be included.\n\nLet's continue with the questions — you can answer them directly.`;
-      } else {
-        companionMsg =
-          `I've reviewed ${fileArray.length === 1 ? "your document" : "your documents"} and found the following:\n\n${found.join("\n\n")}` +
+      const companionMsg = found.length === 0
+        ? `I reviewed ${fileArray.length === 1 ? "that document" : "those documents"} but couldn't find clear answers to these intake questions. The text may be image-only or the information may not be included.\n\nLet's continue with the questions — you can answer them directly.`
+        : `I've reviewed ${fileArray.length === 1 ? "your document" : "your documents"} and found the following:\n\n${found.join("\n\n")}` +
           (notFoundCount > 0
             ? `\n\nI'll ask you about the remaining ${notFoundCount} ${notFoundCount === 1 ? "item" : "items"} that weren't in the document.`
             : `\n\nThat covers everything. I've pre-filled the answers below — review each one and confirm or update before moving on.`);
-      }
 
-      // Replace the extracting message with the result
       setMessages((prev) => [
         ...prev.filter((m) => m.role !== "assistant-extracting"),
         { role: "assistant", content: companionMsg },
       ]);
 
-      // If current question has an extracted answer, fill input
-      if (extracted[stepIndex]) {
-        setInput(extracted[stepIndex] ?? "");
-      }
+      if (extracted[stepIndex]) setInput(extracted[stepIndex] ?? "");
+
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : "Could not read document";
       setMessages((prev) => [
@@ -530,6 +641,145 @@ export default function IntakeCompanionPage() {
               {pendingFiles.map((f) => (
                 <UploadedFilePill key={f.name} name={f.name} onRemove={() => {}} />
               ))}
+            </div>
+          </div>
+        )}
+
+        {/* Document Intelligence Card — business intake */}
+        {docIntelResult && intakeType === "business" && (
+          <div className="ml-8 rounded-2xl border border-border bg-card shadow-sm overflow-hidden text-sm">
+            {/* Header */}
+            <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/40">
+              <FileText className="w-4 h-4 text-primary shrink-0" />
+              <span className="font-semibold text-foreground truncate flex-1">{docIntelResult.documentType}</span>
+              {docIntelResult.isOfficial && (
+                <span className="flex items-center gap-1 text-[10px] font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5 shrink-0">
+                  <BadgeCheck className="w-3 h-3" /> Official
+                </span>
+              )}
+              {docIntelResult.filingState && (
+                <span className="flex items-center gap-1 text-[10px] text-muted-foreground bg-muted rounded-full px-2 py-0.5 shrink-0">
+                  <Globe className="w-3 h-3" /> {docIntelResult.filingState}
+                </span>
+              )}
+            </div>
+
+            <div className="px-4 py-3 space-y-3">
+              {/* Entity name */}
+              {docIntelResult.entityName && (
+                <div>
+                  <p className="text-base font-bold text-foreground">{docIntelResult.entityName}</p>
+                  <p className="text-xs text-muted-foreground">
+                    {[docIntelResult.entityType, docIntelResult.entityNumber ? `No. ${docIntelResult.entityNumber}` : null, docIntelResult.formedIn ? `formed in ${docIntelResult.formedIn}` : null].filter(Boolean).join(" · ")}
+                  </p>
+                </div>
+              )}
+
+              {/* Filing info row */}
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
+                {docIntelResult.filingAuthority && (
+                  <span className="flex items-center gap-1"><ShieldCheck className="w-3 h-3" />{docIntelResult.filingAuthority}</span>
+                )}
+                {docIntelResult.filingDate && (
+                  <span className="flex items-center gap-1"><Calendar className="w-3 h-3" />Filed {docIntelResult.filingDate}</span>
+                )}
+                {docIntelResult.filingNumber && (
+                  <span className="flex items-center gap-1"><Hash className="w-3 h-3" />{docIntelResult.filingNumber}</span>
+                )}
+              </div>
+
+              {/* Address */}
+              {docIntelResult.principalAddress && (
+                <div className="flex items-start gap-1.5 text-xs text-muted-foreground">
+                  <MapPin className="w-3 h-3 mt-0.5 shrink-0" />
+                  <span>{docIntelResult.principalAddress}</span>
+                </div>
+              )}
+
+              {/* Type of business */}
+              {docIntelResult.typeOfBusiness && (
+                <div className="text-xs text-muted-foreground">
+                  <span className="font-medium text-foreground">Business type: </span>
+                  {docIntelResult.typeOfBusiness}
+                </div>
+              )}
+
+              {/* Officers / parties */}
+              {docIntelResult.parties.length > 0 && (
+                <div>
+                  <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5 flex items-center gap-1">
+                    <Users className="w-3 h-3" /> Officers & Parties
+                  </p>
+                  <div className="space-y-0.5">
+                    {docIntelResult.parties.slice(0, 6).map((p, i) => (
+                      <div key={i} className="flex items-baseline gap-2 text-xs">
+                        <span className="font-medium text-foreground shrink-0">{p.name}</span>
+                        <span className="text-muted-foreground truncate">{p.role}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Tribal flags */}
+              {docIntelResult.tribalFlags.length > 0 && (
+                <div className="rounded-lg bg-primary/5 border border-primary/20 px-3 py-2 space-y-1">
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wide flex items-center gap-1">
+                    <Zap className="w-3 h-3" /> Tribal Logic Applied
+                  </p>
+                  {docIntelResult.tribalLogic.map((logic, i) => (
+                    <p key={i} className="text-[11px] text-foreground/80 leading-snug">{logic}</p>
+                  ))}
+                </div>
+              )}
+
+              {/* Logic summary */}
+              <p className="text-xs text-muted-foreground leading-relaxed border-t border-border pt-3">
+                {docIntelResult.logicSummary}
+              </p>
+
+              {/* Action buttons */}
+              {docIntelResult.recommendedAction === "upsert_business" && (
+                <div className="flex gap-2 pt-1">
+                  {entitySaveStatus === "saved" ? (
+                    <div className="flex items-center gap-1.5 text-xs text-emerald-700 font-semibold">
+                      <CheckCircle className="w-4 h-4" />
+                      Registered in tribal system
+                      {savedConceptId && (
+                        <button
+                          className="ml-2 underline text-primary hover:opacity-70 transition-opacity"
+                          onClick={() => navigate(`/business-canvas/${savedConceptId}`)}
+                        >
+                          View record →
+                        </button>
+                      )}
+                    </div>
+                  ) : entitySaveStatus === "error" ? (
+                    <div className="flex items-center gap-1.5 text-xs text-red-600">
+                      <AlertCircle className="w-3.5 h-3.5" /> Could not save — please try again.
+                      <button onClick={saveEntityFromIntel} className="underline">Retry</button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={saveEntityFromIntel}
+                      disabled={entitySaveStatus === "saving"}
+                      className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors disabled:opacity-50"
+                    >
+                      {entitySaveStatus === "saving" ? (
+                        <><Loader2 className="w-3.5 h-3.5 animate-spin" /> Registering…</>
+                      ) : (
+                        <><Building2 className="w-3.5 h-3.5" /> Register in tribal system</>
+                      )}
+                    </button>
+                  )}
+                  <button
+                    onClick={() => setDocIntelResult(null)}
+                    className="text-xs text-muted-foreground hover:text-foreground transition-colors px-2"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              )}
             </div>
           </div>
         )}
