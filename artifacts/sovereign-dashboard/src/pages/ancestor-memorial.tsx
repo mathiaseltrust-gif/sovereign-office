@@ -11,7 +11,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
-import { ArrowLeft, Calendar, Heart, PlusCircle, Users, BookOpen, Flame } from "lucide-react";
+import { ArrowLeft, Calendar, Heart, PlusCircle, Users, BookOpen, Flame, MapPin } from "lucide-react";
+import { MapPickerModal } from "@/components/map-picker-modal";
 
 interface AncestorSummary {
   id: number;
@@ -26,6 +27,9 @@ interface AncestorSummary {
   generationalPosition: number | null;
   isDeceased: boolean | null;
   isAncestor: boolean | null;
+  locationLat: number | null;
+  locationLng: number | null;
+  locationAddress: string | null;
 }
 
 interface Memory {
@@ -354,6 +358,9 @@ function AddAnniversaryForm({ ancestorId, onDone }: { ancestorId: number; onDone
 function AncestorDetail({ id }: { id: number }) {
   const [showMemoryForm, setShowMemoryForm] = useState(false);
   const [showAnniversaryForm, setShowAnniversaryForm] = useState(false);
+  const [showMapPicker, setShowMapPicker] = useState(false);
+  const { toast } = useToast();
+  const qc = useQueryClient();
 
   const { data, isLoading } = useQuery<AncestorDetail>({
     queryKey: ["ancestor-detail", id],
@@ -363,6 +370,30 @@ function AncestorDetail({ id }: { id: number }) {
       return r.json();
     },
     staleTime: 60_000,
+  });
+
+  const locationMutation = useMutation({
+    mutationFn: async ({ lat, lng, address }: { lat: number | null; lng: number | null; address: string }) => {
+      const r = await fetch(`/api/ancestors/${id}/location`, {
+        method: "PATCH",
+        headers: apiHeaders(),
+        body: JSON.stringify({ lat, lng, address }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Failed to save location");
+      }
+      return r.json();
+    },
+    onSuccess: (_data, vars) => {
+      toast({
+        title: vars.lat != null ? "Location saved" : "Location cleared",
+        description: vars.lat != null ? (vars.address || `${vars.lat?.toFixed(4)}, ${vars.lng?.toFixed(4)}`) : "Homeland pin removed.",
+      });
+      qc.invalidateQueries({ queryKey: ["ancestor-detail", id] });
+      setShowMapPicker(false);
+    },
+    onError: (e) => toast({ title: "Could not save location", description: (e as Error).message, variant: "destructive" }),
   });
 
   if (isLoading) {
@@ -447,6 +478,61 @@ function AncestorDetail({ id }: { id: number }) {
           </div>
         </div>
       </div>
+
+      {/* ── Homeland Location ── */}
+      <Card>
+        <CardHeader className="pb-3 flex flex-row items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <MapPin className="w-4 h-4 text-amber-600" />
+            Homeland Location
+          </CardTitle>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-xs"
+            onClick={() => setShowMapPicker(true)}
+            disabled={locationMutation.isPending}
+          >
+            <MapPin className="w-3 h-3 mr-1" />
+            {ancestor.locationLat != null ? "Move Pin" : "Add Pin"}
+          </Button>
+        </CardHeader>
+        <CardContent>
+          {ancestor.locationLat != null ? (
+            <div className="space-y-1">
+              {ancestor.locationAddress && (
+                <p className="text-sm font-medium text-foreground">{ancestor.locationAddress}</p>
+              )}
+              <p className="text-xs font-mono text-muted-foreground">
+                {ancestor.locationLat.toFixed(5)}, {ancestor.locationLng!.toFixed(5)}
+              </p>
+              <Button
+                size="sm"
+                variant="ghost"
+                className="text-xs text-destructive hover:text-destructive mt-1 px-0 h-auto"
+                onClick={() => locationMutation.mutate({ lat: null, lng: null, address: "" })}
+                disabled={locationMutation.isPending}
+              >
+                {locationMutation.isPending ? "Removing…" : "Remove pin"}
+              </Button>
+            </div>
+          ) : (
+            <p className="text-sm text-muted-foreground">
+              No homeland location pinned yet. Add a pin to place this ancestor on the Atlas map.
+            </p>
+          )}
+        </CardContent>
+      </Card>
+
+      {showMapPicker && (
+        <MapPickerModal
+          initialLat={ancestor.locationLat ?? null}
+          initialLng={ancestor.locationLng ?? null}
+          initialAddress={ancestor.locationAddress ?? null}
+          onConfirm={(lat, lng, address) => locationMutation.mutate({ lat, lng, address })}
+          onCancel={() => setShowMapPicker(false)}
+        />
+      )}
 
       {/* ── Anniversaries ── */}
       <Card>

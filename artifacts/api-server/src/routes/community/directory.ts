@@ -211,6 +211,7 @@ router.get("/:id", async (req, res, next) => {
       sourceType: member.sourceType,
       locationLat: member.locationLat ?? null,
       locationLng: member.locationLng ?? null,
+      locationAddress: member.locationAddress ?? null,
       updatedAt: member.updatedAt.toISOString(),
       parents: parentIds.map((pid) => byId.get(pid)).filter(Boolean).map(toSummary),
       children: childrenIds.map((cid) => byId.get(cid)).filter(Boolean).map(toSummary),

@@ -17,6 +17,7 @@ const db = drizzle(databaseUrl);
 
 const migrations = [
   // family_lineage — columns added after initial deploy
+  `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS location_address TEXT`,
   `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS tribal_id_number VARCHAR(10)`,
   `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS photo_url TEXT`,
   `ALTER TABLE family_lineage ADD COLUMN IF NOT EXISTS entra_object_id VARCHAR(255)`,

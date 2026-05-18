@@ -31,6 +31,9 @@ router.get("/", requireAuth, async (req, res, next) => {
         isDeceased: familyLineageTable.isDeceased,
         isAncestor: familyLineageTable.isAncestor,
         addedByMemberId: familyLineageTable.addedByMemberId,
+        locationLat: familyLineageTable.locationLat,
+        locationLng: familyLineageTable.locationLng,
+        locationAddress: familyLineageTable.locationAddress,
       })
       .from(familyLineageTable)
       .where(
@@ -158,9 +161,11 @@ router.post("/:id/memories", requireAuth, async (req, res, next) => {
   }
 });
 
+const ADMIN_ROLES = new Set(["admin", "sovereign_admin", "trustee", "chief_justice"]);
+
 // ── PATCH /api/ancestors/:id/location ─────────────────────────────────────
 // Set (or clear) verified lat/lng coordinates for an ancestor record.
-// Only the owner (addedByMemberId) may update their own ancestor's location.
+// The owner (addedByMemberId) or any admin/trustee may update the location.
 router.patch("/:id/location", requireAuth, async (req, res, next) => {
   try {
     const ancestorId = Number(req.params.id);
@@ -170,7 +175,7 @@ router.patch("/:id/location", requireAuth, async (req, res, next) => {
       return;
     }
 
-    const { lat, lng } = req.body as { lat?: unknown; lng?: unknown };
+    const { lat, lng, address } = req.body as { lat?: unknown; lng?: unknown; address?: unknown };
 
     // Validate: both must be present or both null (to clear)
     const clearing = lat == null && lng == null;
@@ -207,16 +212,22 @@ router.patch("/:id/location", requireAuth, async (req, res, next) => {
       res.status(404).json({ error: "Ancestor not found" });
       return;
     }
-    if (ancestor.addedByMemberId !== userId) {
+    const isAdmin = (req.user?.roles ?? []).some((r) => ADMIN_ROLES.has(r));
+    if (ancestor.addedByMemberId !== userId && !isAdmin) {
       res.status(403).json({ error: "You can only update ancestors you added" });
       return;
     }
+
+    const addressStr = !clearing && address != null && typeof address === "string" && address.trim()
+      ? address.trim()
+      : null;
 
     const [updated] = await db
       .update(familyLineageTable)
       .set({
         locationLat: clearing ? null : latNum,
         locationLng: clearing ? null : lngNum,
+        locationAddress: clearing ? null : addressStr,
         updatedAt: new Date(),
       })
       .where(eq(familyLineageTable.id, ancestorId))
@@ -224,6 +235,7 @@ router.patch("/:id/location", requireAuth, async (req, res, next) => {
         id: familyLineageTable.id,
         locationLat: familyLineageTable.locationLat,
         locationLng: familyLineageTable.locationLng,
+        locationAddress: familyLineageTable.locationAddress,
       });
 
     res.json(updated);

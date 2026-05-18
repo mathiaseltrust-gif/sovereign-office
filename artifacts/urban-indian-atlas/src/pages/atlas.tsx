@@ -61,6 +61,8 @@ export interface AncestorRecord {
   // Verified lat/lng stored directly on the family_lineage record (highest priority).
   locationLat: number | null;
   locationLng: number | null;
+  // Human-readable address (city, county, state) stored alongside the coordinates.
+  locationAddress: string | null;
   // Location from actual ancestralTimelineEvents records (secondary source).
   // When this is present the map pin is treated as "from records" and shown differently
   // from pins derived by tribal-nation keyword inference.
@@ -278,6 +280,8 @@ interface DbAncestorRow {
   // Verified lat/lng stored directly on family_lineage (highest priority).
   location_lat: number | null;
   location_lng: number | null;
+  // Human-readable address (city, county, state) stored with the verified coordinates.
+  location_address: string | null;
   // From LATERAL JOIN to ancestral_timeline_events — real location records.
   location_text: string | null;
   has_timeline_location: boolean;
@@ -302,6 +306,7 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     lineageTags: r.lineage_tags,
     locationLat: parsedLat != null && !isNaN(parsedLat) ? parsedLat : null,
     locationLng: parsedLng != null && !isNaN(parsedLng) ? parsedLng : null,
+    locationAddress: r.location_address ?? null,
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
   };

@@ -7,7 +7,7 @@ import { MapPin, Search, X, CheckCircle2, Loader2 } from "lucide-react";
 
 const pickerIcon = L.divIcon({
   className: "",
-  html: `<div style="width:22px;height:22px;border-radius:50%;background:#059669;border:3px solid #fff;box-shadow:0 2px 8px rgba(5,150,105,0.7);"></div>`,
+  html: `<div style="width:22px;height:22px;border-radius:50%;background:#b45309;border:3px solid #fff;box-shadow:0 2px 8px rgba(180,83,9,0.7);"></div>`,
   iconSize: [22, 22],
   iconAnchor: [11, 11],
 });
@@ -164,14 +164,14 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
       <div className="bg-background rounded-xl shadow-2xl border border-border w-full max-w-2xl flex flex-col overflow-hidden"
            style={{ maxHeight: "min(90vh, 640px)" }}>
 
-        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-emerald-50 dark:bg-emerald-950/20">
+        <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-amber-50 dark:bg-amber-950/20">
           <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Pick Ancestor Location</span>
+            <MapPin className="h-4 w-4 text-amber-700 dark:text-amber-400" />
+            <span className="text-sm font-semibold text-amber-900 dark:text-amber-300">Pin Homeland Location</span>
           </div>
           <button
             onClick={onCancel}
-            className="rounded-md p-1 hover:bg-emerald-100 dark:hover:bg-emerald-900/30 text-muted-foreground transition-colors"
+            className="rounded-md p-1 hover:bg-amber-100 dark:hover:bg-amber-900/30 text-muted-foreground transition-colors"
           >
             <X className="h-4 w-4" />
           </button>
@@ -247,7 +247,7 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
             </Button>
             <Button
               size="sm"
-              className="h-8 text-xs gap-1 bg-emerald-700 hover:bg-emerald-800 text-white"
+              className="h-8 text-xs gap-1 bg-amber-700 hover:bg-amber-800 text-white"
               onClick={() => pickedLat != null && pickedLng != null && onConfirm(pickedLat, pickedLng, pickedAddress)}
               disabled={pickedLat == null || pickedLng == null || geocoding}
             >

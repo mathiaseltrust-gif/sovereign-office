@@ -42,6 +42,7 @@ export const familyLineageTable = pgTable("family_lineage", {
   visibility: varchar("visibility", { length: 50 }).default("private").notNull(),
   locationLat: doublePrecision("location_lat"),
   locationLng: doublePrecision("location_lng"),
+  locationAddress: text("location_address"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

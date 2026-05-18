@@ -62,10 +62,11 @@ interface AncestorLocationEditorProps {
   isAncestor: boolean;
   currentLat: number | null;
   currentLng: number | null;
-  onSaved: (lat: number | null, lng: number | null) => void;
+  currentAddress: string | null;
+  onSaved: (lat: number | null, lng: number | null, address: string | null) => void;
 }
 
-function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, onSaved }: AncestorLocationEditorProps) {
+function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, currentAddress, onSaved }: AncestorLocationEditorProps) {
   const { toast } = useToast();
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,7 +75,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
 
   const hasCoords = currentLat != null && currentLng != null;
 
-  const handleMapConfirm = async (lat: number, lng: number) => {
+  const handleMapConfirm = async (lat: number, lng: number, address: string) => {
     const token = getCommunityToken();
     if (!token) {
       toast({ title: "Not authenticated", description: "You must be signed in to update ancestor locations.", variant: "destructive" });
@@ -86,14 +87,14 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
       const r = await fetch(`/api/ancestors/${memberId}/location`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({ lat, lng }),
+        body: JSON.stringify({ lat, lng, address: address || null }),
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Failed to save location");
       }
-      onSaved(lat, lng);
-      toast({ title: "Location saved", description: "Verified coordinates stored for this ancestor." });
+      onSaved(lat, lng, address || null);
+      toast({ title: "Location saved", description: address ? `Saved: ${address}` : "Verified coordinates stored for this ancestor." });
     } catch (e) {
       toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -115,7 +116,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
         const err = await r.json().catch(() => ({})) as { error?: string };
         throw new Error(err.error ?? "Failed to clear location");
       }
-      onSaved(null, null);
+      onSaved(null, null, null);
       toast({ title: "Location cleared", description: "Verified coordinates removed. The Atlas will use inferred placement." });
     } catch (e) {
       toast({ title: "Failed to clear", description: (e as Error).message, variant: "destructive" });
@@ -131,6 +132,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
           <MapPickerModal
             initialLat={currentLat}
             initialLng={currentLng}
+            initialAddress={currentAddress}
             onConfirm={handleMapConfirm}
             onCancel={() => setShowMapPicker(false)}
           />
@@ -172,11 +174,20 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
             )}
           </div>
         </div>
-        <p className="text-xs text-muted-foreground mt-1">
-          {hasCoords
-            ? `Lat ${currentLat?.toFixed(5)}, Lng ${currentLng?.toFixed(5)} — shown as a solid green pin on the Atlas.`
-            : "Store an exact coordinate from a census address, allotment record, or boarding school assignment. Verified points appear as solid green pins on the Atlas."}
-        </p>
+        {hasCoords ? (
+          <div className="mt-1 space-y-0.5">
+            {currentAddress && (
+              <p className="text-xs font-medium text-foreground">{currentAddress}</p>
+            )}
+            <p className="text-[10px] font-mono text-muted-foreground">
+              {currentLat?.toFixed(5)}, {currentLng?.toFixed(5)} — solid green pin on the Atlas
+            </p>
+          </div>
+        ) : (
+          <p className="text-xs text-muted-foreground mt-1">
+            Pick a place on the map or search by name. The county and city will be recorded alongside the exact coordinates.
+          </p>
+        )}
       </CardHeader>
       {saving && (
         <CardContent className="p-3">
@@ -631,6 +642,7 @@ export default function MemberDetail() {
   const [familyView, setFamilyView] = useState<"list" | "tree">("list");
   const [locationLat, setLocationLat] = useState<number | null>(null);
   const [locationLng, setLocationLng] = useState<number | null>(null);
+  const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [locationInitialized, setLocationInitialized] = useState(false);
 
   const { data: member, isLoading, error } = useGetCommunityMember(id, {
@@ -647,9 +659,10 @@ export default function MemberDetail() {
 
   React.useEffect(() => {
     if (member && !locationInitialized) {
-      const m = member as typeof member & { locationLat?: number | null; locationLng?: number | null };
+      const m = member as typeof member & { locationLat?: number | null; locationLng?: number | null; locationAddress?: string | null };
       setLocationLat(m.locationLat ?? null);
       setLocationLng(m.locationLng ?? null);
+      setLocationAddress(m.locationAddress ?? null);
       setLocationInitialized(true);
     }
   }, [member, locationInitialized]);
@@ -953,9 +966,11 @@ export default function MemberDetail() {
               isAncestor={!!member.isAncestor}
               currentLat={locationLat}
               currentLng={locationLng}
-              onSaved={(lat, lng) => {
+              currentAddress={locationAddress}
+              onSaved={(lat, lng, address) => {
                 setLocationLat(lat);
                 setLocationLng(lng);
+                setLocationAddress(address);
               }}
             />
           )}

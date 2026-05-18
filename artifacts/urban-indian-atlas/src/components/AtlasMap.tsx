@@ -710,7 +710,9 @@ export function AtlasMap({
             const genLabel = generationLabel(ancestor.generationalPosition);
             const years = [ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ");
             const locationNote = source === "verified_coords"
-              ? "Verified location"
+              ? ancestor.locationAddress
+                ? `Verified · ${ancestor.locationAddress}`
+                : "Verified location"
               : source === "timeline_record"
                 ? `From records${ancestor.locationText ? ` · ${ancestor.locationText}` : ""}`
                 : ancestor.tribalNation

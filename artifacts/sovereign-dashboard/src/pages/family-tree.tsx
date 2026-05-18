@@ -11,8 +11,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
 import {
-  SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X,
+  SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
 } from "lucide-react";
+import { MapPickerModal } from "@/components/map-picker-modal";
 
 type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
@@ -48,6 +49,9 @@ interface LineageNode {
   visibility?: string | null;
   photoUrl?: string | null;
   createdAt?: string;
+  locationLat?: number | null;
+  locationLng?: number | null;
+  locationAddress?: string | null;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
 }
@@ -1939,6 +1943,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [showEnroll, setShowEnroll] = useState(false);
   const [enrollForm, setEnrollForm] = useState({ email: "", name: "", role: "member", temporaryPassword: "" });
+  const [showMapPicker, setShowMapPicker] = useState(false);
 
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
@@ -2081,6 +2086,28 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
     onError: (err: Error) => toast({ title: "Update failed", description: err.message, variant: "destructive" }),
   });
 
+  const locationMutation = useMutation({
+    mutationFn: async ({ lat, lng, address }: { lat: number | null; lng: number | null; address: string }) => {
+      const r = await fetch(`/api/ancestors/${n.id}/location`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ lat, lng, address }),
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Failed to save location"); }
+      return r.json();
+    },
+    onSuccess: (_data, vars) => {
+      toast({
+        title: vars.lat != null ? "Location saved" : "Location cleared",
+        description: vars.lat != null ? (vars.address || `${vars.lat?.toFixed(4)}, ${vars.lng?.toFixed(4)}`) : "Homeland pin removed.",
+      });
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", n.id] });
+      setShowMapPicker(false);
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Could not save location", description: err.message, variant: "destructive" }),
+  });
+
   function openEditOwn() {
     setEditOwnForm({
       fullName: n.fullName ?? "",
@@ -2212,6 +2239,55 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
               <p className="text-xs text-muted-foreground italic">{n.notes}</p>
             </div>
+          )}
+
+          {/* ── Homeland Location ── */}
+          {(canEdit || n.locationLat != null) && (
+            <div className="border rounded-md px-3 py-2.5 space-y-1.5">
+              <div className="flex items-center justify-between gap-2">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> Homeland Location
+                </p>
+                {canEdit && (
+                  <button
+                    className="text-[11px] text-primary hover:underline shrink-0"
+                    onClick={() => setShowMapPicker(true)}
+                    disabled={locationMutation.isPending}
+                  >
+                    {n.locationLat != null ? "Move pin" : "Add pin"}
+                  </button>
+                )}
+              </div>
+              {n.locationLat != null ? (
+                <div className="space-y-0.5">
+                  {n.locationAddress && <p className="text-xs font-medium text-foreground">{n.locationAddress}</p>}
+                  <p className="text-[10px] font-mono text-muted-foreground">
+                    {(n.locationLat as number).toFixed(5)}, {(n.locationLng as number).toFixed(5)}
+                  </p>
+                  {canEdit && (
+                    <button
+                      className="text-[10px] text-destructive hover:underline"
+                      onClick={() => locationMutation.mutate({ lat: null, lng: null, address: "" })}
+                      disabled={locationMutation.isPending}
+                    >
+                      {locationMutation.isPending ? "Removing…" : "Remove pin"}
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-muted-foreground">No pin set — click "Add pin" to place this person on the Atlas.</p>
+              )}
+            </div>
+          )}
+
+          {showMapPicker && (
+            <MapPickerModal
+              initialLat={n.locationLat ?? null}
+              initialLng={n.locationLng ?? null}
+              initialAddress={n.locationAddress ?? null}
+              onConfirm={(lat, lng, address) => locationMutation.mutate({ lat, lng, address })}
+              onCancel={() => setShowMapPicker(false)}
+            />
           )}
 
           {n.pendingReview && canApprove && (
