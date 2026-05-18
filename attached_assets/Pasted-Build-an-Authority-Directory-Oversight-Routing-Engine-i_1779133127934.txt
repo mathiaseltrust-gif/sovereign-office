@@ -1,0 +1,116 @@
+Build an Authority Directory & Oversight Routing Engine inside the existing Mathias El Tribe system.
+
+This engine must not be a general open-data dump. It must be a controlled routing layer that supports document intake, violation review, notice drafting, mailing address selection, and oversight escalation.
+
+The engine must include these modules:
+
+1. Jurisdiction Selector
+Allow the user to select or detect:
+- Federal
+- State
+- County
+- City
+- Tribal
+- Private contractor acting under government authority
+
+Filtering must be hierarchical:
+- Selecting a state limits counties to that state.
+- Selecting a county limits agencies to that county.
+- Typing “CA” should not show all unrelated records unless the user is in a state-search field.
+- Typing an agency name should search agency names directly.
+
+2. Agency Directory
+Create a normalized agency table with:
+- agency_name
+- agency_type
+- government_level
+- state
+- county
+- city
+- mailing_address
+- physical_address
+- parent_agency
+- oversight_agency
+- contact_email
+- phone
+- website
+- source_url
+- last_verified_date
+- confidence_score
+
+3. Matter Type Routing
+Create routing categories for:
+- utility shutoff
+- tax bill / assessment / lien
+- recorder refusal
+- foreclosure / trustee sale
+- health plan / managed care / Medi-Cal
+- agency denial
+- code enforcement
+- property classification
+- court notice
+- private company acting under state authority
+
+Each matter type should recommend:
+- primary recipient
+- oversight recipient
+- notice template
+- escalation path
+- legal flag group
+
+4. Legal Authority Map
+Create a separate table that maps legal authorities to issue types. Do not hard-code legal conclusions into the agency table.
+
+Fields:
+- issue_type
+- authority_name
+- citation
+- applies_when
+- limitation
+- template_language_snippet
+- review_required: true/false
+
+5. Document Reader Integration
+When a document is uploaded, the reader must extract:
+- issuing entity
+- address
+- account/reference number
+- due date/deadline
+- threat/action type
+- property/APN if present
+- county/state
+- matter type
+- whether tribal land, trust, restricted land, Indian-law, AI/AN, or federal-review flags may apply
+
+Then the engine should recommend:
+- who to respond to
+- who receives a copy
+- who has oversight
+- which notice template to use
+- whether legal review is required before sending
+
+6. Data Sources
+Use open data sources only as verified source layers:
+- Census API for county/state/FIPS structure
+- Data.gov CKAN API for federal dataset discovery
+- State open-data portals such as California Open Data using Socrata APIs
+- HealthData.gov / HHS sources for health-related matters
+- Manual verified entries for agencies that open data does not reliably cover
+
+7. Safety Rule
+The engine must never assume the legal conclusion automatically. It may flag:
+- “possible federal Indian law issue”
+- “possible tribal land issue”
+- “possible oversight escalation”
+- “possible restricted land / Non-Intercourse Act issue”
+But it must preserve final review by the Chief / authorized reviewer before the notice is finalized.
+
+8. Output
+The engine should produce:
+- recommended recipient block
+- mailing address block
+- cc block
+- oversight block
+- legal flag summary
+- suggested notice template
+- draft-ready address merge fields
