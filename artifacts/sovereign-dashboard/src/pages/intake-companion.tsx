@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from "react";
 import { useLocation, useSearch } from "wouter";
-import { useAuth } from "@/components/auth-provider";
+import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   Fingerprint, Landmark, Stethoscope, ShieldAlert, Building2,
-  ArrowLeft, CheckCircle, FileText, Upload, Loader2,
+  ArrowLeft, CheckCircle, FileText, Upload, Loader2, AlertCircle,
 } from "lucide-react";
+
+const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
 // ─── Intake type config ───────────────────────────────────────────────────────
 
@@ -214,6 +216,8 @@ export default function IntakeCompanionPage() {
   const [input, setInput] = useState("");
   const [finished, setFinished] = useState(false);
   const [answersCollected, setAnswersCollected] = useState<{ question: string; answer: string }[]>([]);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
+  const [savedFields, setSavedFields] = useState<string[]>([]);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -225,6 +229,8 @@ export default function IntakeCompanionPage() {
     setFinished(false);
     setStepIndex(-1);
     setAnswersCollected([]);
+    setSaveStatus("idle");
+    setSavedFields([]);
   }, [intakeType]);
 
   // Auto-ask first question after opening
@@ -278,7 +284,7 @@ export default function IntakeCompanionPage() {
         .filter((a) => a.question)
         .map((a) => `• ${a.question}\n  ${a.answer}`)
         .join("\n\n");
-      setTimeout(() => {
+      setTimeout(async () => {
         setMessages((prev) => [
           ...prev,
           {
@@ -295,6 +301,26 @@ export default function IntakeCompanionPage() {
           JSON.stringify({ intakeType, summary, completedAt: new Date().toISOString() })
         );
         setFinished(true);
+
+        // Persist to profile via API
+        setSaveStatus("saving");
+        try {
+          const token = getCurrentBearerToken();
+          const res = await fetch(`${API}/api/intake/submit`, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            },
+            body: JSON.stringify({ intakeType, answers: newAnswers }),
+          });
+          if (!res.ok) throw new Error(`HTTP ${res.status}`);
+          const data = await res.json() as { profileFieldsUpdated?: string[] };
+          setSavedFields(data.profileFieldsUpdated ?? []);
+          setSaveStatus("saved");
+        } catch {
+          setSaveStatus("error");
+        }
       }, 500);
     }
   }
@@ -386,11 +412,48 @@ export default function IntakeCompanionPage() {
           <div className="bg-card border border-border rounded-2xl p-5 space-y-3 shadow-sm">
             <div className="flex items-center gap-2">
               <CheckCircle className="w-5 h-5 text-green-500" />
-              <p className="text-sm font-semibold text-foreground">Intake recorded.</p>
+              <p className="text-sm font-semibold text-foreground">Intake complete.</p>
             </div>
-            <p className="text-xs text-muted-foreground leading-relaxed">
-              Your information has been captured and will be reviewed by the Office of the Chief Justice and Trustee.
-            </p>
+
+            {/* Save status indicator */}
+            {saveStatus === "saving" && (
+              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                <span>Saving to your profile…</span>
+              </div>
+            )}
+            {saveStatus === "saved" && (
+              <div className="rounded-lg border border-green-200 bg-green-50 px-3 py-2 space-y-1">
+                <div className="flex items-center gap-1.5">
+                  <CheckCircle className="w-3.5 h-3.5 text-green-600 shrink-0" />
+                  <p className="text-xs font-semibold text-green-800">Record saved to your profile.</p>
+                </div>
+                {savedFields.length > 0 && (
+                  <p className="text-[10px] text-green-700 leading-snug pl-5">
+                    Updated: {savedFields.map((f) => {
+                      if (f === "legalName") return "legal name";
+                      if (f === "preferredName") return "preferred name";
+                      if (f === "tribalName") return "tribal affiliation";
+                      if (f === "mailingAddress") return "property address";
+                      if (f === "landStatus") return "land status";
+                      return f;
+                    }).join(", ")}
+                  </p>
+                )}
+              </div>
+            )}
+            {saveStatus === "error" && (
+              <div className="flex items-center gap-2 text-xs text-amber-700 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2">
+                <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+                <span>Could not save to your profile automatically. Your answers are still recorded locally.</span>
+              </div>
+            )}
+            {saveStatus === "idle" && (
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Your information has been captured and will be reviewed by the Office of the Chief Justice and Trustee.
+              </p>
+            )}
+
             <div className="flex gap-3 flex-wrap pt-1">
               {config.nextPath && (
                 <button
