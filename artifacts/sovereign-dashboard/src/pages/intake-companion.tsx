@@ -182,8 +182,6 @@ export default function IntakeCompanionPage() {
   const Icon = config.icon;
   const { user } = useAuth();
 
-  const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
-
   const [stepIndex, setStepIndex] = useState(-1);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: config.opening },
@@ -449,7 +447,7 @@ export default function IntakeCompanionPage() {
       <div className="flex items-center justify-between px-5 py-3 border-b border-border bg-card/80 backdrop-blur-sm shrink-0">
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate(`${base}/hub`)}
+            onClick={() => navigate("/hub")}
             className="text-muted-foreground hover:text-foreground transition-colors mr-1"
           >
             <ArrowLeft className="w-4 h-4" />
@@ -581,7 +579,7 @@ export default function IntakeCompanionPage() {
               {config.nextPath && (
                 <button
                   className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
-                  onClick={() => navigate(`${base}${config.nextPath}`)}
+                  onClick={() => navigate(config.nextPath ?? "/hub")}
                 >
                   <FileText className="w-3.5 h-3.5" />
                   {config.nextLabel ?? "Continue"}
@@ -589,7 +587,7 @@ export default function IntakeCompanionPage() {
               )}
               <button
                 className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted/50 transition-colors"
-                onClick={() => navigate(`${base}/hub`)}
+                onClick={() => navigate("/hub")}
               >
                 Return to Hub
               </button>

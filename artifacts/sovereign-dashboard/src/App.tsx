@@ -99,7 +99,8 @@ const queryClient = new QueryClient({
 });
 
 function RootRedirect() {
-  const { activeRole } = useAuth();
+  const { user, activeRole } = useAuth();
+  if (!user) return <Redirect to="/login" />;
   return <Redirect to={roleLandingPath(activeRole)} />;
 }
 
@@ -196,13 +197,7 @@ function AppRouter() {
       <Route path="/login" component={Login} />
       <Route path="/microsoft/callback" component={MicrosoftCallback} />
 
-      <Route path="/">
-        {() => {
-          const { user, activeRole } = useAuth();
-          if (!user) return <Redirect to="/login" />;
-          return <Redirect to={roleLandingPath(activeRole)} />;
-        }}
-      </Route>
+      <Route path="/" component={RootRedirect} />
 
       <Route path="/dashboard/trustee">
         {() => <ProtectedRoute component={TrusteeDashboard} />}
