@@ -1,9 +1,9 @@
 import { lazy, Suspense } from "react";
 import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wouter";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth, roleLandingPath } from "@/components/auth-provider";
+import { AuthProvider, useAuth, roleLandingPath, getCurrentBearerToken } from "@/components/auth-provider";
 import { Layout } from "@/components/layout";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
@@ -59,6 +59,7 @@ const BusinessCanvasWizard = lazy(() => import("@/pages/business-canvas-wizard")
 const BusinessConceptDetail = lazy(() => import("@/pages/business-canvas-detail"));
 const OnboardingLineagePage = lazy(() => import("@/pages/onboarding-lineage"));
 const OnboardingPendingPage = lazy(() => import("@/pages/onboarding-pending"));
+const OnboardingCompanionPage = lazy(() => import("@/pages/onboarding-companion"));
 const HubPage = lazy(() => import("@/pages/hub"));
 const GweLetterPage = lazy(() => import("@/pages/gwe-letter"));
 const MembershipPage = lazy(() => import("@/pages/membership"));
@@ -112,7 +113,7 @@ function AuthGatedChatWidget() {
   return <ChatWidget />;
 }
 
-const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/notifications", "/dashboard/visitor", "/profile", "/login", "/hub"]);
+const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/onboarding/companion", "/notifications", "/dashboard/visitor", "/profile", "/login", "/hub"]);
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
   const { user, lineagePending } = useAuth();
@@ -143,6 +144,48 @@ function ProtectedParamRoute({ children }: { children: React.ReactNode }) {
     return <Redirect to="/onboarding/pending" />;
   }
 
+  return <>{children}</>;
+}
+
+const ONBOARDING_EXEMPT_PATHS = new Set([
+  "/onboarding/companion",
+  "/onboarding/lineage",
+  "/onboarding/pending",
+  "/login",
+  "/microsoft/callback",
+]);
+
+function CompanionOnboardingGuard({ children }: { children: React.ReactNode }) {
+  const { user, lineagePending } = useAuth();
+  const [location] = useLocation();
+
+  const { data: onboardingStatus } = useQuery({
+    queryKey: ["companion-onboarding-status"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+      const apiBase = base.replace(/\/sovereign-dashboard$/, "");
+      try {
+        const res = await fetch(`${apiBase}/api/kaya/onboarding/status`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (!res.ok) return { completed: true };
+        return res.json() as Promise<{ completed: boolean }>;
+      } catch {
+        return { completed: true };
+      }
+    },
+    enabled: !!user && !lineagePending,
+    staleTime: 15 * 60_000,
+    retry: false,
+  });
+
+  if (!user || lineagePending || ONBOARDING_EXEMPT_PATHS.has(location)) {
+    return <>{children}</>;
+  }
+  if (onboardingStatus && !onboardingStatus.completed) {
+    return <Redirect to="/onboarding/companion" />;
+  }
   return <>{children}</>;
 }
 
@@ -378,6 +421,9 @@ function AppRouter() {
       <Route path="/onboarding/pending">
         {() => <ProtectedRoute component={OnboardingPendingPage} />}
       </Route>
+      <Route path="/onboarding/companion">
+        {() => <ProtectedRoute component={OnboardingCompanionPage} />}
+      </Route>
       <Route path="/doctrine">
         {() => (
           <ProtectedRoute
@@ -484,7 +530,9 @@ function AuthenticatedLayout() {
       {user ? (
         <Layout>
           <Suspense fallback={<PageFallback />}>
-            <AppRouter />
+            <CompanionOnboardingGuard>
+              <AppRouter />
+            </CompanionOnboardingGuard>
           </Suspense>
         </Layout>
       ) : (

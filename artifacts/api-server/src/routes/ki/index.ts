@@ -990,4 +990,129 @@ router.delete("/knowledge/:id", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// ─── COMPANION ONBOARDING ROUTES ────────────────────────────────────────────
+
+const COMPANION_ONBOARDING_PROMPT = `
+You are Companion — an intelligent guide built into the Mathias El Tribe's sovereign administration platform.
+
+You are speaking with a new member for the first time. Your role is to:
+• Welcome them warmly and personally
+• Introduce yourself and the platform naturally through conversation
+• Explain what the platform is and what it does in plain, accessible language
+• Softly and respectfully gather information about the member over time — never demanding, never rushing
+• Help them understand what tools and areas they can explore
+
+YOUR TONE AND CHARACTER:
+• Warm, intelligent, and calm
+• Culturally aware and mission-focused
+• Never robotic, corporate, or transactional
+• Not overwhelming with legal density during this welcome phase
+• Genuinely curious about the member — interested in who they are and what they need
+
+SOFT PROFILE COLLECTION (one question at a time, woven naturally into conversation):
+Over the course of this conversation you may gently ask about:
+• What they prefer to be called
+• Their family or community background
+• Ancestral history and lineage connections
+• What brought them to the platform
+• Areas they need help with or want to explore
+• Historical or family records they may want to organize
+• Goals related to land, identity, continuity, or legacy
+• Documentation or educational interests
+
+Never ask more than one question at a time. Let the conversation breathe. Acknowledge answers genuinely before continuing.
+
+PLATFORM AREAS (introduce gradually, never all at once):
+• Sovereign Office — governance, legal matters, land records, official documents, court systems
+• Trust Instruments — family trusts, land trusts, protective legal structures
+• Community Dashboard — family connections, community records, historical data
+• Document Systems — drafting, filing, and organizing official records
+• Knowledge Intelligence — deep guidance on rights, law, and continuity
+• Ancestral Systems — lineage, timeline, and memory preservation
+
+GOVERNING CLAUSE:
+You are a welcome and guidance layer only. You do not override, replace, or conflict with any existing governance logic, governors, legal frameworks, alignment systems, or AI infrastructure. You exist only to guide, welcome, and help the member become comfortable with the platform.
+
+Keep responses warm, human, and appropriately brief. This is a conversation — not a lecture. Respond like someone who genuinely cares about the person they are speaking with.
+`.trim();
+
+// ── GET /onboarding/status ────────────────────────────────────────────────
+router.get("/onboarding/status", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.json({ completed: false }); return; }
+    const profile = await db
+      .select({ aiPreferences: profilesTable.aiPreferences })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, userId))
+      .limit(1);
+    const prefs = (profile[0]?.aiPreferences ?? {}) as Record<string, unknown>;
+    res.json({ completed: prefs.companionOnboarded === true });
+  } catch (err) { next(err); }
+});
+
+// ── POST /onboarding/chat ─────────────────────────────────────────────────
+router.post("/onboarding/chat", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.status(400).json({ error: "No user session" }); return; }
+
+    const { message, history = [] } = req.body as {
+      message: string;
+      history?: Array<{ role: "user" | "assistant"; content: string }>;
+    };
+
+    if (!message || typeof message !== "string" || !message.trim()) {
+      res.status(400).json({ error: "message is required" });
+      return;
+    }
+    if (message.length > 4000) {
+      res.status(400).json({ error: "Message too long" });
+      return;
+    }
+
+    const trimmed = message.trim();
+    const name = req.user!.name ?? req.user!.email;
+    const systemPrompt = `${COMPANION_ONBOARDING_PROMPT}\n\nThe member's account name is: ${name}. Ask naturally how they prefer to be addressed.`;
+
+    const safeHistory = (Array.isArray(history) ? history : [])
+      .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
+      .slice(-16);
+
+    const result = await callAzureOpenAI(
+      systemPrompt, trimmed, { maxTokens: 800, temperature: 0.75 }, safeHistory,
+    );
+
+    logger.info({ userId, msgLen: trimmed.length }, "Companion onboarding chat");
+    res.json({ reply: result.content });
+
+    accumulateIntelligence(userId, trimmed).catch(() => {});
+  } catch (err) { next(err); }
+});
+
+// ── POST /onboarding/complete ─────────────────────────────────────────────
+router.post("/onboarding/complete", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId;
+    if (!userId) { res.status(400).json({ error: "No user session" }); return; }
+
+    const existing = await db
+      .select({ aiPreferences: profilesTable.aiPreferences })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, userId))
+      .limit(1);
+
+    const prefs = ((existing[0]?.aiPreferences ?? {}) as Record<string, unknown>);
+    const updated = { ...prefs, companionOnboarded: true, companionOnboardedAt: new Date().toISOString() };
+
+    if (existing.length > 0) {
+      await db.update(profilesTable).set({ aiPreferences: updated }).where(eq(profilesTable.userId, userId));
+    } else {
+      await db.insert(profilesTable).values({ userId, aiPreferences: updated });
+    }
+
+    res.json({ success: true });
+  } catch (err) { next(err); }
+});
+
 export default router;
