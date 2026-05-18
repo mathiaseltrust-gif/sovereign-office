@@ -42,6 +42,6 @@
   ],
   "maps": [
     { "id": "src-080", "title": "Native Land Digital — Treaty and Territory Maps", "url": "https://native-land.ca/", "description": "Interactive map of Indigenous territories, treaties, and languages." },
-    { "id": "src-081", "title": "Homeland by Vine Deloria Jr. — Indian Land Cession Maps", "url": "https://digitalmaine.com/cgi/viewcontent.cgi?article=1009&context=spo_docs", "description": "Detailed maps of land cessions from treaty era through allotment." }
+    { "id": "src-081", "title": "Indian Land Cessions in the United States — Charles C. Royce", "year": 1899, "author": "Charles C. Royce, Bureau of American Ethnology", "citation": "18th Annual Report of the Bureau of American Ethnology, Part 2 (1899)", "url": "https://archive.org/details/indianlandcessio00royc", "description": "The definitive cartographic record of every treaty-based Indian land cession in the United States, compiled by the Bureau of American Ethnology. Includes 67 maps and a schedule of all land cession treaties from colonial era through 1894. The primary scholarly and legal reference for documenting which lands were ceded under which treaty." }
   ]
 }
