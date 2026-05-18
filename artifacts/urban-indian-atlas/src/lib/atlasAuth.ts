@@ -3,26 +3,44 @@ const SOVEREIGN_LS_KEY = "sovereign_auth_v3";
 
 /**
  * Reads an authentication token from localStorage — checks the Community
- * Dashboard key first, then the Sovereign Dashboard key. Returns null if no
- * valid token is found (user is not signed in to any dashboard in this browser
- * session).
+ * Dashboard key first, then the Sovereign Dashboard key.
  *
- * Atlas Mode ancestor data is user-scoped and requires authentication.  The
- * token is obtained by signing into the Community or Sovereign Dashboard
- * (same browser session) and is sent as a Bearer token on ancestor requests.
+ * The Sovereign Dashboard stores its session as:
+ *   { sessionToken, user: { id, email, name, ... }, mode, activeRole, ... }
+ *
+ * In dev/token mode sessionToken may be null; we fall back to the same
+ * base64 dev-token the sovereign dashboard synthesises internally.
+ *
+ * Returns null only when no valid token can be found at all.
  */
 export function getAtlasBearerToken(): string | null {
+  // 1. Community dashboard token
   try {
     const tok = localStorage.getItem(COMMUNITY_TOKEN_KEY);
     if (tok && tok.length > 10) return tok;
-  } catch { /* ignore – SSR or sandboxed iframe */ }
+  } catch { /* SSR / sandboxed iframe */ }
 
+  // 2. Sovereign dashboard session
   try {
     const raw = localStorage.getItem(SOVEREIGN_LS_KEY);
     if (raw) {
-      const parsed = JSON.parse(raw) as { token?: string; accessToken?: string };
-      const tok = parsed.token ?? parsed.accessToken;
-      if (tok && tok.length > 10) return tok;
+      const parsed = JSON.parse(raw) as {
+        token?: string;
+        accessToken?: string;
+        sessionToken?: string | null;
+        user?: { id?: number; email?: string; name?: string; roles?: string[]; role?: string };
+      };
+
+      // Prefer an explicit session token (any of the three field names used historically)
+      const explicit = parsed.sessionToken ?? parsed.token ?? parsed.accessToken;
+      if (explicit && explicit.length > 10) return explicit;
+
+      // Dev / token mode: sessionToken is null but user object is present.
+      // Synthesise the same base64 dev token the sovereign dashboard uses.
+      if (parsed.user && (parsed.user.id !== undefined || parsed.user.email)) {
+        const devPayload = btoa(JSON.stringify(parsed.user));
+        if (devPayload.length > 10) return devPayload;
+      }
     }
   } catch { /* ignore */ }
 
