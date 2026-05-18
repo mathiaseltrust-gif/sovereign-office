@@ -238,12 +238,15 @@ function geocodeText(text: string): [number, number] | null {
 // "home" coordinate (tribal nation centroid) for migration arc rendering.
 //
 // Priority: (1) verified lat/lng stored on family_lineage record (documentary-quality),
-//           (2) locationText from ancestralTimelineEvents records,
-//           (3) tribalNation keyword fallback (inferred, not from user records).
+//           (2) tribalNation keyword geocoded to a centroid (tribal homeland),
+//           (3) location_text from the most recent ancestral_timeline_events record
+//               — used as a fallback when tribal_nation yields no coordinate.
+//               Mirrors the Community Dashboard member-detail map picker behaviour.
 //
-// homeCoord is only set when source is "timeline_record" — it is the tribal-nation
-// centroid that the person migrated FROM. Verified coords are taken as authoritative
-// and no migration arc is drawn (the verified point IS the definitive location).
+// homeCoord is always null — under the current priority order, if we reach the
+// "timeline_record" branch it means tribalNation produced no geocodable coord,
+// so there is no tribal centroid to draw a migration arc from.
+// Verified coords are taken as authoritative and no migration arc is drawn.
 function resolveAncestorCoord(ancestor: AncestorRecord): {
   coord: [number, number];
   source: "verified_coords" | "timeline_record" | "tribal_nation";
@@ -260,19 +263,25 @@ function resolveAncestorCoord(ancestor: AncestorRecord): {
     };
   }
 
+  // Second priority: tribal nation keyword geocoded to a centroid.
+  // Mirrors Community Dashboard: tribal nation is tried before timeline text.
+  if (tribalCoord) {
+    return { coord: tribalCoord, source: "tribal_nation", homeCoord: null };
+  }
+
+  // Fallback: location_text from the most recent ancestral_timeline_events record.
+  // Used when tribal_nation is absent or unrecognised.
   if (ancestor.locationText) {
     const coord = geocodeText(ancestor.locationText);
     if (coord) {
       return {
         coord,
         source: "timeline_record",
-        homeCoord: tribalCoord,
+        homeCoord: null, // no tribal coord available to draw a migration arc from
       };
     }
   }
-  if (tribalCoord) {
-    return { coord: tribalCoord, source: "tribal_nation", homeCoord: null };
-  }
+
   return null;
 }
 
