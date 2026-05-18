@@ -697,8 +697,9 @@ export function ChatWidget() {
               maxHeight: "calc(100vh - 72px)",
             }}
           >
-            {/* Panel inner header (info only, no toggle — tab bar is the toggle) */}
+            {/* Panel inner header — double-click to minimize */}
             <div
+              onDoubleClick={toggle}
               style={{
                 background: hasRedFlag ? "#7f1d1d" : "#1a3a2a",
                 color: "#fff",
@@ -707,6 +708,8 @@ export function ChatWidget() {
                 alignItems: "center",
                 gap: 10,
                 flexShrink: 0,
+                cursor: "pointer",
+                userSelect: "none",
               }}
             >
               <img
