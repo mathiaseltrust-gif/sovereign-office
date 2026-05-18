@@ -4,7 +4,7 @@ import {
   User, FileText, Brain, Building2, Users, Scale,
   Gavel, Heart, Shield, ChevronRight, LogOut, Briefcase,
   TreePine, AlertCircle, BookOpen, Star, Fingerprint,
-  Landmark, Stethoscope, ShieldAlert, GraduationCap,
+  Landmark, Stethoscope, ShieldAlert, GraduationCap, Map,
 } from "lucide-react";
 
 const POSITION_TITLES: Record<string, string | null> = {
@@ -231,6 +231,13 @@ export default function HubPage() {
             description="View your family connections, ancestral records, and ICWA eligibility status."
             href="/family-tree"
             color="green"
+          />
+          <ServiceCard
+            icon={Map}
+            title="Ancestral Tribal Affiliations"
+            description="Logic engine — cross-references your ancestors' locations and lifespans against historical tribal territories, removal acts, and treaty cessions to show which nations they were affiliated with and why."
+            href="/ancestral-affiliations"
+            color="amber"
           />
           <ServiceCard
             icon={FileText}

@@ -1,10 +1,42 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Info, AlertTriangle, MapPin, Clock, Users, FileText, CheckCircle2, ShieldAlert, BookOpen, Printer } from "lucide-react";
+import { X, Info, AlertTriangle, MapPin, Clock, Users, FileText, CheckCircle2, ShieldAlert, BookOpen, Printer, Zap, Shield, ScrollText, ChevronDown, ChevronRight } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import type { AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
 import { ContinuityReport } from "@/components/ContinuityReport";
+import { authHeaders } from "@/lib/atlasAuth";
+
+const API = import.meta.env.VITE_API_BASE_URL ?? "";
+
+interface AffiliationMatch {
+  tribalNation: string;
+  confidence: "confirmed" | "high" | "moderate" | "inferred";
+  basis: string;
+  activeEra: string;
+  removalImpact: string | null;
+  treaties: string[];
+  survivingCommunity: string | null;
+}
+
+interface TribalAffiliationResult {
+  ancestorId: number;
+  fullName: string;
+  detectedState: string | null;
+  era: string;
+  affiliations: AffiliationMatch[];
+  logicSummary: string;
+  reasoning: string[];
+  confidence: "confirmed" | "high" | "moderate" | "inferred";
+}
+
+const CONF_COLORS: Record<string, string> = {
+  confirmed: "text-emerald-400 border-emerald-700/40 bg-emerald-900/20",
+  high:      "text-sky-400 border-sky-700/40 bg-sky-900/20",
+  moderate:  "text-amber-400 border-amber-700/40 bg-amber-900/20",
+  inferred:  "text-zinc-400 border-zinc-700/40 bg-zinc-800/40",
+};
 
 interface PersonContextPanelProps {
   ancestor: AncestorRecord | null;
@@ -62,6 +94,115 @@ function ContextDisclaimer() {
     </div>
   );
 }
+
+// ─── Tribal Affiliation Logic Engine Section ──────────────────────────────────
+
+function TribalAffiliationSection({ ancestorId }: { ancestorId: number }) {
+  const [expanded, setExpanded] = useState(false);
+
+  const { data, isLoading, isError } = useQuery<TribalAffiliationResult>({
+    queryKey: ["tribal-affiliation", ancestorId],
+    queryFn: async () => {
+      const res = await fetch(`${API}/api/ancestors/${ancestorId}/affiliation`, {
+        headers: { "Content-Type": "application/json", ...authHeaders() },
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json() as Promise<TribalAffiliationResult>;
+    },
+    staleTime: 5 * 60 * 1000,
+    retry: 1,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="bg-card/60 border border-border/60 rounded-lg p-3 flex items-center gap-2 text-xs text-muted-foreground">
+        <Zap className="w-3.5 h-3.5 animate-pulse text-primary/60" />
+        Running affiliation analysis…
+      </div>
+    );
+  }
+
+  if (isError || !data) return null;
+
+  const hasAffiliations = data.affiliations.length > 0;
+  const confColor = CONF_COLORS[data.confidence] ?? CONF_COLORS.inferred;
+
+  return (
+    <div className="bg-card/60 border border-border/60 rounded-lg overflow-hidden">
+      <button
+        className="w-full flex items-center gap-2 p-3 text-left hover:bg-white/5 transition-colors"
+        onClick={() => setExpanded(v => !v)}
+      >
+        <Zap className="w-3.5 h-3.5 text-primary/80 shrink-0" />
+        <div className="flex-1 min-w-0">
+          <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+            Tribal Affiliation Analysis
+          </h3>
+          {hasAffiliations && (
+            <p className="text-[10px] text-foreground/60 truncate mt-0.5">
+              {data.affiliations.slice(0, 3).map(a => a.tribalNation).join(" · ")}
+            </p>
+          )}
+          {!hasAffiliations && (
+            <p className="text-[10px] text-muted-foreground/60 mt-0.5">Add location data to unlock analysis</p>
+          )}
+        </div>
+        <span className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border ${confColor}`}>
+          {data.confidence}
+        </span>
+        {expanded ? <ChevronDown className="w-3.5 h-3.5 text-muted-foreground shrink-0" /> : <ChevronRight className="w-3.5 h-3.5 text-muted-foreground shrink-0" />}
+      </button>
+
+      {expanded && (
+        <div className="border-t border-border/50 p-3 space-y-3">
+          {/* Logic summary */}
+          <p className="text-xs text-foreground/75 leading-relaxed">{data.logicSummary}</p>
+
+          {/* Era */}
+          <p className="text-[10px] text-muted-foreground/60 font-medium">{data.era}{data.detectedState ? ` · ${data.detectedState.replace(/\b\w/g, c => c.toUpperCase())}` : ""}</p>
+
+          {/* Affiliations list */}
+          {data.affiliations.map((a, i) => (
+            <div key={i} className="bg-card/40 border border-border/50 rounded-md p-2.5 space-y-1.5">
+              <div className="flex items-start gap-2">
+                <Shield className="w-3 h-3 text-primary/60 mt-0.5 shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    <p className="text-xs font-semibold text-foreground">{a.tribalNation}</p>
+                    <span className={`text-[9px] font-medium px-1.5 py-0.5 rounded-full border ${CONF_COLORS[a.confidence] ?? CONF_COLORS.inferred}`}>
+                      {a.confidence}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground/70 leading-relaxed mt-0.5">{a.basis}</p>
+                </div>
+              </div>
+              {a.treaties.length > 0 && (
+                <div className="flex items-start gap-1.5 pl-5">
+                  <ScrollText className="w-2.5 h-2.5 text-muted-foreground/50 mt-0.5 shrink-0" />
+                  <p className="text-[10px] text-muted-foreground/60">{a.treaties.slice(0, 2).join(" · ")}</p>
+                </div>
+              )}
+              {a.survivingCommunity && (
+                <p className="text-[10px] text-primary/60 pl-5 leading-relaxed">
+                  Today: {a.survivingCommunity}
+                </p>
+              )}
+            </div>
+          ))}
+
+          {/* First reasoning sentence */}
+          {data.reasoning.length > 0 && (
+            <p className="text-[10px] text-muted-foreground/55 leading-relaxed border-t border-border/40 pt-2">
+              {data.reasoning[0]}
+            </p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ─── Main panel ───────────────────────────────────────────────────────────────
 
 export function PersonContextPanel({ ancestor, contextMatches, onClose }: PersonContextPanelProps) {
   const [showReport, setShowReport] = useState(false);
@@ -234,6 +375,9 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
                 </div>
               )}
             </div>
+
+            {/* ── Tribal Affiliation Logic Engine ── */}
+            <TribalAffiliationSection ancestorId={ancestor.id} />
 
             {/* ── Classification & Community Identity Record ── */}
             {classificationEvents.length > 0 && (

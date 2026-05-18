@@ -71,6 +71,7 @@ const DraftsPage = lazy(() => import("@/pages/drafts"));
 const FilesPage = lazy(() => import("@/pages/documents"));
 const RoleGovernorsPage = lazy(() => import("@/pages/role-governors"));
 const InstrumentWizardPage = lazy(() => import("@/pages/instrument-wizard"));
+const AncestralAffiliationsPage = lazy(() => import("@/pages/ancestral-affiliations"));
 const AncestralMemoriesPage = lazy(() => import("@/pages/ancestral-memories"));
 const AncestorMemorialPage = lazy(() => import("@/pages/ancestor-memorial"));
 const LegalProvisionsPage = lazy(() => import("@/pages/legal-provisions"));
@@ -320,6 +321,9 @@ function AppRouter() {
       </Route>
       <Route path="/family-tree">
         {() => <ProtectedRoute component={FamilyTreePage} />}
+      </Route>
+      <Route path="/ancestral-affiliations">
+        {() => <ProtectedRoute component={AncestralAffiliationsPage} />}
       </Route>
       <Route path="/ancestral-memories">
         {() => <ProtectedRoute component={AncestralMemoriesPage} />}
