@@ -36,19 +36,48 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-const ancestorIcon = L.divIcon({
-  className: "",
-  html: `<div style="width:14px;height:14px;border-radius:50%;background:#7c9cbc;border:2px solid #fff;box-shadow:0 0 6px rgba(124,156,188,0.8);"></div>`,
-  iconSize: [14, 14],
-  iconAnchor: [7, 7],
-});
+// ── Ancestry-style ancestor marker helpers ─────────────────────────────────
 
-const ancestorSelectedIcon = L.divIcon({
-  className: "",
-  html: `<div style="width:18px;height:18px;border-radius:50%;background:#5b8db8;border:3px solid #fff;box-shadow:0 0 10px rgba(91,141,184,0.9);"></div>`,
-  iconSize: [18, 18],
-  iconAnchor: [9, 9],
-});
+// Surname-keyed palette — maps consistently so the same family always gets
+// the same color across re-renders and zoom levels.
+const ANCESTOR_COLOR_PALETTE = [
+  "#8b2020", // deep maroon   (primary — most ancestors)
+  "#b8860b", // dark gold
+  "#2d6a4f", // forest green
+  "#1e3a5f", // deep navy
+  "#6b3070", // deep purple
+  "#7a3010", // terra cotta
+  "#1a5c5c", // dark teal
+  "#5a3a00", // olive brown
+];
+
+function getAncestorColor(lastName: string | null | undefined): string {
+  if (!lastName) return ANCESTOR_COLOR_PALETTE[0];
+  let hash = 0;
+  for (let i = 0; i < lastName.length; i++) {
+    hash = ((hash << 5) - hash + lastName.charCodeAt(i)) & 0xffff;
+  }
+  return ANCESTOR_COLOR_PALETTE[Math.abs(hash) % ANCESTOR_COLOR_PALETTE.length];
+}
+
+function getInitials(firstName: string | null | undefined, lastName: string | null | undefined, fullName: string | null | undefined): string {
+  if (firstName && lastName) return (firstName[0] + lastName[0]).toUpperCase();
+  if (fullName) {
+    const parts = fullName.trim().split(/\s+/).filter(p => /^[A-Za-z]/.test(p));
+    if (parts.length >= 2) return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase();
+    if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase();
+  }
+  return "?";
+}
+
+function generationLabel(pos: number | null): string {
+  if (pos === null) return "Ancestor";
+  if (pos === 1) return "Parent";
+  if (pos === 2) return "Grandparent";
+  if (pos === 3) return "Great-Grandparent";
+  const suffix = pos === 4 ? "2nd" : pos === 5 ? "3rd" : `${pos - 2}th`;
+  return `${suffix} Great-Grandparent`;
+}
 
 interface AtlasMapProps {
   events: AtlasEvent[];
@@ -548,35 +577,49 @@ export function AtlasMap({
           const hasSelected = cluster.members.some(m => m.ancestor.id === selectedPersonId);
 
           if (count === 1) {
-            // Single-ancestor marker
+            // ── Single-ancestor initials badge ──────────────────────────────
             const { ancestor, coord, source } = cluster.members[0];
             const isSelected = ancestor.id === selectedPersonId;
-            const isVerifiedCoords = source === "verified_coords";
-            const isFromRecords = source === "timeline_record";
-            // Color scheme: verified_coords → solid green-teal pin
-            //               timeline_record → blue pin
-            //               tribal_nation   → grey dashed pin
-            const pinColor = isVerifiedCoords ? "#2d8c6e" : isFromRecords ? "#7c9cbc" : "#9a9aaa";
-            const pinColorSel = isVerifiedCoords ? "#1e6b54" : isFromRecords ? "#5b8db8" : "#8a8a9a";
-            const pinBorder = source === "tribal_nation" ? "2px dashed #ccc" : "2px solid #fff";
-            const pinShadow = isVerifiedCoords
-              ? "rgba(45,140,110,0.9)"
-              : isFromRecords
-                ? "rgba(124,156,188,0.8)"
-                : "rgba(0,0,0,0.2)";
+            const color = getAncestorColor(ancestor.lastName);
+            const initials = getInitials(ancestor.firstName, ancestor.lastName, ancestor.fullName);
+            const size = isSelected ? 42 : 34;
+            const fontSize = initials.length > 2 ? 10 : 12;
+            // Selected: outer glow ring + larger badge
+            const outerRing = isSelected
+              ? `box-shadow:0 0 0 3px rgba(255,255,255,0.25),0 0 14px rgba(255,255,255,0.18),0 2px 8px rgba(0,0,0,0.55);`
+              : `box-shadow:0 2px 6px rgba(0,0,0,0.45);`;
+            // Inferred location: slightly desaturated with dashed border
+            const borderStyle = source === "tribal_nation"
+              ? `border:2px dashed rgba(255,255,255,0.55);`
+              : `border:2.5px solid rgba(255,255,255,0.9);`;
             const icon = L.divIcon({
               className: "",
-              html: isSelected
-                ? `<div style="width:20px;height:20px;border-radius:50%;background:${pinColorSel};border:3px solid #fff;box-shadow:0 0 10px ${pinShadow};"></div>`
-                : `<div style="width:14px;height:14px;border-radius:50%;background:${pinColor};border:${pinBorder};box-shadow:0 0 6px ${pinShadow};"></div>`,
-              iconSize: isSelected ? [20, 20] : [14, 14],
-              iconAnchor: isSelected ? [10, 10] : [7, 7],
+              html: `<div style="
+                width:${size}px;height:${size}px;border-radius:50%;
+                background:${color};
+                ${borderStyle}
+                ${outerRing}
+                display:flex;align-items:center;justify-content:center;
+                color:#fff;font-size:${fontSize}px;font-weight:700;
+                font-family:system-ui,-apple-system,sans-serif;
+                letter-spacing:0.5px;
+                cursor:pointer;
+                opacity:${source === "tribal_nation" ? 0.82 : 1};
+              ">${initials}</div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
             });
-            const locationLabel = isVerifiedCoords
-              ? `Verified location: ${ancestor.locationLat?.toFixed(4)}, ${ancestor.locationLng?.toFixed(4)}`
-              : isFromRecords
-                ? `Location: from records — "${ancestor.locationText}"`
-                : "Location: inferred from tribal nation (needs review)";
+
+            const genLabel = generationLabel(ancestor.generationalPosition);
+            const years = [ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ");
+            const locationNote = source === "verified_coords"
+              ? "Verified location"
+              : source === "timeline_record"
+                ? `From records${ancestor.locationText ? ` · ${ancestor.locationText}` : ""}`
+                : ancestor.tribalNation
+                  ? `Nation · ${ancestor.tribalNation}`
+                  : "Location inferred";
+
             return (
               <Marker
                 key={`person-${ancestor.id}`}
@@ -584,29 +627,64 @@ export function AtlasMap({
                 icon={icon}
                 eventHandlers={{ click: () => onSelectPerson(ancestor.id) }}
               >
-                <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                  <div className="font-medium text-sm">{ancestor.fullName}</div>
-                  {(ancestor.birthYear || ancestor.deathYear) && (
-                    <div className="text-xs text-muted-foreground">
-                      {[ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ")}
-                    </div>
-                  )}
-                  {ancestor.tribalNation && (
-                    <div className="text-xs italic text-amber-600/80">{ancestor.tribalNation}</div>
-                  )}
-                  <div className="text-[10px] mt-1 opacity-60">{locationLabel}</div>
+                <Tooltip direction="top" offset={[0, -(size / 2 + 4)]} opacity={1}>
+                  <div style={{ minWidth: 150 }}>
+                    <div style={{ fontWeight: 600, fontSize: 13 }}>{ancestor.fullName}</div>
+                    {years && <div style={{ fontSize: 11, color: "#888", marginTop: 1 }}>{years}</div>}
+                    <div style={{ fontSize: 11, color: "#aaa", marginTop: 1 }}>{genLabel}</div>
+                    {ancestor.tribalNation && (
+                      <div style={{ fontSize: 10, color: "#c9a96e", marginTop: 2, fontStyle: "italic" }}>{ancestor.tribalNation}</div>
+                    )}
+                    <div style={{ fontSize: 10, color: "#777", marginTop: 3, borderTop: "1px solid #333", paddingTop: 3 }}>{locationNote}</div>
+                  </div>
                 </Tooltip>
               </Marker>
             );
           }
 
-          // Multi-ancestor cluster badge
+          // ── Multi-ancestor cluster badge ───────────────────────────────────
+          // Use the most common surname color in the cluster for visual cohesion.
+          const surnameCounts: Record<string, number> = {};
+          for (const m of cluster.members) {
+            const ln = m.ancestor.lastName ?? "?";
+            surnameCounts[ln] = (surnameCounts[ln] ?? 0) + 1;
+          }
+          const dominantSurname = Object.entries(surnameCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+          const clusterColor = getAncestorColor(dominantSurname);
+          const sz = hasSelected ? 46 : count >= 10 ? 40 : 36;
+          const cFontSize = count >= 100 ? 11 : count >= 10 ? 13 : 15;
+
+          // Outer ring — lighter translucent version of the same color for depth
+          const ringStyle = hasSelected
+            ? `box-shadow:0 0 0 4px rgba(255,255,255,0.15),0 0 16px rgba(255,255,255,0.12),0 2px 10px rgba(0,0,0,0.5);`
+            : `box-shadow:0 0 0 3px rgba(255,255,255,0.12),0 2px 7px rgba(0,0,0,0.45);`;
+
+          // Show first-letter initials of all unique surnames as a sub-label
+          const uniqueSurnames = [...new Set(cluster.members.map(m => m.ancestor.lastName).filter(Boolean))];
+          const surnameHint = uniqueSurnames.slice(0, 3).map(s => s![0]).join(" ");
+
           const clusterIcon = L.divIcon({
             className: "",
-            html: `<div style="width:${hasSelected ? 34 : 28}px;height:${hasSelected ? 34 : 28}px;border-radius:50%;background:${cluster.hasVerified ? "#5b8db8" : "#9a9aaa"};border:3px solid #fff;box-shadow:0 0 ${hasSelected ? 12 : 6}px ${cluster.hasVerified ? "rgba(91,141,184,0.7)" : "rgba(0,0,0,0.25)"};display:flex;align-items:center;justify-content:center;color:#fff;font-size:${count >= 10 ? 9 : 11}px;font-weight:700;font-family:system-ui,sans-serif;">${count}</div>`,
-            iconSize: hasSelected ? [34, 34] : [28, 28],
-            iconAnchor: hasSelected ? [17, 17] : [14, 14],
+            html: `<div style="
+              width:${sz}px;height:${sz}px;border-radius:50%;
+              background:${clusterColor};
+              border:2.5px solid rgba(255,255,255,0.85);
+              ${ringStyle}
+              display:flex;flex-direction:column;align-items:center;justify-content:center;
+              color:#fff;
+              font-family:system-ui,-apple-system,sans-serif;
+              cursor:pointer;
+            ">
+              <span style="font-size:${cFontSize}px;font-weight:700;line-height:1;">${count}</span>
+              ${surnameHint ? `<span style="font-size:7px;opacity:0.75;letter-spacing:0.5px;margin-top:1px;">${surnameHint}</span>` : ""}
+            </div>`,
+            iconSize: [sz, sz],
+            iconAnchor: [sz / 2, sz / 2],
           });
+
+          const names = cluster.members.map(m => m.ancestor.fullName);
+          const displayNames = names.slice(0, 4).join(", ") + (names.length > 4 ? ` +${names.length - 4} more` : "");
+
           return (
             <Marker
               key={`cluster-${ci}`}
@@ -614,14 +692,15 @@ export function AtlasMap({
               icon={clusterIcon}
               eventHandlers={{ click: () => onSelectPerson(cluster.members[0].ancestor.id) }}
             >
-              <Tooltip direction="top" offset={[0, -10]} opacity={1}>
-                <div className="font-medium text-sm">{count} ancestors in this area</div>
-                <div className="text-xs text-muted-foreground mt-0.5">
-                  {cluster.members.map(m => m.ancestor.fullName).join(", ")}
+              <Tooltip direction="top" offset={[0, -(sz / 2 + 4)]} opacity={1}>
+                <div style={{ minWidth: 180 }}>
+                  <div style={{ fontWeight: 600, fontSize: 13 }}>{count} ancestors in this area</div>
+                  <div style={{ fontSize: 11, color: "#aaa", marginTop: 3, lineHeight: 1.5 }}>{displayNames}</div>
+                  {cluster.hasVerified && (
+                    <div style={{ fontSize: 10, color: "#5b9bdc", marginTop: 3 }}>✓ Includes verified record locations</div>
+                  )}
+                  <div style={{ fontSize: 10, color: "#666", marginTop: 3 }}>Click to select · scroll map to explore</div>
                 </div>
-                {cluster.hasVerified && (
-                  <div className="text-[10px] mt-1 text-blue-600/80">Includes verified record locations</div>
-                )}
               </Tooltip>
             </Marker>
           );
@@ -685,19 +764,19 @@ export function AtlasMap({
 
         {/* Atlas Mode ancestor markers */}
         {atlasMode && activeLayers.ancestorLocations && (
-          <div className="space-y-1 pt-0.5">
-            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-0.5">Ancestors</p>
+          <div className="space-y-1.5 pt-0.5">
+            <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mb-0.5">Family</p>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#2d8c6e] border-2 border-white shadow flex-shrink-0" />
-              <span className="text-muted-foreground leading-tight">Verified location</span>
+              <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#8b2020", border: "2px solid rgba(255,255,255,0.85)" }}>JM</div>
+              <span className="text-muted-foreground leading-tight">Ancestor (initials)</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#7c9cbc] border-2 border-white shadow flex-shrink-0" />
-              <span className="text-muted-foreground leading-tight">From records</span>
+              <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#8b2020", border: "2px dashed rgba(255,255,255,0.55)", opacity: 0.82 }}>JM</div>
+              <span className="text-muted-foreground leading-tight">Location inferred</span>
             </div>
             <div className="flex items-center gap-2">
-              <div className="w-3 h-3 rounded-full bg-[#9a9aaa] flex-shrink-0" style={{ border: "2px dashed #ccc" }} />
-              <span className="text-muted-foreground leading-tight">Inferred (needs review)</span>
+              <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#8b2020", border: "2px solid rgba(255,255,255,0.85)" }}>5</div>
+              <span className="text-muted-foreground leading-tight">Cluster (count)</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "1.5px dashed #8a7050", opacity: 0.55 }} />
