@@ -81,16 +81,19 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
   // Infer a starting coordinate for the map picker when no verified coords are
   // stored yet. First try the tribal nation keyword; if that yields nothing,
   // fall back to the most recent ancestral timeline location text.
-  const inferredCoord: [number, number] | null = (() => {
-    if (hasCoords) return null;
+  // Track which source produced the coordinate so we can show the user why
+  // the map opened at that position.
+  const { inferredCoord, inferredFromTimeline } = (() => {
+    if (hasCoords) return { inferredCoord: null as [number, number] | null, inferredFromTimeline: false };
     if (tribalNation) {
       const coord = geocodeText(tribalNation);
-      if (coord) return coord;
+      if (coord) return { inferredCoord: coord, inferredFromTimeline: false };
     }
     if (locationText) {
-      return geocodeText(locationText);
+      const coord = geocodeText(locationText);
+      if (coord) return { inferredCoord: coord, inferredFromTimeline: true };
     }
-    return null;
+    return { inferredCoord: null as [number, number] | null, inferredFromTimeline: false };
   })();
 
   const handleMapConfirm = async (lat: number, lng: number, address: string) => {
@@ -152,6 +155,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
             initialLng={currentLng}
             initialAddress={currentAddress}
             initialInferredCoord={inferredCoord}
+            inferredFromText={inferredFromTimeline ? (locationText ?? null) : null}
             onConfirm={handleMapConfirm}
             onCancel={() => setShowMapPicker(false)}
           />
@@ -203,9 +207,16 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
             </p>
           </div>
         ) : (
-          <p className="text-xs text-muted-foreground mt-1">
-            Pick a place on the map or search by name. The county and city will be recorded alongside the exact coordinates.
-          </p>
+          <div className="mt-1 space-y-1">
+            <p className="text-xs text-muted-foreground">
+              Pick a place on the map or search by name. The county and city will be recorded alongside the exact coordinates.
+            </p>
+            {inferredFromTimeline && locationText && (
+              <p className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700/40 rounded px-2 py-1">
+                Map pre-filled from timeline event: <span className="font-medium">{locationText}</span>
+              </p>
+            )}
+          </div>
         )}
       </CardHeader>
       {saving && (

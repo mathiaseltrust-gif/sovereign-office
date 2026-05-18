@@ -86,11 +86,15 @@ interface MapPickerModalProps {
    *  pre-center the map when no verified coords exist. Shows a faint dashed
    *  reference marker so the member can nudge the pin to the exact spot. */
   initialInferredCoord?: [number, number] | null;
+  /** When the inferred coordinate was derived from a timeline location text
+   *  rather than the tribal nation, pass the raw text here so the modal can
+   *  explain to the user why the map opened at that position. */
+  inferredFromText?: string | null;
   onConfirm: (lat: number, lng: number, address: string) => void;
   onCancel: () => void;
 }
 
-export function MapPickerModal({ initialLat, initialLng, initialAddress, initialInferredCoord, onConfirm, onCancel }: MapPickerModalProps) {
+export function MapPickerModal({ initialLat, initialLng, initialAddress, initialInferredCoord, inferredFromText, onConfirm, onCancel }: MapPickerModalProps) {
   // When a verified coord exists, center on it at zoom 10.
   // When only an inferred coord is available, center on it at zoom 7.
   // Otherwise fall back to the continental US view.
@@ -175,12 +179,12 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, initial
            style={{ maxHeight: "min(90vh, 640px)" }}>
 
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-emerald-50 dark:bg-emerald-950/20">
-          <div className="flex items-center gap-2">
-            <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-            <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Pick Ancestor Location</span>
+          <div className="flex items-center gap-2 min-w-0">
+            <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300 shrink-0">Pick Ancestor Location</span>
             {hasInferred && (
-              <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/40 px-1.5 py-0.5 rounded-full font-medium">
-                Inferred location
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/40 px-1.5 py-0.5 rounded-full font-medium shrink-0">
+                {inferredFromText ? `Timeline: ${inferredFromText}` : "Inferred location"}
               </span>
             )}
           </div>
