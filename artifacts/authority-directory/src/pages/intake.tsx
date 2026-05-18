@@ -3,13 +3,20 @@ import { useMutation } from "@tanstack/react-query";
 import {
   FileSearch, Clock, ShieldAlert, BookMarked, Building2,
   FileText, Loader2, Copy, AlertTriangle, CheckCircle2,
-  ChevronRight, AlertCircle,
+  ChevronRight, AlertCircle, Save, Download, FileX,
 } from "lucide-react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { api, IntakeAnalysisResult, RoutingRecipient, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { SessionExpiredBanner } from "@/App";
+
+// ─── Shared helpers ───────────────────────────────────────────────────────────
 
 function PendingBadge() {
   return (
@@ -51,6 +58,30 @@ function Field({ label, value }: { label: string; value: string | null | undefin
   );
 }
 
+function CopyAddressBtn({ recipient }: { recipient: RoutingRecipient }) {
+  const { toast } = useToast();
+  function copyAddress() {
+    const lines = [
+      recipient.name,
+      recipient.mailingAddress ?? "",
+      recipient.phone ?? "",
+      recipient.contact ?? "",
+      recipient.website ?? "",
+    ].filter(Boolean).join("\n");
+    navigator.clipboard.writeText(lines).then(() => {
+      toast({ title: "Address block copied", description: `${recipient.name} contact block copied.` });
+    });
+  }
+  return (
+    <button
+      onClick={copyAddress}
+      className="text-xs text-primary hover:underline flex items-center gap-1 mt-1"
+    >
+      <Copy className="h-3 w-3" /> Copy address block
+    </button>
+  );
+}
+
 function RecipientCard({ r, label }: { r: RoutingRecipient; label: string }) {
   return (
     <div className="rounded-md border border-border bg-muted/30 px-3 py-2 space-y-1">
@@ -68,6 +99,7 @@ function RecipientCard({ r, label }: { r: RoutingRecipient; label: string }) {
       {r.website && (
         <a href={r.website} target="_blank" rel="noopener noreferrer" className="text-xs text-primary hover:underline block truncate">{r.website}</a>
       )}
+      <CopyAddressBtn recipient={r} />
     </div>
   );
 }
@@ -81,47 +113,110 @@ function FlagChip({ label, active, color }: { label: string; active: boolean; co
   );
 }
 
-function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
+// ─── Build export text ─────────────────────────────────────────────────────────
+
+function buildExportText(result: IntakeAnalysisResult): string {
+  const rr = result.routingRecommendation;
+  const lines: string[] = [
+    "========================================",
+    "MATHIAS EL TRIBE — INTAKE ANALYSIS SUMMARY",
+    `Record ID: ${result.id ?? "unsaved"}`,
+    `Extraction Source: ${result.extractionSource}`,
+    `Date: ${new Date().toLocaleString()}`,
+    "========================================",
+    "",
+    "--- EXTRACTED FIELDS ---",
+    result.detectedEntityName ? `Entity / Issuer: ${result.detectedEntityName}` : "",
+    result.detectedAddress ? `Address: ${result.detectedAddress}` : "",
+    result.detectedDeadline ? `Deadline / Due Date: ${result.detectedDeadline}` : "",
+    result.detectedAccountOrReferenceNumber ? `Account / Reference #: ${result.detectedAccountOrReferenceNumber}` : "",
+    result.detectedApn ? `APN: ${result.detectedApn}` : "",
+    result.detectedState ? `State: ${result.detectedState}` : "",
+    result.detectedCounty ? `County: ${result.detectedCounty}` : "",
+    `Matter Type: ${result.detectedMatterType}`,
+    `Action Type: ${result.detectedActionType}`,
+    "",
+    "--- PRIMARY RECIPIENT ---",
+    rr.primaryRecipient
+      ? [rr.primaryRecipient.name, rr.primaryRecipient.mailingAddress, rr.primaryRecipient.phone, rr.primaryRecipient.contact].filter(Boolean).join("\n")
+      : "Not identified",
+    "",
+    "--- OVERSIGHT / CC ---",
+    rr.oversightRecipient
+      ? [rr.oversightRecipient.name, rr.oversightRecipient.mailingAddress].filter(Boolean).join("\n")
+      : "Not identified",
+    ...(rr.ccList.length > 0 ? ["CC:", ...rr.ccList.map((c) => `  - ${c}`)] : []),
+    "",
+    "--- LEGAL FLAGS ---",
+    result.tribalLandFlag ? "FLAG: Tribal Land" : "",
+    result.icwaFlag ? "FLAG: ICWA" : "",
+    result.indianLawFlag ? "FLAG: Indian Law" : "",
+    result.trustLandFlag ? "FLAG: Trust Land" : "",
+    result.federalReviewFlag ? "FLAG: Federal Review" : "",
+    ...(result.legalFlags.length > 0 ? ["Specific concerns:", ...result.legalFlags.map((f) => `  - ${f}`)] : []),
+    ...(rr.legalFlagSummary.length > 0 ? ["Authority warnings:", ...rr.legalFlagSummary.map((s) => `  - ${s}`)] : []),
+    "",
+    "--- SUGGESTED TEMPLATE & ESCALATION ---",
+    rr.suggestedTemplateKey ? `Template Key: ${rr.suggestedTemplateKey}` : "No template assigned",
+    rr.escalationPath ? `Escalation: ${rr.escalationPath}` : "",
+    rr.tribalLawApplicable ? `Tribal Law: ${rr.tribalLawApplicable}` : "",
+    "",
+    "========================================",
+    rr.disclaimer,
+    "SUGGESTED PENDING REVIEW — human authorization required before any action.",
+    "========================================",
+  ];
+  return lines.filter((l) => l !== "").join("\n");
+}
+
+// ─── Results panel ─────────────────────────────────────────────────────────────
+
+interface AnalysisResultsProps {
+  result: IntakeAnalysisResult;
+  onUseExtracted: (state: string, county: string, matterType: string) => void;
+}
+
+function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
   const { toast } = useToast();
   const rr = result.routingRecommendation;
 
   function copyResult() {
-    const lines = [
-      "AUTHORITY DIRECTORY — INTAKE ANALYSIS RESULT",
-      `Record ID: ${result.id ?? "unsaved"}`,
-      `Extraction Source: ${result.extractionSource}`,
-      "",
-      "EXTRACTED FIELDS",
-      result.detectedEntityName ? `Entity: ${result.detectedEntityName}` : "",
-      result.detectedAddress ? `Address: ${result.detectedAddress}` : "",
-      result.detectedDeadline ? `Deadline: ${result.detectedDeadline}` : "",
-      result.detectedAccountOrReferenceNumber ? `Reference #: ${result.detectedAccountOrReferenceNumber}` : "",
-      result.detectedApn ? `APN: ${result.detectedApn}` : "",
-      result.detectedState ? `State: ${result.detectedState}` : "",
-      result.detectedCounty ? `County: ${result.detectedCounty}` : "",
-      `Matter Type: ${result.detectedMatterType}`,
-      `Action Type: ${result.detectedActionType}`,
-      "",
-      "PRIMARY RECIPIENT",
-      rr.primaryRecipient ? rr.primaryRecipient.name : "Not identified",
-      "",
-      "OVERSIGHT / CC",
-      rr.oversightRecipient ? rr.oversightRecipient.name : "Not identified",
-      ...rr.ccList.map((c) => `CC: ${c}`),
-      "",
-      "LEGAL FLAGS",
-      ...rr.legalFlagSummary,
-      "",
-      "SUGGESTED TEMPLATE",
-      rr.suggestedTemplateKey ?? "None",
-      rr.escalationPath ? `Escalation: ${rr.escalationPath}` : "",
-      "",
-      rr.disclaimer,
-    ].filter((l) => l !== "").join("\n");
-
-    navigator.clipboard.writeText(lines).then(() => {
+    const text = buildExportText(result);
+    navigator.clipboard.writeText(text).then(() => {
       toast({ title: "Copied to clipboard", description: "Analysis summary copied." });
     });
+  }
+
+  function exportSummary() {
+    const text = buildExportText(result);
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `intake-analysis-${result.id ?? "draft"}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Summary exported", description: "Intake analysis exported as text file." });
+  }
+
+  function handleSave() {
+    if (result.id) {
+      toast({
+        title: "Record already persisted",
+        description: `Intake record #${result.id} was automatically saved when analysis ran. No further action needed.`,
+      });
+    } else {
+      toast({ title: "Not saved", description: "This record was not persisted — re-analyze to save.", variant: "destructive" });
+    }
+  }
+
+  function useExtracted() {
+    onUseExtracted(
+      result.detectedState ?? "",
+      result.detectedCounty ?? "",
+      result.detectedMatterType ?? "",
+    );
+    toast({ title: "Context hints updated", description: "State, county, and matter type pre-filled from extracted values." });
   }
 
   return (
@@ -133,9 +228,9 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
           <p className="text-xs font-semibold text-amber-900 mb-0.5">Human review required before any action.</p>
           <p className="text-xs text-amber-800">{rr.disclaimer}</p>
         </div>
-        <Button size="sm" variant="outline" onClick={copyResult} className="gap-1.5 shrink-0">
+        <button onClick={copyResult} className="shrink-0 text-xs text-amber-800 hover:text-amber-900 flex items-center gap-1 font-medium">
           <Copy className="h-3.5 w-3.5" /> Copy
-        </Button>
+        </button>
       </div>
 
       {/* Block 1: Extracted Fields */}
@@ -160,11 +255,21 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
               {result.detectedActionType}
             </code>
           </div>
-          <div className="text-xs text-muted-foreground pt-1">
-            Source: <span className="font-medium text-foreground">{result.extractionSource}</span>
-            {result.id && (
-              <> · Record ID: <span className="font-medium text-foreground">#{result.id}</span></>
-            )}
+          <div className="text-xs text-muted-foreground pt-1 flex items-center justify-between">
+            <span>
+              Source: <span className="font-medium text-foreground">{result.extractionSource}</span>
+              {result.id && (
+                <> · Record ID: <span className="font-medium text-foreground">#{result.id}</span></>
+              )}
+            </span>
+            {/* Use extracted text pathway */}
+            <button
+              onClick={useExtracted}
+              className="text-xs text-primary hover:underline flex items-center gap-1"
+              title="Pre-fill context hints from extracted state, county, and matter type"
+            >
+              <ChevronRight className="h-3 w-3" /> Use extracted values as hints
+            </button>
           </div>
         </div>
       </Block>
@@ -219,7 +324,6 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
             )}
           </div>
 
-          {/* Specific legal flags */}
           {result.legalFlags.length > 0 && (
             <div>
               <p className="text-xs font-medium text-foreground mb-1">Specific Concerns</p>
@@ -234,7 +338,6 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
             </div>
           )}
 
-          {/* Legal flag summary from routing */}
           {rr.legalFlagSummary.length > 0 && (
             <div>
               <p className="text-xs font-medium text-foreground mb-1">Authority Warnings</p>
@@ -249,7 +352,6 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
             </div>
           )}
 
-          {/* Legal authorities referenced */}
           {rr.legalAuthorities.length > 0 && (
             <div>
               <p className="text-xs font-medium text-foreground mb-1">Referenced Authorities</p>
@@ -304,13 +406,59 @@ function AnalysisResults({ result }: { result: IntakeAnalysisResult }) {
             </div>
           )}
           {!rr.suggestedTemplateKey && !rr.escalationPath && !rr.tribalLawApplicable && (
-            <p className="text-xs text-muted-foreground italic">No template or escalation data available for this matter type.</p>
+            <p className="text-xs text-muted-foreground italic">No template or escalation data for this matter type.</p>
           )}
         </div>
       </Block>
+
+      {/* Action row */}
+      <div className="flex flex-wrap gap-2 pt-1">
+        {/* Save record */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={handleSave}
+        >
+          <Save className="h-3.5 w-3.5" />
+          {result.id ? `Saved as #${result.id}` : "Save Record"}
+        </Button>
+
+        {/* Export PDF summary */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={exportSummary}
+        >
+          <Download className="h-3.5 w-3.5" /> Export Summary
+        </Button>
+
+        {/* Draft Notice — disabled, requires authorization */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="gap-1.5 opacity-50 cursor-not-allowed"
+                disabled
+                tabIndex={-1}
+              >
+                <FileX className="h-3.5 w-3.5" /> Draft Notice
+              </Button>
+            </span>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs text-xs">
+            Draft Notice requires Chief authorization. Contact the Sovereign Office to initiate this action — do not proceed without approval.
+          </TooltipContent>
+        </Tooltip>
+      </div>
     </div>
   );
 }
+
+// ─── Context hint matter types ────────────────────────────────────────────────
 
 const MATTER_TYPE_OPTIONS = [
   "icwa_violation", "utility_shutoff", "tax_lien", "tax_assessment",
@@ -320,12 +468,20 @@ const MATTER_TYPE_OPTIONS = [
   "code_enforcement", "general",
 ];
 
+// ─── Page ─────────────────────────────────────────────────────────────────────
+
 export default function IntakePage() {
   const { toast } = useToast();
   const [documentText, setDocumentText] = useState("");
   const [hintState, setHintState] = useState("");
   const [hintCounty, setHintCounty] = useState("");
   const [hintMatterType, setHintMatterType] = useState("");
+
+  function handleUseExtracted(state: string, county: string, matterType: string) {
+    if (state) setHintState(state);
+    if (county) setHintCounty(county);
+    if (matterType) setHintMatterType(matterType);
+  }
 
   const analyzeMutation = useMutation({
     mutationFn: () =>
@@ -361,7 +517,7 @@ export default function IntakePage() {
           <h1 className="text-xl font-semibold text-foreground">Document Intake Analysis</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Paste document text to extract entities, detect matter type, identify applicable law, and generate routing guidance.
+          Paste document text to extract entities, detect matter type, identify applicable law, and generate routing guidance. All extractions are auto-persisted.
         </p>
       </div>
 
@@ -369,7 +525,10 @@ export default function IntakePage() {
       <div className="bg-card border border-card-border rounded-lg p-4 space-y-4">
         {/* Context hints */}
         <div>
-          <p className="text-xs font-medium text-foreground mb-2">Context Hints (optional — improve extraction accuracy)</p>
+          <p className="text-xs font-medium text-foreground mb-2">
+            Context Hints
+            <span className="font-normal text-muted-foreground ml-1">(optional — improve extraction accuracy)</span>
+          </p>
           <div className="grid grid-cols-3 gap-3">
             <div>
               <label className="block text-xs text-muted-foreground mb-1">State</label>
@@ -440,7 +599,7 @@ export default function IntakePage() {
           </Button>
         </div>
 
-        {/* Error */}
+        {/* Errors */}
         {analyzeMutation.isError && !is401 && (
           <div className="rounded-md bg-destructive/10 border border-destructive/20 px-3 py-2 flex items-center gap-2 text-sm text-destructive">
             <AlertCircle className="h-4 w-4 shrink-0" />
@@ -451,7 +610,7 @@ export default function IntakePage() {
       </div>
 
       {/* Results */}
-      {result && <AnalysisResults result={result} />}
+      {result && <AnalysisResults result={result} onUseExtracted={handleUseExtracted} />}
     </div>
   );
 }

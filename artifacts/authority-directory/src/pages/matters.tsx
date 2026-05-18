@@ -30,7 +30,8 @@ export default function MattersPage() {
           (r.primaryEntityType ?? "").toLowerCase().includes(q) ||
           (r.oversightEntityType ?? "").toLowerCase().includes(q) ||
           (r.requiredNoticeTemplate ?? "").toLowerCase().includes(q) ||
-          (r.escalationPath ?? "").toLowerCase().includes(q)
+          (r.escalationPath ?? "").toLowerCase().includes(q) ||
+          r.legalFlagGroup.some((f) => f.toLowerCase().includes(q))
         );
       }
       return true;
@@ -38,14 +39,14 @@ export default function MattersPage() {
   }, [rules, search, filterTribal]);
 
   return (
-    <div className="p-6 max-w-5xl mx-auto">
+    <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-6">
         <div className="flex items-center gap-2 mb-1">
           <BookOpen className="h-5 w-5 text-primary" />
           <h1 className="text-xl font-semibold text-foreground">Matter Type Reference</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          All configured matter types with primary entity, oversight routing, notice templates, and tribal law applicability.
+          All configured matter types with primary entity, oversight routing, notice templates, legal flag group, and tribal law applicability.
         </p>
       </div>
 
@@ -56,7 +57,7 @@ export default function MattersPage() {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
             <Input
               type="search"
-              placeholder="Search by matter code, label, entity type, template…"
+              placeholder="Search by matter code, label, entity type, template, flag group…"
               className="pl-9"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
@@ -64,7 +65,7 @@ export default function MattersPage() {
           </div>
           <div className="shrink-0">
             <select
-              className="w-full sm:w-48 text-sm rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
+              className="w-full sm:w-52 text-sm rounded-md border border-input bg-background px-3 py-2 text-foreground focus:outline-none focus:ring-1 focus:ring-ring"
               value={filterTribal}
               onChange={(e) => setFilterTribal(e.target.value as "" | "yes" | "no")}
             >
@@ -110,9 +111,10 @@ export default function MattersPage() {
                 <tr className="bg-muted/60 border-b border-border">
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Matter Type</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Label</th>
-                  <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Primary Entity</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Primary Entity Type</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Oversight Entity</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Notice Template</th>
+                  <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Legal Flag Group</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Tribal Law</th>
                   <th className="text-left px-3 py-2.5 font-semibold text-foreground whitespace-nowrap">Escalation</th>
                 </tr>
@@ -152,11 +154,27 @@ function MatterRow({ rule }: { rule: MatterRoutingRule }) {
         <td className="px-3 py-2.5 text-muted-foreground max-w-[140px] truncate">
           {rule.oversightEntityType ?? <span className="italic opacity-60">—</span>}
         </td>
-        <td className="px-3 py-2.5">
+        <td className="px-3 py-2.5 whitespace-nowrap">
           {rule.requiredNoticeTemplate ? (
             <code className="font-mono text-xs bg-muted px-1 py-0.5 rounded text-foreground">
               {rule.requiredNoticeTemplate}
             </code>
+          ) : (
+            <span className="italic text-muted-foreground opacity-60">—</span>
+          )}
+        </td>
+        <td className="px-3 py-2.5 max-w-[180px]">
+          {rule.legalFlagGroup.length > 0 ? (
+            <div className="flex flex-wrap gap-0.5">
+              {rule.legalFlagGroup.slice(0, 2).map((f, i) => (
+                <span key={i} className="px-1 py-0.5 rounded border border-border bg-muted text-muted-foreground text-xs truncate max-w-[80px]" title={f}>
+                  {f}
+                </span>
+              ))}
+              {rule.legalFlagGroup.length > 2 && (
+                <span className="text-muted-foreground text-xs">+{rule.legalFlagGroup.length - 2}</span>
+              )}
+            </div>
           ) : (
             <span className="italic text-muted-foreground opacity-60">—</span>
           )}
@@ -178,7 +196,7 @@ function MatterRow({ rule }: { rule: MatterRoutingRule }) {
       </tr>
       {expanded && (
         <tr className="bg-muted/10">
-          <td colSpan={7} className="px-4 py-3 border-t border-border">
+          <td colSpan={8} className="px-4 py-3 border-t border-border">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
               {rule.primaryRecipientNote && (
                 <div>
@@ -204,9 +222,15 @@ function MatterRow({ rule }: { rule: MatterRoutingRule }) {
                   <p className="text-muted-foreground">{rule.escalationPath}</p>
                 </div>
               )}
+              {rule.escalationTemplate && (
+                <div>
+                  <p className="font-medium text-foreground mb-0.5">Escalation Template</p>
+                  <code className="bg-muted px-1.5 py-0.5 rounded text-xs font-mono">{rule.escalationTemplate}</code>
+                </div>
+              )}
               {rule.legalFlagGroup.length > 0 && (
                 <div className="sm:col-span-2">
-                  <p className="font-medium text-foreground mb-1">Legal Flag Group</p>
+                  <p className="font-medium text-foreground mb-1">Full Legal Flag Group</p>
                   <div className="flex flex-wrap gap-1">
                     {rule.legalFlagGroup.map((f, i) => (
                       <span key={i} className="px-1.5 py-0.5 rounded border bg-muted text-muted-foreground text-xs">{f}</span>

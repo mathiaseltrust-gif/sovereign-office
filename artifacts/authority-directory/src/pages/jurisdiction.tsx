@@ -1,10 +1,10 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Globe, Search, Phone, Mail, ExternalLink,
   MapPin, ChevronDown, ShieldCheck, AlertCircle,
 } from "lucide-react";
-import { api, Agency, ApiError } from "@/lib/api";
+import { api, Agency, JurisdictionRow, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { Input } from "@/components/ui/input";
 import { SessionExpiredBanner } from "@/App";
@@ -29,24 +29,20 @@ const LEVEL_COLORS: Record<string, string> = {
   private_contractor: "bg-rose-100 text-rose-800 border-rose-200",
 };
 
-function AgencyCard({ agency }: { agency: Agency }) {
+interface AgencyCardProps {
+  agency: Agency;
+  isTribalJurisdiction: boolean;
+}
+
+function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
   const [expanded, setExpanded] = useState(false);
   const levelKey = agency.governmentLevel?.toLowerCase() ?? "";
   const levelColor = LEVEL_COLORS[levelKey] ?? "bg-muted text-muted-foreground border-muted";
-  const isTribal = levelKey === "tribal" || agency.agencyType?.toLowerCase().includes("tribal");
-
-  const verifiedStr = agency.lastVerifiedDate
-    ? new Date(agency.lastVerifiedDate).toLocaleDateString("en-US", {
-        year: "numeric",
-        month: "short",
-        day: "numeric",
-      })
-    : null;
 
   return (
     <div className={cn(
       "bg-card border rounded-lg overflow-hidden shadow-xs",
-      isTribal ? "border-amber-300" : "border-card-border"
+      isTribalJurisdiction ? "border-amber-300" : "border-card-border"
     )}>
       <button
         className="w-full text-left px-4 py-3.5 flex items-start gap-3 hover:bg-muted/30 transition-colors"
@@ -61,9 +57,9 @@ function AgencyCard({ agency }: { agency: Agency }) {
             <span className="font-medium text-foreground text-sm leading-snug">
               {agency.agencyName}
             </span>
-            {isTribal && (
+            {isTribalJurisdiction && (
               <span className="inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-amber-300 bg-amber-50 text-amber-800 font-medium shrink-0">
-                <ShieldCheck className="h-3 w-3" /> Tribal
+                <ShieldCheck className="h-3 w-3" /> Tribal Land
               </span>
             )}
           </div>
@@ -71,7 +67,7 @@ function AgencyCard({ agency }: { agency: Agency }) {
             <span className={cn("text-xs px-1.5 py-0.5 rounded border font-medium", levelColor)}>
               {agency.governmentLevel.replace(/_/g, " ").toUpperCase()}
             </span>
-            {agency.agencyType && agency.agencyType !== agency.governmentLevel && (
+            {agency.agencyType && (
               <span className="text-xs px-1.5 py-0.5 rounded border bg-muted text-muted-foreground">
                 {agency.agencyType}
               </span>
@@ -143,19 +139,6 @@ function AgencyCard({ agency }: { agency: Agency }) {
               )}
             </div>
           )}
-
-          {/* Footer: verified date + confidence */}
-          <div className="flex flex-wrap items-center gap-3 pt-0.5 border-t border-border text-xs text-muted-foreground">
-            {verifiedStr && (
-              <span>Data last verified: <span className="font-medium text-foreground">{verifiedStr}</span></span>
-            )}
-            <span>
-              Confidence:{" "}
-              <span className="font-medium text-foreground">
-                {Math.round(agency.confidenceScore * 100)}%
-              </span>
-            </span>
-          </div>
         </div>
       )}
     </div>
@@ -183,7 +166,15 @@ export default function JurisdictionPage() {
     enabled: !!state,
   });
 
-  // Build at-least-one-filter params
+  // Derive tribal-land signal from FIPS jurisdiction data
+  const isTribalJurisdiction = useMemo((): boolean => {
+    if (!county || !countiesData?.results) return false;
+    return countiesData.results.some(
+      (r: JurisdictionRow) =>
+        r.county?.toLowerCase() === county.toLowerCase() && r.tribalLandFlag
+    );
+  }, [county, countiesData]);
+
   const agencyParams = {
     level: level || undefined,
     state: state || undefined,
@@ -203,6 +194,21 @@ export default function JurisdictionPage() {
   const counties = countiesData?.results ?? [];
   const agencies = agenciesData?.results ?? [];
 
+  // List-level "data last verified" — most recent across all results
+  const lastVerifiedStr = useMemo(() => {
+    const dates = agencies
+      .map((a) => a.lastVerifiedDate)
+      .filter(Boolean)
+      .map((d) => new Date(d!).getTime());
+    if (dates.length === 0) return null;
+    const max = Math.max(...dates);
+    return new Date(max).toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    });
+  }, [agencies]);
+
   const is401 = (error as ApiError)?.status === 401;
 
   return (
@@ -213,7 +219,7 @@ export default function JurisdictionPage() {
           <h1 className="text-xl font-semibold text-foreground">Jurisdiction & Agency Lookup</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Browse and filter government agencies by jurisdiction level, state, and county.
+          Browse and filter government agencies by jurisdiction level, state, and county. Tribal-land badge reflects FIPS jurisdiction data.
         </p>
       </div>
 
@@ -283,6 +289,16 @@ export default function JurisdictionPage() {
             onChange={(e) => setSearch(e.target.value)}
           />
         </div>
+
+        {/* Tribal land indicator */}
+        {isTribalJurisdiction && (
+          <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded px-3 py-2">
+            <ShieldCheck className="h-4 w-4 shrink-0" />
+            <span>
+              <strong>Tribal land jurisdiction</strong> — selected county is designated tribal land per FIPS jurisdiction data.
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Results */}
@@ -310,14 +326,22 @@ export default function JurisdictionPage() {
           <p className="text-sm">No agencies found matching your filters.</p>
         </div>
       ) : (
-        <div className="space-y-2">
+        <>
           <p className="text-xs text-muted-foreground mb-3">
             {agenciesData?.count ?? agencies.length} agenc{agencies.length === 1 ? "y" : "ies"} found
           </p>
-          {agencies.map((agency) => (
-            <AgencyCard key={agency.id} agency={agency} />
-          ))}
-        </div>
+          <div className="space-y-2">
+            {agencies.map((agency) => (
+              <AgencyCard key={agency.id} agency={agency} isTribalJurisdiction={isTribalJurisdiction} />
+            ))}
+          </div>
+          {/* List-level data last verified timestamp */}
+          {lastVerifiedStr && (
+            <p className="text-xs text-muted-foreground mt-4 text-right">
+              Agency directory — data last verified: <span className="font-medium text-foreground">{lastVerifiedStr}</span>
+            </p>
+          )}
+        </>
       )}
     </div>
   );
