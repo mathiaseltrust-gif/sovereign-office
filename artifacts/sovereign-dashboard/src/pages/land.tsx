@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
+import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -1016,7 +1017,7 @@ function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
 
 // ── Parcels Tab ───────────────────────────────────────────────────────────────
 
-function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () => void }) {
+function ParcelsTab({ parcels, assignments, onRefresh }: { parcels: Parcel[]; assignments: MemberAssignment[]; onRefresh: () => void }) {
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [editing, setEditing] = useState<Parcel | null>(null);
   const [filterStatus, setFilterStatus] = useState("");
@@ -1025,6 +1026,15 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
   const [deleting, setDeleting] = useState<number | null>(null);
   const [investigationParcel, setInvestigationParcel] = useState<Parcel | null>(null);
   const isOfficer = useIsOfficer();
+  const [, navigate] = useLocation();
+
+  // Build a quick parcel-id → active steward lookup for inline display
+  const stewardByParcel: Record<number, MemberAssignment | undefined> = {};
+  for (const a of assignments) {
+    if (!stewardByParcel[a.parcel_id] && a.status === "active") {
+      stewardByParcel[a.parcel_id] = a;
+    }
+  }
 
   const filtered = parcels.filter(p =>
     (!filterStatus || p.status === filterStatus) &&
@@ -1108,7 +1118,23 @@ function ParcelsTab({ parcels, onRefresh }: { parcels: Parcel[]; onRefresh: () =
                   ) : <span className="text-muted-foreground text-xs">—</span>}
                   {p.status === "disputed" && <div className="text-[10px] text-red-400 mt-0.5">⚠ Disputed</div>}
                 </td>
-                <td className="px-4 py-3 text-xs text-muted-foreground">{[p.county, p.state].filter(Boolean).join(", ") || "—"}</td>
+                <td className="px-4 py-3 text-xs text-muted-foreground">
+                  <div>{[p.county, p.state].filter(Boolean).join(", ") || "—"}</div>
+                  {stewardByParcel[p.id] && (() => {
+                    const s = stewardByParcel[p.id]!;
+                    return (
+                      <button
+                        onClick={() => navigate(`/search?q=${encodeURIComponent(s.member_name)}`)}
+                        className="flex items-center gap-1 mt-1 text-amber-400/80 hover:text-amber-300 transition-colors text-left"
+                        title={`Go to member profile: ${s.member_name}`}
+                      >
+                        <Users className="w-2.5 h-2.5 shrink-0" />
+                        <span className="truncate max-w-[120px]">{s.member_name}</span>
+                        <ExternalLink className="w-2.5 h-2.5 shrink-0" />
+                      </button>
+                    );
+                  })()}
+                </td>
                 <td className="px-4 py-3">
                   <div className="flex items-center gap-1">
                     {isOfficer && (
@@ -2389,6 +2415,7 @@ function AssignmentModal({ assignment, parcels, onClose, onSaved }: { assignment
 function AssignmentsTab({ assignments, parcels, onRefresh }: { assignments: MemberAssignment[]; parcels: Parcel[]; onRefresh: () => void }) {
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<MemberAssignment | null>(null);
+  const [, navigate] = useLocation();
   const [filterParcel, setFilterParcel] = useState("");
   const [filterRole, setFilterRole] = useState("");
   const [deleting, setDeleting] = useState<number | null>(null);
@@ -2443,7 +2470,14 @@ function AssignmentsTab({ assignments, parcels, onRefresh }: { assignments: Memb
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 flex-wrap">
-                  <span className="font-semibold text-foreground">{a.member_name}</span>
+                  <button
+                    onClick={() => navigate(`/search?q=${encodeURIComponent(a.member_name)}`)}
+                    className="font-semibold text-foreground hover:text-amber-300 hover:underline transition-colors flex items-center gap-1"
+                    title={`View member profile: ${a.member_name}`}
+                  >
+                    {a.member_name}
+                    <ExternalLink className="w-3 h-3 opacity-60" />
+                  </button>
                   <Badge label={ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role} className={roleColor(a.assignment_role)} />
                   <span className={`text-xs font-medium capitalize ${statusColor(a.status)}`}>{a.status}</span>
                 </div>
@@ -2920,7 +2954,7 @@ export default function LandPage() {
       <div>
         {tab === "overview"     && <OverviewTab stats={stats} leases={leasesQ.data ?? []} />}
         {tab === "map"          && <MapTab parcels={parcelsQ.data ?? []} />}
-        {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} />}
+        {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} assignments={assignQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} />}
         {tab === "leases"       && <LeasesTab leases={leasesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-leases", "land-stats"])} />}
         {tab === "assets"       && <AssetsTab assets={assetsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-assets"])} />}
         {tab === "deeds"        && <DeedsTab deeds={deedsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-deeds"])} />}

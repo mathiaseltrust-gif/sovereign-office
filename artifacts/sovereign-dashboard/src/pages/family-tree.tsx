@@ -1166,7 +1166,9 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       if (hasRestoredSession.current) {
         hasRestoredSession.current = false;
       } else {
-        showMyFamilyView();
+        // Default: center on the current user's node and open their detail panel.
+        // centerOnSelf both pans the viewport to self and selects that node.
+        centerOnSelf();
       }
     }
   }, [positioned.length > 0]);
