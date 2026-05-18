@@ -91,6 +91,8 @@ export interface CommunityMemberDetail {
   generationalPosition?: number | null;
   /** @nullable */
   sourceType?: string | null;
+  /** @nullable */
+  ancestralLocationText?: string | null;
   parents?: CommunityMember[];
   children?: CommunityMember[];
   spouses?: CommunityMember[];

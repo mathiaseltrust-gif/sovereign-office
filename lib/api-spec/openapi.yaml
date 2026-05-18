@@ -1013,6 +1013,7 @@ components:
         photoFilename: { type: ["string", "null"] }
         generationalPosition: { type: ["integer", "null"] }
         sourceType: { type: ["string", "null"] }
+        ancestralLocationText: { type: ["string", "null"] }
         parents:
           type: array
           items:

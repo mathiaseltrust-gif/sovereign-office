@@ -65,10 +65,11 @@ interface AncestorLocationEditorProps {
   currentLng: number | null;
   currentAddress: string | null;
   tribalNation?: string | null;
+  locationText?: string | null;
   onSaved: (lat: number | null, lng: number | null, address: string | null) => void;
 }
 
-function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, currentAddress, tribalNation, onSaved }: AncestorLocationEditorProps) {
+function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, currentAddress, tribalNation, locationText, onSaved }: AncestorLocationEditorProps) {
   const { toast } = useToast();
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -77,11 +78,20 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
 
   const hasCoords = currentLat != null && currentLng != null;
 
-  // Infer a starting coordinate from the tribal nation name when no verified
-  // coords are stored yet. Passed to MapPickerModal so it can pre-center the
-  // map and show a faint reference marker.
-  const inferredCoord: [number, number] | null =
-    !hasCoords && tribalNation ? geocodeText(tribalNation) : null;
+  // Infer a starting coordinate for the map picker when no verified coords are
+  // stored yet. First try the tribal nation keyword; if that yields nothing,
+  // fall back to the most recent ancestral timeline location text.
+  const inferredCoord: [number, number] | null = (() => {
+    if (hasCoords) return null;
+    if (tribalNation) {
+      const coord = geocodeText(tribalNation);
+      if (coord) return coord;
+    }
+    if (locationText) {
+      return geocodeText(locationText);
+    }
+    return null;
+  })();
 
   const handleMapConfirm = async (lat: number, lng: number, address: string) => {
     const token = getCommunityToken();
@@ -986,6 +996,7 @@ export default function MemberDetail() {
               currentLng={locationLng}
               currentAddress={locationAddress}
               tribalNation={member.tribalNation}
+              locationText={member.ancestralLocationText}
               onSaved={(lat, lng, address) => {
                 setLocationLat(lat);
                 setLocationLng(lng);

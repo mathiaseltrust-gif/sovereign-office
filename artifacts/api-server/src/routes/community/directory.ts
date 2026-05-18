@@ -176,6 +176,18 @@ router.get("/:id", async (req, res, next) => {
         .where(sql`${familyLineageTable.id} = ANY(ARRAY[${sql.raw(allRelatedIds.join(","))}]::int[])`);
     }
 
+    // Fetch the most recent non-empty location text from ancestral timeline events.
+    // Used as a secondary geocoding hint when no verified coordinates are stored
+    // and no tribal nation keyword is set.
+    const timelineLocationResult = await db.execute(sql`
+      SELECT location
+      FROM ancestral_timeline_events
+      WHERE ancestor_id = ${id} AND NULLIF(BTRIM(location), '') IS NOT NULL
+      ORDER BY created_at DESC
+      LIMIT 1
+    `);
+    const ancestralLocationText = (timelineLocationResult.rows[0] as { location?: string } | undefined)?.location ?? null;
+
     const toSummary = (r: typeof member) => ({
       id: r.id,
       fullName: r.fullName,
@@ -212,6 +224,7 @@ router.get("/:id", async (req, res, next) => {
       locationLat: member.locationLat ?? null,
       locationLng: member.locationLng ?? null,
       locationAddress: member.locationAddress ?? null,
+      ancestralLocationText,
       updatedAt: member.updatedAt.toISOString(),
       parents: parentIds.map((pid) => byId.get(pid)).filter(Boolean).map(toSummary),
       children: childrenIds.map((cid) => byId.get(cid)).filter(Boolean).map(toSummary),
