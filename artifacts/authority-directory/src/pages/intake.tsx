@@ -504,13 +504,38 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
           <div className="flex gap-2 text-xs">
             <span className="font-medium text-foreground w-36 shrink-0">Template Key</span>
             {rr.suggestedTemplateKey ? (
-              <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground">
-                {rr.suggestedTemplateKey}
-              </code>
+              <div className="space-y-0.5">
+                <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground">
+                  {rr.suggestedTemplateKey}
+                </code>
+                <p className="text-muted-foreground opacity-75 text-xs">
+                  Retrieve full template body from the template library using this key.
+                </p>
+              </div>
             ) : (
               <span className="text-muted-foreground italic">None assigned</span>
             )}
           </div>
+
+          {/* Template snippets from matched legal authorities */}
+          {rr.legalAuthorities.some((la) => la.templateSnippet) && (
+            <div>
+              <p className="text-xs font-medium text-foreground mb-1">Template Language Snippets (from matched authorities)</p>
+              <div className="space-y-1.5">
+                {rr.legalAuthorities
+                  .filter((la) => la.templateSnippet)
+                  .map((la, i) => (
+                    <div key={i} className="rounded border border-border bg-muted/40 px-3 py-2">
+                      <p className="text-xs font-medium text-foreground mb-1">{la.authorityName}</p>
+                      <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
+                        {la.templateSnippet}
+                      </pre>
+                    </div>
+                  ))}
+              </div>
+            </div>
+          )}
+
           {rr.escalationPath && (
             <div className="flex gap-2 text-xs">
               <span className="font-medium text-foreground w-36 shrink-0">Escalation Path</span>

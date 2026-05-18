@@ -103,41 +103,38 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
         />
       </button>
 
-      {expanded && (
-        <div className="px-4 pb-4 pt-2 border-t border-border space-y-3">
-          {/* Contact info */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-            {agency.phone && (
-              <a href={`tel:${agency.phone}`} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
-                <Phone className="h-3.5 w-3.5 shrink-0" /> {agency.phone}
-              </a>
-            )}
-            {agency.contactEmail && (
-              <a href={`mailto:${agency.contactEmail}`} className="flex items-center gap-2 text-xs text-muted-foreground hover:text-foreground">
-                <Mail className="h-3.5 w-3.5 shrink-0" /> {agency.contactEmail}
-              </a>
-            )}
-            {agency.website && (
-              <a
-                href={agency.website}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-2 text-xs text-primary hover:underline"
-              >
-                <ExternalLink className="h-3.5 w-3.5 shrink-0" /> Website
-              </a>
-            )}
-            {(agency.mailingAddress || agency.physicalAddress) && (
-              <div className="flex items-start gap-2 text-xs text-muted-foreground">
-                <MapPin className="h-3.5 w-3.5 shrink-0 mt-0.5" />
-                <span>{agency.mailingAddress ?? agency.physicalAddress}</span>
-              </div>
-            )}
-          </div>
+      {/* Always-visible contact fields */}
+      {(agency.phone || agency.contactEmail || agency.website || agency.mailingAddress || agency.physicalAddress) && (
+        <div className="px-4 pb-3 flex flex-wrap gap-x-4 gap-y-1">
+          {agency.phone && (
+            <a href={`tel:${agency.phone}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+              <Phone className="h-3 w-3 shrink-0" /> {agency.phone}
+            </a>
+          )}
+          {agency.contactEmail && (
+            <a href={`mailto:${agency.contactEmail}`} className="flex items-center gap-1.5 text-xs text-muted-foreground hover:text-foreground">
+              <Mail className="h-3 w-3 shrink-0" /> {agency.contactEmail}
+            </a>
+          )}
+          {agency.website && (
+            <a href={agency.website} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1.5 text-xs text-primary hover:underline">
+              <ExternalLink className="h-3 w-3 shrink-0" /> Website
+            </a>
+          )}
+          {(agency.mailingAddress || agency.physicalAddress) && (
+            <span className="flex items-start gap-1.5 text-xs text-muted-foreground">
+              <MapPin className="h-3 w-3 shrink-0 mt-0.5" />
+              {agency.mailingAddress ?? agency.physicalAddress}
+            </span>
+          )}
+        </div>
+      )}
 
-          {/* Parent / Oversight agencies */}
-          {(agency.parentAgency || agency.oversightAgency) && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+      {/* Expandable: parent/oversight agencies */}
+      {(agency.parentAgency || agency.oversightAgency) && (
+        <>
+          {expanded && (
+            <div className="px-4 pb-4 pt-2 border-t border-border grid grid-cols-1 sm:grid-cols-2 gap-2">
               {agency.parentAgency && (
                 <div>
                   <p className="text-xs font-medium text-foreground mb-0.5">Parent Agency</p>
@@ -152,7 +149,7 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
               )}
             </div>
           )}
-        </div>
+        </>
       )}
     </div>
   );
