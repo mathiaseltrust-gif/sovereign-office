@@ -4,31 +4,35 @@
  * Mounts at /api/authority/
  *
  * Routes:
- *   GET  /api/authority/jurisdictions          — jurisdiction reference
- *   GET  /api/authority/agencies               — agency directory (filtered)
- *   GET  /api/authority/agencies/:id           — single agency
- *   GET  /api/authority/routing                — matter routing rules
- *   GET  /api/authority/routing/:matter        — single matter routing
- *   POST /api/authority/routing/resolve        — resolve agencies for a matter
- *   GET  /api/authority/legal-map              — legal authority map
- *   GET  /api/authority/legal-map/:issueType   — by issue type
- *   POST /api/authority/intake-extract         — AI document extraction + save
- *   GET  /api/authority/intake-extract         — list recent extractions
- *   GET  /api/authority/intake-extract/:id     — single extraction
+ *   GET  /api/authority/jurisdiction              — hierarchical: states → counties → cities
+ *   GET  /api/authority/agencies                  — filtered agency directory (≥1 param required, max 50)
+ *   GET  /api/authority/agencies/:id              — single agency by ID
+ *   POST /api/authority/agencies                  — add/upsert agency (officer role required)
+ *   GET  /api/authority/matters                   — matter routing rules (filterable by ?matterType)
+ *   GET  /api/authority/matters/:matterType       — single matter routing rule
+ *   POST /api/authority/matters/resolve           — resolve agencies for a matter
+ *   GET  /api/authority/legal-map                 — legal authority map (filterable by ?issueType, ?federalAuthority, ?q)
+ *   GET  /api/authority/legal-map/:issueType      — legal authorities for a specific issue type
+ *   POST /api/authority/intake/analyze            — AI document extraction + routing recommendation + persist
+ *   GET  /api/authority/intake                    — list recent extractions
+ *   GET  /api/authority/intake/:id                — single extraction result
+ *   GET  /api/authority/sync                      — admin-only: re-run Census + Socrata + federal ingestion
  */
 import { Router } from "express";
-import jurisdictionsRouter from "./jurisdictions";
+import jurisdictionRouter from "./jurisdiction";
 import agenciesRouter from "./agencies";
-import routingRouter from "./routing";
+import mattersRouter from "./matters";
 import legalMapRouter from "./legal-map";
-import intakeExtractRouter from "./intake-extract";
+import intakeRouter from "./intake";
+import syncRouter from "./sync";
 
 const router = Router();
 
-router.use("/jurisdictions", jurisdictionsRouter);
+router.use("/jurisdiction", jurisdictionRouter);
 router.use("/agencies", agenciesRouter);
-router.use("/routing", routingRouter);
+router.use("/matters", mattersRouter);
 router.use("/legal-map", legalMapRouter);
-router.use("/intake-extract", intakeExtractRouter);
+router.use("/intake", intakeRouter);
+router.use("/sync", syncRouter);
 
 export default router;
