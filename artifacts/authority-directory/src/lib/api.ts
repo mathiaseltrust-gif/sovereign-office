@@ -22,102 +22,220 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   return res.json() as Promise<T>;
 }
 
-export interface JurisdictionData {
-  states: Array<{ code: string; name: string }>;
-  counties: Array<{ stateCode: string; name: string }>;
+// ─── Jurisdiction ─────────────────────────────────────────────────────────────
+
+export interface JurisdictionState {
+  stateCode: string;
+  stateName: string;
 }
 
-export interface Agency {
+export interface JurisdictionRow {
   id: number;
-  name: string;
-  acronym: string | null;
-  govtLevel: string;
-  stateCode: string | null;
+  country: string;
+  stateCode: string;
+  stateName: string;
   county: string | null;
-  website: string | null;
-  phone: string | null;
-  email: string | null;
-  address: string | null;
-  services: string[];
-  matterTypes: string[];
-  notes: string | null;
-}
-
-export interface MatterType {
-  id: number;
-  code: string;
-  label: string;
-  category: string;
-  description: string | null;
-  primaryAuthority: string | null;
-  federalStatutes: string[];
-  tribalRights: string[];
-  routingAgencies: string[];
-  documentRequirements: string[];
-  timelineDays: number | null;
-  sovereigntyImpact: string | null;
-}
-
-export interface LegalAuthority {
-  id: number;
-  citation: string;
-  title: string;
-  authorityType: string;
-  jurisdiction: string | null;
-  summary: string | null;
-  doctrineCategory: string | null;
-  applicableMatterTypes: string[];
-  sovereigntyBasis: string | null;
-  effectiveDate: string | null;
-  notes: string | null;
-}
-
-export interface IntakeExtraction {
-  id: number;
-  documentSnippet: string;
-  detectedMatterTypes: string[];
-  suggestedAgencies: string[];
-  jurisdictionHints: string[];
-  keyEntities: string[];
-  urgencyLevel: string;
-  sovereigntyFlags: string[];
-  routingRecommendations: string[];
-  summary: string | null;
-  rawExtraction: unknown;
+  city: string | null;
+  fipsCode: string | null;
+  tribalLandCode: string | null;
+  parcelOrApnReference: string | null;
+  tribalLandFlag: boolean;
+  jurisdictionFlags: string[];
+  lastSyncedAt: string | null;
   createdAt: string;
 }
 
-export interface AnalyzeInput {
-  documentText: string;
-  stateCode?: string;
+export interface JurisdictionStatesResponse {
+  mode: "states";
+  count: number;
+  results: JurisdictionState[];
+}
+
+export interface JurisdictionCountiesResponse {
+  mode: "counties";
+  state: string;
+  count: number;
+  results: JurisdictionRow[];
+}
+
+// ─── Agency ───────────────────────────────────────────────────────────────────
+
+export interface Agency {
+  id: number;
+  agencyName: string;
+  agencyType: string;
+  governmentLevel: string;
+  stateCode: string | null;
+  county: string | null;
+  city: string | null;
+  mailingAddress: string | null;
+  physicalAddress: string | null;
+  parentAgency: string | null;
+  oversightAgency: string | null;
+  contactEmail: string | null;
+  phone: string | null;
+  website: string | null;
+  sourceUrl: string | null;
+  lastVerifiedDate: string | null;
+  confidenceScore: number;
+  lastSyncedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Matter Routing ───────────────────────────────────────────────────────────
+
+export interface MatterRoutingRule {
+  id: number;
+  matterType: string;
+  matterLabel: string;
+  primaryEntityType: string;
+  oversightEntityType: string | null;
+  requiredNoticeTemplate: string | null;
+  escalationTemplate: string | null;
+  legalFlagGroup: string[];
+  primaryRecipientNote: string | null;
+  oversightRecipientNote: string | null;
+  escalationPath: string | null;
+  tribalLawApplicable: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Legal Map ────────────────────────────────────────────────────────────────
+
+export interface LegalMapEntry {
+  id: number;
+  issueType: string;
+  authorityName: string;
+  federalAuthority: string | null;
+  stateAuthority: string | null;
+  tribalAuthority: string | null;
+  cfrReference: string | null;
+  uscReference: string | null;
+  caseLawReference: string | null;
+  appliesWhen: string | null;
+  warningOrLimit: string | null;
+  templateLanguageSnippet: string | null;
+  reviewRequired: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+// ─── Intake ───────────────────────────────────────────────────────────────────
+
+export interface RoutingRecipient {
+  id?: number;
+  name: string;
+  mailingAddress?: string | null;
+  phone?: string | null;
+  contact?: string | null;
+  website?: string | null;
+}
+
+export interface RoutingLegalAuthority {
+  authorityName: string;
+  uscReference: string | null;
+  cfrReference: string | null;
+  caseLawReference: string | null;
+  warningOrLimit: string | null;
+  templateSnippet: string | null;
+}
+
+export interface RoutingRecommendation {
+  matterType: string;
+  actionType: string;
+  primaryRecipient: RoutingRecipient | null;
+  oversightRecipient: RoutingRecipient | null;
+  ccList: string[];
+  legalFlagSummary: string[];
+  suggestedTemplateKey: string | null;
+  escalationPath: string | null;
+  tribalLawApplicable: string | null;
+  legalAuthorities: RoutingLegalAuthority[];
+  suggestedPendingReview: true;
+  disclaimer: string;
+}
+
+export interface IntakeAnalysisResult {
+  id: number | null;
+  extractionSource: string;
+  detectedEntityName: string | null;
+  detectedAddress: string | null;
+  detectedDeadline: string | null;
+  detectedAccountOrReferenceNumber: string | null;
+  detectedMatterType: string;
+  detectedActionType: string;
+  detectedState: string | null;
+  detectedCounty: string | null;
+  detectedApn: string | null;
+  tribalLandFlag: boolean;
+  icwaFlag: boolean;
+  indianLawFlag: boolean;
+  trustLandFlag: boolean;
+  federalReviewFlag: boolean;
+  legalFlags: string[];
+  routingRecommendation: RoutingRecommendation;
+  suggestedPendingReview: true;
+}
+
+export interface ContextHints {
+  state?: string;
   county?: string;
+  matterType?: string;
 }
 
 export const api = {
-  getJurisdiction: () =>
-    request<JurisdictionData>("/api/authority/jurisdiction"),
+  getStates: () =>
+    request<JurisdictionStatesResponse>("/api/authority/jurisdiction"),
 
-  getAgencies: (params: { govtLevel?: string; stateCode?: string; county?: string; q?: string }) => {
+  getCounties: (stateCode: string) =>
+    request<JurisdictionCountiesResponse>(
+      `/api/authority/jurisdiction?state=${encodeURIComponent(stateCode)}`
+    ),
+
+  // At least one param must be non-empty
+  getAgencies: (params: {
+    state?: string;
+    county?: string;
+    city?: string;
+    level?: string;
+    q?: string;
+  }) => {
     const sp = new URLSearchParams();
-    if (params.govtLevel) sp.set("govtLevel", params.govtLevel);
-    if (params.stateCode) sp.set("stateCode", params.stateCode);
+    if (params.level) sp.set("level", params.level);
+    if (params.state) sp.set("state", params.state);
     if (params.county) sp.set("county", params.county);
+    if (params.city) sp.set("city", params.city);
     if (params.q) sp.set("q", params.q);
-    return request<Agency[]>(`/api/authority/agencies?${sp.toString()}`);
+    return request<{ count: number; results: Agency[] }>(
+      `/api/authority/agencies?${sp.toString()}`
+    );
   },
 
-  getMatters: () =>
-    request<MatterType[]>("/api/authority/matters"),
+  getMatters: (matterType?: string) => {
+    const sp = new URLSearchParams();
+    if (matterType) sp.set("matterType", matterType);
+    return request<{ count: number; rules: MatterRoutingRule[] }>(
+      `/api/authority/matters?${sp.toString()}`
+    );
+  },
 
-  getLegalMap: () =>
-    request<LegalAuthority[]>("/api/authority/legal-map"),
+  getLegalMap: (params?: { q?: string; issueType?: string }) => {
+    const sp = new URLSearchParams();
+    if (params?.q) sp.set("q", params.q);
+    if (params?.issueType) sp.set("issueType", params.issueType);
+    return request<{ count: number; maps: LegalMapEntry[] }>(
+      `/api/authority/legal-map?${sp.toString()}`
+    );
+  },
 
-  analyzeIntake: (body: AnalyzeInput) =>
-    request<IntakeExtraction>("/api/authority/intake/analyze", {
+  analyzeIntake: (documentText: string, contextHints?: ContextHints) =>
+    request<IntakeAnalysisResult>("/api/authority/intake/analyze", {
       method: "POST",
-      body: JSON.stringify(body),
+      body: JSON.stringify({ documentText, contextHints }),
     }),
 
   getIntake: (id: number) =>
-    request<IntakeExtraction>(`/api/authority/intake/${id}`),
+    request<IntakeAnalysisResult>(`/api/authority/intake/${id}`),
 };

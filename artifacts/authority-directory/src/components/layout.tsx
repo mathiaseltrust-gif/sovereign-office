@@ -151,17 +151,24 @@ export function Layout({ children }: LayoutProps) {
         </div>
       </aside>
 
-      {/* Main content */}
+      {/* Main column */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Mobile header */}
-        <header className="lg:hidden flex items-center gap-3 px-4 py-3 border-b border-border bg-card shrink-0">
+        {/* Top bar — always visible */}
+        <header className="flex items-center gap-3 px-5 py-3 border-b border-border bg-card shrink-0">
           <button
             onClick={() => setMobileOpen(true)}
-            className="text-foreground/60 hover:text-foreground"
+            className="lg:hidden text-foreground/60 hover:text-foreground mr-1 shrink-0"
           >
             <Menu className="h-5 w-5" />
           </button>
-          <span className="text-sm font-semibold text-foreground">Authority Directory</span>
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-foreground leading-tight">
+              Authority Directory &amp; Oversight Routing Engine
+            </div>
+            <div className="text-xs text-muted-foreground leading-tight">
+              Mathias El Tribe — Internal Routing System
+            </div>
+          </div>
         </header>
 
         {/* Page content */}

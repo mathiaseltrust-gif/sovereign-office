@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { Layout } from "@/components/layout";
 import { SignInPrompt } from "@/components/sign-in-prompt";
 import { getAuthState } from "@/lib/auth";
+import { ApiError } from "@/lib/api";
 import NotFound from "@/pages/not-found";
 import JurisdictionPage from "@/pages/jurisdiction";
 import IntakePage from "@/pages/intake";
@@ -15,13 +16,30 @@ const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       retry: (count, err: unknown) => {
-        const status = (err as { status?: number })?.status;
+        const status = (err as ApiError)?.status;
         if (status === 401 || status === 403) return false;
         return count < 2;
       },
     },
   },
 });
+
+function SessionExpiredBanner() {
+  return (
+    <div className="m-5 rounded-lg border border-amber-300 bg-amber-50 px-4 py-4 text-sm">
+      <p className="font-semibold text-amber-900 mb-1">Session expired — sign in required.</p>
+      <p className="text-amber-800 text-xs mb-3">
+        Your session has ended or you are not yet signed in to access this system.
+      </p>
+      <a
+        href="/sovereign-dashboard/"
+        className="inline-block rounded-md bg-amber-700 px-3 py-1.5 text-xs font-medium text-white hover:bg-amber-800 transition-colors"
+      >
+        Sign in via Sovereign Dashboard
+      </a>
+    </div>
+  );
+}
 
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const auth = getAuthState();
@@ -45,6 +63,8 @@ function Router() {
     </AuthGuard>
   );
 }
+
+export { SessionExpiredBanner };
 
 export default function App() {
   return (
