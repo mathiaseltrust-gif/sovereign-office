@@ -36,6 +36,60 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
+// ── US State centroids (approximate) for multi-state impact markers ──────────
+const STATE_CENTROIDS: Record<string, [number, number]> = {
+  "Alabama":        [32.8,   -86.8],
+  "Alaska":         [64.2,  -153.4],
+  "Arizona":        [34.3,  -111.1],
+  "Arkansas":       [34.8,   -92.2],
+  "California":     [36.8,  -119.4],
+  "Colorado":       [39.0,  -105.5],
+  "Connecticut":    [41.6,   -72.7],
+  "Delaware":       [39.0,   -75.5],
+  "Florida":        [27.8,   -81.7],
+  "Georgia":        [32.9,   -83.4],
+  "Hawaii":         [20.3,  -156.4],
+  "Idaho":          [44.4,  -114.5],
+  "Illinois":       [40.0,   -89.2],
+  "Indiana":        [40.3,   -86.1],
+  "Iowa":           [42.0,   -93.5],
+  "Kansas":         [38.5,   -98.4],
+  "Kentucky":       [37.5,   -85.3],
+  "Louisiana":      [31.2,   -91.8],
+  "Maine":          [45.4,   -69.0],
+  "Maryland":       [39.1,   -76.8],
+  "Massachusetts":  [42.2,   -71.5],
+  "Michigan":       [44.3,   -85.6],
+  "Minnesota":      [46.4,   -93.1],
+  "Mississippi":    [32.7,   -89.7],
+  "Missouri":       [38.5,   -92.5],
+  "Montana":        [46.9,  -110.5],
+  "Nebraska":       [41.5,   -99.9],
+  "Nevada":         [38.8,  -117.2],
+  "New Hampshire":  [43.7,   -71.6],
+  "New Jersey":     [40.1,   -74.5],
+  "New Mexico":     [34.3,  -106.0],
+  "New York":       [43.0,   -75.5],
+  "North Carolina": [35.5,   -79.4],
+  "North Dakota":   [47.5,  -100.3],
+  "Ohio":           [40.4,   -82.8],
+  "Oklahoma":       [35.6,   -96.9],
+  "Oregon":         [44.0,  -120.6],
+  "Pennsylvania":   [41.2,   -77.2],
+  "Rhode Island":   [41.7,   -71.5],
+  "South Carolina": [33.9,   -80.9],
+  "South Dakota":   [44.4,  -100.2],
+  "Tennessee":      [35.8,   -86.7],
+  "Texas":          [31.1,   -97.6],
+  "Utah":           [39.4,  -111.1],
+  "Vermont":        [44.1,   -72.7],
+  "Virginia":       [37.8,   -78.2],
+  "Washington":     [47.4,  -120.5],
+  "West Virginia":  [38.9,   -80.5],
+  "Wisconsin":      [44.2,   -89.8],
+  "Wyoming":        [43.0,  -107.6],
+};
+
 // ── Ancestry-style ancestor marker helpers ─────────────────────────────────
 
 // Surname-keyed palette — maps consistently so the same family always gets
@@ -341,8 +395,9 @@ export function AtlasMap({
         zoomControl={false}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_matter/{z}/{x}/{y}{r}.png"
+          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://stadiamaps.com/">Stadia Maps</a>'
+          url="https://tiles.stadiamaps.com/tiles/alidade_smooth_dark/{z}/{x}/{y}.png"
+          maxZoom={20}
         />
 
         {mapCenter && <MapCenterController center={mapCenter} />}
@@ -539,6 +594,47 @@ export function AtlasMap({
             );
           })
         }
+
+        {/* ── Secondary State-Impact Markers ─────────────────────────────────
+            When an event is selected and has multiple statesAffected, render
+            a faint pulsing ring at each state's centroid so the geographic
+            scope of national acts (e.g. 1956 Relocation Act) is visible.
+        ── */}
+        {(() => {
+          const sel = selectedEventId ? events.find(e => e.id === selectedEventId) : null;
+          if (!sel) return null;
+          const states = sel.states_affected;
+          if (!states || states.length < 2 || states[0] === "All states") return null;
+          const primaryCoord = sel.coordinates;
+          return states.map(stateName => {
+            const centroid = STATE_CENTROIDS[stateName];
+            if (!centroid) return null;
+            // Skip if centroid is very close to the event's primary marker
+            const dLat = Math.abs(centroid[0] - primaryCoord[0]);
+            const dLng = Math.abs(centroid[1] - primaryCoord[1]);
+            if (dLat < 1.5 && dLng < 1.5) return null;
+            return (
+              <CircleMarker
+                key={`impact-${sel.id}-${stateName}`}
+                center={centroid}
+                radius={14}
+                pathOptions={{
+                  color: "#c29b40",
+                  weight: 1.5,
+                  fillColor: "#c29b40",
+                  fillOpacity: 0.08,
+                  opacity: 0.55,
+                  dashArray: "4 4",
+                }}
+              >
+                <Tooltip direction="top" offset={[0, -10]} opacity={0.95}>
+                  <div className="text-xs font-medium">{stateName}</div>
+                  <div className="text-[10px] text-muted-foreground">Impact zone · {sel.short_title || sel.title}</div>
+                </Tooltip>
+              </CircleMarker>
+            );
+          });
+        })()}
 
         {/* ── Ancestor Markers (Atlas Mode) ──────────────────────────────────
             Two visual states:

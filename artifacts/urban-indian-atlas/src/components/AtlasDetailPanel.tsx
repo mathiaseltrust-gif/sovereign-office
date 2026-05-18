@@ -1,6 +1,6 @@
 import { AtlasEvent, AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, ExternalLink, Info, Users, AlertTriangle } from "lucide-react";
+import { X, ExternalLink, Info, Users, AlertTriangle, MapPin } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 
@@ -193,6 +193,41 @@ export function AtlasDetailPanel({ event, onClose, atlasMode = false, contextMat
                   </div>
                 )}
               </div>
+
+              {/* ── Geographic Scope ── */}
+              {((event.states_affected?.length ?? 0) > 0 || (event.affected_regions?.length ?? 0) > 0) && (
+                <div className="border border-border/40 rounded-lg p-4 bg-card/40">
+                  <h3 className="text-xs font-bold uppercase tracking-wider text-muted-foreground mb-3 flex items-center gap-2">
+                    <MapPin className="w-3.5 h-3.5" /> Geographic Scope
+                  </h3>
+                  {(event.affected_regions?.length ?? 0) > 0 && (
+                    <div className="mb-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">Regions</p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {event.affected_regions.map(r => (
+                          <span key={r} className="text-xs px-2 py-0.5 rounded-full bg-muted/60 border border-border/50 text-foreground/70">{r}</span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                  {(event.states_affected?.length ?? 0) > 0 && (
+                    <div>
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">
+                        States Affected{event.states_affected[0] === "All states" ? " — National Scope" : ` (${event.states_affected.length})`}
+                      </p>
+                      <div className="flex flex-wrap gap-1">
+                        {event.states_affected[0] === "All states" ? (
+                          <span className="text-xs px-2 py-0.5 rounded-full bg-[#a64115]/20 border border-[#a64115]/30 text-[#c0622a] font-medium">All U.S. States &amp; Territories</span>
+                        ) : (
+                          event.states_affected.map((s: string) => (
+                            <span key={s} className="text-xs px-2 py-0.5 rounded-full bg-amber-900/20 border border-amber-800/30 text-amber-300/80">{s}</span>
+                          ))
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="border-t border-border/50 pt-6 pb-8">
                 <h3 className="text-xs font-mono text-muted-foreground uppercase mb-2">Source Document</h3>

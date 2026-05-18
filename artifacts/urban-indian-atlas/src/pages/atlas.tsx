@@ -19,6 +19,7 @@ export type Era = "colonial" | "early-republic" | "removal" | "reservation" | "p
 export interface AtlasEvent {
   id: string;
   title: string;
+  short_title: string | null;
   year: number;
   era: string;
   event_type: string;
@@ -40,6 +41,7 @@ export interface AtlasEvent {
   tags: string[];
   status: string;
   affected_regions: string[];
+  states_affected: string[];
 }
 
 // AncestorRecord only contains safe, non-PII fields returned by /api/atlas/ancestors.
@@ -156,6 +158,7 @@ interface DbAtlasEvent {
   sourceUrl: string;
   tags: string[];
   affectedRegions: string[];
+  statesAffected: string[];
   coordinateLat: number | null;
   coordinateLng: number | null;
 }
@@ -216,6 +219,8 @@ function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
     tags: e.tags,
     status: e.status,
     affected_regions: e.affectedRegions,
+    states_affected: e.statesAffected ?? [],
+    short_title: e.shortTitle ?? null,
   };
 }
 

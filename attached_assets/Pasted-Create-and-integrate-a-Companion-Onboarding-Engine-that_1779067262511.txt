@@ -1,0 +1,94 @@
+Create and integrate a Companion Onboarding Engine that coexists with all existing governors, AI systems, protections, workflows, and logic layers already established throughout the platform.
+
+This onboarding system must NOT override, contradict, replace, or interfere with existing governing principles, intelligence systems, workflows, document engines, Road Governor logic, Companion guidance systems, tribal governance logic, or existing AI infrastructure.
+
+Instead, the onboarding engine acts as a soft introduction and guidance layer that helps new members become comfortable using the platform.
+
+PRIMARY PURPOSE:
+The onboarding engine should:
+• welcome new members
+• introduce Companion naturally
+• educate users on what the platform is and what it does
+• explain how Companion works in plain language
+• softly collect information over time
+• help populate user profiles gradually
+• guide users toward relevant tools and sections
+• preserve historical continuity and user legacy
+• reduce confusion and friction during first-time use
+
+CORE EXPERIENCE:
+When a new member signs up:
+1. Companion greets them immediately.
+2. Companion introduces itself in a calm, intelligent, non-heavy manner.
+3. Companion explains:
+   • the purpose of the platform
+   • the mission of preserving history, continuity, and legacy
+   • that the system exists to educate, organize, assist, and safeguard
+   • that users can ask Companion questions at any time
+4. Companion begins softly collecting onboarding information conversationally over time instead of forcing large forms immediately.
+
+SOFT PROFILE COLLECTION:
+Companion should gradually and respectfully ask for:
+• preferred name
+• family/community background
+• ancestral history
+• interests
+• goals
+• documentation interests
+• areas they need help with
+• educational interests
+• historical continuity information
+• records they may want to organize
+
+This information should intelligently populate profile fields and internal guidance systems when appropriate.
+
+COMPANION BEHAVIOR:
+Companion should:
+• act as a guide throughout the platform
+• help users navigate tools and systems
+• explain things in plain language
+• reduce intimidation or confusion
+• help users understand what sections are for
+• recommend relevant workflows or engines
+• remain alignment-focused and educational
+• avoid overly robotic or corporate behavior
+• avoid overwhelming users with legal or historical density immediately
+
+SYSTEM INTEGRATION:
+The onboarding engine must integrate with:
+• Companion memory/profile systems
+• document generation systems
+• educational systems
+• historical continuity systems
+• ancestral guidance systems
+• protective rights systems
+• land and records systems
+• intake systems
+• incident and investigation systems
+• future SDU educational modules
+
+The onboarding engine should function as an intelligent routing and comfort layer connected to the broader ecosystem.
+
+IMPORTANT GOVERNING CLAUSE:
+Nothing in this onboarding engine should conflict with, override, remove, weaken, or contradict existing governing principles, AI governors, legal frameworks, workflows, tribal logic systems, or established operational structures.
+
+The onboarding engine exists only to:
+• guide
+• assist
+• educate
+• organize
+• help users interact with the system more naturally
+• reshape and realign understanding where necessary
+
+USER EXPERIENCE GOAL:
+The user should feel:
+• welcomed
+• guided
+• understood
+• supported
+• curious
+• informed
+• connected to history and continuity
+• capable of navigating the platform confidently
+
+The onboarding experience should feel alive, intelligent, and culturally aware — not corporate, sterile, or transactional.
