@@ -155,6 +155,121 @@ const migrations = [
     meta JSONB,
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
   )`,
+
+  // Authority Directory — jurisdiction reference table
+  `CREATE TABLE IF NOT EXISTS authority_jurisdiction (
+    id SERIAL PRIMARY KEY,
+    country VARCHAR(10) NOT NULL DEFAULT 'US',
+    state_code VARCHAR(5) NOT NULL,
+    state_name TEXT NOT NULL,
+    county TEXT,
+    city TEXT,
+    fips_code VARCHAR(10),
+    tribal_land_code TEXT,
+    parcel_or_apn_reference TEXT,
+    tribal_land_flag BOOLEAN NOT NULL DEFAULT false,
+    jurisdiction_flags TEXT[] NOT NULL DEFAULT '{}',
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS auth_jur_state_idx ON authority_jurisdiction(state_code)`,
+  `CREATE INDEX IF NOT EXISTS auth_jur_fips_idx ON authority_jurisdiction(fips_code)`,
+  `CREATE INDEX IF NOT EXISTS auth_jur_state_county_idx ON authority_jurisdiction(state_code, county)`,
+
+  // Authority Directory — agency directory
+  `CREATE TABLE IF NOT EXISTS authority_agencies (
+    id SERIAL PRIMARY KEY,
+    agency_name TEXT NOT NULL,
+    agency_type TEXT NOT NULL,
+    government_level VARCHAR(30) NOT NULL,
+    state_code VARCHAR(5),
+    county TEXT,
+    city TEXT,
+    mailing_address TEXT,
+    physical_address TEXT,
+    parent_agency TEXT,
+    oversight_agency TEXT,
+    contact_email TEXT,
+    phone TEXT,
+    website TEXT,
+    source_url TEXT,
+    last_verified_date TIMESTAMPTZ,
+    confidence_score REAL NOT NULL DEFAULT 0.8,
+    last_synced_at TIMESTAMPTZ,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS auth_ag_state_idx ON authority_agencies(state_code)`,
+  `CREATE INDEX IF NOT EXISTS auth_ag_state_county_idx ON authority_agencies(state_code, county)`,
+  `CREATE INDEX IF NOT EXISTS auth_ag_level_idx ON authority_agencies(government_level)`,
+  `CREATE INDEX IF NOT EXISTS auth_ag_type_idx ON authority_agencies(agency_type)`,
+
+  // Authority Directory — matter type routing rules
+  `CREATE TABLE IF NOT EXISTS authority_matter_routing (
+    id SERIAL PRIMARY KEY,
+    matter_type TEXT NOT NULL UNIQUE,
+    matter_label TEXT NOT NULL,
+    primary_entity_type TEXT NOT NULL,
+    oversight_entity_type TEXT,
+    required_notice_template TEXT,
+    escalation_template TEXT,
+    legal_flag_group TEXT[] NOT NULL DEFAULT '{}',
+    primary_recipient_note TEXT,
+    oversight_recipient_note TEXT,
+    escalation_path TEXT,
+    tribal_law_applicable TEXT,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+
+  // Authority Directory — legal authority mapping
+  `CREATE TABLE IF NOT EXISTS authority_legal_map (
+    id SERIAL PRIMARY KEY,
+    issue_type TEXT NOT NULL,
+    authority_name TEXT NOT NULL,
+    federal_authority TEXT,
+    state_authority TEXT,
+    tribal_authority TEXT,
+    cfr_reference TEXT,
+    usc_reference TEXT,
+    case_law_reference TEXT,
+    applies_when TEXT,
+    warning_or_limit TEXT,
+    template_language_snippet TEXT,
+    review_required BOOLEAN NOT NULL DEFAULT true,
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+
+  // Authority Directory — AI document intake extractions
+  `CREATE TABLE IF NOT EXISTS authority_intake_extractions (
+    id SERIAL PRIMARY KEY,
+    submitted_by_user_id INTEGER,
+    raw_document_text TEXT,
+    detected_entity_name TEXT,
+    detected_address TEXT,
+    detected_deadline TEXT,
+    detected_account_or_reference_number TEXT,
+    detected_matter_type TEXT,
+    detected_action_type TEXT,
+    detected_state TEXT,
+    detected_county TEXT,
+    detected_apn TEXT,
+    tribal_land_flag BOOLEAN NOT NULL DEFAULT false,
+    icwa_flag BOOLEAN NOT NULL DEFAULT false,
+    indian_law_flag BOOLEAN NOT NULL DEFAULT false,
+    trust_land_flag BOOLEAN NOT NULL DEFAULT false,
+    federal_review_flag BOOLEAN NOT NULL DEFAULT false,
+    legal_flags TEXT[] NOT NULL DEFAULT '{}',
+    routing_recommendation JSONB DEFAULT '{}',
+    suggested_pending_review BOOLEAN NOT NULL DEFAULT true,
+    matched_agency_id INTEGER,
+    extraction_source TEXT NOT NULL DEFAULT 'ai',
+    context_hints JSONB DEFAULT '{}',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
 ];
 
 async function runMigrations() {

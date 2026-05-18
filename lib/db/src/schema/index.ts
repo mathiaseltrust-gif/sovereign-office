@@ -44,3 +44,8 @@ export * from "./atlas-events";
 export * from "./nfr-investigations";
 export * from "./nfr-review-signals";
 export * from "./nfr-audit-log";
+export * from "./authority-jurisdiction";
+export * from "./authority-agencies";
+export * from "./authority-matter-routing";
+export * from "./authority-legal-map";
+export * from "./authority-intake-extractions";
