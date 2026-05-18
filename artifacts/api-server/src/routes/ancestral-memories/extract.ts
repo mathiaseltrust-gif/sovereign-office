@@ -74,11 +74,7 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
       const { originalname, mimetype, buffer } = req.file;
 
       if (isPdf(originalname, mimetype)) {
-        const pdfParse = (
-          await import("pdf-parse") as unknown as {
-            default: (buf: Buffer) => Promise<{ text: string; numpages: number }>;
-          }
-        ).default;
+        const { default: pdfParse } = await import("pdf-parse") as unknown as { default: (buf: Buffer) => Promise<{ text: string; numpages: number }> };
         const parsed = await pdfParse(buffer);
         documentText = parsed.text ?? "";
         logger.info({ filename: originalname, chars: documentText.length, pages: parsed.numpages }, "PDF extracted for memory intake");

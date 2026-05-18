@@ -226,7 +226,7 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
 
     if (isPdf(originalname, mimetype)) {
       sourceType = "pdf";
-      const pdfParse = (await import("pdf-parse") as unknown as { default: (buf: Buffer, opts?: object) => Promise<{ text: string; numpages: number }> }).default;
+      const { default: pdfParse } = await import("pdf-parse") as unknown as { default: (buf: Buffer) => Promise<{ text: string; numpages: number }> };
       const parsed = await pdfParse(buffer);
       const text = parsed.text;
       if (!text || text.trim().length < 20) {
