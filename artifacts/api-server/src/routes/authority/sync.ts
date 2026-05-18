@@ -225,10 +225,11 @@ async function ingestHealthDataGov(): Promise<{ upserted: number; failed: number
   let failed = 0;
   const now = new Date().toISOString();
 
-  // HealthData.gov CKAN: HHS agency contacts dataset
+  // HealthData.gov CKAN + HRSA JSON endpoints for AI/AN health-related agency routing
+  // Both return JSON responses; CSV endpoints are excluded to avoid parse mismatch.
   const DATA_SOURCES = [
     "https://healthdata.gov/api/3/action/datastore_search?resource_id=f18ac42f-3d7d-454a-a574-7a2a3c4e4fa8&limit=100",
-    "https://data.hrsa.gov/api/download?filename=UDSData&fileType=CSV",
+    "https://data.hrsa.gov/api/search/json?query=indian+health&pageNumber=1&pageSize=50",
   ];
 
   let fetched = false;
