@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/authority-directory/"
+title = "Authority Directory & Oversight Routing"
+version = "1.0.0"
+id = "artifacts/authority-directory"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/authority-directory/" ]
+localPort = 20616
+
+[services.development]
+run = "pnpm --filter @workspace/authority-directory run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/authority-directory", "run", "build" ]
+publicDir = "artifacts/authority-directory/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "20616"
+BASE_PATH = "/authority-directory/"
