@@ -38,6 +38,7 @@ const WelfarePage = lazy(() => import("@/pages/welfare"));
 const NotificationsPage = lazy(() => import("@/pages/notifications"));
 const LawLibraryPage = lazy(() => import("@/pages/law"));
 const IntakeAiPage = lazy(() => import("@/pages/intake-ai"));
+const IntakeCompanionPage = lazy(() => import("@/pages/intake-companion"));
 const CourtDocumentsPage = lazy(() => import("@/pages/court-documents"));
 const FamilyTreePage = lazy(() => import("@/pages/family-tree"));
 const MedicalNotesPage = lazy(() => import("@/pages/medical-notes"));
@@ -285,6 +286,9 @@ function AppRouter() {
       </Route>
       <Route path="/law">
         {() => <ProtectedRoute component={LawLibraryPage} />}
+      </Route>
+      <Route path="/intake-companion">
+        {() => <ProtectedRoute component={IntakeCompanionPage} />}
       </Route>
       <Route path="/intake-ai">
         {() => <ProtectedRoute component={IntakeAiPage} />}

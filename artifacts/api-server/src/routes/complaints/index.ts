@@ -14,6 +14,7 @@ import { classifyText } from "../../lib/doctrine";
 import { runIntakeFilter } from "../../sovereign/intake-filter";
 import { notifyComplaintFiled, notifyRedFlag } from "../../sovereign/notification-engine";
 import { nextDocRef } from "../../lib/doc-ref";
+import { triggerReviewEngine, auditLog } from "../../sovereign/nfr-review-engine";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });
@@ -113,6 +114,45 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
         relatedType: "complaint",
       });
     }
+
+    // NFR Review Engine — fire-and-forget; determines signal from intake filter results
+    const signalType = intakeFilter.nfrRecommended
+      ? "PROTECTED_RIGHTS_VIOLATION"
+      : intakeFilter.troRecommended
+      ? "JURISDICTIONAL_OVERREACH"
+      : intakeFilter.indianStatusViolation
+      ? "IDENTITY_CHALLENGED"
+      : intakeFilter.redFlag
+      ? "PROTECTED_RIGHTS_VIOLATION"
+      : null;
+
+    if (signalType) {
+      triggerReviewEngine({
+        eventType: "complaint_filed",
+        eventId: complaint.id,
+        signalType,
+        affectedMatter: `Complaint #${complaint.id} — ${classification.actionType}`,
+        triggeringEntity: classification.actorType ?? undefined,
+        evidenceSource: `complaint:${complaint.id}`,
+        context: intakeFilter.violations.join("; ") || undefined,
+      }).catch(() => {});
+    }
+
+    // Audit log the complaint filing
+    auditLog({
+      userId: req.user?.dbId ?? null,
+      action: "COMPLAINT_FILED",
+      resourceType: "complaint",
+      resourceId: complaint.id,
+      afterValue: {
+        status: complaint.status,
+        redFlag: intakeFilter.redFlag,
+        nfrRecommended: intakeFilter.nfrRecommended,
+        troRecommended: intakeFilter.troRecommended,
+        signal: signalType,
+      },
+      metadata: { officerId, classification: classification.actionType },
+    }).catch(() => {});
 
     res.status(201).json({
       complaint,

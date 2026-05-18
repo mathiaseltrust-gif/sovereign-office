@@ -263,12 +263,27 @@ function CreateInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
 export default function WelfarePage() {
   const [tab, setTab] = useState("all");
   const { data, isLoading } = useListWelfareInstruments();
-  const { activeRole } = useAuth();
+  const { activeRole, user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const issueInstrument = useIssueWelfareInstrument();
 
-  const allItems = data ?? [];
+  // Privacy: members only see their own instruments; gov roles see all
+  const isGov = ["trustee", "sovereign_admin", "officer"].includes(activeRole);
+  const rawItems = data ?? [];
+  const allItems = isGov
+    ? rawItems
+    : rawItems.filter((item: any) => {
+        const generatedBy: string = item.generatedBy ?? "";
+        const name = user?.name ?? "";
+        const email = user?.email ?? "";
+        return (
+          generatedBy === name ||
+          generatedBy === email ||
+          generatedBy.includes(name) ||
+          generatedBy.includes(email)
+        );
+      });
   const canIssue = ["trustee", "admin"].includes(activeRole);
 
   const downloadPdf = async (id: number) => {

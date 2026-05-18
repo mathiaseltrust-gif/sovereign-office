@@ -156,7 +156,7 @@ export default function HubPage() {
             icon={Fingerprint}
             title="Identity & Lineage Intake"
             description="Member identity review, lineage continuity, ancestry and descendant connections, family and community continuity, ceremonial and cultural protections, tribal affiliation history, membership verification routing, and identity protection guidance."
-            href="/intake-ai"
+            href="/intake-companion?type=identity-lineage"
             badge="Companion"
             color="blue"
           />
@@ -166,7 +166,7 @@ export default function HubPage() {
             icon={Landmark}
             title="Housing & Land Protection Intake"
             description="Housing matters, APN and parcel review, deeds and recordings, foreclosure concerns, tax and lien matters, utilities, mortgage servicing issues, restricted and trust land concerns, tribal land classifications, and occupancy and land protection workflows. Can trigger Notice of Federal Review, jurisdictional review, and document generation."
-            href="/land"
+            href="/intake-companion?type=housing-land"
             badge="Companion"
             color="amber"
           />
@@ -175,8 +175,8 @@ export default function HubPage() {
           <ServiceCard
             icon={Stethoscope}
             title="Healthcare & Benefits Intake"
-            description="AI/AN healthcare protections, Medi-Cal and managed care concerns, Indian health eligibility review, healthcare denials, disenrollment protections, medical center support, benefit interruptions, welfare and assistance requests, and healthcare protection guidance."
-            href="/intake-ai"
+            description="AI/AN healthcare protections, Medi-Cal and managed care concerns, Indian health eligibility review, healthcare denials, disenrollment protections, medical center support, benefit interruptions, welfare and assistance requests, and healthcare protection guidance. Upload proof of IHS or Urban Indian Health Program services."
+            href="/intake-companion?type=healthcare"
             badge="Companion"
             color="rose"
           />
@@ -186,7 +186,7 @@ export default function HubPage() {
             icon={ShieldAlert}
             title="General Welfare & Protection Intake"
             description="Discrimination concerns, rights violations, emergency welfare matters, family protection concerns, agency misconduct, administrative denials, public benefit issues, community welfare support, and matters requiring office review or escalation."
-            href="/welfare"
+            href="/intake-companion?type=welfare"
             badge="Companion"
             color="violet"
           />
@@ -205,9 +205,9 @@ export default function HubPage() {
           <ServiceCard
             icon={Building2}
             title="Sovereign Business Formation"
-            description="AI-guided wizard to form a Tribal LLC, Corporation, or other sovereign entity with full legal provisions under inherent tribal authority."
-            href="/business-canvas/new"
-            badge="AI"
+            description="Companion-guided exploration of your business idea, followed by formal sovereign entity formation as a Tribal LLC, Corporation, or other structure under inherent tribal authority."
+            href="/intake-companion?type=business"
+            badge="Companion"
             color="amber"
           />
 
