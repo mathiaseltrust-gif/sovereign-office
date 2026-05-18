@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   Building2, Globe, Search, Phone, Mail, ExternalLink,
-  MapPin, ChevronDown, ShieldCheck, AlertCircle,
+  MapPin, ChevronDown, ShieldCheck, AlertCircle, Calendar,
 } from "lucide-react";
 import { api, Agency, JurisdictionRow, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -39,6 +39,14 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
   const levelKey = agency.governmentLevel?.toLowerCase() ?? "";
   const levelColor = LEVEL_COLORS[levelKey] ?? "bg-muted text-muted-foreground border-muted";
 
+  const verifiedStr = agency.lastVerifiedDate
+    ? new Date(agency.lastVerifiedDate).toLocaleDateString("en-US", {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+      })
+    : null;
+
   return (
     <div className={cn(
       "bg-card border rounded-lg overflow-hidden shadow-xs",
@@ -63,7 +71,7 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
               </span>
             )}
           </div>
-          <div className="flex flex-wrap gap-1.5">
+          <div className="flex flex-wrap gap-1.5 items-center">
             <span className={cn("text-xs px-1.5 py-0.5 rounded border font-medium", levelColor)}>
               {agency.governmentLevel.replace(/_/g, " ").toUpperCase()}
             </span>
@@ -77,6 +85,11 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
                 {agency.stateCode}
                 {agency.county ? ` · ${agency.county}` : ""}
                 {agency.city ? ` · ${agency.city}` : ""}
+              </span>
+            )}
+            {verifiedStr && (
+              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                <Calendar className="h-3 w-3" /> Verified {verifiedStr}
               </span>
             )}
           </div>
@@ -166,7 +179,7 @@ export default function JurisdictionPage() {
     enabled: !!state,
   });
 
-  // Derive tribal-land signal from FIPS jurisdiction data
+  // Derive tribal-land signal from FIPS jurisdiction data (not agency type/level string)
   const isTribalJurisdiction = useMemo((): boolean => {
     if (!county || !countiesData?.results) return false;
     return countiesData.results.some(
@@ -201,8 +214,7 @@ export default function JurisdictionPage() {
       .filter(Boolean)
       .map((d) => new Date(d!).getTime());
     if (dates.length === 0) return null;
-    const max = Math.max(...dates);
-    return new Date(max).toLocaleDateString("en-US", {
+    return new Date(Math.max(...dates)).toLocaleDateString("en-US", {
       year: "numeric",
       month: "short",
       day: "numeric",
@@ -290,7 +302,7 @@ export default function JurisdictionPage() {
           />
         </div>
 
-        {/* Tribal land indicator */}
+        {/* Tribal land jurisdiction banner */}
         {isTribalJurisdiction && (
           <div className="flex items-center gap-2 text-xs text-amber-800 bg-amber-50 border border-amber-300 rounded px-3 py-2">
             <ShieldCheck className="h-4 w-4 shrink-0" />
@@ -335,10 +347,11 @@ export default function JurisdictionPage() {
               <AgencyCard key={agency.id} agency={agency} isTribalJurisdiction={isTribalJurisdiction} />
             ))}
           </div>
-          {/* List-level data last verified timestamp */}
+          {/* List-level data last verified — most recent across all results */}
           {lastVerifiedStr && (
-            <p className="text-xs text-muted-foreground mt-4 text-right">
-              Agency directory — data last verified: <span className="font-medium text-foreground">{lastVerifiedStr}</span>
+            <p className="text-xs text-muted-foreground mt-4 text-right flex items-center justify-end gap-1">
+              <Calendar className="h-3.5 w-3.5" />
+              Agency directory — most recent verification: <span className="font-medium text-foreground ml-1">{lastVerifiedStr}</span>
             </p>
           )}
         </>

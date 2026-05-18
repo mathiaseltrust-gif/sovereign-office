@@ -1,9 +1,9 @@
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { useMutation } from "@tanstack/react-query";
 import {
   FileSearch, Clock, ShieldAlert, BookMarked, Building2,
   FileText, Loader2, Copy, AlertTriangle, CheckCircle2,
-  ChevronRight, AlertCircle, Save, Download, FileX,
+  ChevronRight, AlertCircle, Save, Printer, FileX,
 } from "lucide-react";
 import {
   Tooltip,
@@ -31,9 +31,10 @@ interface BlockProps {
   title: string;
   children: React.ReactNode;
   className?: string;
+  onCopy?: () => void;
 }
 
-function Block({ icon, title, children, className }: BlockProps) {
+function Block({ icon, title, children, className, onCopy }: BlockProps) {
   return (
     <div className={cn("bg-card border border-card-border rounded-lg overflow-hidden", className)}>
       <div className="flex items-center justify-between px-4 py-3 border-b border-border">
@@ -41,7 +42,18 @@ function Block({ icon, title, children, className }: BlockProps) {
           {icon}
           {title}
         </div>
-        <PendingBadge />
+        <div className="flex items-center gap-2">
+          <PendingBadge />
+          {onCopy && (
+            <button
+              onClick={onCopy}
+              title={`Copy ${title}`}
+              className="text-muted-foreground hover:text-foreground transition-colors"
+            >
+              <Copy className="h-3.5 w-3.5" />
+            </button>
+          )}
+        </div>
       </div>
       <div className="px-4 py-3">{children}</div>
     </div>
@@ -104,20 +116,22 @@ function RecipientCard({ r, label }: { r: RoutingRecipient; label: string }) {
   );
 }
 
-function FlagChip({ label, active, color }: { label: string; active: boolean; color: string }) {
+// Flag chip always labeled as "Possible flag — pending review: [TYPE]"
+function FlagChip({ label, active }: { label: string; active: boolean }) {
   if (!active) return null;
   return (
-    <span className={cn("inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border font-medium", color)}>
-      <ShieldAlert className="h-3 w-3" /> {label}
+    <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded border border-amber-300 bg-amber-50 text-amber-800 font-medium">
+      <ShieldAlert className="h-3 w-3 shrink-0" />
+      Possible flag — pending review: {label}
     </span>
   );
 }
 
-// ─── Build export text ─────────────────────────────────────────────────────────
+// ─── Build export / print content ────────────────────────────────────────────
 
-function buildExportText(result: IntakeAnalysisResult): string {
+function buildExportLines(result: IntakeAnalysisResult): string[] {
   const rr = result.routingRecommendation;
-  const lines: string[] = [
+  return [
     "========================================",
     "MATHIAS EL TRIBE — INTAKE ANALYSIS SUMMARY",
     `Record ID: ${result.id ?? "unsaved"}`,
@@ -147,12 +161,12 @@ function buildExportText(result: IntakeAnalysisResult): string {
       : "Not identified",
     ...(rr.ccList.length > 0 ? ["CC:", ...rr.ccList.map((c) => `  - ${c}`)] : []),
     "",
-    "--- LEGAL FLAGS ---",
-    result.tribalLandFlag ? "FLAG: Tribal Land" : "",
-    result.icwaFlag ? "FLAG: ICWA" : "",
-    result.indianLawFlag ? "FLAG: Indian Law" : "",
-    result.trustLandFlag ? "FLAG: Trust Land" : "",
-    result.federalReviewFlag ? "FLAG: Federal Review" : "",
+    "--- LEGAL FLAGS (POSSIBLE — PENDING REVIEW) ---",
+    result.tribalLandFlag ? "Possible flag — pending review: Tribal Land" : "",
+    result.icwaFlag ? "Possible flag — pending review: ICWA" : "",
+    result.indianLawFlag ? "Possible flag — pending review: Indian Law" : "",
+    result.trustLandFlag ? "Possible flag — pending review: Trust Land" : "",
+    result.federalReviewFlag ? "Possible flag — pending review: Federal Review" : "",
     ...(result.legalFlags.length > 0 ? ["Specific concerns:", ...result.legalFlags.map((f) => `  - ${f}`)] : []),
     ...(rr.legalFlagSummary.length > 0 ? ["Authority warnings:", ...rr.legalFlagSummary.map((s) => `  - ${s}`)] : []),
     "",
@@ -166,7 +180,36 @@ function buildExportText(result: IntakeAnalysisResult): string {
     "SUGGESTED PENDING REVIEW — human authorization required before any action.",
     "========================================",
   ];
-  return lines.filter((l) => l !== "").join("\n");
+}
+
+function buildExportText(result: IntakeAnalysisResult): string {
+  return buildExportLines(result).filter((l) => l !== "").join("\n");
+}
+
+function exportAsPdf(result: IntakeAnalysisResult) {
+  const lines = buildExportLines(result).filter((l) => l !== "");
+  const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Intake Analysis — Record #${result.id ?? "draft"}</title>
+  <style>
+    body { font-family: 'Courier New', monospace; font-size: 11px; padding: 2cm; line-height: 1.5; color: #111; }
+    h2 { font-size: 13px; margin-bottom: 0.5em; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h2>Mathias El Tribe — Intake Analysis Summary</h2>
+  <pre>${lines.map((l) => l.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")).join("\n")}</pre>
+</body>
+</html>`;
+  const pw = window.open("", "_blank", "width=800,height=900");
+  if (!pw) return;
+  pw.document.write(html);
+  pw.document.close();
+  pw.focus();
+  pw.print();
 }
 
 // ─── Results panel ─────────────────────────────────────────────────────────────
@@ -178,35 +221,28 @@ interface AnalysisResultsProps {
 
 function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
   const { toast } = useToast();
+  const [saved, setSaved] = useState(!!result.id);
   const rr = result.routingRecommendation;
 
-  function copyResult() {
-    const text = buildExportText(result);
+  function copyText(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
-      toast({ title: "Copied to clipboard", description: "Analysis summary copied." });
+      toast({ title: "Copied", description: `${label} copied to clipboard.` });
     });
-  }
-
-  function exportSummary() {
-    const text = buildExportText(result);
-    const blob = new Blob([text], { type: "text/plain" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `intake-analysis-${result.id ?? "draft"}.txt`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Summary exported", description: "Intake analysis exported as text file." });
   }
 
   function handleSave() {
     if (result.id) {
+      setSaved(true);
       toast({
-        title: "Record already persisted",
-        description: `Intake record #${result.id} was automatically saved when analysis ran. No further action needed.`,
+        title: `Record #${result.id} saved`,
+        description: "Intake record was automatically persisted when analysis ran. ID confirmed.",
       });
     } else {
-      toast({ title: "Not saved", description: "This record was not persisted — re-analyze to save.", variant: "destructive" });
+      toast({
+        title: "Record not persisted",
+        description: "No record ID returned — re-analyze to save.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -219,8 +255,71 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
     toast({ title: "Context hints updated", description: "State, county, and matter type pre-filled from extracted values." });
   }
 
+  // Block copy helpers
+  function copyBlock1() {
+    const lines = [
+      `Entity: ${result.detectedEntityName ?? "—"}`,
+      `Address: ${result.detectedAddress ?? "—"}`,
+      `Deadline: ${result.detectedDeadline ?? "—"}`,
+      `Ref #: ${result.detectedAccountOrReferenceNumber ?? "—"}`,
+      `APN: ${result.detectedApn ?? "—"}`,
+      `State: ${result.detectedState ?? "—"}`,
+      `County: ${result.detectedCounty ?? "—"}`,
+      `Matter Type: ${result.detectedMatterType}`,
+      `Action Type: ${result.detectedActionType}`,
+      result.id ? `Record ID: #${result.id}` : "",
+    ].filter(Boolean).join("\n");
+    copyText(lines, "Extracted fields");
+  }
+
+  function copyBlock2() {
+    const r = rr.primaryRecipient;
+    if (!r) { copyText("No primary recipient identified.", "Primary recipient"); return; }
+    const lines = [r.name, r.mailingAddress, r.phone, r.contact, r.website].filter(Boolean).join("\n");
+    copyText(lines, "Primary recipient");
+  }
+
+  function copyBlock3() {
+    const r = rr.oversightRecipient;
+    const lines = r
+      ? [r.name, r.mailingAddress, r.phone, r.contact].filter(Boolean).join("\n")
+      : "No oversight agency identified.";
+    const cc = rr.ccList.length > 0 ? "\nCC:\n" + rr.ccList.map((c) => `  - ${c}`).join("\n") : "";
+    copyText(lines + cc, "Oversight / CC");
+  }
+
+  function copyBlock4() {
+    const flags = [
+      result.tribalLandFlag ? "Possible flag — pending review: Tribal Land" : "",
+      result.icwaFlag ? "Possible flag — pending review: ICWA" : "",
+      result.indianLawFlag ? "Possible flag — pending review: Indian Law" : "",
+      result.trustLandFlag ? "Possible flag — pending review: Trust Land" : "",
+      result.federalReviewFlag ? "Possible flag — pending review: Federal Review" : "",
+      ...result.legalFlags,
+      ...rr.legalFlagSummary,
+    ].filter(Boolean);
+    copyText(flags.length ? flags.join("\n") : "No flags raised.", "Legal flags");
+  }
+
+  function copyBlock5() {
+    const lines = [
+      rr.suggestedTemplateKey ? `Template: ${rr.suggestedTemplateKey}` : "No template assigned.",
+      rr.escalationPath ? `Escalation: ${rr.escalationPath}` : "",
+      rr.tribalLawApplicable ? `Tribal Law: ${rr.tribalLawApplicable}` : "",
+    ].filter(Boolean);
+    copyText(lines.join("\n"), "Template & escalation");
+  }
+
   return (
     <div className="space-y-4 mt-6">
+      {/* Saved badge */}
+      {saved && result.id && (
+        <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-sm text-emerald-800">
+          <CheckCircle2 className="h-4 w-4 shrink-0" />
+          Record <span className="font-bold">#{result.id}</span> persisted — auto-saved when analysis ran.
+        </div>
+      )}
+
       {/* Disclaimer banner */}
       <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 px-4 py-3">
         <AlertTriangle className="h-4 w-4 text-amber-700 mt-0.5 shrink-0" />
@@ -228,13 +327,17 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
           <p className="text-xs font-semibold text-amber-900 mb-0.5">Human review required before any action.</p>
           <p className="text-xs text-amber-800">{rr.disclaimer}</p>
         </div>
-        <button onClick={copyResult} className="shrink-0 text-xs text-amber-800 hover:text-amber-900 flex items-center gap-1 font-medium">
-          <Copy className="h-3.5 w-3.5" /> Copy
+        <button onClick={() => copyText(rr.disclaimer, "Disclaimer")} className="shrink-0 text-amber-700 hover:text-amber-900">
+          <Copy className="h-3.5 w-3.5" />
         </button>
       </div>
 
       {/* Block 1: Extracted Fields */}
-      <Block icon={<FileText className="h-4 w-4 text-primary" />} title="Extracted Fields">
+      <Block
+        icon={<FileText className="h-4 w-4 text-primary" />}
+        title="Extracted Fields"
+        onCopy={copyBlock1}
+      >
         <div className="space-y-1.5">
           <Field label="Entity / Issuer" value={result.detectedEntityName} />
           <Field label="Address" value={result.detectedAddress} />
@@ -255,27 +358,30 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
               {result.detectedActionType}
             </code>
           </div>
-          <div className="text-xs text-muted-foreground pt-1 flex items-center justify-between">
+          <div className="text-xs text-muted-foreground pt-1 flex items-center justify-between flex-wrap gap-2">
             <span>
               Source: <span className="font-medium text-foreground">{result.extractionSource}</span>
               {result.id && (
                 <> · Record ID: <span className="font-medium text-foreground">#{result.id}</span></>
               )}
             </span>
-            {/* Use extracted text pathway */}
             <button
               onClick={useExtracted}
               className="text-xs text-primary hover:underline flex items-center gap-1"
               title="Pre-fill context hints from extracted state, county, and matter type"
             >
-              <ChevronRight className="h-3 w-3" /> Use extracted values as hints
+              <ChevronRight className="h-3 w-3" /> Use extracted values as context hints
             </button>
           </div>
         </div>
       </Block>
 
       {/* Block 2: Primary Recipient */}
-      <Block icon={<Building2 className="h-4 w-4 text-primary" />} title="Primary Recipient">
+      <Block
+        icon={<Building2 className="h-4 w-4 text-primary" />}
+        title="Primary Recipient"
+        onCopy={copyBlock2}
+      >
         {rr.primaryRecipient ? (
           <RecipientCard r={rr.primaryRecipient} label="Primary" />
         ) : (
@@ -286,7 +392,11 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       </Block>
 
       {/* Block 3: Oversight & CC */}
-      <Block icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />} title="Oversight / CC List">
+      <Block
+        icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
+        title="Oversight / CC List"
+        onCopy={copyBlock3}
+      >
         <div className="space-y-2">
           {rr.oversightRecipient ? (
             <RecipientCard r={rr.oversightRecipient} label="Oversight" />
@@ -310,15 +420,19 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       </Block>
 
       {/* Block 4: Legal Flag Summary */}
-      <Block icon={<ShieldAlert className="h-4 w-4 text-amber-600" />} title="Legal Flag Summary">
+      <Block
+        icon={<ShieldAlert className="h-4 w-4 text-amber-600" />}
+        title="Legal Flag Summary"
+        onCopy={copyBlock4}
+      >
         <div className="space-y-3">
-          {/* Boolean flags as chips */}
+          {/* Boolean flags as chips — consistently labeled "Possible flag — pending review: X" */}
           <div className="flex flex-wrap gap-1.5">
-            <FlagChip label="Tribal Land" active={result.tribalLandFlag} color="text-amber-800 bg-amber-50 border-amber-300" />
-            <FlagChip label="ICWA" active={result.icwaFlag} color="text-rose-800 bg-rose-50 border-rose-300" />
-            <FlagChip label="Indian Law" active={result.indianLawFlag} color="text-blue-800 bg-blue-50 border-blue-300" />
-            <FlagChip label="Trust Land" active={result.trustLandFlag} color="text-purple-800 bg-purple-50 border-purple-300" />
-            <FlagChip label="Federal Review" active={result.federalReviewFlag} color="text-indigo-800 bg-indigo-50 border-indigo-300" />
+            <FlagChip label="Tribal Land" active={result.tribalLandFlag} />
+            <FlagChip label="ICWA" active={result.icwaFlag} />
+            <FlagChip label="Indian Law" active={result.indianLawFlag} />
+            <FlagChip label="Trust Land" active={result.trustLandFlag} />
+            <FlagChip label="Federal Review" active={result.federalReviewFlag} />
             {!result.tribalLandFlag && !result.icwaFlag && !result.indianLawFlag && !result.trustLandFlag && !result.federalReviewFlag && (
               <span className="text-xs text-muted-foreground italic">No sovereignty flags raised.</span>
             )}
@@ -381,7 +495,11 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       </Block>
 
       {/* Block 5: Suggested Template & Escalation */}
-      <Block icon={<BookMarked className="h-4 w-4 text-muted-foreground" />} title="Suggested Template & Escalation">
+      <Block
+        icon={<BookMarked className="h-4 w-4 text-muted-foreground" />}
+        title="Suggested Template & Escalation"
+        onCopy={copyBlock5}
+      >
         <div className="space-y-2">
           <div className="flex gap-2 text-xs">
             <span className="font-medium text-foreground w-36 shrink-0">Template Key</span>
@@ -415,13 +533,13 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       <div className="flex flex-wrap gap-2 pt-1">
         {/* Save record */}
         <Button
-          variant="outline"
+          variant={saved ? "default" : "outline"}
           size="sm"
-          className="gap-1.5"
+          className={cn("gap-1.5", saved && "bg-emerald-600 hover:bg-emerald-700 text-white border-0")}
           onClick={handleSave}
         >
           <Save className="h-3.5 w-3.5" />
-          {result.id ? `Saved as #${result.id}` : "Save Record"}
+          {saved && result.id ? `Saved as Record #${result.id}` : "Save Record"}
         </Button>
 
         {/* Export PDF summary */}
@@ -429,12 +547,12 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
           variant="outline"
           size="sm"
           className="gap-1.5"
-          onClick={exportSummary}
+          onClick={() => exportAsPdf(result)}
         >
-          <Download className="h-3.5 w-3.5" /> Export Summary
+          <Printer className="h-3.5 w-3.5" /> Export PDF Summary
         </Button>
 
-        {/* Draft Notice — disabled, requires authorization */}
+        {/* Draft Notice — disabled, requires Chief authorization */}
         <Tooltip>
           <TooltipTrigger asChild>
             <span className="inline-flex">
@@ -450,7 +568,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs text-xs">
-            Draft Notice requires Chief authorization. Contact the Sovereign Office to initiate this action — do not proceed without approval.
+            Draft Notice requires Chief authorization. Contact the Sovereign Office to initiate this action — do not proceed without explicit approval.
           </TooltipContent>
         </Tooltip>
       </div>
@@ -517,7 +635,7 @@ export default function IntakePage() {
           <h1 className="text-xl font-semibold text-foreground">Document Intake Analysis</h1>
         </div>
         <p className="text-sm text-muted-foreground">
-          Paste document text to extract entities, detect matter type, identify applicable law, and generate routing guidance. All extractions are auto-persisted.
+          Paste document text to extract entities, detect matter type, identify applicable law, and generate routing guidance. Records are auto-persisted on analyze.
         </p>
       </div>
 
@@ -569,9 +687,7 @@ export default function IntakePage() {
 
         {/* Document text */}
         <div>
-          <label className="block text-xs font-medium text-foreground mb-1">
-            Document Text
-          </label>
+          <label className="block text-xs font-medium text-foreground mb-1">Document Text</label>
           <textarea
             className="w-full text-sm rounded-md border border-input bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             rows={9}

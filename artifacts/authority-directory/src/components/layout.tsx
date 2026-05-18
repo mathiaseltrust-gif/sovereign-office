@@ -138,7 +138,7 @@ export function Layout({ children }: LayoutProps) {
                   {auth.user.name}
                 </div>
                 <div className="text-xs text-sidebar-foreground/50 truncate">
-                  {auth.user.role}
+                  {auth.user.roles[0] ?? "member"}
                 </div>
               </div>
             </div>
