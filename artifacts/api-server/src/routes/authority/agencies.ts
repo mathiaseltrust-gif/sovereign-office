@@ -137,6 +137,14 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
 
     const verifiedAt = lastVerifiedDate ? new Date(lastVerifiedDate) : new Date();
 
+    // Validate + clamp confidenceScore to prevent injection via unquoted numeric interpolation
+    const rawScore = confidenceScore != null ? Number(confidenceScore) : 0.8;
+    if (!Number.isFinite(rawScore)) {
+      res.status(400).json({ error: "confidenceScore must be a finite number" });
+      return;
+    }
+    const scoreSafe = Math.max(0, Math.min(1, rawScore));
+
     // Use raw SQL to target the functional unique index
     // (COALESCE(state_code,''), COALESCE(county,'')) which Drizzle cannot express as a conflict target.
     const agencyTypeSafe = agencyType.replace(/'/g, "''");
@@ -153,7 +161,6 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
     const phoneSafe = phone ? `'${phone.replace(/'/g, "''")}'` : "NULL";
     const webSafe = website ? `'${website.replace(/'/g, "''")}'` : "NULL";
     const sourceSafe = sourceUrl ? `'${sourceUrl.replace(/'/g, "''")}'` : "NULL";
-    const scoreSafe = confidenceScore ?? 0.8;
     const verifiedSafe = verifiedAt.toISOString();
 
     const result = await db.execute(sql.raw(`

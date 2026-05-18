@@ -99,7 +99,8 @@ async function ingestCensusCounties(): Promise<{ upserted: number; failed: numbe
         await db.execute(sql.raw(`
           INSERT INTO jurisdiction_directory (state_code, state_name, county, fips_code, tribal_land_flag, last_synced_at)
           VALUES ('${stateAbbr}', '${stateInfo.name.replace(/'/g, "''")}', '${countyName.replace(/'/g, "''")}', '${fipsCode}', false, NOW())
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (state_code, COALESCE(county,''), COALESCE(city,''))
+          DO UPDATE SET fips_code = EXCLUDED.fips_code, last_synced_at = NOW(), updated_at = NOW()
         `));
         upserted++;
       } catch { failed++; }
@@ -134,7 +135,8 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
           await db.execute(sql.raw(`
             INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, confidence_score, last_synced_at)
             VALUES ('${name.replace(/'/g, "''")}', '${String(type).replace(/'/g, "''")}', 'state', 'CA', 0.7, '${now}')
-            ON CONFLICT DO NOTHING
+            ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+            DO UPDATE SET agency_type = EXCLUDED.agency_type, last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
           `));
           upserted++;
         } catch { failed++; }
@@ -157,7 +159,8 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
         await db.execute(sql.raw(`
           INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, county, confidence_score, last_synced_at)
           VALUES ('${name.replace(/'/g, "''")}', '${role.type}', 'county', 'CA', '${county.replace(/'/g, "''")}', 0.75, '${now}')
-          ON CONFLICT DO NOTHING
+          ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+          DO UPDATE SET last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
         `));
         upserted++;
       } catch { failed++; }
@@ -183,7 +186,8 @@ async function ingestCaliforniaAgencies(): Promise<{ upserted: number; failed: n
       await db.execute(sql.raw(`
         INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, website, confidence_score, last_synced_at)
         VALUES ('${ag.name.replace(/'/g, "''")}', '${ag.type}', 'state', 'CA', '${ag.web}', 0.95, '${now}')
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+        DO UPDATE SET website = EXCLUDED.website, last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
       `));
       upserted++;
     } catch { failed++; }
