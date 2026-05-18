@@ -470,14 +470,14 @@ export default function Atlas() {
   const { data: ancestors = [], isLoading: ancestorsLoading } = useQuery({
     queryKey: ["/api/atlas/ancestors", atlasMode, authenticated],
     queryFn: fetchAncestors,
-    enabled: atlasMode,
+    enabled: atlasMode && authenticated,
     staleTime: 5 * 60_000,
   });
 
   const { data: contextMatches = [] } = useQuery({
     queryKey: ["/api/atlas/ancestors/context", atlasMode, authenticated],
     queryFn: fetchAncestorContext,
-    enabled: atlasMode,
+    enabled: atlasMode && authenticated,
     staleTime: 5 * 60_000,
   });
 
@@ -574,6 +574,16 @@ export default function Atlas() {
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />
               Loading ancestors…
+            </div>
+          )}
+          {atlasMode && !authenticated && (
+            <div className="flex items-center gap-1.5 text-xs text-blue-600/70 bg-blue-50/10 border border-blue-500/20 rounded px-2 py-1">
+              Sign into the Sovereign Dashboard to see ancestor pins
+            </div>
+          )}
+          {atlasMode && authenticated && !ancestorsLoading && ancestors.length === 0 && (
+            <div className="flex items-center gap-1.5 text-xs text-amber-600/80 bg-amber-50/10 border border-amber-500/20 rounded px-2 py-1">
+              No ancestor data found — add family records to see ancestor pins
             </div>
           )}
           <div className="text-xs font-mono font-medium px-2 py-1 rounded bg-secondary/10 text-secondary-foreground" data-testid="event-count-badge">

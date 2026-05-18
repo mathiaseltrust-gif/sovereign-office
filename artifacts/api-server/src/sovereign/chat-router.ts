@@ -1006,16 +1006,29 @@ async function trySendMessageIntent(input: ChatInput): Promise<ChatResponse | nu
   }
 }
 
+const DEFAULT_FALLBACK_ACTIONS: ChatAction[] = [
+  { label: "File Complaint", href: "/complaints" },
+  { label: "Law Library", href: "/law" },
+  { label: "My Profile", href: "/profile" },
+];
+
+function withActions(response: ChatResponse): ChatResponse {
+  if (!response.actions || response.actions.length === 0) {
+    return { ...response, actions: DEFAULT_FALLBACK_ACTIONS };
+  }
+  return response;
+}
+
 export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   const { message } = input;
 
   // Companion task mode — step 1: confirm pending DM intent ("yes"/"no")
   const confirmResponse = await tryConfirmPendingDm(input);
-  if (confirmResponse) return confirmResponse;
+  if (confirmResponse) return withActions(confirmResponse);
 
   // Companion task mode — step 2: detect send-message intent and prompt for confirmation
   const msgIntent = await trySendMessageIntent(input);
-  if (msgIntent) return msgIntent;
+  if (msgIntent) return withActions(msgIntent);
 
   // Law & Logic Layer — run alignment check on every message (zero cost, synchronous)
   const alignmentResult = checkAlignment(message + (input.uploadedDocumentText ? " " + input.uploadedDocumentText : ""));
@@ -1038,7 +1051,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
   // Red flag + complex situation → AI tier
   if (needsAI) {
     const aiResponse = await handleAITier(input, intakeFlags);
-    return { ...aiResponse, alignmentWarning };
+    return withActions({ ...aiResponse, alignmentWarning });
   }
 
   // Try funnel match first (zero cost, instant response)
@@ -1054,7 +1067,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
         ];
       } catch { /* law DB unavailable, no problem */ }
     }
-    return {
+    return withActions({
       reply: funnel.respond(input),
       tier: "funnel",
       tierLabel: "Sovereign Office Advisor",
@@ -1072,7 +1085,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
         doctrinesTriggered: intakeFlags.doctrinesTriggered,
         canonicalPosture: intakeFlags.canonicalPosture,
       } : undefined,
-    };
+    });
   }
 
   // Red flag with no funnel match → intake filter + law DB (still zero cost)
@@ -1086,7 +1099,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
         ...lawData.doctrines.slice(0, 3).map(d => ({ title: d.caseName, citation: d.citation, type: "doctrine" as const })),
       ];
     } catch { /* ok */ }
-    return {
+    return withActions({
       reply: buildIntakeReply(intakeFlags, lawRefs),
       tier: "intake_filter",
       tierLabel: "Sovereign Intake Analyzer",
@@ -1103,7 +1116,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
         doctrinesTriggered: intakeFlags.doctrinesTriggered,
         canonicalPosture: intakeFlags.canonicalPosture,
       },
-    };
+    });
   }
 
   // General question — try law DB keyword lookup (zero cost)
@@ -1117,7 +1130,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
         ...lawData.doctrines.slice(0, 3).map(d => ({ title: d.caseName, citation: d.citation, type: "doctrine" as const })),
       ];
       if (lawRefs.length > 0) {
-        return {
+        return withActions({
           reply: `Based on the Sovereign Office law library, here are the applicable laws and doctrines for your question:\n\n${lawRefs.map(r => `• [${r.type.toUpperCase()}] ${r.title} — ${r.citation}`).join("\n")}\n\nWould you like me to explain any of these in detail? Or describe your specific situation and I will provide more targeted guidance.\n\nFor questions about recent court decisions or new legislation, I can escalate to our AI legal analysis system.`,
           tier: "law_db",
           tierLabel: "Law Library",
@@ -1129,7 +1142,7 @@ export async function routeChat(input: ChatInput): Promise<ChatResponse> {
             { label: "Describe My Situation", intent: "ANALYZE_SITUATION" },
             { label: "AI Legal Analysis", intent: "AI_ESCALATE" },
           ],
-        };
+        });
       }
     } catch { /* ok */ }
   }

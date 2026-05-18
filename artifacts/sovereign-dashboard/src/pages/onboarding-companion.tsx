@@ -8,10 +8,9 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const WELCOME_PARAGRAPHS = [
   "Welcome to Companion.",
-  "Companion is part of a living system built to help preserve our history, strengthen continuity, organize knowledge, and support our people moving forward.",
-  "As you move through the platform, Companion will guide you naturally — helping you explore tools, organize information, document history, build documentation, and navigate with greater ease.",
-  "You can ask Companion questions at any time. Nothing here is intended to feel forced, rushed, or transactional.",
-  "We're glad you're here, Family.\n\nWelcome to Companion.",
+  "Companion is your guide through this platform — here to help you document your history, organize your record, and navigate your rights as a member of the Mathias El Tribe.",
+  "To get started, tell us a little about yourself so Companion can personalize your experience.",
+  "We're glad you're here, Family.",
 ];
 
 const INITIAL_COMPANION_MESSAGE =
@@ -106,6 +105,27 @@ export default function OnboardingCompanionPage() {
     }
   }
 
+  async function skipToProfile() {
+    setCompleting(true);
+    try {
+      const token = getCurrentBearerToken();
+      await fetch(`${apiBase}/api/kaya/onboarding/complete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["companion-onboarding-status"] });
+      try {
+        sessionStorage.setItem("companion_onboarding_reminder", "1");
+      } catch { /* ignore */ }
+      navigate("/profile");
+    } catch {
+      setCompleting(false);
+    }
+  }
+
   if (phase === "welcome") {
     return (
       <div className="min-h-[calc(100vh-4rem)] flex flex-col items-center justify-center p-6 bg-gradient-to-b from-background to-muted/20">
@@ -143,17 +163,18 @@ export default function OnboardingCompanionPage() {
 
           <div className="flex flex-col items-center gap-3">
             <button
-              onClick={() => setPhase("chat")}
-              className="flex items-center gap-2 px-7 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-sm"
+              onClick={skipToProfile}
+              disabled={completing}
+              className="flex items-center gap-2 px-7 py-3 bg-primary text-primary-foreground font-semibold rounded-xl hover:opacity-90 transition-opacity text-sm shadow-sm disabled:opacity-50"
             >
-              Begin conversation <ArrowRight className="w-4 h-4" />
+              {completing ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+              Take me to my profile <ArrowRight className="w-4 h-4" />
             </button>
             <button
-              onClick={completeOnboarding}
-              disabled={completing}
-              className="flex items-center gap-1.5 text-xs font-medium text-foreground/70 border border-border px-5 py-2.5 rounded-xl hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
+              onClick={() => setPhase("chat")}
+              className="flex items-center gap-1.5 text-xs font-medium text-foreground/70 border border-border px-5 py-2.5 rounded-xl hover:bg-muted/50 hover:text-foreground transition-colors"
             >
-              Skip — I'm ready to explore the platform <ArrowRight className="w-3.5 h-3.5" />
+              Begin conversation first <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>

@@ -107,6 +107,30 @@ interface IntakeOption {
   caseType: string;
 }
 
+const INTAKE_QA_SCRIPTS: Record<string, string[]> = {
+  business: [
+    "What is your business idea — what does it do and what is it called?",
+    "Who are your intended customers or the community you'll serve?",
+    "Do you have any existing business activity, revenue, or partnerships in place?",
+    "What is your goal for this business in the next 1–2 years?",
+    "Is there anything specific you want legal or sovereign protection for?",
+  ],
+  filing: [
+    "What document or event triggered this — what happened?",
+    "Who are the other parties involved (agencies, individuals, courts)?",
+    "Is there a deadline or time-sensitive element we need to know about?",
+    "What instrument do you think is needed — or are you unsure?",
+    "What outcome are you seeking from this filing?",
+  ],
+  profile: [
+    "What is your full legal name as you'd like it recorded in the registry?",
+    "What is your tribal nation affiliation and how are you connected to the Mathias El Tribe lineage?",
+    "Are you currently enrolled with any tribe, or has enrollment been denied or disputed?",
+    "What documentation do you have — membership cards, family records, birth certificates, or other documents?",
+    "Is there anything specific you want updated or established in your record today?",
+  ],
+};
+
 const INTAKE_OPTIONS: IntakeOption[] = [
   {
     key: "business",
@@ -197,6 +221,7 @@ interface KayaChatProps {
   pendingTasks?: number;
   unreadNotifications?: number;
   pendingFilings?: number;
+  onboardingReminder?: boolean;
 }
 
 const QUICK_PROMPTS = [
@@ -523,14 +548,23 @@ function IntakeResultPanel({ report, intakeType, onReset }: {
 }
 
 /* ─── Intake Tab ─────────────────────────────────────────────── */
+type QAMessage = { role: "assistant" | "user"; content: string };
+
 function IntakeTab({ memberName }: { memberName?: string }) {
   const { toast } = useToast();
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
+  const qaBottomRef = useRef<HTMLDivElement>(null);
+  const qaInputRef = useRef<HTMLInputElement>(null);
 
-  const [phase, setPhase] = useState<"select" | "open" | "describe" | "result">("select");
+  const [phase, setPhase] = useState<"select" | "open" | "qa" | "result">("select");
   const [selected, setSelected] = useState<IntakeOption | null>(null);
-  const [description, setDescription] = useState("");
   const [result, setResult] = useState<IntakeAgentReport | null>(null);
+
+  /* QA state */
+  const [qaMessages, setQaMessages] = useState<QAMessage[]>([]);
+  const [qaInput, setQaInput] = useState("");
+  const [qaStep, setQaStep] = useState(0);
+  const [qaAnswers, setQaAnswers] = useState<string[]>([]);
 
   const intakeMutation = useMutation({
     mutationFn: async ({ text, caseType }: { text: string; caseType: string }) => {
@@ -552,25 +586,74 @@ function IntakeTab({ memberName }: { memberName?: string }) {
     onError: (e) => toast({ title: "Intake error", description: (e as Error).message, variant: "destructive" }),
   });
 
+  useEffect(() => {
+    qaBottomRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [qaMessages]);
+
+  useEffect(() => {
+    if (phase === "qa") {
+      setTimeout(() => qaInputRef.current?.focus(), 80);
+    }
+  }, [phase, qaStep]);
+
   function handleSelect(opt: IntakeOption) {
     setSelected(opt);
     setPhase("open");
   }
 
   function handleProceed() {
-    setPhase("describe");
+    if (!selected) return;
+    const questions = INTAKE_QA_SCRIPTS[selected.key] ?? [];
+    setQaMessages([{ role: "assistant", content: questions[0] ?? "Tell me about your situation." }]);
+    setQaStep(0);
+    setQaAnswers([]);
+    setQaInput("");
+    setPhase("qa");
   }
 
-  function handleSubmit() {
-    if (!description.trim() || !selected) return;
-    intakeMutation.mutate({ text: description.trim(), caseType: selected.caseType });
+  function handleQaSend() {
+    if (!qaInput.trim() || !selected || intakeMutation.isPending) return;
+    const answer = qaInput.trim();
+    setQaInput("");
+
+    const questions = INTAKE_QA_SCRIPTS[selected.key] ?? [];
+    const nextStep = qaStep + 1;
+    const newAnswers = [...qaAnswers, answer];
+    setQaAnswers(newAnswers);
+    setQaMessages(prev => [...prev, { role: "user", content: answer }]);
+
+    if (nextStep < questions.length) {
+      setTimeout(() => {
+        setQaMessages(prev => [...prev, { role: "assistant", content: questions[nextStep] }]);
+        setQaStep(nextStep);
+      }, 350);
+    } else {
+      // All questions answered — run analysis
+      setTimeout(() => {
+        setQaMessages(prev => [
+          ...prev,
+          { role: "assistant", content: "Thank you — I have everything I need. Let me analyze your situation…" },
+        ]);
+        const summaryText = questions
+          .map((q, i) => `${q}\n${newAnswers[i] ?? ""}`)
+          .join("\n\n");
+        intakeMutation.mutate({ text: summaryText, caseType: selected.caseType });
+      }, 350);
+    }
+  }
+
+  function handleQaKeyDown(e: React.KeyboardEvent<HTMLInputElement>) {
+    if (e.key === "Enter") { e.preventDefault(); handleQaSend(); }
   }
 
   function handleReset() {
     setPhase("select");
     setSelected(null);
-    setDescription("");
     setResult(null);
+    setQaMessages([]);
+    setQaInput("");
+    setQaStep(0);
+    setQaAnswers([]);
     intakeMutation.reset();
   }
 
@@ -613,29 +696,22 @@ function IntakeTab({ memberName }: { memberName?: string }) {
     );
   }
 
-  /* ── Phase: COMPANION's opening — inform + offer ── */
+  /* ── Phase: COMPANION's opening ── */
   if (phase === "open" && selected) {
     return (
       <div className="px-4 py-4 space-y-4">
-        {/* COMPANION's message */}
         <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
           <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">COMPANION</p>
           <p className="text-sm text-white/80 leading-relaxed">{selected.kayaOpening}</p>
         </div>
 
-        {/* What we'll need */}
         <div className="rounded-lg px-3 py-2.5" style={INTAKE_BG}>
-          <p className="text-[9px] uppercase tracking-widest text-blue-300/50 mb-1.5">What I'll analyze</p>
+          <p className="text-[9px] uppercase tracking-widest text-blue-300/50 mb-1.5">I'll guide you through</p>
           <ul className="space-y-1">
-            {[
-              "Any rights or protections that apply to your situation",
-              "Sovereign law doctrines that may be triggered",
-              "Violations or red flags to address",
-              "The instruments and actions that will best serve you",
-            ].map((item, i) => (
+            {(INTAKE_QA_SCRIPTS[selected.key] ?? []).map((q, i) => (
               <li key={i} className="flex items-start gap-1.5">
-                <CheckCircle2 className="w-3 h-3 text-blue-400/50 shrink-0 mt-0.5" />
-                <span className="text-[11px] text-white/50">{item}</span>
+                <span className="text-[9px] text-blue-300/40 shrink-0 mt-0.5 font-mono">{i + 1}.</span>
+                <span className="text-[11px] text-white/45 leading-snug">{q}</span>
               </li>
             ))}
           </ul>
@@ -661,63 +737,86 @@ function IntakeTab({ memberName }: { memberName?: string }) {
     );
   }
 
-  /* ── Phase: describe situation ── */
-  if (phase === "describe" && selected) {
+  /* ── Phase: step-by-step QA ── */
+  if (phase === "qa" && selected) {
+    const questions = INTAKE_QA_SCRIPTS[selected.key] ?? [];
+    const totalSteps = questions.length;
+    const progress = Math.min(qaAnswers.length, totalSteps);
+    const isAnalyzing = intakeMutation.isPending;
+    const allAnswered = qaAnswers.length >= totalSteps;
+
     return (
-      <div className="px-4 py-4 space-y-3">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="text-blue-300/50">{selected.icon}</span>
-          <p className="text-[10px] uppercase tracking-widest text-white/35 font-bold">{selected.label}</p>
-        </div>
-
-        <div className="rounded-xl px-3.5 py-3" style={MSG_AI}>
-          <p className="text-[9px] tracking-[0.18em] text-amber-400/70 uppercase font-semibold mb-1.5">COMPANION</p>
-          <p className="text-sm text-white/80 leading-relaxed">
-            Take your time. Describe what's happening — as much or as little as you're ready to share. I'll work with what you give me and let you know if I need anything else.
-          </p>
-        </div>
-
-        <Textarea
-          value={description}
-          onChange={e => setDescription(e.target.value)}
-          placeholder={selected.placeholder}
-          className="w-full resize-none text-sm text-white/85 placeholder:text-white/20 rounded-lg"
-          style={{ background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.08)", minHeight: 120 }}
-          disabled={intakeMutation.isPending}
-        />
-
-        <div className="flex gap-2">
+      <div className="flex flex-col" style={{ minHeight: 280 }}>
+        {/* Progress bar */}
+        <div className="px-4 pt-3 pb-2 flex items-center gap-2">
           <button
             onClick={() => setPhase("open")}
-            className="flex-1 text-[11px] text-white/25 hover:text-white/50 transition-colors py-2"
-            disabled={intakeMutation.isPending}
+            className="text-white/20 hover:text-white/45 transition-colors text-[10px] shrink-0"
           >
-            ← Back
+            ← back
           </button>
-          <button
-            onClick={handleSubmit}
-            disabled={!description.trim() || intakeMutation.isPending}
-            className="flex-1 flex items-center justify-center gap-2 text-[12px] font-medium text-white/80 hover:text-white disabled:opacity-40 disabled:cursor-not-allowed rounded-lg py-2 transition-all"
-            style={{ background: "rgba(107,0,0,0.5)", border: "1px solid rgba(180,20,20,0.35)" }}
-          >
-            {intakeMutation.isPending ? (
-              <>
-                <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                COMPANION is analyzing…
-              </>
-            ) : (
-              <>
-                <Shield className="w-3.5 h-3.5" />
-                Run Intake Analysis
-              </>
-            )}
-          </button>
+          <div className="flex-1 flex gap-0.5">
+            {questions.map((_, i) => (
+              <div
+                key={i}
+                className="flex-1 h-0.5 rounded-full transition-all"
+                style={{ background: i < progress ? "rgba(107,0,0,0.8)" : "rgba(255,255,255,0.08)" }}
+              />
+            ))}
+          </div>
+          <span className="text-[9px] text-white/25 shrink-0">
+            {allAnswered ? "done" : `${progress}/${totalSteps}`}
+          </span>
         </div>
 
-        {intakeMutation.isPending && (
-          <p className="text-[10px] text-white/20 text-center">
-            COMPANION is reviewing your situation against sovereign law and protections…
-          </p>
+        {/* Messages */}
+        <div className="flex-1 overflow-y-auto px-4 py-2 space-y-2" style={{ maxHeight: 260 }}>
+          {qaMessages.map((msg, i) => (
+            <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
+              <div
+                className="max-w-[86%] rounded-xl px-3 py-2 text-[12px] leading-relaxed"
+                style={msg.role === "user" ? MSG_USER : MSG_AI}
+              >
+                {msg.role === "assistant" && (
+                  <p className="text-[8px] tracking-[0.18em] text-amber-400/60 uppercase font-semibold mb-1">COMPANION</p>
+                )}
+                <p className="text-white/80">{msg.content}</p>
+              </div>
+            </div>
+          ))}
+          {isAnalyzing && (
+            <div className="flex justify-start">
+              <div className="rounded-xl px-3 py-2 flex items-center gap-2" style={MSG_AI}>
+                <Loader2 className="w-3 h-3 text-amber-400/60 animate-spin" />
+                <p className="text-[11px] text-white/40">COMPANION is analyzing…</p>
+              </div>
+            </div>
+          )}
+          <div ref={qaBottomRef} />
+        </div>
+
+        {/* Input */}
+        {!allAnswered && !isAnalyzing && (
+          <div className="px-4 pb-3 pt-2 flex gap-2 items-center" style={{ borderTop: "1px solid rgba(255,255,255,0.05)" }}>
+            <input
+              ref={qaInputRef}
+              type="text"
+              value={qaInput}
+              onChange={e => setQaInput(e.target.value)}
+              onKeyDown={handleQaKeyDown}
+              placeholder="Your answer…"
+              className="flex-1 text-[12px] text-white/85 placeholder:text-white/20 rounded-lg px-3 py-2 outline-none"
+              style={{ background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)" }}
+            />
+            <button
+              onClick={handleQaSend}
+              disabled={!qaInput.trim()}
+              className="flex items-center justify-center w-7 h-7 rounded-lg disabled:opacity-30 transition-opacity"
+              style={{ background: "rgba(107,0,0,0.7)", border: "1px solid rgba(180,20,20,0.4)" }}
+            >
+              <ArrowRight className="w-3.5 h-3.5 text-white/80" />
+            </button>
+          </div>
         )}
       </div>
     );
@@ -732,18 +831,28 @@ function IntakeTab({ memberName }: { memberName?: string }) {
 }
 
 /* ─── Main KayaChat Component ────────────────────────────────── */
-export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifications, pendingFilings }: KayaChatProps = {}) {
+export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifications, pendingFilings, onboardingReminder }: KayaChatProps = {}) {
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const bottomRef = useRef<HTMLDivElement>(null);
-
   const [input, setInput] = useState("");
   const [inputMode, setInputMode] = useState<"chat" | "journal" | "memory">("chat");
   const [selectedMood, setSelectedMood] = useState<string | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [tab, setTab] = useState<"chat" | "intake" | "memory" | "journal">("chat");
   const [collapsed, setCollapsed] = useState(false);
+  const [onboardingBanner, setOnboardingBanner] = useState<string | null>(() => {
+    if (!onboardingReminder) return null;
+    try {
+      const flag = sessionStorage.getItem("companion_onboarding_reminder");
+      if (flag) {
+        sessionStorage.removeItem("companion_onboarding_reminder");
+        return "Welcome — let's finish building your record. Tell me a little about yourself and I'll help you fill in the right details.";
+      }
+    } catch { /* ignore */ }
+    return null;
+  });
   const [copiedId, setCopiedId] = useState<number | null>(null);
   const [listening, setListening] = useState(false);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -1043,6 +1152,22 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
 
       {!collapsed && (
         <>
+          {/* ── Onboarding reminder banner ── */}
+          {tab === "chat" && onboardingBanner && (
+            <div
+              className="mx-4 mt-3 rounded-xl px-3.5 py-3 flex items-start gap-2.5"
+              style={{ background: "rgba(30,80,40,0.45)", border: "1px solid rgba(80,160,80,0.25)" }}
+            >
+              <Feather className="w-3.5 h-3.5 text-green-300/70 shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-[11px] text-white/80 leading-relaxed">{onboardingBanner}</p>
+              </div>
+              <button
+                onClick={() => setOnboardingBanner(null)}
+                className="text-white/25 hover:text-white/55 transition-colors shrink-0 text-xs mt-0.5"
+              >✕</button>
+            </div>
+          )}
           {/* ── Chat Tab ── */}
           {tab === "chat" && (
             <>

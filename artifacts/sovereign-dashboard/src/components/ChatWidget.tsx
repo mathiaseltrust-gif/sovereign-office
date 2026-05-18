@@ -947,24 +947,28 @@ export function ChatWidget() {
                         key={i}
                         onClick={() => action.href ? handleNavigate(action.href) : (action.intent ? handleIntent(action.intent) : undefined)}
                         style={{
-                          background: "#fff",
-                          border: "1px solid #d1d5db",
-                          borderRadius: 6,
-                          padding: "4px 11px",
-                          fontSize: 12,
+                          background: action.href ? "#1e3a5f" : "#fff",
+                          border: action.href ? "1px solid #2d5a9b" : "1px solid #d1d5db",
+                          borderRadius: 999,
+                          padding: "5px 14px",
+                          fontSize: 11.5,
                           cursor: "pointer",
-                          color: "#374151",
+                          color: action.href ? "#e8f0fb" : "#374151",
                           fontFamily: "'Georgia', serif",
                           transition: "all 0.15s",
                           fontWeight: 500,
+                          letterSpacing: 0.1,
+                          display: "inline-flex",
+                          alignItems: "center",
+                          gap: 4,
                         }}
                         onMouseOver={e => {
-                          (e.target as HTMLButtonElement).style.background = "#f3f4f6";
-                          (e.target as HTMLButtonElement).style.borderColor = "#9ca3af";
+                          const btn = e.currentTarget as HTMLButtonElement;
+                          btn.style.opacity = "0.82";
                         }}
                         onMouseOut={e => {
-                          (e.target as HTMLButtonElement).style.background = "#fff";
-                          (e.target as HTMLButtonElement).style.borderColor = "#d1d5db";
+                          const btn = e.currentTarget as HTMLButtonElement;
+                          btn.style.opacity = "1";
                         }}
                       >
                         {action.href ? "→ " : ""}{action.label}

@@ -1841,6 +1841,7 @@ export default function ProfilePage() {
         memberName={fields.legalName || undefined}
         pendingTasks={data?.tasks?.filter((t: any) => t.status !== "completed" && t.status !== "done").length}
         unreadNotifications={unreadCount}
+        onboardingReminder={true}
       />
 
       {/* ── Your Protections — identity standing, land status, rights ── */}
