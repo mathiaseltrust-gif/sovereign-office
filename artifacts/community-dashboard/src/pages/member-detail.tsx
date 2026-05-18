@@ -333,7 +333,7 @@ const SEAL_URL = `${import.meta.env.BASE_URL}tribal-seal.png`;
 
 // ─── Tribal ID Card ────────────────────────────────────────────────────────────
 
-function TribalIdCard({ member }: { member: {
+function TribalIdCard({ member, locationAddress }: { member: {
   fullName?: string | null;
   firstName?: string | null;
   lastName?: string | null;
@@ -345,7 +345,7 @@ function TribalIdCard({ member }: { member: {
   trustBeneficiary?: boolean | null;
   isAncestor?: boolean | null;
   photoFilename?: string | null;
-} }) {
+}; locationAddress?: string | null }) {
   const memberSince = member.birthYear ? `${member.birthYear}` : "—";
   const idNumber = member.tribalEnrollmentNumber || "—";
   const initials = `${member.firstName?.charAt(0) ?? ""}${member.lastName?.charAt(0) ?? ""}`;
@@ -401,6 +401,15 @@ function TribalIdCard({ member }: { member: {
                 <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Status</p>
                 <p className="font-semibold text-foreground">{member.membershipStatus ?? "—"}</p>
               </div>
+              {locationAddress && (
+                <div className="col-span-2">
+                  <p className="font-semibold uppercase tracking-wider text-muted-foreground text-[9px]">Verified Location</p>
+                  <p className="font-semibold text-foreground flex items-center gap-1">
+                    <MapPin className="w-3 h-3 text-emerald-600 dark:text-emerald-400 shrink-0" />
+                    {locationAddress}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         </div>
@@ -810,7 +819,7 @@ export default function MemberDetail() {
         {/* Right column */}
         <div className="space-y-6">
           {/* Tribal ID Card */}
-          <TribalIdCard member={member} />
+          <TribalIdCard member={member} locationAddress={locationAddress} />
 
           {/* Family Connections */}
           <Card>
