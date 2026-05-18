@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   FileSearch, Clock, ShieldAlert, BookMarked, Building2,
   FileText, Loader2, Copy, AlertTriangle, CheckCircle2,
-  ChevronRight, AlertCircle, Save, Printer, FileX,
+  ChevronRight, AlertCircle, Printer, FileX,
 } from "lucide-react";
 import {
   Tooltip,
@@ -221,29 +221,12 @@ interface AnalysisResultsProps {
 
 function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
   const { toast } = useToast();
-  const [saved, setSaved] = useState(!!result.id);
   const rr = result.routingRecommendation;
 
   function copyText(text: string, label: string) {
     navigator.clipboard.writeText(text).then(() => {
       toast({ title: "Copied", description: `${label} copied to clipboard.` });
     });
-  }
-
-  function handleSave() {
-    if (result.id) {
-      setSaved(true);
-      toast({
-        title: `Record #${result.id} saved`,
-        description: "Intake record was automatically persisted when analysis ran. ID confirmed.",
-      });
-    } else {
-      toast({
-        title: "Record not persisted",
-        description: "No record ID returned — re-analyze to save.",
-        variant: "destructive",
-      });
-    }
   }
 
   function useExtracted() {
@@ -313,10 +296,10 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
   return (
     <div className="space-y-4 mt-6">
       {/* Saved badge */}
-      {saved && result.id && (
+      {result.id && (
         <div className="flex items-center gap-2 rounded-md bg-emerald-50 border border-emerald-300 px-3 py-2 text-sm text-emerald-800">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          Record <span className="font-bold">#{result.id}</span> persisted — auto-saved when analysis ran.
+          Record <span className="font-bold">#{result.id}</span> persisted — saved when analysis ran.
         </div>
       )}
 
@@ -502,77 +485,44 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       >
         <div className="space-y-2">
           <div className="flex gap-2 text-xs">
-            <span className="font-medium text-foreground w-36 shrink-0">Template Key</span>
+            <span className="font-medium text-foreground w-36 shrink-0">Template Name</span>
             {rr.suggestedTemplateKey ? (
-              <div className="space-y-0.5">
-                <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground">
-                  {rr.suggestedTemplateKey}
-                </code>
-                <p className="text-muted-foreground opacity-75 text-xs">
-                  Retrieve full template body from the template library using this key.
-                </p>
-              </div>
+              <code className="bg-muted px-1.5 py-0.5 rounded font-mono text-foreground">
+                {rr.suggestedTemplateKey}
+              </code>
             ) : (
-              <span className="text-muted-foreground italic">None assigned</span>
+              <span className="text-muted-foreground italic">None assigned for this matter type</span>
             )}
           </div>
-
-          {/* Template snippets from matched legal authorities */}
-          {rr.legalAuthorities.some((la) => la.templateSnippet) && (
-            <div>
-              <p className="text-xs font-medium text-foreground mb-1">Template Language Snippets (from matched authorities)</p>
-              <div className="space-y-1.5">
-                {rr.legalAuthorities
-                  .filter((la) => la.templateSnippet)
-                  .map((la, i) => (
-                    <div key={i} className="rounded border border-border bg-muted/40 px-3 py-2">
-                      <p className="text-xs font-medium text-foreground mb-1">{la.authorityName}</p>
-                      <pre className="text-xs text-muted-foreground whitespace-pre-wrap font-mono leading-relaxed">
-                        {la.templateSnippet}
-                      </pre>
-                    </div>
-                  ))}
-              </div>
-            </div>
-          )}
-
-          {rr.escalationPath && (
-            <div className="flex gap-2 text-xs">
-              <span className="font-medium text-foreground w-36 shrink-0">Escalation Path</span>
-              <span className="text-muted-foreground">{rr.escalationPath}</span>
-            </div>
-          )}
-          {rr.tribalLawApplicable && (
-            <div className="flex gap-2 text-xs">
-              <span className="font-medium text-foreground w-36 shrink-0">Tribal Law</span>
-              <span className="text-muted-foreground">{rr.tribalLawApplicable}</span>
-            </div>
-          )}
-          {!rr.suggestedTemplateKey && !rr.escalationPath && !rr.tribalLawApplicable && (
-            <p className="text-xs text-muted-foreground italic">No template or escalation data for this matter type.</p>
-          )}
+          <div className="flex gap-2 text-xs">
+            <span className="font-medium text-foreground w-36 shrink-0">Description</span>
+            {rr.suggestedTemplateKey ? (
+              <span className="text-muted-foreground">
+                Standard notice template for <span className="font-medium text-foreground">{rr.matterType}</span> matters.
+                Full template body is retrieved from the template library using the key above.
+                Drafting requires Chief authorization — see Draft Notice action below.
+              </span>
+            ) : (
+              <span className="text-muted-foreground italic">No template description available.</span>
+            )}
+          </div>
         </div>
       </Block>
 
       {/* Action row */}
-      <div className="flex flex-wrap gap-2 pt-1">
-        {/* Auto-persist confirmation — analyze auto-persists; button confirms the ID was returned */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant={saved ? "default" : "outline"}
-              size="sm"
-              className={cn("gap-1.5", saved && "bg-emerald-600 hover:bg-emerald-700 text-white border-0")}
-              onClick={handleSave}
-            >
-              <Save className="h-3.5 w-3.5" />
-              {saved && result.id ? `Auto-saved — Record #${result.id}` : "Confirm Auto-saved Record"}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="top" className="max-w-xs text-xs">
-            Records are automatically persisted when analysis runs. This action confirms the saved record ID and does not trigger a second write.
-          </TooltipContent>
-        </Tooltip>
+      <div className="flex flex-wrap items-center gap-3 pt-1">
+        {/* Save status indicator — records are persisted by the analyze endpoint; ID shown when returned */}
+        {result.id ? (
+          <span className="inline-flex items-center gap-1.5 text-xs text-emerald-700 font-medium">
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Intake record saved — ID #{result.id}
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1.5 text-xs text-amber-700 font-medium">
+            <AlertCircle className="h-3.5 w-3.5" />
+            Record not persisted — re-analyze to save
+          </span>
+        )}
 
         {/* Export PDF summary */}
         <Button
