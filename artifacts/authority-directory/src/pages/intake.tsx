@@ -588,8 +588,26 @@ const MATTER_TYPE_OPTIONS = [
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 
+type TextSource = "paste" | "preextracted";
+
+const TEXT_SOURCE_CONFIG: Record<TextSource, { label: string; sublabel: string; placeholder: string }> = {
+  paste: {
+    label: "Paste / Transcribe Document",
+    sublabel: "Canonical intake pathway — paste or transcribe the full document text",
+    placeholder:
+      "Paste or type the full document text here. The engine will extract entity names, addresses, deadlines, reference numbers, APN, matter type, applicable law, and generate routing recommendations…",
+  },
+  preextracted: {
+    label: "Pre-extracted Text (from upload / OCR)",
+    sublabel: "Paste text already extracted from a scanned document, PDF, or OCR output",
+    placeholder:
+      "Paste the already-extracted text here (e.g., from PDF OCR, a scanning workflow, or a prior extraction pipeline). The engine will process it identically to pasted document text.",
+  },
+};
+
 export default function IntakePage() {
   const { toast } = useToast();
+  const [textSource, setTextSource] = useState<TextSource>("paste");
   const [documentText, setDocumentText] = useState("");
   const [hintState, setHintState] = useState("");
   const [hintCounty, setHintCounty] = useState("");
@@ -685,16 +703,32 @@ export default function IntakePage() {
           </div>
         </div>
 
-        {/* Document text — this is the canonical intake pathway: paste or type the full document text */}
+        {/* Document text with explicit text-source selector */}
         <div>
-          <label className="block text-xs font-medium text-foreground mb-1">
-            Document Text
-            <span className="font-normal text-muted-foreground ml-1">— paste, transcribe, or type the full document (canonical intake pathway)</span>
-          </label>
+          {/* Source toggle */}
+          <div className="flex items-center gap-1 mb-2 rounded-md border border-input bg-muted p-0.5 w-fit">
+            {(["paste", "preextracted"] as TextSource[]).map((src) => (
+              <button
+                key={src}
+                onClick={() => setTextSource(src)}
+                className={cn(
+                  "text-xs px-3 py-1.5 rounded font-medium transition-colors whitespace-nowrap",
+                  textSource === src
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground hover:text-foreground"
+                )}
+              >
+                {TEXT_SOURCE_CONFIG[src].label}
+              </button>
+            ))}
+          </div>
+          <p className="text-xs text-muted-foreground mb-2">
+            {TEXT_SOURCE_CONFIG[textSource].sublabel}
+          </p>
           <textarea
             className="w-full text-sm rounded-md border border-input bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             rows={9}
-            placeholder="Paste or transcribe the full document text here. For pre-extracted text from uploads, paste the extracted content directly. The engine will extract entity names, addresses, deadlines, reference numbers, APN, matter type, applicable law, and generate routing recommendations…"
+            placeholder={TEXT_SOURCE_CONFIG[textSource].placeholder}
             value={documentText}
             onChange={(e) => setDocumentText(e.target.value)}
           />

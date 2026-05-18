@@ -17,7 +17,12 @@ async function request<T>(path: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => res.statusText);
-    throw new ApiError(res.status, text);
+    const err = new ApiError(res.status, text);
+    // Centralized 401 signal — App.tsx listens and shows full-page expired notice
+    if (res.status === 401) {
+      window.dispatchEvent(new CustomEvent("auth:session-expired"));
+    }
+    throw err;
   }
   return res.json() as Promise<T>;
 }
