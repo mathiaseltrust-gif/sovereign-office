@@ -3,7 +3,7 @@ import { useLocation, useSearch } from "wouter";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   Fingerprint, Landmark, Stethoscope, ShieldAlert, Building2,
-  ArrowLeft, CheckCircle, FileText, Upload, Loader2, AlertCircle,
+  ArrowLeft, CheckCircle, FileText, Upload, Loader2, AlertCircle, Paperclip, X,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -21,7 +21,6 @@ interface IntakeConfig {
   questions: string[];
   nextPath?: string;
   nextLabel?: string;
-  hasFileUpload?: boolean;
 }
 
 const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
@@ -30,7 +29,7 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     title: "Identity & Lineage Intake",
     intakeLabel: "Identity & Lineage Intake",
     subtitle: "Guided intake for identity, lineage, and membership documentation.",
-    opening: "It's good to have you here, Family.\n\nI'm Companion. This is a protected conversation for your identity and lineage record. I'll ask you a few focused questions — one at a time — so we can build the right documentation for you.",
+    opening: "It's good to have you here, Family.\n\nI'm Companion. This is a protected conversation for your identity and lineage record. I'll ask you a few focused questions — one at a time — so we can build the right documentation for you.\n\nYou can also upload any documents — birth certificates, membership cards, family records — and I'll pull out what I can for you.",
     questions: [
       "What is your full legal name as you'd like it recorded in the tribal registry?",
       "Do you have a preferred name or ceremonial name you'd like noted?",
@@ -47,7 +46,7 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     title: "Housing & Land Protection Intake",
     intakeLabel: "Housing & Land Protection Intake",
     subtitle: "Guided intake for land status, housing concerns, and property protections.",
-    opening: "Welcome, Family.\n\nI'm Companion. I'll guide you through a few focused questions about your housing and land situation so this office can identify the right protections and actions for you.",
+    opening: "Welcome, Family.\n\nI'm Companion. I'll guide you through a few focused questions about your housing and land situation so this office can identify the right protections and actions for you.\n\nIf you have a deed, title, foreclosure notice, or any property document, upload it and I'll extract the relevant details.",
     questions: [
       "Can you tell me the address or a description of the property you're concerned about?",
       "What is your connection to this property — are you the owner, occupant, heir, or something else?",
@@ -64,7 +63,7 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     title: "Healthcare & Benefits Intake",
     intakeLabel: "Healthcare & Benefits Intake",
     subtitle: "Guided intake for IHS eligibility, benefit access, and healthcare rights.",
-    opening: "Welcome, Family.\n\nI'm Companion. Your Indian health rights are protected under federal law. I'll walk you through a few questions — one at a time — to document your situation and identify what this office can do for you.",
+    opening: "Welcome, Family.\n\nI'm Companion. Your Indian health rights are protected under federal law. I'll walk you through a few questions — one at a time — to document your situation and identify what this office can do for you.\n\nIf you have an eligibility letter, denial notice, referral, or IHS card, upload it and I'll read it for you.",
     questions: [
       "Do you currently receive services through an Indian Health Service (IHS) facility or Urban Indian Health Program?",
       "What is the name of the facility or program, if applicable?",
@@ -75,14 +74,13 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     ],
     nextPath: "/welfare",
     nextLabel: "Open Welfare Instrument",
-    hasFileUpload: true,
   },
   "welfare": {
     icon: ShieldAlert,
     title: "Welfare & Protection Intake",
     intakeLabel: "Welfare & Protection Intake",
     subtitle: "Private, protected conversation for welfare matters, family protection, and emergency concerns.",
-    opening: "Welcome, Family.\n\nI'm Companion. This is a protected and private space. What you share here is held in confidence. I'll ask you a few focused questions — one at a time. You are not alone in this.",
+    opening: "Welcome, Family.\n\nI'm Companion. This is a protected and private space. What you share here is held in confidence. I'll ask you a few focused questions — one at a time. You are not alone in this.\n\nIf you have a court order, agency letter, or any document related to your situation, you can upload it and I'll review it.",
     questions: [
       "What kind of situation are you facing today — family, housing, benefits, discrimination, agency misconduct, or an emergency?",
       "Who is affected — yourself, your children, or other family members?",
@@ -99,7 +97,7 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
     title: "Sovereign Business Formation",
     intakeLabel: "Sovereign Business Formation",
     subtitle: "Companion explores your business idea before we begin the formal formation process.",
-    opening: "Welcome, Family.\n\nI'm Companion. Before we begin formal business formation under inherent tribal authority, I'd like to understand your idea. I'll ask you a few focused questions — one at a time.",
+    opening: "Welcome, Family.\n\nI'm Companion. Before we begin formal business formation under inherent tribal authority, I'd like to understand your idea. I'll ask you a few focused questions — one at a time.\n\nIf you have a business plan, articles of incorporation, or any existing documents, upload them and I'll pull out what's relevant.",
     questions: [
       "What kind of business are you thinking about building, and what does it do?",
       "What name are you considering for the business?",
@@ -117,79 +115,58 @@ const INTAKE_CONFIGS: Record<IntakeType, IntakeConfig> = {
 
 type Message =
   | { role: "assistant"; content: string }
-  | { role: "user"; content: string };
+  | { role: "user"; content: string }
+  | { role: "assistant-extracting"; content: string };
 
-// ─── Healthcare file upload ───────────────────────────────────────────────────
+// ─── Extraction prompt ────────────────────────────────────────────────────────
 
-function HealthcareUploadSection() {
-  const [files, setFiles] = useState<Array<{ name: string; status: "uploading" | "done" | "error" }>>([]);
-  const [dismissed, setDismissed] = useState(false);
-  const fileRef = useRef<HTMLInputElement>(null);
-
-  const allDone = files.length > 0 && files.every((f) => f.status === "done");
-
-  function handleFiles(fileList: FileList | null) {
-    if (!fileList) return;
-    Array.from(fileList).forEach((file) => {
-      setFiles((prev) => [...prev, { name: file.name, status: "uploading" }]);
-      setTimeout(() => {
-        setFiles((prev) =>
-          prev.map((f) => (f.name === file.name ? { ...f, status: "done" } : f))
-        );
-      }, 1200);
-    });
-  }
-
-  if (dismissed || allDone) return null;
-
+function buildExtractionPrompt(questions: string[], extractedText: string): string {
+  const numbered = questions.map((q, i) => `${i + 1}. ${q}`).join("\n");
   return (
-    <div className="rounded-xl border border-border bg-card p-4 space-y-3 mb-4 shadow-sm">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <Upload className="w-4 h-4 text-muted-foreground shrink-0" />
-          <p className="text-xs font-semibold text-foreground uppercase tracking-widest">
-            Upload Proof of IHS / Urban Indian Eligibility
-          </p>
-        </div>
-        <button
-          onClick={() => setDismissed(true)}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
-        >
-          Skip
-        </button>
-      </div>
-      <p className="text-xs text-muted-foreground leading-relaxed">
-        A membership card, referral letter, medical record, or program enrollment notice from an IHS
-        facility or Urban Indian Health Program helps this office assert your healthcare rights.
-      </p>
-      <div
-        className="border-2 border-dashed border-border rounded-lg p-4 text-center cursor-pointer hover:border-primary/40 transition-colors"
-        onClick={() => fileRef.current?.click()}
-        onDragOver={(e) => e.preventDefault()}
-        onDrop={(e) => { e.preventDefault(); handleFiles(e.dataTransfer.files); }}
-      >
-        <Upload className="w-5 h-5 text-muted-foreground mx-auto mb-1" />
-        <p className="text-xs text-muted-foreground">Click to upload or drag and drop</p>
-        <p className="text-[10px] text-muted-foreground/60 mt-0.5">PDF, JPG, PNG accepted</p>
-        <input
-          ref={fileRef}
-          type="file"
-          multiple
-          accept=".pdf,.jpg,.jpeg,.png,.gif,.webp"
-          className="hidden"
-          onChange={(e) => handleFiles(e.target.files)}
-        />
-      </div>
-      {files.some((f) => f.status === "uploading") && (
-        <div className="space-y-1">
-          {files.map((f) => (
-            <div key={f.name} className="flex items-center gap-2 text-xs text-muted-foreground">
-              <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
-              <span className="truncate">{f.name}</span>
-            </div>
-          ))}
-        </div>
-      )}
+    `A member has uploaded a document. The following text was extracted from it:\n\n` +
+    `---\n${extractedText.slice(0, 6000)}\n---\n\n` +
+    `Based only on what is clearly present in this document text, identify answers to these intake questions:\n\n` +
+    `${numbered}\n\n` +
+    `For each question, state whether the document contains a clear answer. ` +
+    `If yes, quote or summarize the relevant information briefly and directly. ` +
+    `If the document does not contain a clear answer, say "not found." ` +
+    `Do not guess or infer. Only report what the document actually states. ` +
+    `Format your response as a plain list, one line per question:\n` +
+    `Q1: [answer or "not found"]\nQ2: [answer or "not found"]\n...`
+  );
+}
+
+function parseExtractionResponse(response: string, count: number): (string | null)[] {
+  const results: (string | null)[] = Array(count).fill(null);
+  for (let i = 0; i < count; i++) {
+    const patterns = [
+      new RegExp(`Q${i + 1}:\\s*(.+?)(?=\\nQ\\d|$)`, "is"),
+      new RegExp(`${i + 1}\\.\\s*(.+?)(?=\\n\\d\\.|$)`, "is"),
+    ];
+    for (const pattern of patterns) {
+      const m = response.match(pattern);
+      if (m) {
+        const val = m[1].trim();
+        if (val && !/not found/i.test(val) && val.length > 3) {
+          results[i] = val;
+        }
+        break;
+      }
+    }
+  }
+  return results;
+}
+
+// ─── Upload button ────────────────────────────────────────────────────────────
+
+function UploadedFilePill({ name, onRemove }: { name: string; onRemove: () => void }) {
+  return (
+    <div className="flex items-center gap-1.5 rounded-full border border-border bg-muted/60 px-2.5 py-1 text-[11px] text-muted-foreground max-w-[180px]">
+      <FileText className="w-3 h-3 shrink-0 text-primary/70" />
+      <span className="truncate">{name}</span>
+      <button onClick={onRemove} className="ml-0.5 hover:text-foreground transition-colors shrink-0">
+        <X className="w-3 h-3" />
+      </button>
     </div>
   );
 }
@@ -207,8 +184,6 @@ export default function IntakeCompanionPage() {
 
   const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
 
-  // stepIndex: which question in config.questions we're on
-  // -1 means we're still on the opening message
   const [stepIndex, setStepIndex] = useState(-1);
   const [messages, setMessages] = useState<Message[]>([
     { role: "assistant", content: config.opening },
@@ -218,8 +193,13 @@ export default function IntakeCompanionPage() {
   const [answersCollected, setAnswersCollected] = useState<{ question: string; answer: string }[]>([]);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [savedFields, setSavedFields] = useState<string[]>([]);
+  const [extractedAnswers, setExtractedAnswers] = useState<(string | null)[]>([]);
+  const [extracting, setExtracting] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]);
+
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Reset when intake type changes
   useEffect(() => {
@@ -231,6 +211,9 @@ export default function IntakeCompanionPage() {
     setAnswersCollected([]);
     setSaveStatus("idle");
     setSavedFields([]);
+    setExtractedAnswers([]);
+    setPendingFiles([]);
+    setExtracting(false);
   }, [intakeType]);
 
   // Auto-ask first question after opening
@@ -248,17 +231,140 @@ export default function IntakeCompanionPage() {
     return undefined;
   }, [stepIndex, messages.length, config.questions]);
 
+  // Auto-fill input when extractedAnswers has a value for current step
+  useEffect(() => {
+    if (
+      stepIndex >= 0 &&
+      extractedAnswers[stepIndex] &&
+      !input &&
+      !finished
+    ) {
+      setInput(extractedAnswers[stepIndex] ?? "");
+    }
+  }, [stepIndex, extractedAnswers]);
+
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages]);
+  }, [messages, extracting]);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
+  // ─── Document extraction ────────────────────────────────────────────────────
+
+  async function handleDocumentUpload(files: FileList | null) {
+    if (!files || files.length === 0 || extracting || finished) return;
+
+    const fileArray = Array.from(files);
+    setPendingFiles(fileArray);
+    setExtracting(true);
+
+    // Show Companion "reading" message
+    const fileNames = fileArray.map((f) => f.name).join(", ");
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant-extracting" as const,
+        content: `Reading ${fileArray.length === 1 ? `"${fileNames}"` : `${fileArray.length} documents`}…`,
+      },
+    ]);
+
+    try {
+      const token = getCurrentBearerToken();
+
+      // Upload each file and collect extracted text
+      const textParts: string[] = [];
+      for (const file of fileArray) {
+        const form = new FormData();
+        form.append("file", file);
+        const r = await fetch(`${API}/api/intake/upload`, {
+          method: "POST",
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          body: form,
+        });
+        if (!r.ok) {
+          const err = await r.json().catch(() => ({})) as { error?: string };
+          throw new Error(err.error ?? `Could not read ${file.name}`);
+        }
+        const data = await r.json() as { text: string; filename: string };
+        textParts.push(`=== ${data.filename} ===\n${data.text}`);
+      }
+
+      const combinedText = textParts.join("\n\n");
+
+      // Ask KAYA to extract answers to the intake questions
+      const extractionPrompt = buildExtractionPrompt(config.questions, combinedText);
+      const kayaRes = await fetch(`${API}/api/kaya/chat`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({
+          message: extractionPrompt,
+          history: [],
+        }),
+      });
+
+      if (!kayaRes.ok) throw new Error("Extraction failed");
+      const kayaData = await kayaRes.json() as { reply?: string; message?: string };
+      const rawReply = kayaData.reply ?? kayaData.message ?? "";
+
+      // Parse the extraction result
+      const extracted = parseExtractionResponse(rawReply, config.questions.length);
+      setExtractedAnswers(extracted);
+
+      // Build a summary of what was found
+      const found = extracted
+        .map((val, i) => val ? `• ${config.questions[i]}\n  ${val}` : null)
+        .filter(Boolean);
+
+      const notFoundCount = extracted.filter((v) => !v).length;
+
+      let companionMsg = "";
+      if (found.length === 0) {
+        companionMsg =
+          `I reviewed ${fileArray.length === 1 ? "that document" : "those documents"} but couldn't find clear answers to these intake questions. The text may be image-only or the information may not be included.\n\nLet's continue with the questions — you can answer them directly.`;
+      } else {
+        companionMsg =
+          `I've reviewed ${fileArray.length === 1 ? "your document" : "your documents"} and found the following:\n\n${found.join("\n\n")}` +
+          (notFoundCount > 0
+            ? `\n\nI'll ask you about the remaining ${notFoundCount} ${notFoundCount === 1 ? "item" : "items"} that weren't in the document.`
+            : `\n\nThat covers everything. I've pre-filled the answers below — review each one and confirm or update before moving on.`);
+      }
+
+      // Replace the extracting message with the result
+      setMessages((prev) => [
+        ...prev.filter((m) => m.role !== "assistant-extracting"),
+        { role: "assistant", content: companionMsg },
+      ]);
+
+      // If current question has an extracted answer, fill input
+      if (extracted[stepIndex]) {
+        setInput(extracted[stepIndex] ?? "");
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Could not read document";
+      setMessages((prev) => [
+        ...prev.filter((m) => m.role !== "assistant-extracting"),
+        {
+          role: "assistant",
+          content: `I wasn't able to read that document — ${msg}. Let's continue with the questions directly.`,
+        },
+      ]);
+    } finally {
+      setExtracting(false);
+      setPendingFiles([]);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  }
+
+  // ─── Send answer ────────────────────────────────────────────────────────────
+
   function handleSend() {
     const userMsg = input.trim();
-    if (!userMsg || finished) return;
+    if (!userMsg || finished || extracting) return;
     setInput("");
 
     const currentQuestion = stepIndex >= 0 ? config.questions[stepIndex] : "";
@@ -270,16 +376,18 @@ export default function IntakeCompanionPage() {
 
     const nextStep = stepIndex + 1;
     if (nextStep < config.questions.length) {
-      // Ask next question after a brief pause
       setTimeout(() => {
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant", content: config.questions[nextStep] },
-        ]);
+        const nextQ = config.questions[nextStep];
+        const prefilledNext = extractedAnswers[nextStep];
+        const msg = prefilledNext
+          ? `${nextQ}\n\n(I found this in your document: "${prefilledNext}" — confirm or update below.)`
+          : nextQ;
+        setMessages((prev) => [...prev, { role: "assistant", content: msg }]);
         setStepIndex(nextStep);
+        if (prefilledNext) setInput(prefilledNext);
       }, 500);
     } else {
-      // All questions answered — show summary
+      // All answered
       const summary = newAnswers
         .filter((a) => a.question)
         .map((a) => `• ${a.question}\n  ${a.answer}`)
@@ -302,7 +410,6 @@ export default function IntakeCompanionPage() {
         );
         setFinished(true);
 
-        // Persist to profile via API
         setSaveStatus("saving");
         try {
           const token = getCurrentBearerToken();
@@ -356,7 +463,6 @@ export default function IntakeCompanionPage() {
           </div>
         </div>
 
-        {/* Step progress */}
         <div className="flex items-center gap-2">
           <span className="text-[10px] text-muted-foreground">
             {finished ? "Complete" : stepIndex < 0 ? "Starting…" : `Step ${Math.min(progress + 1, totalSteps)} of ${totalSteps}`}
@@ -367,11 +473,12 @@ export default function IntakeCompanionPage() {
                 key={i}
                 className="w-1.5 h-1.5 rounded-full transition-colors"
                 style={{
-                  background: i < progress || finished
-                    ? "hsl(var(--primary))"
-                    : i === stepIndex && !finished
-                    ? "hsl(var(--primary) / 0.5)"
-                    : "hsl(var(--border))",
+                  background:
+                    i < progress || finished
+                      ? "hsl(var(--primary))"
+                      : i === stepIndex && !finished
+                      ? "hsl(var(--primary) / 0.5)"
+                      : "hsl(var(--border))",
                 }}
               />
             ))}
@@ -379,18 +486,14 @@ export default function IntakeCompanionPage() {
         </div>
       </div>
 
-      {/* Healthcare file upload */}
-      {config.hasFileUpload && (
-        <div className="px-5 pt-4">
-          <HealthcareUploadSection />
-        </div>
-      )}
-
       {/* Chat messages */}
       <div className="flex-1 overflow-y-auto px-5 py-6 space-y-5">
         {messages.map((msg, i) => (
-          <div key={i} className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-            {msg.role === "assistant" && (
+          <div
+            key={i}
+            className={`flex items-end gap-2 ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+          >
+            {msg.role !== "user" && (
               <div className="w-6 h-6 rounded-full bg-primary/20 border border-primary/30 flex items-center justify-center shrink-0 mb-0.5">
                 <span className="text-[9px] font-bold text-primary">C</span>
               </div>
@@ -402,10 +505,28 @@ export default function IntakeCompanionPage() {
                   : "bg-card border border-border text-card-foreground rounded-bl-sm"
               }`}
             >
-              {msg.content}
+              {msg.role === "assistant-extracting" ? (
+                <span className="flex items-center gap-2 text-muted-foreground">
+                  <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
+                  {msg.content}
+                </span>
+              ) : (
+                msg.content
+              )}
             </div>
           </div>
         ))}
+
+        {/* Pending files display */}
+        {pendingFiles.length > 0 && (
+          <div className="flex justify-end">
+            <div className="flex flex-wrap gap-1.5 max-w-[78%]">
+              {pendingFiles.map((f) => (
+                <UploadedFilePill key={f.name} name={f.name} onRemove={() => {}} />
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Completion card */}
         {finished && (
@@ -415,7 +536,6 @@ export default function IntakeCompanionPage() {
               <p className="text-sm font-semibold text-foreground">Intake complete.</p>
             </div>
 
-            {/* Save status indicator */}
             {saveStatus === "saving" && (
               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                 <Loader2 className="w-3.5 h-3.5 animate-spin shrink-0" />
@@ -430,14 +550,17 @@ export default function IntakeCompanionPage() {
                 </div>
                 {savedFields.length > 0 && (
                   <p className="text-[10px] text-green-700 leading-snug pl-5">
-                    Updated: {savedFields.map((f) => {
-                      if (f === "legalName") return "legal name";
-                      if (f === "preferredName") return "preferred name";
-                      if (f === "tribalName") return "tribal affiliation";
-                      if (f === "mailingAddress") return "property address";
-                      if (f === "landStatus") return "land status";
-                      return f;
-                    }).join(", ")}
+                    Updated:{" "}
+                    {savedFields
+                      .map((f) => {
+                        if (f === "legalName") return "legal name";
+                        if (f === "preferredName") return "preferred name";
+                        if (f === "tribalName") return "tribal affiliation";
+                        if (f === "mailingAddress") return "property address";
+                        if (f === "landStatus") return "land status";
+                        return f;
+                      })
+                      .join(", ")}
                   </p>
                 )}
               </div>
@@ -477,34 +600,73 @@ export default function IntakeCompanionPage() {
         <div ref={bottomRef} />
       </div>
 
-      {/* Input area — hidden once finished */}
+      {/* Input area */}
       {!finished && (
-        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur-sm shrink-0">
-          <div className="flex gap-3 items-end">
+        <div className="px-5 py-4 border-t border-border bg-card/80 backdrop-blur-sm shrink-0 space-y-2">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg,.tiff,.bmp,.gif,.webp"
+            className="hidden"
+            onChange={(e) => handleDocumentUpload(e.target.files)}
+          />
+
+          <div className="flex gap-2 items-end">
+            {/* Upload button */}
+            <button
+              type="button"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={extracting || stepIndex < 0}
+              title="Upload a document — I'll extract your answers from it"
+              className="p-3 rounded-xl border border-border bg-card hover:bg-muted/50 text-muted-foreground hover:text-foreground transition-colors disabled:opacity-40 shrink-0"
+            >
+              {extracting
+                ? <Loader2 className="w-4 h-4 animate-spin" />
+                : <Paperclip className="w-4 h-4" />}
+            </button>
+
             <textarea
               ref={inputRef}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Your answer…"
+              placeholder={
+                extracting
+                  ? "Reading your document…"
+                  : extractedAnswers[stepIndex]
+                  ? "Confirm or update the answer above…"
+                  : "Your answer…"
+              }
               rows={2}
               spellCheck={false}
               autoCorrect="off"
               autoCapitalize="off"
-              disabled={stepIndex < 0}
+              disabled={stepIndex < 0 || extracting}
               className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 leading-relaxed disabled:opacity-40"
             />
             <button
               onClick={handleSend}
-              disabled={!input.trim() || stepIndex < 0}
+              disabled={!input.trim() || stepIndex < 0 || extracting}
               className="p-3 bg-primary text-primary-foreground rounded-xl hover:opacity-90 transition-opacity disabled:opacity-40 shrink-0"
             >
-              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="22" y1="2" x2="11" y2="13"/>
+                <polygon points="22 2 15 22 11 13 2 9 22 2"/>
+              </svg>
             </button>
           </div>
-          <p className="text-[10px] text-muted-foreground/40 mt-2 text-center">
-            Enter to send · Shift+Enter for new line
-          </p>
+
+          <div className="flex items-center justify-between">
+            <p className="text-[10px] text-muted-foreground/40">
+              Enter to send · Shift+Enter for new line
+            </p>
+            <p className="text-[10px] text-muted-foreground/40">
+              <Paperclip className="w-2.5 h-2.5 inline mr-0.5" />
+              Upload a document to auto-fill answers
+            </p>
+          </div>
         </div>
       )}
     </div>
