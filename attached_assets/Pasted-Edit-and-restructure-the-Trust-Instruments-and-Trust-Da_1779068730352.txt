@@ -1,0 +1,117 @@
+Edit and restructure the Trust Instruments and Trust Dashboard systems so they function as one connected experience instead of appearing separated or partially disconnected.
+
+Right now, the Trust Dashboard does not feel fully integrated into the overall platform ecosystem. It appears that parts of the system may have been abandoned, partially connected, or only pulling isolated data instead of functioning as a complete operational dashboard.
+
+The goal is to merge:
+• Trust Dashboard
+• Trust Instruments
+• Trust Creation Flow
+• AI Guidance Layer
+• Document Generation
+• Governance Logic
+• Asset/Land Systems
+• Beneficiary Structures
+• Record Systems
+
+into one intelligent and unified trust management environment.
+
+The Trust Dashboard should become the central operational hub for everything related to:
+• trust creation
+• trust administration
+• governance structures
+• beneficiaries
+• tribal/family trusts
+• land and asset protections
+• trust instruments
+• document generation
+• amendments
+• trustees
+• historical continuity
+• trust records
+• intelligent guidance
+
+The experience should feel clean, organized, guided, and alive.
+
+STRUCTURAL GOAL:
+Merge the current “Trust Instruments” section directly into the Trust Dashboard so the dashboard itself becomes the primary trust workspace.
+
+Instead of separate disconnected sections:
+• the dashboard should display trust instruments dynamically
+• instruments should feel native to the dashboard
+• users should be guided through trust creation and administration naturally
+• Companion should help explain trust types and available structures conversationally
+
+The dashboard should not feel like a static admin panel.
+It should feel like an intelligent trust governance workspace.
+
+AI TRUST ENGINE:
+Introduce or expand an AI-powered Trust Guidance / Trust Engine layer.
+
+This engine should:
+• guide users through selecting trust types
+• explain structures in plain language
+• help determine what kind of trust may align with the user’s goals
+• help organize beneficiaries, trustees, land, and assets
+• assist with drafting and generating trust instruments
+• guide amendments and updates
+• help maintain continuity and governance logic
+
+The AI system should operate conversationally through Companion.
+
+EXAMPLES OF TRUST TYPES:
+The system should be expandable enough to support:
+• family trusts
+• tribal trusts
+• land trusts
+• beneficiary trusts
+• charitable trusts
+• living trusts
+• governance trusts
+• educational trusts
+• community preservation trusts
+• asset protection structures
+
+Do not hardcode limitations into the architecture.
+
+OPEN SOURCE / TOOL INTEGRATION:
+Research and evaluate available open-source trust management, estate planning, governance workflow, or document automation frameworks that may assist with:
+• trust workflows
+• intelligent form generation
+• document assembly
+• trustee management
+• beneficiary structures
+• asset tracking
+• workflow automation
+
+If suitable systems exist:
+• integrate them
+• adapt them
+• repurpose them
+• or use them as architectural inspiration
+
+Do not blindly clone systems.
+Realign them to fit the Companion ecosystem and governing structure already established.
+
+IMPORTANT GOVERNING CLAUSE:
+Nothing in this update should conflict with or remove existing governance systems, tribal logic, Companion systems, Road Governor logic, document systems, land systems, or established operational principles.
+
+The purpose is integration, cleanup, refinement, guidance, and intelligent restructuring — not replacement.
+
+USER EXPERIENCE GOAL:
+The trust environment should feel:
+• intelligent
+• guided
+• clean
+• organized
+• trustworthy
+• intuitive
+• scalable
+• governance-aware
+• continuity-focused
+
+A user should be able to enter the Trust Dashboard and immediately understand:
+• where they are
+• what they can create
+• how the system helps them
+• what trust instruments exist
+• and how Companion can guide them through the process.

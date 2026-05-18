@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
 import { useLocation } from "wouter";
@@ -1017,7 +1017,7 @@ function OverviewTab({ stats, leases }: { stats: Stats; leases: Lease[] }) {
 
 // ── Parcels Tab ───────────────────────────────────────────────────────────────
 
-function ParcelsTab({ parcels, assignments, onRefresh }: { parcels: Parcel[]; assignments: MemberAssignment[]; onRefresh: () => void }) {
+function ParcelsTab({ parcels, assignments, onRefresh, onSelectParcel }: { parcels: Parcel[]; assignments: MemberAssignment[]; onRefresh: () => void; onSelectParcel?: (p: Parcel) => void }) {
   const [modal, setModal] = useState<"add" | "edit" | null>(null);
   const [editing, setEditing] = useState<Parcel | null>(null);
   const [filterStatus, setFilterStatus] = useState("");
@@ -1084,7 +1084,13 @@ function ParcelsTab({ parcels, assignments, onRefresh }: { parcels: Parcel[]; as
             {filtered.map(p => (
               <tr key={p.id} className="border-t border-border hover:bg-muted/20 transition-colors">
                 <td className="px-4 py-3">
-                  <div className="font-medium text-foreground">{p.tract_number || "—"}</div>
+                  <button
+                    onClick={() => onSelectParcel?.(p)}
+                    className="font-medium text-amber-300 hover:text-amber-200 hover:underline underline-offset-2 transition-colors text-left"
+                    title={`View parcel record: ${p.tract_number || p.parcel_id || "#" + p.id}`}
+                  >
+                    {p.tract_number || p.parcel_id || `#${p.id}` || "—"}
+                  </button>
                   {p.tribal_code_ref && <div className="text-[10px] text-amber-500 mt-0.5">{p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>}
                   {p.tribal_court_order_num && <div className="text-[10px] text-muted-foreground">Order: {p.tribal_court_order_num}</div>}
                 </td>
@@ -1656,10 +1662,217 @@ function StewardshipTab({ pipeline, onRefresh }: { pipeline: StewardshipEntry[];
 
 // ── Map Tab (Leaflet) ─────────────────────────────────────────────────────────
 
-function MapTab({ parcels }: { parcels: Parcel[] }) {
+// ── Parcel Detail Drawer ───────────────────────────────────────────────────────
+function ParcelDetailDrawer({
+  parcel, assignments, leases, assets, encumbrances, deeds,
+  onClose, onNavigateTab, navigate,
+}: {
+  parcel: Parcel;
+  assignments: MemberAssignment[];
+  leases: Lease[];
+  assets: Asset[];
+  encumbrances: Encumbrance[];
+  deeds: Deed[];
+  onClose: () => void;
+  onNavigateTab: (tab: string) => void;
+  navigate: (path: string) => void;
+}) {
+  const parcelAssignments = useMemo(() => assignments.filter(a => a.parcel_id === parcel.id && a.status === "active"), [assignments, parcel.id]);
+  const parcelLeases    = useMemo(() => leases.filter(l => l.parcel_id === parcel.id), [leases, parcel.id]);
+  const parcelAssets    = useMemo(() => assets.filter(a => a.parcel_id === parcel.id), [assets, parcel.id]);
+  const parcelEnc       = useMemo(() => encumbrances.filter(e => e.parcel_id === parcel.id), [encumbrances, parcel.id]);
+  const parcelDeeds     = useMemo(() => deeds.filter(d => d.parcel_id === parcel.id), [deeds, parcel.id]);
+
+  const tribalStatusLabel   = INTERNAL_TRIBAL_STATUSES.find(s => s.value === parcel.internal_tribal_status)?.label ?? parcel.internal_tribal_status ?? "—";
+  const jurisdictionLabel   = JURISDICTIONAL_STATUSES.find(s => s.value === parcel.jurisdictional_status)?.label ?? parcel.jurisdictional_status ?? "—";
+  const fedStatusLabel      = FEDERAL_ADMIN_STATUSES.find(s => s.value === parcel.federal_admin_status)?.label ?? parcel.federal_admin_status ?? "—";
+  const protectionLabel     = PROTECTION_STATUSES.find(s => s.value === parcel.protection_restriction_status)?.label ?? parcel.protection_restriction_status ?? null;
+
+  const displayId = parcel.tract_number || parcel.parcel_id || `#${parcel.id}`;
+
+  function JumpButton({ tab, label, count }: { tab: string; label: string; count: number }) {
+    if (count === 0) return null;
+    return (
+      <button
+        onClick={() => { onNavigateTab(tab); onClose(); }}
+        className="flex items-center justify-between gap-2 w-full px-3 py-2 rounded-lg border border-border/50 hover:border-amber-600/40 hover:bg-amber-900/10 transition-colors text-left"
+      >
+        <span className="text-xs text-foreground/80">{label}</span>
+        <span className="text-xs font-semibold text-amber-400 tabular-nums">{count}</span>
+      </button>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex">
+      <div className="flex-1 bg-black/40" onClick={onClose} />
+      <div className="w-full max-w-[520px] bg-background border-l border-border shadow-2xl flex flex-col h-full overflow-hidden">
+        {/* ── Header ── */}
+        <div className="flex-none border-b border-border/60 p-5 bg-amber-900/10">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 mb-1">
+                <Landmark className="w-4 h-4 text-amber-400 shrink-0" />
+                <span className="text-[10px] font-mono uppercase tracking-widest text-amber-500/70">Parcel Record</span>
+              </div>
+              <h2 className="text-xl font-bold font-mono text-amber-300 leading-tight">{displayId}</h2>
+              {parcel.parcel_id && parcel.tract_number && (
+                <p className="text-xs text-muted-foreground mt-0.5 font-mono">APN / Parcel ID: {parcel.parcel_id}</p>
+              )}
+              {parcel.legal_description && (
+                <p className="text-xs text-foreground/60 mt-1 leading-relaxed line-clamp-2">{parcel.legal_description}</p>
+              )}
+            </div>
+            <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-muted transition-colors">
+              <X className="w-4 h-4 text-muted-foreground" />
+            </button>
+          </div>
+        </div>
+
+        {/* ── Body ── */}
+        <div className="flex-1 overflow-y-auto">
+          <div className="p-5 space-y-6">
+
+            {/* ── Status Grid ── */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-card/60 border border-border/40 rounded-lg p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">Tribal Status</p>
+                <p className="text-xs font-semibold text-foreground leading-snug">{tribalStatusLabel}</p>
+              </div>
+              <div className="bg-card/60 border border-border/40 rounded-lg p-3">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">Jurisdiction</p>
+                <p className={`text-xs font-semibold leading-snug ${jurisdictionColor(parcel.jurisdictional_status)}`}>{jurisdictionLabel}</p>
+              </div>
+              {parcel.federal_admin_status && parcel.federal_admin_status !== "none" && (
+                <div className="bg-card/60 border border-border/40 rounded-lg p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">Federal Admin</p>
+                  <p className="text-xs font-semibold text-slate-300 leading-snug">{fedStatusLabel}</p>
+                </div>
+              )}
+              {parcel.acreage && (
+                <div className="bg-card/60 border border-border/40 rounded-lg p-3">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/60 mb-1.5">Acreage</p>
+                  <p className="text-xs font-semibold font-mono text-foreground">{Number(parcel.acreage).toLocaleString("en-US", { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ac</p>
+                </div>
+              )}
+            </div>
+
+            {/* ── Location & Legal ── */}
+            {([parcel.county, parcel.state].some(Boolean) || parcel.plss_description) && (
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Location</p>
+                {[parcel.county, parcel.state].filter(Boolean).length > 0 && (
+                  <div className="flex items-center gap-1.5 text-xs text-foreground/80">
+                    <MapPin className="w-3 h-3 text-amber-500/60 shrink-0" />
+                    <span>{[parcel.county, parcel.state].filter(Boolean).join(", ")}</span>
+                  </div>
+                )}
+                {parcel.plss_description && (
+                  <p className="text-xs text-muted-foreground font-mono leading-snug">{parcel.plss_description}</p>
+                )}
+              </div>
+            )}
+
+            {/* ── Tribal Code References ── */}
+            {(parcel.tribal_code_ref || parcel.tribal_court_order_num || parcel.federal_law_cross_ref) && (
+              <div className="bg-amber-900/10 border border-amber-700/20 rounded-lg p-3 space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-amber-500/60 mb-2">Legal Authority</p>
+                {parcel.tribal_code_ref && <p className="text-xs text-amber-300/80 font-mono">{parcel.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</p>}
+                {parcel.tribal_court_order_num && <p className="text-xs text-amber-300/60">Order: {parcel.tribal_court_order_num}</p>}
+                {parcel.federal_law_cross_ref && <p className="text-xs text-muted-foreground">{parcel.federal_law_cross_ref}</p>}
+                {protectionLabel && <p className="text-xs text-violet-400/80 italic">{protectionLabel.split("(")[0].trim()}</p>}
+              </div>
+            )}
+
+            {/* ── Protection / Stewardship Notes ── */}
+            {(parcel.stewardship_purpose || parcel.cultural_significance || parcel.historical_occupancy) && (
+              <div className="space-y-2">
+                {parcel.stewardship_purpose && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">Stewardship Purpose</p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{parcel.stewardship_purpose}</p>
+                  </div>
+                )}
+                {parcel.cultural_significance && (
+                  <div>
+                    <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">Cultural Significance</p>
+                    <p className="text-xs text-foreground/80 leading-relaxed">{parcel.cultural_significance}</p>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Member / Steward Assignments ── */}
+            {parcelAssignments.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Active Stewards &amp; Assignees</p>
+                {parcelAssignments.map(a => (
+                  <div key={a.id} className="flex items-center justify-between gap-3 bg-card/60 border border-border/40 rounded-lg px-3 py-2.5">
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-foreground truncate">{a.member_name}</p>
+                      <p className="text-[10px] text-amber-400/70 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}</p>
+                      {a.family_name && <p className="text-[10px] text-muted-foreground">{a.family_name}</p>}
+                    </div>
+                    <button
+                      onClick={() => { navigate(`/search?q=${encodeURIComponent(a.member_name)}`); onClose(); }}
+                      className="flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-300 transition-colors shrink-0 border border-amber-700/40 rounded px-2 py-1 hover:bg-amber-900/20"
+                      title={`View ${a.member_name}'s profile`}
+                    >
+                      View Profile
+                      <ExternalLink className="w-3 h-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Notes ── */}
+            {parcel.notes && (
+              <div>
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 mb-1">Notes</p>
+                <p className="text-xs text-muted-foreground leading-relaxed">{parcel.notes}</p>
+              </div>
+            )}
+
+            {/* ── Related Records ── */}
+            {(parcelLeases.length + parcelAssets.length + parcelEnc.length + parcelDeeds.length) > 0 && (
+              <div className="space-y-1.5">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Related Records</p>
+                <JumpButton tab="leases"       label="Leases"        count={parcelLeases.length} />
+                <JumpButton tab="assets"       label="Assets"        count={parcelAssets.length} />
+                <JumpButton tab="deeds"        label="Deed Records"  count={parcelDeeds.length} />
+                <JumpButton tab="encumbrances" label="Encumbrances"  count={parcelEnc.length} />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* ── Footer ── */}
+        <div className="flex-none border-t border-border/40 p-4 flex items-center gap-3 bg-card/30">
+          <button
+            onClick={() => { onNavigateTab("assignments"); onClose(); }}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-muted/40 hover:bg-muted/70 text-xs text-foreground/80 transition-colors"
+          >
+            <Users className="w-3.5 h-3.5" /> Manage Assignments
+          </button>
+          <button
+            onClick={() => { onNavigateTab("parcels"); onClose(); }}
+            className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-xs text-white font-medium transition-colors"
+          >
+            <FileText className="w-3.5 h-3.5" /> Edit Parcel Record
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MapTab({ parcels, onSelectParcel }: { parcels: Parcel[]; onSelectParcel?: (p: Parcel) => void }) {
   const mapRef = useRef<HTMLDivElement>(null);
   const leafletMap = useRef<unknown>(null);
   const [filter, setFilter] = useState("");
+  const onSelectRef = useRef(onSelectParcel);
+  useEffect(() => { onSelectRef.current = onSelectParcel; }, [onSelectParcel]);
 
   const mapParcels = parcels.filter(p => p.lat && p.lng && !isNaN(Number(p.lat)) && !isNaN(Number(p.lng)));
   const filtered = filter ? mapParcels.filter(p => p.internal_tribal_status === filter) : mapParcels;
@@ -1718,19 +1931,32 @@ function MapTab({ parcels }: { parcels: Parcel[] }) {
         });
         const statusLabel = INTERNAL_TRIBAL_STATUSES.find(s => s.value === p.internal_tribal_status)?.label ?? p.internal_tribal_status;
         const jurisdLabel = JURISDICTIONAL_STATUSES.find(s => s.value === p.jurisdictional_status)?.label ?? p.jurisdictional_status ?? "—";
-        L.marker([Number(p.lat), Number(p.lng)], { icon })
-          .bindPopup(`
-            <div style="font-family:system-ui;min-width:200px">
-              <div style="font-weight:700;font-size:13px;margin-bottom:4px">${p.tract_number || p.parcel_id || "#" + p.id}</div>
-              ${p.legal_description ? `<div style="font-size:11px;color:#666;margin-bottom:6px">${p.legal_description.slice(0, 80)}…</div>` : ""}
+        const marker = L.marker([Number(p.lat), Number(p.lng)], { icon });
+        marker.bindPopup(`
+            <div style="font-family:system-ui;min-width:220px">
+              <div style="font-weight:700;font-size:13px;margin-bottom:4px;color:#d97706;cursor:pointer" data-parcel-open="true">${p.tract_number || p.parcel_id || "#" + p.id}</div>
+              ${p.legal_description ? `<div style="font-size:11px;color:#888;margin-bottom:6px">${p.legal_description.slice(0, 80)}…</div>` : ""}
               <div style="font-size:11px"><b>Status:</b> ${statusLabel}</div>
               <div style="font-size:11px"><b>Jurisdiction:</b> ${jurisdLabel}</div>
               <div style="font-size:11px"><b>Acreage:</b> ${p.acreage ? Number(p.acreage).toLocaleString("en-US", { minimumFractionDigits: 2 }) : "—"} ac</div>
               ${[p.county, p.state].filter(Boolean).length ? `<div style="font-size:11px"><b>Location:</b> ${[p.county, p.state].filter(Boolean).join(", ")}</div>` : ""}
               ${p.tribal_code_ref ? `<div style="font-size:10px;color:#b45309;margin-top:4px">${p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>` : ""}
+              <div style="margin-top:8px;padding-top:6px;border-top:1px solid #333">
+                <span data-parcel-open="true" style="font-size:11px;color:#d97706;cursor:pointer;font-weight:600">View parcel record →</span>
+              </div>
             </div>
-          `)
-          .addTo(map);
+          `);
+        marker.on("click", () => { onSelectRef.current?.(p); });
+        marker.on("popupopen", (e: unknown) => {
+          const el = (e as { popup: { getElement(): HTMLElement | null } }).popup.getElement();
+          el?.querySelectorAll("[data-parcel-open]").forEach(node => {
+            (node as HTMLElement).addEventListener("click", (ev) => {
+              ev.stopPropagation();
+              onSelectRef.current?.(p);
+            });
+          });
+        });
+        marker.addTo(map);
       });
     });
 
@@ -2874,6 +3100,8 @@ const EMPTY_STATS: Stats = {
 
 export default function LandPage() {
   const [tab, setTab] = useState("overview");
+  const [selectedParcel, setSelectedParcel] = useState<Parcel | null>(null);
+  const [, navigate] = useLocation();
   const qc = useQueryClient();
 
   useEffect(() => {
@@ -2953,8 +3181,8 @@ export default function LandPage() {
 
       <div>
         {tab === "overview"     && <OverviewTab stats={stats} leases={leasesQ.data ?? []} />}
-        {tab === "map"          && <MapTab parcels={parcelsQ.data ?? []} />}
-        {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} assignments={assignQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} />}
+        {tab === "map"          && <MapTab parcels={parcelsQ.data ?? []} onSelectParcel={setSelectedParcel} />}
+        {tab === "parcels"      && <ParcelsTab parcels={parcelsQ.data ?? []} assignments={assignQ.data ?? []} onRefresh={() => refresh(["land-parcels", "land-stats"])} onSelectParcel={setSelectedParcel} />}
         {tab === "leases"       && <LeasesTab leases={leasesQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-leases", "land-stats"])} />}
         {tab === "assets"       && <AssetsTab assets={assetsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-assets"])} />}
         {tab === "deeds"        && <DeedsTab deeds={deedsQ.data ?? []} parcels={parcelsQ.data ?? []} onRefresh={() => refresh(["land-deeds"])} />}
@@ -2966,6 +3194,20 @@ export default function LandPage() {
         {tab === "templates"    && <LandTemplatesTab />}
         {tab === "deed-gen"     && <DeedGeneratorTab />}
       </div>
+
+      {selectedParcel && (
+        <ParcelDetailDrawer
+          parcel={selectedParcel}
+          assignments={assignQ.data ?? []}
+          leases={leasesQ.data ?? []}
+          assets={assetsQ.data ?? []}
+          encumbrances={encQ.data ?? []}
+          deeds={deedsQ.data ?? []}
+          onClose={() => setSelectedParcel(null)}
+          onNavigateTab={(t) => { setTab(t); setSelectedParcel(null); }}
+          navigate={navigate}
+        />
+      )}
     </div>
   );
 }
