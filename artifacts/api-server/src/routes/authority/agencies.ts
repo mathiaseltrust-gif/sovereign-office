@@ -137,50 +137,53 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
 
     const verifiedAt = lastVerifiedDate ? new Date(lastVerifiedDate) : new Date();
 
-    const values = {
-      agencyName,
-      agencyType,
-      governmentLevel,
-      stateCode: stateCode ?? null,
-      county: county ?? null,
-      city: city ?? null,
-      mailingAddress: mailingAddress ?? null,
-      physicalAddress: physicalAddress ?? null,
-      parentAgency: parentAgency ?? null,
-      oversightAgency: oversightAgency ?? null,
-      contactEmail: contactEmail ?? null,
-      phone: phone ?? null,
-      website: website ?? null,
-      sourceUrl: sourceUrl ?? null,
-      confidenceScore: confidenceScore ?? 0.8,
-      lastVerifiedDate: verifiedAt,
-    };
+    // Use raw SQL to target the functional unique index
+    // (COALESCE(state_code,''), COALESCE(county,'')) which Drizzle cannot express as a conflict target.
+    const agencyTypeSafe = agencyType.replace(/'/g, "''");
+    const agencyNameSafe = agencyName.replace(/'/g, "''");
+    const governmentLevelSafe = governmentLevel.replace(/'/g, "''");
+    const stateSafe = stateCode ? `'${stateCode.replace(/'/g, "''")}'` : "NULL";
+    const countySafe = county ? `'${county.replace(/'/g, "''")}'` : "NULL";
+    const citySafe = city ? `'${city.replace(/'/g, "''")}'` : "NULL";
+    const mailSafe = mailingAddress ? `'${mailingAddress.replace(/'/g, "''")}'` : "NULL";
+    const physSafe = physicalAddress ? `'${physicalAddress.replace(/'/g, "''")}'` : "NULL";
+    const parentSafe = parentAgency ? `'${parentAgency.replace(/'/g, "''")}'` : "NULL";
+    const oversightSafe = oversightAgency ? `'${oversightAgency.replace(/'/g, "''")}'` : "NULL";
+    const emailSafe = contactEmail ? `'${contactEmail.replace(/'/g, "''")}'` : "NULL";
+    const phoneSafe = phone ? `'${phone.replace(/'/g, "''")}'` : "NULL";
+    const webSafe = website ? `'${website.replace(/'/g, "''")}'` : "NULL";
+    const sourceSafe = sourceUrl ? `'${sourceUrl.replace(/'/g, "''")}'` : "NULL";
+    const scoreSafe = confidenceScore ?? 0.8;
+    const verifiedSafe = verifiedAt.toISOString();
 
-    const [upserted] = await db
-      .insert(authorityAgenciesTable)
-      .values(values)
-      .onConflictDoUpdate({
-        target: [
-          authorityAgenciesTable.agencyName,
-          authorityAgenciesTable.governmentLevel,
-        ],
-        set: {
-          agencyType,
-          mailingAddress: mailingAddress ?? null,
-          physicalAddress: physicalAddress ?? null,
-          parentAgency: parentAgency ?? null,
-          oversightAgency: oversightAgency ?? null,
-          contactEmail: contactEmail ?? null,
-          phone: phone ?? null,
-          website: website ?? null,
-          sourceUrl: sourceUrl ?? null,
-          confidenceScore: confidenceScore ?? 0.8,
-          lastVerifiedDate: verifiedAt,
-          updatedAt: new Date(),
-        },
-      })
-      .returning();
+    const result = await db.execute(sql.raw(`
+      INSERT INTO agency_directory
+        (agency_name, agency_type, government_level, state_code, county, city,
+         mailing_address, physical_address, parent_agency, oversight_agency,
+         contact_email, phone, website, source_url, confidence_score, last_verified_date, last_synced_at)
+      VALUES
+        ('${agencyNameSafe}', '${agencyTypeSafe}', '${governmentLevelSafe}', ${stateSafe}, ${countySafe}, ${citySafe},
+         ${mailSafe}, ${physSafe}, ${parentSafe}, ${oversightSafe},
+         ${emailSafe}, ${phoneSafe}, ${webSafe}, ${sourceSafe}, ${scoreSafe}, '${verifiedSafe}', NOW())
+      ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+      DO UPDATE SET
+        agency_type        = EXCLUDED.agency_type,
+        mailing_address    = EXCLUDED.mailing_address,
+        physical_address   = EXCLUDED.physical_address,
+        parent_agency      = EXCLUDED.parent_agency,
+        oversight_agency   = EXCLUDED.oversight_agency,
+        contact_email      = EXCLUDED.contact_email,
+        phone              = EXCLUDED.phone,
+        website            = EXCLUDED.website,
+        source_url         = EXCLUDED.source_url,
+        confidence_score   = EXCLUDED.confidence_score,
+        last_verified_date = EXCLUDED.last_verified_date,
+        last_synced_at     = NOW(),
+        updated_at         = NOW()
+      RETURNING *
+    `));
 
+    const upserted = (result as { rows: unknown[] }).rows?.[0] ?? null;
     res.status(201).json({ action: "upserted", agency: upserted });
   } catch (err) {
     next(err);
