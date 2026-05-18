@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { analyzeAncestralAffiliation, analyzeAncestors, type AncestorInput } from "../../lib/tribal-affiliation-engine";
 import { logger } from "../../lib/logger";
 
@@ -33,12 +33,7 @@ router.get("/affiliations", requireAuth, async (req, res, next) => {
         generationalPosition: familyLineageTable.generationalPosition,
       })
       .from(familyLineageTable)
-      .where(
-        and(
-          eq(familyLineageTable.addedByMemberId, userId),
-          eq(familyLineageTable.isDeceased, true),
-        )
-      )
+      .where(eq(familyLineageTable.addedByMemberId, userId))
       .orderBy(familyLineageTable.generationalPosition, familyLineageTable.fullName);
 
     const inputs: AncestorInput[] = rows.map(r => ({

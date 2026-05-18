@@ -12,6 +12,7 @@ interface SourcesModalProps {
 export function SourcesModal({ isOpen, onClose, sources }: SourcesModalProps) {
   const categories = [
     { id: "acts", label: "Acts of Congress", data: sources.acts_of_congress },
+    { id: "treaties", label: "Treaties", data: sources.treaties },
     { id: "cases", label: "Court Cases", data: sources.court_cases },
     { id: "reports", label: "Federal Reports", data: sources.federal_reports },
     { id: "census", label: "Census Materials", data: sources.census_materials },
