@@ -63,10 +63,44 @@ KEY DOCTRINES & CITATIONS:
 • EO 14219 — Executive order cited by the Mathias El Tribe as applicable to sovereign rights protections.
 • Inherent Sovereignty — Tribes retain all sovereign powers not expressly divested by Congress. Silence does not divest.
 
+CENSUS IDENTITY MARKERS — RACIAL INTEGRITY ACT AND PAPER GENOCIDE:
+
+The U.S. Census and state vital records systems were deliberately used to erase Native American identity. This is not a matter of error. It is a documented government campaign. When a member or their ancestor has a "colored," "negro," "mulatto," or "free person of color" classification in any official record — this is almost certainly a reclassification artifact, not their actual identity.
+
+THE RACIAL INTEGRITY ACT PATTERN — WHICH STATES WERE AFFECTED:
+• Virginia (1924–1967): The most severe case. Walter Plecker, Virginia's registrar, systematically reclassified all Virginia Indian families as "colored" in birth, death, and marriage records for 43 years. Known as "Plecker's Paper Genocide." Virginia Indians (Pamunkey, Monacan, Chickahominy, Rappahannock, Mattaponi) only received federal recognition in 2018 — 51 years after the Act was repealed.
+• Georgia (1927+): Georgia vital statistics laws adopted a two-race (white/colored) classification system. Cherokee and Creek descendants were reclassified as colored in vital records throughout the Jim Crow era.
+• Louisiana: Louisiana's "one drop" rule was codified in vital statistics law. The Houma, Chitimacha, and Tunica-Biloxi were classified as colored — a double erasure since the federal government simultaneously refused their recognition as Indian. The United Houma Nation's federal recognition petition remains pending, and their state "colored" classification is still used against them in that case.
+• Mississippi: The 1930 Census enumerator instructions in Mississippi explicitly directed census workers to classify people of mixed Native and African ancestry as "Negro" — not Indian. Mississippi Choctaw families who appeared as Indian in 1910 and 1920 census records suddenly appeared as Negro in 1930 — not because anything changed, but because the instructions changed.
+• North Carolina: State authorities applied the "tri-racial isolate" label to Lumbee, Coharie, Waccamaw Siouan, and other NC Native nations — denying both their Indian status and their civil rights. The Lumbee remain the largest non-federally-recognized tribe in the U.S. (55,000+ enrolled members), in part because their "tri-racial" classification created ongoing evidentiary challenges.
+• Tennessee: Anti-miscegenation laws reclassified Eastern Band Cherokee families near the NC border and Melungeon communities in Appalachian Tennessee as "colored" or "free persons of color."
+• Alabama: Two-race vital statistics classification affected Creek and Cherokee remnant communities in Alabama.
+• South Carolina: Similar patterns affecting Catawba and mixed-ancestry Native families.
+
+PLECKER'S HIT LIST — EXPORTED TO OTHER STATES:
+Walter Plecker sent circular letters and surname lists to health departments, county registrars, and state officials in Georgia, North Carolina, South Carolina, Tennessee, Alabama, and Mississippi — teaching them his reclassification methodology. His "hit list" of surnames he believed were Native families trying to "pass" as white was circulated across the region. Families with surnames including Adkins, Branham, Clark, Dungey, Hamilton, Johns, Painter, Sorrells, Shortt, and dozens more were targeted regardless of which state they lived in.
+
+THE 1930 CENSUS — MOST DAMAGING SINGLE EVENT:
+The 1930 U.S. Census enumerator instructions were the most damaging single administrative event for Southern Native census identity. Instructions in many Southern states explicitly directed enumerators to classify anyone of mixed ancestry as "Negro" rather than Indian — regardless of self-identification. A family appearing as Indian in 1910 and 1920 who appears as Negro in 1930 has not changed ancestry. The instructions changed.
+
+ANTI-MISCEGENATION LAW SCOPE — 30 STATES BY 1924:
+By 1924, thirty states had anti-miscegenation laws. The affected states beyond the Southeast include: Montana, Wyoming, South Dakota, North Dakota, Nebraska, Indiana, Missouri, Kentucky, West Virginia, Maryland, Oklahoma, Texas, Florida, Arkansas. In all of these states, Native Americans with mixed ancestry were classified as "colored" — not Indian — in official records.
+
+THE CORRECT RESPONSE TO CENSUS-BASED IDENTITY CHALLENGES:
+When a member's ancestry is challenged based on census or vital records showing "colored," "negro," or "mulatto":
+1. That classification is evidence of government reclassification policy — not evidence of non-Native ancestry.
+2. Community recognition, oral history, kinship networks, and ceremonial participation are legally valid markers of Indigenous identity under federal Indian law.
+3. The Racial Integrity Act pattern is a documented harm — courts and agencies increasingly recognize census misclassification as an evidentiary problem, not a historical truth.
+4. Post-Loper Bright, agency determinations based on census records that misclassified an ancestor can be challenged on independent judicial review.
+5. The self-executing trust responsibility and the broad federal statutory definition of "Indian" (25 U.S.C. § 5304, § 1603) do not depend on census racial classification.
+
 MISCLASSIFICATION DETECTION — What to Watch For:
 • Land status misclassification — trust land treated as ordinary property
 • Identity denial — Indian status denied based on administrative lists rather than the broad federal statutory definition
 • Denial based on "you're not on our list" — a Passamaquoddy violation
+• Census or vital records used to challenge Native ancestry — almost always a reclassification artifact from the Racial Integrity Act era
+• "Colored," "negro," or "mulatto" classifications in Southern state records (1883–1967) cited as evidence of non-Native ancestry — this is the Racial Integrity Act pattern, not historical truth
+• "Tri-racial isolate" or similar labels used to deny federal Indian status — this was a politically motivated pseudoscientific classification
 • Administrative convenience used to override federal rights — post-Loper Bright, this is legally vulnerable
 • Policy or agency interpretation applied over federal statute or treaty — Loper Bright directly addresses this
 • One-sided contracts or agreements entered without full disclosure of rights implications
