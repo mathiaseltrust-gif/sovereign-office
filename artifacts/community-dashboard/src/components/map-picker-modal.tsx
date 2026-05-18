@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from "react";
-import { MapContainer, TileLayer, Marker, useMapEvents, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, CircleMarker, useMapEvents, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Button } from "@/components/ui/button";
@@ -82,14 +82,24 @@ interface MapPickerModalProps {
   initialLat: number | null;
   initialLng: number | null;
   initialAddress?: string | null;
+  /** Inferred coordinate from tribal-nation or timeline records — used to
+   *  pre-center the map when no verified coords exist. Shows a faint dashed
+   *  reference marker so the member can nudge the pin to the exact spot. */
+  initialInferredCoord?: [number, number] | null;
   onConfirm: (lat: number, lng: number, address: string) => void;
   onCancel: () => void;
 }
 
-export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfirm, onCancel }: MapPickerModalProps) {
-  const defaultLat = initialLat ?? 36.5;
-  const defaultLng = initialLng ?? -95.5;
-  const defaultZoom = initialLat != null ? 10 : 4;
+export function MapPickerModal({ initialLat, initialLng, initialAddress, initialInferredCoord, onConfirm, onCancel }: MapPickerModalProps) {
+  // When a verified coord exists, center on it at zoom 10.
+  // When only an inferred coord is available, center on it at zoom 7.
+  // Otherwise fall back to the continental US view.
+  const hasVerified = initialLat != null && initialLng != null;
+  const hasInferred = !hasVerified && initialInferredCoord != null;
+
+  const defaultLat = hasVerified ? initialLat! : hasInferred ? initialInferredCoord![0] : 36.5;
+  const defaultLng = hasVerified ? initialLng! : hasInferred ? initialInferredCoord![1] : -95.5;
+  const defaultZoom = hasVerified ? 10 : hasInferred ? 7 : 4;
 
   const [pickedLat, setPickedLat] = useState<number | null>(initialLat);
   const [pickedLng, setPickedLng] = useState<number | null>(initialLng);
@@ -168,6 +178,11 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
             <span className="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Pick Ancestor Location</span>
+            {hasInferred && (
+              <span className="text-[10px] text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-700/40 px-1.5 py-0.5 rounded-full font-medium">
+                Inferred location
+              </span>
+            )}
           </div>
           <button
             onClick={onCancel}
@@ -213,12 +228,33 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
             />
             <MapClickHandler onPick={handlePick} />
             {flyTarget && <FlyTo lat={flyTarget.lat} lng={flyTarget.lng} zoom={flyTarget.zoom} />}
+
+            {/* Faint dashed inferred-location reference marker — only shown when
+                there is no verified pin yet. Disappears once the member clicks
+                to place their own pin. */}
+            {hasInferred && pickedLat == null && initialInferredCoord && (
+              <CircleMarker
+                center={initialInferredCoord}
+                radius={14}
+                pathOptions={{
+                  color: "#d97706",
+                  weight: 2,
+                  dashArray: "5 5",
+                  fillColor: "#fbbf24",
+                  fillOpacity: 0.18,
+                  opacity: 0.7,
+                }}
+              />
+            )}
+
             {pickedLat != null && pickedLng != null && (
               <Marker position={[pickedLat, pickedLng]} icon={pickerIcon} />
             )}
           </MapContainer>
           <div className="absolute bottom-2 left-2 z-[1000] bg-background/90 backdrop-blur-sm text-xs px-2 py-1 rounded border border-border text-muted-foreground pointer-events-none">
-            Click the map to drop a pin
+            {hasInferred && pickedLat == null
+              ? "Dashed circle = inferred region · Click to place a precise pin"
+              : "Click the map to drop a pin"}
           </div>
         </div>
 
@@ -238,7 +274,9 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
                 </p>
               </div>
             ) : (
-              <span className="text-xs text-muted-foreground italic">No location selected</span>
+              <span className="text-xs text-muted-foreground italic">
+                {hasInferred ? "Click the map to confirm the exact location" : "No location selected"}
+              </span>
             )}
           </div>
           <div className="flex gap-2 shrink-0">

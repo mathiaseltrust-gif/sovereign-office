@@ -2,6 +2,7 @@ import React, { useState, useMemo, lazy, Suspense } from "react";
 const MapPickerModal = lazy(() =>
   import("@/components/map-picker-modal").then((m) => ({ default: m.MapPickerModal }))
 );
+import { geocodeText } from "@/lib/geocode";
 import { hierarchy, tree } from "d3-hierarchy";
 import { useParams, Link } from "wouter";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -63,10 +64,11 @@ interface AncestorLocationEditorProps {
   currentLat: number | null;
   currentLng: number | null;
   currentAddress: string | null;
+  tribalNation?: string | null;
   onSaved: (lat: number | null, lng: number | null, address: string | null) => void;
 }
 
-function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, currentAddress, onSaved }: AncestorLocationEditorProps) {
+function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, currentLng, currentAddress, tribalNation, onSaved }: AncestorLocationEditorProps) {
   const { toast } = useToast();
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -74,6 +76,12 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
   if (!isDeceased && !isAncestor) return null;
 
   const hasCoords = currentLat != null && currentLng != null;
+
+  // Infer a starting coordinate from the tribal nation name when no verified
+  // coords are stored yet. Passed to MapPickerModal so it can pre-center the
+  // map and show a faint reference marker.
+  const inferredCoord: [number, number] | null =
+    !hasCoords && tribalNation ? geocodeText(tribalNation) : null;
 
   const handleMapConfirm = async (lat: number, lng: number, address: string) => {
     const token = getCommunityToken();
@@ -133,6 +141,7 @@ function AncestorLocationEditor({ memberId, isDeceased, isAncestor, currentLat, 
             initialLat={currentLat}
             initialLng={currentLng}
             initialAddress={currentAddress}
+            initialInferredCoord={inferredCoord}
             onConfirm={handleMapConfirm}
             onCancel={() => setShowMapPicker(false)}
           />
@@ -976,6 +985,7 @@ export default function MemberDetail() {
               currentLat={locationLat}
               currentLng={locationLng}
               currentAddress={locationAddress}
+              tribalNation={member.tribalNation}
               onSaved={(lat, lng, address) => {
                 setLocationLat(lat);
                 setLocationLng(lng);
