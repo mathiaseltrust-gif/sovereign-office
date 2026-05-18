@@ -110,6 +110,7 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
       website,
       sourceUrl,
       confidenceScore,
+      lastVerifiedDate,
     } = req.body as {
       agencyName: string;
       agencyType: string;
@@ -126,6 +127,7 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
       website?: string;
       sourceUrl?: string;
       confidenceScore?: number;
+      lastVerifiedDate?: string;
     };
 
     if (!agencyName || !agencyType || !governmentLevel) {
@@ -133,29 +135,53 @@ router.post("/", requireAuth, requireAnyRole(["trustee", "admin"]), async (req, 
       return;
     }
 
-    const [inserted] = await db
+    const verifiedAt = lastVerifiedDate ? new Date(lastVerifiedDate) : new Date();
+
+    const values = {
+      agencyName,
+      agencyType,
+      governmentLevel,
+      stateCode: stateCode ?? null,
+      county: county ?? null,
+      city: city ?? null,
+      mailingAddress: mailingAddress ?? null,
+      physicalAddress: physicalAddress ?? null,
+      parentAgency: parentAgency ?? null,
+      oversightAgency: oversightAgency ?? null,
+      contactEmail: contactEmail ?? null,
+      phone: phone ?? null,
+      website: website ?? null,
+      sourceUrl: sourceUrl ?? null,
+      confidenceScore: confidenceScore ?? 0.8,
+      lastVerifiedDate: verifiedAt,
+    };
+
+    const [upserted] = await db
       .insert(authorityAgenciesTable)
-      .values({
-        agencyName,
-        agencyType,
-        governmentLevel,
-        stateCode: stateCode ?? null,
-        county: county ?? null,
-        city: city ?? null,
-        mailingAddress: mailingAddress ?? null,
-        physicalAddress: physicalAddress ?? null,
-        parentAgency: parentAgency ?? null,
-        oversightAgency: oversightAgency ?? null,
-        contactEmail: contactEmail ?? null,
-        phone: phone ?? null,
-        website: website ?? null,
-        sourceUrl: sourceUrl ?? null,
-        confidenceScore: confidenceScore ?? 0.8,
-        lastVerifiedDate: new Date(),
+      .values(values)
+      .onConflictDoUpdate({
+        target: [
+          authorityAgenciesTable.agencyName,
+          authorityAgenciesTable.governmentLevel,
+        ],
+        set: {
+          agencyType,
+          mailingAddress: mailingAddress ?? null,
+          physicalAddress: physicalAddress ?? null,
+          parentAgency: parentAgency ?? null,
+          oversightAgency: oversightAgency ?? null,
+          contactEmail: contactEmail ?? null,
+          phone: phone ?? null,
+          website: website ?? null,
+          sourceUrl: sourceUrl ?? null,
+          confidenceScore: confidenceScore ?? 0.8,
+          lastVerifiedDate: verifiedAt,
+          updatedAt: new Date(),
+        },
       })
       .returning();
 
-    res.status(201).json(inserted);
+    res.status(201).json({ action: "upserted", agency: upserted });
   } catch (err) {
     next(err);
   }

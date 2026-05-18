@@ -204,13 +204,101 @@ async function ingestFederalAgencies(): Promise<{ upserted: number; failed: numb
       await db.execute(sql.raw(`
         INSERT INTO agency_directory (agency_name, agency_type, government_level, physical_address, website, confidence_score, last_synced_at)
         VALUES ('${agency.name.replace(/'/g, "''")}', '${agency.type}', 'federal', '${agency.address.replace(/'/g, "''")}', '${agency.website}', 0.98, '${now}')
-        ON CONFLICT DO NOTHING
+        ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+        DO UPDATE SET physical_address = EXCLUDED.physical_address, website = EXCLUDED.website, confidence_score = EXCLUDED.confidence_score, last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
       `));
       upserted++;
     } catch { failed++; }
   }
 
   return { upserted, failed };
+}
+
+// ── HealthData.gov HHS agency contacts for AI/AN health routing ───────────────
+
+async function ingestHealthDataGov(): Promise<{ upserted: number; failed: number; source: string }> {
+  let upserted = 0;
+  let failed = 0;
+  const now = new Date().toISOString();
+
+  // HealthData.gov CKAN: HHS agency contacts dataset
+  const DATA_SOURCES = [
+    "https://healthdata.gov/api/3/action/datastore_search?resource_id=f18ac42f-3d7d-454a-a574-7a2a3c4e4fa8&limit=100",
+    "https://data.hrsa.gov/api/download?filename=UDSData&fileType=CSV",
+  ];
+
+  let fetched = false;
+  for (const url of DATA_SOURCES) {
+    try {
+      const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+      if (!resp.ok) continue;
+      const json = await resp.json() as { result?: { records?: Record<string, string>[] } };
+      const records = json?.result?.records ?? [];
+      if (records.length === 0) continue;
+      fetched = true;
+
+      for (const rec of records) {
+        try {
+          const name = rec["Agency Name"] ?? rec["name"] ?? rec["OrganizationName"] ?? rec["organization_name"];
+          const type = rec["Agency Type"] ?? rec["type"] ?? "health_services";
+          const state = rec["State"] ?? rec["state"] ?? null;
+          const address = rec["Address"] ?? rec["address"] ?? null;
+          const phone = rec["Phone"] ?? rec["phone"] ?? null;
+          const website = rec["Website"] ?? rec["url"] ?? null;
+          if (!name) continue;
+
+          const nameSafe = name.replace(/'/g, "''");
+          const typeSafe = String(type).replace(/'/g, "''");
+          const stateSafe = state ? `'${String(state).replace(/'/g, "''").substring(0, 5)}'` : "NULL";
+          const addressSafe = address ? `'${String(address).replace(/'/g, "''")}'` : "NULL";
+          const phoneSafe = phone ? `'${String(phone).replace(/'/g, "''")}'` : "NULL";
+          const webSafe = website ? `'${String(website).replace(/'/g, "''")}'` : "NULL";
+
+          await db.execute(sql.raw(`
+            INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, physical_address, phone, website, confidence_score, last_synced_at)
+            VALUES ('${nameSafe}', '${typeSafe}', 'federal', ${stateSafe}, ${addressSafe}, ${phoneSafe}, ${webSafe}, 0.7, '${now}')
+            ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+            DO UPDATE SET agency_type = EXCLUDED.agency_type, phone = EXCLUDED.phone, website = EXCLUDED.website, last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
+          `));
+          upserted++;
+        } catch { failed++; }
+      }
+      break;
+    } catch { continue; }
+  }
+
+  if (!fetched) {
+    // Fallback: seed known IHS area offices and HHS regional offices for AI/AN health routing
+    const IHS_AREA_OFFICES = [
+      { name: "IHS — Alaska Area", state: "AK", phone: "907-729-3686", web: "https://www.ihs.gov/alaska/" },
+      { name: "IHS — Albuquerque Area", state: "NM", phone: "505-248-4500", web: "https://www.ihs.gov/albuquerque/" },
+      { name: "IHS — Bemidji Area", state: "MN", phone: "218-444-0458", web: "https://www.ihs.gov/bemidji/" },
+      { name: "IHS — Billings Area", state: "MT", phone: "406-247-7107", web: "https://www.ihs.gov/billings/" },
+      { name: "IHS — California Area", state: "CA", phone: "916-930-3927", web: "https://www.ihs.gov/california/" },
+      { name: "IHS — Great Plains Area", state: "SD", phone: "605-226-7581", web: "https://www.ihs.gov/greatplains/" },
+      { name: "IHS — Nashville Area", state: "TN", phone: "615-467-1500", web: "https://www.ihs.gov/nashville/" },
+      { name: "IHS — Navajo Area", state: "AZ", phone: "928-871-5811", web: "https://www.ihs.gov/navajo/" },
+      { name: "IHS — Oklahoma City Area", state: "OK", phone: "405-951-3768", web: "https://www.ihs.gov/oklahomacity/" },
+      { name: "IHS — Phoenix Area", state: "AZ", phone: "602-364-5039", web: "https://www.ihs.gov/phoenix/" },
+      { name: "IHS — Portland Area", state: "OR", phone: "503-414-7774", web: "https://www.ihs.gov/portland/" },
+      { name: "IHS — Tucson Area", state: "AZ", phone: "520-295-2405", web: "https://www.ihs.gov/tucson/" },
+      { name: "HHS — Region 9 (Pacific, AI/AN)", state: "CA", phone: "415-437-8500", web: "https://www.hhs.gov/about/agencies/iea/regional-offices/region-9/index.html" },
+    ];
+
+    for (const office of IHS_AREA_OFFICES) {
+      try {
+        await db.execute(sql.raw(`
+          INSERT INTO agency_directory (agency_name, agency_type, government_level, state_code, phone, website, confidence_score, last_synced_at)
+          VALUES ('${office.name.replace(/'/g, "''")}', 'health_services', 'federal', '${office.state}', '${office.phone}', '${office.web}', 0.97, '${now}')
+          ON CONFLICT (agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))
+          DO UPDATE SET phone = EXCLUDED.phone, website = EXCLUDED.website, last_synced_at = EXCLUDED.last_synced_at, updated_at = NOW()
+        `));
+        upserted++;
+      } catch { failed++; }
+    }
+  }
+
+  return { upserted, failed, source: fetched ? "healthdata.gov" : "ihs_area_offices_fallback" };
 }
 
 // ── Sync endpoint ─────────────────────────────────────────────────────────────
@@ -220,10 +308,11 @@ router.get("/", requireAuth, requireAdmin, async (_req, res, next) => {
     logger.info("authority.sync: starting ingestion jobs");
     const syncStart = Date.now();
 
-    const [censusResult, caResult, federalResult] = await Promise.allSettled([
+    const [censusResult, caResult, federalResult, healthResult] = await Promise.allSettled([
       ingestCensusCounties(),
       ingestCaliforniaAgencies(),
       ingestFederalAgencies(),
+      ingestHealthDataGov(),
     ]);
 
     const summary = {
@@ -231,6 +320,7 @@ router.get("/", requireAuth, requireAdmin, async (_req, res, next) => {
       census: censusResult.status === "fulfilled" ? censusResult.value : { error: String((censusResult as PromiseRejectedResult).reason) },
       california: caResult.status === "fulfilled" ? caResult.value : { error: String((caResult as PromiseRejectedResult).reason) },
       federal: federalResult.status === "fulfilled" ? federalResult.value : { error: String((federalResult as PromiseRejectedResult).reason) },
+      healthDataGov: healthResult.status === "fulfilled" ? healthResult.value : { error: String((healthResult as PromiseRejectedResult).reason) },
       completedAt: new Date().toISOString(),
     };
 

@@ -282,11 +282,18 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
   }
 });
 
-// ── GET / — list recent extractions ──────────────────────────────────────────
+// ── GET / — list recent extractions (own records; admin/trustee see all) ─────
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const limit = Math.min(parseInt(String(req.query.limit ?? "20"), 10), 100);
+    const user = req.user!;
+    const isPrivileged = user.roles?.some((r: string) => r === "admin" || r === "trustee");
+
+    const whereClause = isPrivileged
+      ? undefined
+      : eq(authorityIntakeExtractionsTable.submittedByUserId, user.dbId ?? -1);
+
     const results = await db
       .select({
         id: authorityIntakeExtractionsTable.id,
@@ -305,6 +312,7 @@ router.get("/", requireAuth, async (req, res, next) => {
         createdAt: authorityIntakeExtractionsTable.createdAt,
       })
       .from(authorityIntakeExtractionsTable)
+      .where(whereClause)
       .orderBy(desc(authorityIntakeExtractionsTable.createdAt))
       .limit(limit);
 
@@ -314,7 +322,7 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-// ── GET /:id — get single extraction ─────────────────────────────────────────
+// ── GET /:id — get single extraction (owner or admin/trustee) ─────────────────
 
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
@@ -333,6 +341,16 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       res.status(404).json({ error: "Extraction record not found" });
       return;
     }
+
+    const user = req.user!;
+    const isPrivileged = user.roles?.some((r: string) => r === "admin" || r === "trustee");
+    const isOwner = record.submittedByUserId != null && record.submittedByUserId === user.dbId;
+
+    if (!isPrivileged && !isOwner) {
+      res.status(403).json({ error: "Access denied. You may only view your own intake records." });
+      return;
+    }
+
     res.json(record);
   } catch (err) {
     next(err);

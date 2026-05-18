@@ -203,6 +203,7 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS jur_dir_state_idx ON jurisdiction_directory(state_code)`,
   `CREATE INDEX IF NOT EXISTS jur_dir_fips_idx ON jurisdiction_directory(fips_code)`,
   `CREATE INDEX IF NOT EXISTS jur_dir_state_county_idx ON jurisdiction_directory(state_code, county)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS jur_dir_natural_key_idx ON jurisdiction_directory(state_code, COALESCE(county,''), COALESCE(city,''))`,
 
   // Authority Directory — agency directory
   `CREATE TABLE IF NOT EXISTS agency_directory (
@@ -231,6 +232,7 @@ const migrations = [
   `CREATE INDEX IF NOT EXISTS ag_dir_state_county_idx ON agency_directory(state_code, county)`,
   `CREATE INDEX IF NOT EXISTS ag_dir_level_idx ON agency_directory(government_level)`,
   `CREATE INDEX IF NOT EXISTS ag_dir_type_idx ON agency_directory(agency_type)`,
+  `CREATE UNIQUE INDEX IF NOT EXISTS ag_dir_natural_key_idx ON agency_directory(agency_name, government_level, COALESCE(state_code,''), COALESCE(county,''))`,
 
   // Authority Directory — matter type routing rules
   `CREATE TABLE IF NOT EXISTS matter_type_routing (
