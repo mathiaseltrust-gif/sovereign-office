@@ -3,7 +3,7 @@ import { useMutation } from "@tanstack/react-query";
 import {
   FileSearch, Clock, ShieldAlert, BookMarked, Building2,
   FileText, Loader2, Copy, AlertTriangle, CheckCircle2,
-  ChevronRight, AlertCircle, Printer, FileX,
+  ChevronRight, AlertCircle, Printer, FileX, Scale,
 } from "lucide-react";
 import {
   Tooltip,
@@ -210,6 +210,332 @@ function exportAsPdf(result: IntakeAnalysisResult) {
   pw.document.close();
   pw.focus();
   pw.print();
+}
+
+// ─── NFR Notice block ─────────────────────────────────────────────────────────
+// Assembles a ready-to-review Notice of Federal Review from engine output.
+// Appears automatically when any violation flag is active.
+
+const MATTER_TYPE_TO_NFR_SIGNAL: Record<string, { signal: string; laws: string[]; internal: string[]; external: string[]; followthrough: string[] }> = {
+  foreclosure: {
+    signal: "FORECLOSURE_ACTIVITY",
+    laws: ["25 U.S.C. § 177 (Nonintercourse Act — void foreclosure on restricted Indian land)", "25 U.S.C. § 483a (restrictions on alienation)", "Worcester v. Georgia, 31 U.S. 515 (1832)"],
+    internal: ["Verify parcel tribal classification before any response", "Obtain all foreclosure documents, notice of default, lis pendens", "Determine whether the debt underlying the foreclosure is enforceable against tribal land"],
+    external: ["Issue Notice of Federal Review to the foreclosing party and their counsel", "Send Void Ab Initio Declaration to county court and recorder", "Notify lender/servicer of Nonintercourse Act violation"],
+    followthrough: ["Identify foreclosure sale date — deadline for TRO", "Determine whether emergency TRO filing is required within 72 hours"],
+  },
+  tax_lien: {
+    signal: "TAX_OR_LIEN_ASSERTION",
+    laws: ["McClanahan v. Arizona State Tax Commission, 411 U.S. 164 (1973)", "Bryan v. Itasca County, 426 U.S. 373 (1976)", "25 U.S.C. § 177 (Nonintercourse Act — liens on Indian land void without authorization)"],
+    internal: ["Verify the jurisdictional status of the parcel subject to the lien", "Confirm whether the land is held in trust, restricted status, or fee", "Document the tax assessor's basis for the assertion"],
+    external: ["Issue Notice of Federal Review to the taxing authority or lienholder", "Send jurisdictional notice: tax preemption under McClanahan and Bryan", "File administrative objection with the taxing authority"],
+    followthrough: ["Identify the tax lien recording date and any redemption deadlines", "Identify the proper administrative appeal body"],
+  },
+  tax_assessment: {
+    signal: "TAX_OR_LIEN_ASSERTION",
+    laws: ["McClanahan v. Arizona State Tax Commission, 411 U.S. 164 (1973)", "Bryan v. Itasca County, 426 U.S. 373 (1976)", "25 U.S.C. § 177"],
+    internal: ["Verify the parcel's trust or restricted status before any response", "Document the taxing authority and the basis for the assessment"],
+    external: ["Issue Notice of Federal Review to the taxing authority", "Assert tax preemption under McClanahan and Bryan"],
+    followthrough: ["Identify the assessment appeal deadline", "Determine whether the taxing authority has been served with a prior notice"],
+  },
+  jurisdictional_overreach: {
+    signal: "JURISDICTIONAL_OVERREACH",
+    laws: ["Worcester v. Georgia, 31 U.S. 515 (1832)", "McClanahan v. Arizona State Tax Commission, 411 U.S. 164 (1973)", "18 U.S.C. § 1151 (definition of Indian country)"],
+    internal: ["Document the overreach and identify the state or county actor", "Verify that Public Law 280 does not apply in this jurisdiction", "Prepare a jurisdictional statement from the Sovereign Office"],
+    external: ["Issue Notice of Federal Review asserting tribal and federal jurisdiction", "File jurisdictional statement in the relevant proceeding", "Notify the overreaching entity of federal preemption obligations"],
+    followthrough: ["Identify whether the matter requires a removal petition", "Determine the proper court for jurisdictional challenge"],
+  },
+  recorder_refusal: {
+    signal: "RECORDER_REFUSAL",
+    laws: ["25 U.S.C. § 177 (tribal documents must be accepted for recording)", "25 U.S.C. § 175 (U.S. attorneys required to represent Indians)", "Federal preemption doctrine — Worcester v. Georgia"],
+    internal: ["Document the exact reason for the refusal", "Verify that the instrument meets all recorder technical requirements"],
+    external: ["Issue Notice of Federal Review to the county recorder", "Send formal demand for acceptance with federal law citations"],
+    followthrough: ["Identify the county recorder's supervisor and legal counsel for escalation", "Determine whether a mandamus action is appropriate if refusal continues"],
+  },
+  icwa_violation: {
+    signal: "ICWA_PROCEEDING_DETECTED",
+    laws: ["25 U.S.C. § 1912 (ICWA — mandatory notice, active efforts, evidentiary standards)", "25 U.S.C. § 1911 (tribal court jurisdiction; right to intervene)", "Brackeen v. Haaland, 599 U.S. 255 (2023)"],
+    internal: ["Identify the child, the proceeding court, and the agency involved", "Verify the child's Indian status and tribal membership eligibility", "Determine whether 10-day notice requirement has been met"],
+    external: ["File ICWA Notice of Proceeding with the court immediately", "Assert tribal right to intervene", "Issue Notice of Federal Review to the agency and court"],
+    followthrough: ["Identify the next hearing date — ICWA notice must precede it by at least 10 days", "Determine whether tribal court should claim exclusive jurisdiction under § 1911"],
+  },
+  health_plan_denial: {
+    signal: "MANAGED_CARE_INTERFERENCE",
+    laws: ["25 U.S.C. §§ 1601-1683 (Indian Health Care Improvement Act)", "25 U.S.C. § 13 (Snyder Act)", "42 U.S.C. § 1396 et seq. (Medicaid — Indian-specific provisions)"],
+    internal: ["Document the managed care interference and the responsible entity", "Verify the member's Indian status and healthcare eligibility"],
+    external: ["Issue Notice of Federal Review to the managed care organization", "File complaint with CMS (Centers for Medicare & Medicaid Services)", "Notify IHS of the interference with Indian healthcare rights"],
+    followthrough: ["Identify any health emergency deadlines requiring immediate escalation", "Determine whether state insurance commissioner complaint is appropriate"],
+  },
+  agency_denial: {
+    signal: "AGENCY_DENIAL",
+    laws: ["25 U.S.C. § 13 (Snyder Act — federal duty to provide Indian services)", "Loper Bright Enterprises v. Raimondo (2024)", "5 U.S.C. § 702 (APA — right to challenge agency action)"],
+    internal: ["Document the agency, the program, and the basis for denial", "Verify the member's eligibility under the broad federal definition"],
+    external: ["File administrative appeal with the denying agency", "Issue Notice of Federal Review citing Snyder Act and Loper Bright"],
+    followthrough: ["Identify the appeal filing deadline", "Determine whether exhaustion of administrative remedies is required"],
+  },
+};
+
+const DEFAULT_NFR_SIGNAL = {
+  signal: "PROTECTED_RIGHTS_VIOLATION",
+  laws: ["Indian Canons of Construction — statutes liberally construed in favor of Indians", "25 U.S.C. § 175 (U.S. attorneys to represent Indians)", "Federal trust responsibility doctrine"],
+  internal: ["Identify the specific protected right and how it was violated", "Document the violating party and the context of the violation", "Compile applicable statutes and prior sovereign notices"],
+  external: ["Issue Notice of Federal Review asserting the violated right", "Send formal demand for cessation of the violation"],
+  followthrough: ["Identify the applicable administrative or judicial remedy", "Determine whether immediate escalation is required"],
+};
+
+function buildNfrText(result: IntakeAnalysisResult, signal: typeof DEFAULT_NFR_SIGNAL): string {
+  const rr = result.routingRecommendation;
+  const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+  const recipient = rr.primaryRecipient;
+  const lines = [
+    "NOTICE OF FEDERAL REVIEW",
+    "================================================",
+    `Date: ${date}`,
+    `Issuing Office: Mathias El Tribe — Sovereign Office`,
+    `Re: Matter Type: ${result.detectedMatterType.replace(/_/g, " ").toUpperCase()}`,
+    result.id ? `Intake Record: #${result.id}` : "",
+    "",
+    "TO:",
+    recipient ? recipient.name : "(Party identified — see extracted fields)",
+    recipient?.mailingAddress ?? "",
+    recipient?.phone ? `Phone: ${recipient.phone}` : "",
+    "",
+    "NOTICE IS HEREBY GIVEN that the Sovereign Office of the Mathias El Tribe",
+    "has identified potential violations of federal Indian law in connection with",
+    "the above-referenced matter. This notice is issued pursuant to the federal",
+    "trust responsibility and applicable statutes listed below.",
+    "",
+    "LEGAL BASIS:",
+    ...signal.laws.map((l) => `  • ${l}`),
+    ...(rr.legalAuthorities.length > 0 ? rr.legalAuthorities.map((la) => `  • ${la.authorityName}${la.uscReference ? ` — ${la.uscReference}` : ""}`) : []),
+    "",
+    "REQUIRED INTERNAL ACTIONS (Sovereign Office):",
+    ...signal.internal.map((a, i) => `  ${i + 1}. ${a}`),
+    "",
+    "REQUIRED EXTERNAL ACTIONS:",
+    ...signal.external.map((a, i) => `  ${i + 1}. ${a}`),
+    "",
+    "REQUIRED FOLLOWTHROUGH:",
+    ...signal.followthrough.map((f, i) => `  ${i + 1}. ${f}`),
+    "",
+    "OVERSIGHT / REVIEW CHAIN:",
+    rr.oversightRecipient ? `  Oversight: ${rr.oversightRecipient.name}${rr.oversightRecipient.mailingAddress ? ` — ${rr.oversightRecipient.mailingAddress}` : ""}` : "",
+    ...rr.ccList.map((c) => `  CC: ${c}`),
+    "",
+    "PENDING REVIEW — This notice is system-generated and requires human",
+    "authorization before transmission. All determinations are subject to",
+    "review by the appropriate officer or Chief before any action is taken.",
+    "================================================",
+  ];
+  return lines.filter((l) => l !== "").join("\n");
+}
+
+function NfrNoticeBlock({ result }: { result: IntakeAnalysisResult }) {
+  const { toast } = useToast();
+  const hasViolationFlag =
+    result.tribalLandFlag ||
+    result.icwaFlag ||
+    result.indianLawFlag ||
+    result.trustLandFlag ||
+    result.federalReviewFlag;
+
+  if (!hasViolationFlag) return null;
+
+  const signal = MATTER_TYPE_TO_NFR_SIGNAL[result.detectedMatterType] ?? DEFAULT_NFR_SIGNAL;
+  const nfrText = buildNfrText(result, signal);
+  const rr = result.routingRecommendation;
+  const date = new Date().toLocaleDateString("en-US", { year: "numeric", month: "long", day: "numeric" });
+
+  function copyNfr() {
+    navigator.clipboard.writeText(nfrText).then(() => {
+      toast({ title: "NFR Notice copied", description: "Full notice text copied to clipboard." });
+    });
+  }
+
+  function printNfr() {
+    const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <title>Notice of Federal Review — Record #${result.id ?? "draft"}</title>
+  <style>
+    body { font-family: 'Times New Roman', serif; font-size: 12px; padding: 2.5cm; line-height: 1.6; color: #000; }
+    h1 { font-size: 15px; text-align: center; letter-spacing: 0.1em; margin-bottom: 0.25em; }
+    .rule { border-top: 2px solid #000; margin: 0.5em 0; }
+    .label { font-weight: bold; margin-top: 1em; }
+    .pending { border: 1px solid #555; padding: 8px; margin-top: 1.5em; font-size: 10px; text-align: center; font-style: italic; }
+    ul { margin: 0.25em 0 0.25em 1.5em; padding: 0; }
+    li { margin-bottom: 0.2em; }
+    @media print { body { margin: 0; } }
+  </style>
+</head>
+<body>
+  <h1>NOTICE OF FEDERAL REVIEW</h1>
+  <div class="rule"></div>
+  <p><strong>Date:</strong> ${date}</p>
+  <p><strong>Issuing Office:</strong> Mathias El Tribe — Sovereign Office</p>
+  <p><strong>Matter Type:</strong> ${result.detectedMatterType.replace(/_/g, " ").toUpperCase()}</p>
+  ${result.id ? `<p><strong>Intake Record:</strong> #${result.id}</p>` : ""}
+  <div class="label">TO:</div>
+  <p>${rr.primaryRecipient ? `${rr.primaryRecipient.name}<br/>${rr.primaryRecipient.mailingAddress ?? ""}` : "(Party identified — see extracted fields)"}</p>
+  <div class="label">LEGAL BASIS:</div>
+  <ul>${signal.laws.map((l) => `<li>${l}</li>`).join("")}${rr.legalAuthorities.map((la) => `<li>${la.authorityName}${la.uscReference ? ` — ${la.uscReference}` : ""}</li>`).join("")}</ul>
+  <div class="label">REQUIRED INTERNAL ACTIONS (Sovereign Office):</div>
+  <ul>${signal.internal.map((a) => `<li>${a}</li>`).join("")}</ul>
+  <div class="label">REQUIRED EXTERNAL ACTIONS:</div>
+  <ul>${signal.external.map((a) => `<li>${a}</li>`).join("")}</ul>
+  <div class="label">REQUIRED FOLLOWTHROUGH:</div>
+  <ul>${signal.followthrough.map((f) => `<li>${f}</li>`).join("")}</ul>
+  <div class="label">OVERSIGHT / REVIEW CHAIN:</div>
+  <p>${rr.oversightRecipient ? `Oversight: ${rr.oversightRecipient.name}${rr.oversightRecipient.mailingAddress ? ` — ${rr.oversightRecipient.mailingAddress}` : ""}` : ""}${rr.ccList.map((c) => `<br/>CC: ${c}`).join("")}</p>
+  <div class="pending">PENDING REVIEW — This notice is system-generated and requires human authorization before transmission.<br/>All determinations are subject to review by the appropriate officer or Chief before any action is taken.</div>
+</body>
+</html>`;
+    const pw = window.open("", "_blank", "width=800,height=1000");
+    if (!pw) return;
+    pw.document.write(html);
+    pw.document.close();
+    pw.focus();
+    pw.print();
+  }
+
+  return (
+    <div className="rounded-lg border-2 border-red-300 bg-red-50/40 overflow-hidden">
+      {/* Header */}
+      <div className="flex items-center justify-between px-4 py-2.5 bg-red-100/60 border-b border-red-200">
+        <div className="flex items-center gap-2">
+          <Scale className="h-4 w-4 text-red-700 shrink-0" />
+          <span className="text-sm font-semibold text-red-900 tracking-wide uppercase">
+            Notice of Federal Review
+          </span>
+          <span className="text-xs bg-red-200 text-red-800 px-1.5 py-0.5 rounded font-medium">
+            {signal.signal.replace(/_/g, " ")}
+          </span>
+        </div>
+        <div className="flex items-center gap-1">
+          <button onClick={copyNfr} className="text-red-700 hover:text-red-900 p-1" title="Copy NFR notice text">
+            <Copy className="h-3.5 w-3.5" />
+          </button>
+          <button onClick={printNfr} className="text-red-700 hover:text-red-900 p-1" title="Print / Export NFR notice">
+            <Printer className="h-3.5 w-3.5" />
+          </button>
+        </div>
+      </div>
+
+      <div className="px-4 py-3 space-y-3">
+        {/* Notice header fields */}
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+          <div><span className="font-medium text-foreground">Date:</span> <span className="text-muted-foreground">{date}</span></div>
+          <div><span className="font-medium text-foreground">Issuing Office:</span> <span className="text-muted-foreground">Mathias El Tribe — Sovereign Office</span></div>
+          <div><span className="font-medium text-foreground">Matter Type:</span> <span className="text-muted-foreground">{result.detectedMatterType.replace(/_/g, " ").toUpperCase()}</span></div>
+          {result.id && <div><span className="font-medium text-foreground">Intake Record:</span> <span className="text-muted-foreground">#{result.id}</span></div>}
+        </div>
+
+        {/* Recipient (TO) */}
+        <div>
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">To (Party Being Served)</p>
+          {rr.primaryRecipient ? (
+            <div className="rounded border border-red-200 bg-white/60 px-3 py-2 text-xs space-y-0.5">
+              <p className="font-medium text-foreground">{rr.primaryRecipient.name}</p>
+              {rr.primaryRecipient.mailingAddress && <p className="text-muted-foreground">{rr.primaryRecipient.mailingAddress}</p>}
+              {rr.primaryRecipient.phone && <p className="text-muted-foreground">{rr.primaryRecipient.phone}</p>}
+            </div>
+          ) : (
+            <p className="text-xs text-muted-foreground italic">Party identified in extracted fields — verify before serving.</p>
+          )}
+        </div>
+
+        {/* Legal basis */}
+        <div>
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Legal Basis</p>
+          <ul className="space-y-0.5">
+            {signal.laws.map((l, i) => (
+              <li key={i} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <Scale className="h-3 w-3 shrink-0 text-red-600 mt-0.5" /> {l}
+              </li>
+            ))}
+            {rr.legalAuthorities.map((la, i) => (
+              <li key={`la-${i}`} className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <Scale className="h-3 w-3 shrink-0 text-red-400 mt-0.5" />
+                <span>{la.authorityName}{la.uscReference && <code className="ml-1 bg-muted px-1 rounded">{la.uscReference}</code>}</span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Required actions — two columns */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Required Internal Actions</p>
+            <ol className="space-y-0.5 list-decimal list-inside">
+              {signal.internal.map((a, i) => (
+                <li key={i} className="text-xs text-muted-foreground">{a}</li>
+              ))}
+            </ol>
+          </div>
+          <div>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Required External Actions</p>
+            <ol className="space-y-0.5 list-decimal list-inside">
+              {signal.external.map((a, i) => (
+                <li key={i} className="text-xs text-muted-foreground">{a}</li>
+              ))}
+            </ol>
+          </div>
+        </div>
+
+        {/* Followthrough */}
+        <div>
+          <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Required Followthrough</p>
+          <ol className="space-y-0.5 list-decimal list-inside">
+            {signal.followthrough.map((f, i) => (
+              <li key={i} className="text-xs text-muted-foreground">{f}</li>
+            ))}
+          </ol>
+        </div>
+
+        {/* Oversight / CC chain */}
+        {(rr.oversightRecipient || rr.ccList.length > 0) && (
+          <div>
+            <p className="text-xs font-semibold text-foreground uppercase tracking-wide mb-1">Oversight / Review Chain</p>
+            <div className="space-y-0.5 text-xs">
+              {rr.oversightRecipient && (
+                <div className="flex items-start gap-1.5">
+                  <span className="font-medium text-foreground w-20 shrink-0">Oversight:</span>
+                  <span className="text-muted-foreground">
+                    {rr.oversightRecipient.name}
+                    {rr.oversightRecipient.mailingAddress && ` — ${rr.oversightRecipient.mailingAddress}`}
+                  </span>
+                </div>
+              )}
+              {rr.ccList.map((c, i) => (
+                <div key={i} className="flex items-start gap-1.5">
+                  <span className="font-medium text-foreground w-20 shrink-0">CC:</span>
+                  <span className="text-muted-foreground">{c}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Escalation path if present */}
+        {rr.escalationPath && (
+          <div className="flex gap-2 text-xs">
+            <span className="font-medium text-foreground w-32 shrink-0">Escalation Path:</span>
+            <span className="text-muted-foreground">{rr.escalationPath}</span>
+          </div>
+        )}
+
+        {/* Pending review footer */}
+        <div className="flex items-start gap-2 rounded border border-red-300 bg-red-100/50 px-3 py-2 text-xs text-red-900">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5 text-red-700" />
+          <span>
+            <strong>Pending Review —</strong> This notice is system-assembled and requires human authorization before transmission.
+            All determinations are subject to review by the appropriate officer or Chief before any action is taken.
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 }
 
 // ─── Results panel ─────────────────────────────────────────────────────────────
@@ -476,6 +802,9 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
           </p>
         </div>
       </Block>
+
+      {/* Block NFR: Notice of Federal Review — assembled when any violation flag is active */}
+      <NfrNoticeBlock result={result} />
 
       {/* Block 5: Suggested Notice Template */}
       <Block
