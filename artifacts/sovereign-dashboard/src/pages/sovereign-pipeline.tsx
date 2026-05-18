@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
@@ -12,7 +13,8 @@ import { useToast } from "@/hooks/use-toast";
 import {
   FileText, Shield, Eye, BookOpen, Archive, Stamp,
   CheckCircle2, Clock, AlertTriangle, ChevronRight, Printer, RotateCcw, List,
-  Mic, MicOff, Upload, X, Loader2
+  Mic, MicOff, Upload, X, Loader2,
+  Send, MapPin, PackageCheck, CreditCard, Info
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -369,6 +371,210 @@ function RecordLog() {
   );
 }
 
+// ── Document Delivery Flow ─────────────────────────────────────────────────────
+
+const SELF_PRINT_STEPS = [
+  { icon: Printer, label: "Print the document", sub: "Use the Seal & Print button above to apply the official seal, then print." },
+  { icon: FileText, label: "Sign where indicated", sub: "All signature lines must be completed before mailing." },
+  { icon: Send, label: "Mail to recipient", sub: "Use certified mail (USPS Form 3800) for legal proof of service." },
+  { icon: PackageCheck, label: "Save your tracking number", sub: "Note the USPS tracking number and file it with this record for proof of service." },
+];
+
+function DocumentDeliveryFlow({
+  fileNumber,
+  documentTitle,
+}: {
+  fileNumber: string;
+  documentTitle: string;
+}) {
+  const { toast } = useToast();
+  const [path, setPath] = useState<"none" | "self" | "tribe">("none");
+  const [recipientName, setRecipientName] = useState("");
+  const [recipientAddress, setRecipientAddress] = useState("");
+  const [paying, setPaying] = useState(false);
+
+  async function handleTribeSend() {
+    if (!recipientName.trim() || !recipientAddress.trim()) {
+      toast({ title: "Required", description: "Enter the recipient name and full mailing address.", variant: "destructive" });
+      return;
+    }
+    setPaying(true);
+    try {
+      const token = getCurrentBearerToken();
+      const r = await fetch(`${API}/api/deliver/checkout`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ fileNumber, documentTitle, recipientName, recipientAddress }),
+      });
+      const data = await r.json() as { url?: string; error?: string };
+      if (!r.ok || !data.url) throw new Error(data.error ?? "Could not create payment session");
+      window.location.href = data.url;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Unknown error";
+      toast({ title: "Payment error", description: msg, variant: "destructive" });
+      setPaying(false);
+    }
+  }
+
+  return (
+    <Card className="border-primary/20 mt-1">
+      <CardHeader className="border-b pb-3">
+        <CardTitle className="text-sm font-semibold flex items-center gap-2">
+          <Send className="h-4 w-4 text-primary" />
+          What's Next — Document Delivery
+        </CardTitle>
+        <p className="text-xs text-muted-foreground mt-0.5">
+          Choose how this document moves forward. Both paths produce valid service of process.
+        </p>
+      </CardHeader>
+      <CardContent className="p-4 space-y-4">
+
+        {/* Path selector */}
+        {path === "none" && (
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* Self print */}
+            <button
+              onClick={() => setPath("self")}
+              className="text-left rounded-lg border-2 border-muted hover:border-primary/50 bg-muted/20 hover:bg-muted/40 p-4 transition-all group"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-primary/10">
+                  <Printer className="h-4 w-4 text-muted-foreground group-hover:text-primary" />
+                </div>
+                <p className="font-semibold text-sm">Print &amp; Sign Yourself</p>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                Download, print, sign, and mail the document yourself. Use USPS certified mail for proof of service.
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-2 font-medium">No charge</p>
+            </button>
+
+            {/* Tribe send */}
+            <button
+              onClick={() => setPath("tribe")}
+              className="text-left rounded-lg border-2 border-muted hover:border-[#8B0000]/50 bg-muted/20 hover:bg-[#8B0000]/5 p-4 transition-all group"
+            >
+              <div className="flex items-center gap-2 mb-2">
+                <div className="w-8 h-8 rounded-full bg-muted flex items-center justify-center group-hover:bg-[#8B0000]/10">
+                  <PackageCheck className="h-4 w-4 text-muted-foreground group-hover:text-[#8B0000]" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">Official Seal &amp; Send</p>
+                  <Badge variant="outline" className="text-[9px] border-[#8B0000]/40 text-[#8B0000] mt-0.5">$50 — Charitable Trust</Badge>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground leading-relaxed">
+                The tribe handles everything — official seal applied, certified mail with tracking, proof of service filed.
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-2 font-medium">Proceeds benefit the Mathias El Tribe Charitable Trust</p>
+            </button>
+          </div>
+        )}
+
+        {/* Self-print checklist */}
+        {path === "self" && (
+          <div className="space-y-3">
+            <div className="space-y-2">
+              {SELF_PRINT_STEPS.map((step, i) => {
+                const Icon = step.icon;
+                return (
+                  <div key={i} className="flex items-start gap-3 rounded-lg border bg-muted/10 px-3 py-2.5">
+                    <div className="w-6 h-6 rounded-full bg-primary/10 flex items-center justify-center shrink-0 mt-0.5">
+                      <Icon className="h-3.5 w-3.5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-semibold">{i + 1}. {step.label}</p>
+                      <p className="text-[11px] text-muted-foreground mt-0.5">{step.sub}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="flex items-start gap-2 rounded-md border border-blue-200 bg-blue-50 dark:bg-blue-950/30 dark:border-blue-800 px-3 py-2">
+              <Info className="h-3.5 w-3.5 text-blue-600 dark:text-blue-400 shrink-0 mt-0.5" />
+              <p className="text-[11px] text-blue-800 dark:text-blue-300">
+                USPS Certified Mail form 3800 creates a legally admissible proof of service. Keep the green return receipt card when it comes back. File it with record <span className="font-mono font-bold">{fileNumber}</span>.
+              </p>
+            </div>
+            <button
+              onClick={() => setPath("none")}
+              className="text-xs text-muted-foreground hover:text-foreground underline underline-offset-2"
+            >
+              ← Back to options
+            </button>
+          </div>
+        )}
+
+        {/* Tribe send form */}
+        {path === "tribe" && (
+          <div className="space-y-4">
+            <div className="rounded-lg border border-[#8B0000]/20 bg-[#8B0000]/5 p-3 space-y-1">
+              <p className="text-xs font-semibold text-[#8B0000] dark:text-red-400">What's included — $50 to the Charitable Trust</p>
+              {[
+                "Official tribal seal applied to the document",
+                "USPS certified mail with tracking number",
+                "Proof of service filed in your record",
+                "Tracking number logged under file " + fileNumber,
+              ].map((item, i) => (
+                <div key={i} className="flex items-center gap-1.5">
+                  <CheckCircle2 className="h-3 w-3 text-[#8B0000] dark:text-red-400 shrink-0" />
+                  <p className="text-[11px] text-muted-foreground">{item}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-3">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold">Recipient Name</Label>
+                <Input
+                  value={recipientName}
+                  onChange={e => setRecipientName(e.target.value)}
+                  placeholder="Agency, individual, or entity name"
+                  className="text-sm h-9"
+                  spellCheck={false}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3" /> Full Mailing Address
+                </Label>
+                <Textarea
+                  value={recipientAddress}
+                  onChange={e => setRecipientAddress(e.target.value)}
+                  placeholder={"123 Main St\nCity, State 00000"}
+                  rows={3}
+                  className="text-sm resize-none"
+                  spellCheck={false}
+                />
+                <p className="text-[10px] text-muted-foreground">Include full street address, city, state, and ZIP code.</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              <Button
+                onClick={handleTribeSend}
+                disabled={paying || !recipientName.trim() || !recipientAddress.trim()}
+                className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white"
+              >
+                {paying
+                  ? <><Loader2 className="h-4 w-4 animate-spin" /> Redirecting to payment…</>
+                  : <><CreditCard className="h-4 w-4" /> Pay $50 &amp; Send</>}
+              </Button>
+              <Button variant="outline" onClick={() => setPath("none")} className="text-sm">
+                ← Back
+              </Button>
+            </div>
+
+            <p className="text-[10px] text-muted-foreground">
+              Payment is processed securely via Stripe. Proceeds go to the Mathias El Tribe Charitable Trust for the general welfare of the People. You will receive a receipt by email.
+            </p>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -390,6 +596,11 @@ export default function SovereignPipelinePage() {
   const [activeStep, setActiveStep] = useState(0);
   const [result, setResult] = useState<PipelineResult | null>(null);
   const [view, setView] = useState<"pipeline" | "log">("pipeline");
+
+  // Stripe return state
+  const deliveryParam = new URLSearchParams(window.location.search).get("delivery");
+  const deliverySentFile = new URLSearchParams(window.location.search).get("file");
+  const deliverySentRecipient = new URLSearchParams(window.location.search).get("recipient");
 
   // ── Voice input ──────────────────────────────────────────────────────────────
   const recognitionRef = useRef<SpeechRecognitionLike | null>(null);
@@ -533,6 +744,27 @@ export default function SovereignPipelinePage() {
 
   return (
     <div className="space-y-6" data-testid="page-sovereign-pipeline">
+      {/* Delivery return banners */}
+      {deliveryParam === "sent" && (
+        <div className="flex items-start gap-3 rounded-lg border border-green-300 bg-green-50 dark:bg-green-950/30 dark:border-green-700 px-4 py-3">
+          <PackageCheck className="h-5 w-5 text-green-700 dark:text-green-400 shrink-0 mt-0.5" />
+          <div>
+            <p className="text-sm font-semibold text-green-800 dark:text-green-300">Payment received — Official Seal &amp; Send confirmed</p>
+            <p className="text-xs text-green-700 dark:text-green-400 mt-0.5">
+              {deliverySentFile && <><span className="font-mono font-bold">{deliverySentFile}</span> · </>}
+              {deliverySentRecipient && <>Sending to {decodeURIComponent(deliverySentRecipient)}. </>}
+              You will receive a tracking number and proof of service when the document ships. Proceeds support the Mathias El Tribe Charitable Trust.
+            </p>
+          </div>
+        </div>
+      )}
+      {deliveryParam === "cancelled" && (
+        <div className="flex items-start gap-3 rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/30 dark:border-amber-700 px-4 py-3">
+          <Info className="h-5 w-5 text-amber-700 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-sm text-amber-800 dark:text-amber-300">Payment was not completed. Your document is still available — scroll down to try again or choose Print &amp; Sign Yourself.</p>
+        </div>
+      )}
+
       {/* Header */}
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
@@ -737,6 +969,11 @@ export default function SovereignPipelinePage() {
                   <RotateCcw className="h-4 w-4" /> Run New Matter
                 </Button>
               </div>
+
+              <DocumentDeliveryFlow
+                fileNumber={result.fileNumber}
+                documentTitle={result.templateTitle}
+              />
             </>
           )}
 
