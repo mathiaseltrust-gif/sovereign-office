@@ -394,7 +394,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       {/* Block 3: Oversight & CC */}
       <Block
         icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-        title="Routing Recommendation — Oversight & CC"
+        title="Routing Recommendation — Oversight / CC"
         onCopy={copyBlock3}
       >
         <div className="space-y-2">
@@ -494,10 +494,10 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
         </div>
       </Block>
 
-      {/* Block 5: Suggested Template & Escalation */}
+      {/* Block 5: Suggested Notice Template */}
       <Block
         icon={<BookMarked className="h-4 w-4 text-muted-foreground" />}
-        title="Suggested Template & Escalation"
+        title="Suggested Notice Template"
         onCopy={copyBlock5}
       >
         <div className="space-y-2">
@@ -531,16 +531,23 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
 
       {/* Action row */}
       <div className="flex flex-wrap gap-2 pt-1">
-        {/* Confirm saved record — analyze auto-persists; this confirms the ID */}
-        <Button
-          variant={saved ? "default" : "outline"}
-          size="sm"
-          className={cn("gap-1.5", saved && "bg-emerald-600 hover:bg-emerald-700 text-white border-0")}
-          onClick={handleSave}
-        >
-          <Save className="h-3.5 w-3.5" />
-          {saved && result.id ? `Confirmed — Record #${result.id}` : "Confirm Saved Record"}
-        </Button>
+        {/* Auto-persist confirmation — analyze auto-persists; button confirms the ID was returned */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant={saved ? "default" : "outline"}
+              size="sm"
+              className={cn("gap-1.5", saved && "bg-emerald-600 hover:bg-emerald-700 text-white border-0")}
+              onClick={handleSave}
+            >
+              <Save className="h-3.5 w-3.5" />
+              {saved && result.id ? `Auto-saved — Record #${result.id}` : "Confirm Auto-saved Record"}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="top" className="max-w-xs text-xs">
+            Records are automatically persisted when analysis runs. This action confirms the saved record ID and does not trigger a second write.
+          </TooltipContent>
+        </Tooltip>
 
         {/* Export PDF summary */}
         <Button
@@ -568,7 +575,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs text-xs">
-            Draft Notice requires Chief authorization. Contact the Sovereign Office to initiate this action — do not proceed without explicit approval.
+            Final review required before drafting. This action requires Chief authorization — contact the Sovereign Office before proceeding.
           </TooltipContent>
         </Tooltip>
       </div>
