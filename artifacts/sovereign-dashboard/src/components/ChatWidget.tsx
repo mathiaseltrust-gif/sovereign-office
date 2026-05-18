@@ -208,6 +208,8 @@ export function ChatWidget() {
   const [letterPurpose, setLetterPurpose] = useState("");
   const [letterRecipient, setLetterRecipient] = useState("");
   const [copiedLetterId, setCopiedLetterId] = useState<string | null>(null);
+  const [isListening, setIsListening] = useState(false);
+  const recognitionRef = useRef<{ stop: () => void } | null>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -484,6 +486,67 @@ export function ChatWidget() {
       setTimeout(() => sendMessage("hello"), 200);
     }
   };
+
+  const toggleListening = useCallback(() => {
+    // Stop if already listening
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) {
+      addMessage({
+        role: "assistant",
+        content: "Voice input isn't supported in this browser. Try Chrome or Edge.",
+        tier: "hard_default",
+        tierLabel: "Sovereign Office",
+      });
+      return;
+    }
+
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const recognition = new SR() as any;
+    recognition.continuous = false;
+    recognition.interimResults = true;
+    recognition.lang = "en-US";
+
+    let finalTranscript = "";
+
+    recognition.onstart = () => setIsListening(true);
+
+    recognition.onresult = (event: { resultIndex: number; results: { isFinal: boolean; [k: number]: { transcript: string } }[] }) => {
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const t = event.results[i][0].transcript;
+        if (event.results[i].isFinal) finalTranscript += t;
+        else interim += t;
+      }
+      setInput(finalTranscript + interim);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+      const toSend = finalTranscript.trim();
+      if (toSend) {
+        // Brief pause so user sees the transcription, then auto-send
+        setTimeout(() => {
+          sendMessage(toSend);
+          setInput("");
+        }, 350);
+      }
+    };
+
+    recognition.onerror = () => {
+      setIsListening(false);
+      recognitionRef.current = null;
+    };
+
+    recognitionRef.current = recognition;
+    recognition.start();
+  }, [isListening, sendMessage]);
 
   const draftLetter = async () => {
     if (!letterPurpose.trim()) return;
@@ -1174,6 +1237,35 @@ export function ChatWidget() {
                   el.style.height = Math.min(el.scrollHeight, 80) + "px";
                 }}
               />
+              {/* Mic button */}
+              <button
+                onClick={toggleListening}
+                disabled={loading || letterDraftState === "loading"}
+                title={isListening ? "Listening — tap to stop" : "Tap to speak"}
+                style={{
+                  background: isListening ? "#dc2626" : "#4b5563",
+                  color: "#fff",
+                  border: "none",
+                  borderRadius: 8,
+                  width: 36,
+                  height: 36,
+                  cursor: loading || letterDraftState === "loading" ? "not-allowed" : "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  flexShrink: 0,
+                  animation: isListening ? "micPulse 1.1s ease-in-out infinite" : "none",
+                  transition: "background 0.2s",
+                  opacity: loading || letterDraftState === "loading" ? 0.5 : 1,
+                }}
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M12 2a3 3 0 0 0-3 3v7a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+                  <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+                  <line x1="12" y1="19" x2="12" y2="23"/>
+                  <line x1="8" y1="23" x2="16" y2="23"/>
+                </svg>
+              </button>
               {user && letterDraftState === "idle" && (
                 <button
                   onClick={() => setLetterDraftState("form")}
@@ -1283,6 +1375,10 @@ export function ChatWidget() {
         @keyframes pulse {
           0%, 80%, 100% { opacity: 0.3; transform: scale(0.8); }
           40% { opacity: 1; transform: scale(1); }
+        }
+        @keyframes micPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(220, 38, 38, 0.5); }
+          50% { box-shadow: 0 0 0 7px rgba(220, 38, 38, 0); }
         }
       `}</style>
     </>
