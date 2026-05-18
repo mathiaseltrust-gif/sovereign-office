@@ -379,7 +379,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       {/* Block 2: Primary Recipient */}
       <Block
         icon={<Building2 className="h-4 w-4 text-primary" />}
-        title="Primary Recipient"
+        title="Routing Recommendation — Primary Recipient"
         onCopy={copyBlock2}
       >
         {rr.primaryRecipient ? (
@@ -394,7 +394,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
       {/* Block 3: Oversight & CC */}
       <Block
         icon={<CheckCircle2 className="h-4 w-4 text-emerald-600" />}
-        title="Oversight / CC List"
+        title="Routing Recommendation — Oversight & CC"
         onCopy={copyBlock3}
       >
         <div className="space-y-2">
@@ -531,7 +531,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
 
       {/* Action row */}
       <div className="flex flex-wrap gap-2 pt-1">
-        {/* Save record */}
+        {/* Confirm saved record — analyze auto-persists; this confirms the ID */}
         <Button
           variant={saved ? "default" : "outline"}
           size="sm"
@@ -539,7 +539,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
           onClick={handleSave}
         >
           <Save className="h-3.5 w-3.5" />
-          {saved && result.id ? `Saved as Record #${result.id}` : "Save Record"}
+          {saved && result.id ? `Confirmed — Record #${result.id}` : "Confirm Saved Record"}
         </Button>
 
         {/* Export PDF summary */}
@@ -685,13 +685,16 @@ export default function IntakePage() {
           </div>
         </div>
 
-        {/* Document text */}
+        {/* Document text — this is the canonical intake pathway: paste or type the full document text */}
         <div>
-          <label className="block text-xs font-medium text-foreground mb-1">Document Text</label>
+          <label className="block text-xs font-medium text-foreground mb-1">
+            Document Text
+            <span className="font-normal text-muted-foreground ml-1">— paste, transcribe, or type the full document (canonical intake pathway)</span>
+          </label>
           <textarea
             className="w-full text-sm rounded-md border border-input bg-background px-3 py-2.5 text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-1 focus:ring-ring resize-none"
             rows={9}
-            placeholder="Paste the full document text here. The engine will extract entity names, addresses, deadlines, reference numbers, APN, matter type, applicable law, and generate routing recommendations…"
+            placeholder="Paste or transcribe the full document text here. For pre-extracted text from uploads, paste the extracted content directly. The engine will extract entity names, addresses, deadlines, reference numbers, APN, matter type, applicable law, and generate routing recommendations…"
             value={documentText}
             onChange={(e) => setDocumentText(e.target.value)}
           />
