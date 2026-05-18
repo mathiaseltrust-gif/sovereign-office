@@ -91,6 +91,73 @@ Drizzle-kit `generate` has a path resolution bug when run outside `lib/db/`. Wri
 - **AI Intake**: voice-guided profile intake, AI chat assistant, learning preferences system
 - **Court Docket**: welfare instruments, TRO/protection orders, ICWA notices, complaints
 
+## Atlas Mode — Family / Ancestors / Locations (Urban Indian Continuity Atlas)
+
+### Core principle: Atlas Mode is user-relative
+
+The logged-in user's view is personal. Another member's view will differ. No user's relatives should automatically inherit the current user's location.
+
+### Location resolution order (per family/ancestor record)
+
+Apply in strict priority order — stop at the first match:
+
+1. Known ancestry address or place record
+2. Last known life location from ancestry data
+3. Birth / residence / death / census location
+4. Historical family/lineage location
+5. Likely ancestral affiliation / likely homeland
+6. **If none exists → mark as "Location unknown" — never default to the logged-in user's address**
+
+Do not infer a location merely because the user currently lives there.
+
+### Household vs. family vs. ancestors
+
+| Group | Location behavior |
+|---|---|
+| Logged-in user's immediate household (self + spouse + children) | Default to user's current address unless manually updated |
+| Living relatives outside immediate household | Their own known or likely location — never the current user's address |
+| Deceased ancestors | Ancestry-derived last known or historical location only |
+| Shared relatives between users | May appear in both views; retain their own locations |
+| Shared ancestors | Retain their own historical/ancestry-derived locations |
+
+### Map purpose
+
+The Atlas is an **ancestral movement and historical impact map**, not a member directory map.
+
+Priority display:
+1. Household location for the logged-in user's immediate household only
+2. Ancestry record locations
+3. Last known locations
+4. Historical movement paths
+5. Likely lineage / ancestral affiliation
+
+Show how removal acts, congressional acts, and government classifications displaced and migrated Indigenous families over time.
+
+### Label and status language
+
+**Do not use:** `Tribal Nation Homeland`
+
+**Use instead:** `Likely Affiliation / Ancestral Location` or `Likely Family / Lineage Location`
+
+Add explanatory note: *"This location is based on known ancestry records, last known residence, historical movement, and likely lineage affiliation. It does not determine political jurisdiction or tribal citizenship by itself."*
+
+**Do not use:** `Mathias El Tribe (approximate territory)`
+
+**Use instead:** `Likely Mathias El Lineage / Family Affiliation` or `Likely Ancestral Location`
+
+### Status labels
+
+| Status | Label |
+|---|---|
+| Living immediate household members | Protected Members |
+| Living family outside immediate household | Eligible Family / Protected Lineage |
+| Deceased family | Ancestors |
+| Deceased ancestors | Ancestors (not active household members) |
+
+### Membership eligibility (unchanged)
+
+Atlas display changes do **not** affect membership eligibility. All living family / ancestors / other ancestors remain eligible for membership per system logic. This only changes map display behavior.
+
 ## User Preferences
 
 - Documents must be associated with the generating member — reference numbers encode member ID
