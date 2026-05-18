@@ -199,6 +199,14 @@ export default function IntakeCompanionPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  // Auto-navigate after save completes — intake is done, no need to stay on the chat.
+  useEffect(() => {
+    if (saveStatus !== "saved") return;
+    const dest = config.nextPath ?? "/hub";
+    const t = setTimeout(() => navigate(dest), 2500);
+    return () => clearTimeout(t);
+  }, [saveStatus, config.nextPath, navigate]);
+
   // Reset when intake type changes
   useEffect(() => {
     const cfg = INTAKE_CONFIGS[intakeType] ?? INTAKE_CONFIGS["identity-lineage"];
@@ -561,6 +569,10 @@ export default function IntakeCompanionPage() {
                       .join(", ")}
                   </p>
                 )}
+                <div className="flex items-center gap-1.5 pt-1">
+                  <Loader2 className="w-3 h-3 text-green-600 animate-spin shrink-0" />
+                  <p className="text-[10px] text-green-700">Taking you there now…</p>
+                </div>
               </div>
             )}
             {saveStatus === "error" && (
@@ -575,23 +587,25 @@ export default function IntakeCompanionPage() {
               </p>
             )}
 
-            <div className="flex gap-3 flex-wrap pt-1">
-              {config.nextPath && (
+            {saveStatus !== "saved" && (
+              <div className="flex gap-3 flex-wrap pt-1">
+                {config.nextPath && (
+                  <button
+                    className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
+                    onClick={() => navigate(config.nextPath ?? "/hub")}
+                  >
+                    <FileText className="w-3.5 h-3.5" />
+                    {config.nextLabel ?? "Continue"}
+                  </button>
+                )}
                 <button
-                  className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
-                  onClick={() => navigate(config.nextPath ?? "/hub")}
+                  className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted/50 transition-colors"
+                  onClick={() => navigate("/hub")}
                 >
-                  <FileText className="w-3.5 h-3.5" />
-                  {config.nextLabel ?? "Continue"}
+                  Return to Hub
                 </button>
-              )}
-              <button
-                className="inline-flex items-center gap-1.5 text-xs font-medium text-muted-foreground border border-border rounded-lg px-3 py-1.5 hover:bg-muted/50 transition-colors"
-                onClick={() => navigate("/hub")}
-              >
-                Return to Hub
-              </button>
-            </div>
+              </div>
+            )}
           </div>
         )}
 
