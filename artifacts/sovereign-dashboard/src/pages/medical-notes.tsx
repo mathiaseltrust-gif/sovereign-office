@@ -41,6 +41,16 @@ interface MembershipData {
   message?: string;
 }
 
+interface SavedNote {
+  id: number;
+  noteType: string;
+  patientName: string | null;
+  forDependent: boolean;
+  protectionLevel: string;
+  noteText: string;
+  createdAt: string;
+}
+
 export default function MedicalNotesPage() {
   const { toast } = useToast();
 
@@ -54,22 +64,39 @@ export default function MedicalNotesPage() {
   const [noteContent, setNoteContent] = useState("");
   const [generatedNote, setGeneratedNote] = useState<string | null>(null);
   const [generatedMeta, setGeneratedMeta] = useState<Record<string, unknown> | null>(null);
+  const [expandedNoteId, setExpandedNoteId] = useState<number | null>(null);
 
-  const { data: membership, isLoading: membershipLoading } = useQuery<MembershipData>({
+  const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
+
+  const { data: membership, isLoading: membershipLoading, isError: membershipError } = useQuery<MembershipData>({
     queryKey: ["membership-verify"],
     queryFn: async () => {
-      const r = await fetch("/api/membership/verify", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      const r = await fetch("/api/membership/verify", { headers: authHeader });
       if (!r.ok) throw new Error("Failed");
       return r.json();
     },
     staleTime: 60_000,
+    retry: 1,
   });
+
+  const { data: notesData, isLoading: notesLoading, refetch: refetchNotes } = useQuery<{ notes: SavedNote[] }>({
+    queryKey: ["medical-notes-list"],
+    queryFn: async () => {
+      const r = await fetch("/api/medical/notes/list", { headers: authHeader });
+      if (!r.ok) throw new Error("Failed to load notes");
+      return r.json();
+    },
+    staleTime: 30_000,
+    retry: 1,
+  });
+
+  const savedNotes = notesData?.notes ?? [];
 
   const createNote = useMutation({
     mutationFn: async () => {
       const r = await fetch("/api/medical/notes/create", {
         method: "POST",
-        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        headers: { ...authHeader, "Content-Type": "application/json" },
         body: JSON.stringify({
           noteType,
           patientName: patientName || undefined,
@@ -90,6 +117,7 @@ export default function MedicalNotesPage() {
     onSuccess: (data) => {
       setGeneratedNote(data.note as string);
       setGeneratedMeta(data as Record<string, unknown>);
+      void refetchNotes();
       toast({ title: "Medical Note Generated", description: `${MEDICAL_CENTER} — note created successfully.` });
     },
     onError: (err) => {
@@ -97,8 +125,8 @@ export default function MedicalNotesPage() {
     },
   });
 
-  const canCreate = membership?.delegatedAuthorities?.medicalNotes !== "none";
-  const canCreateForDependents = membership?.delegatedAuthorities?.medicalNotes === "self_and_dependents" || membership?.delegatedAuthorities?.allAuthorities;
+  const canCreate = membershipError ? true : membership?.delegatedAuthorities?.medicalNotes !== "none";
+  const canCreateForDependents = membershipError ? false : (membership?.delegatedAuthorities?.medicalNotes === "self_and_dependents" || membership?.delegatedAuthorities?.allAuthorities);
 
   if (membershipLoading) {
     return (
@@ -125,7 +153,19 @@ export default function MedicalNotesPage() {
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2 space-y-6">
-          {!canCreate && (
+
+          {membershipError && (
+            <Card className="border-amber-300 bg-amber-50">
+              <CardContent className="pt-4">
+                <p className="text-amber-800 font-semibold text-sm">Membership verification temporarily unavailable</p>
+                <p className="text-xs text-amber-700 mt-1">
+                  You can still generate notes — authority will be verified at submission.
+                </p>
+              </CardContent>
+            </Card>
+          )}
+
+          {!canCreate && !membershipError && (
             <Card className="border-red-300 bg-red-50">
               <CardContent className="pt-4">
                 <p className="text-red-800 font-semibold">Medical Note Authority Required</p>
@@ -158,6 +198,71 @@ export default function MedicalNotesPage() {
                   <div className="flex flex-wrap gap-1 mt-2">
                     {membership.identityTags.slice(0, 6).map((tag) => (
                       <Badge key={tag} variant="outline" className="text-xs">{tag}</Badge>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Note history */}
+          {(notesLoading || savedNotes.length > 0) && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-xs uppercase tracking-widest text-muted-foreground">
+                  Note History
+                  {savedNotes.length > 0 && (
+                    <span className="ml-2 text-primary font-bold">{savedNotes.length}</span>
+                  )}
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {notesLoading ? (
+                  <div className="space-y-2">
+                    {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-12" />)}
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {savedNotes.map((note) => (
+                      <div key={note.id} className="border rounded-md overflow-hidden">
+                        <button
+                          className="w-full text-left px-3 py-2 flex items-center justify-between hover:bg-muted/50 transition-colors"
+                          onClick={() => setExpandedNoteId(expandedNoteId === note.id ? null : note.id)}
+                        >
+                          <div className="flex items-center gap-2 min-w-0">
+                            <Badge className={`${PROTECTION_STYLES[note.protectionLevel] ?? ""} text-[10px] shrink-0`}>
+                              {note.protectionLevel?.toUpperCase()}
+                            </Badge>
+                            <span className="text-xs font-medium truncate">
+                              {note.noteType.replace(/_/g, " ").toUpperCase()} — {note.patientName ?? "Patient"}
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0 ml-2">
+                            {new Date(note.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                          </span>
+                        </button>
+                        {expandedNoteId === note.id && (
+                          <div className="border-t px-3 py-3 bg-muted/30">
+                            <pre className="text-xs font-mono whitespace-pre-wrap overflow-auto max-h-64">{note.noteText}</pre>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="mt-2"
+                              onClick={() => {
+                                const blob = new Blob([note.noteText], { type: "text/plain" });
+                                const url = URL.createObjectURL(blob);
+                                const a = document.createElement("a");
+                                a.href = url;
+                                a.download = `medical-note-${note.id}.txt`;
+                                a.click();
+                                URL.revokeObjectURL(url);
+                              }}
+                            >
+                              Download
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     ))}
                   </div>
                 )}

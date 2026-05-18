@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
-import { profilesTable, identityNarrativesTable, familyLineageTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { profilesTable, identityNarrativesTable, medicalNotesTable } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { computeDelegatedAuthorities, checkMedicalNoteAuthority, buildWhatNextInstructions } from "../../sovereign/delegated-authority";
 import { getLineageForUser } from "../../sovereign/family-tree-engine";
 import { logger } from "../../lib/logger";
@@ -10,17 +10,30 @@ import {
   MEDICAL_CENTER_NAME,
   MEDICAL_CENTER_NPI,
   MEDICAL_CENTER_ADDITIONAL_NPIS,
-  CHARITABLE_TRUST_NPI,
-  CHARITABLE_TRUST_TAXONOMY,
-  CHARITABLE_TRUST_TAXONOMY_LABEL,
   MEDICAL_CENTER_DIRECTOR,
-  MEDICAL_CENTER_DIRECTOR_TITLE,
-  getMedicalCenterBlock,
 } from "../../lib/medical-center";
 
 const router = Router();
 const MEDICAL_CENTER = MEDICAL_CENTER_NAME;
 
+// GET /api/medical/notes/list — fetch saved notes for the current user
+router.get("/list", requireAuth, requireRegisteredUser, async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId!;
+    const notes = await db
+      .select()
+      .from(medicalNotesTable)
+      .where(eq(medicalNotesTable.userId, dbId))
+      .orderBy(desc(medicalNotesTable.createdAt))
+      .limit(50);
+
+    res.json({ notes });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// POST /api/medical/notes/create — generate and persist a new medical note
 router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId!;
@@ -162,10 +175,30 @@ router.post("/create", requireAuth, requireRegisteredUser, async (req, res, next
       familyGroup,
     });
 
-    logger.info({ dbId, noteType, forDependent, patientName: noteName, protectionLevel }, "Medical note generated");
+    // Persist the note to the database
+    const [savedNote] = await db.insert(medicalNotesTable).values({
+      userId: dbId,
+      noteType,
+      patientName: noteName,
+      forDependent,
+      dependentName: forDependent ? (dependentName ?? undefined) : undefined,
+      protectionLevel,
+      noteText,
+      meta: {
+        identityTags,
+        lineageSummary,
+        icwaEligible,
+        generatedBy: legalName,
+        medicalCenter: MEDICAL_CENTER,
+        whatNext,
+      },
+    }).returning();
+
+    logger.info({ dbId, noteType, forDependent, patientName: noteName, protectionLevel, savedId: savedNote?.id }, "Medical note generated and saved");
 
     res.status(201).json({
       note: noteText,
+      noteId: savedNote?.id,
       noteType,
       patientName: noteName,
       generatedBy: legalName,

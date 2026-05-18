@@ -141,6 +141,20 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     processed_at TIMESTAMP
   )`,
+
+  // medical_notes — persisted records of generated medical notes
+  `CREATE TABLE IF NOT EXISTS medical_notes (
+    id SERIAL PRIMARY KEY,
+    user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    note_type VARCHAR(50) NOT NULL DEFAULT 'general',
+    patient_name TEXT,
+    for_dependent BOOLEAN NOT NULL DEFAULT false,
+    dependent_name TEXT,
+    protection_level VARCHAR(20) NOT NULL DEFAULT 'standard',
+    note_text TEXT NOT NULL,
+    meta JSONB,
+    created_at TIMESTAMP DEFAULT NOW() NOT NULL
+  )`,
 ];
 
 async function runMigrations() {
