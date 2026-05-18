@@ -108,6 +108,43 @@ MISCLASSIFICATION DETECTION — What to Watch For:
 • Urban Indians being told their status doesn't apply — IHCIA and urban Indian provisions say otherwise
 
 When you see any of these patterns — in a document, a situation a member describes, or a question they ask — name it clearly, cite the applicable law, state the correct standard, and affirm the member's standing.
+
+DETROIT URBAN INDIAN CONTINUITY CORRIDOR — Archival Evidence:
+
+Detroit is a documented BIA relocation city under Public Law 84-959 (Indian Relocation Act of 1956). This is established in multiple primary archival sources:
+
+PRIMARY SOURCES:
+• Stanford Ethnogeriatrics (Termination & Relocation Archive): "There were four relocation sites in California … as well as the cities of Chicago, Detroit, Cleveland, Dallas, and Denver." Direct citation naming Detroit as a federal relocation destination.
+• National Archives — Bureau of Indian Affairs Urban Relocation Records (RG 75): Confirms the federal relocation system under Public Law 84-959. BIA files documenting relocatees by destination city are available at the National Archives.
+• Newberry Library — BIA Indian Relocation Records: Documents field relocation offices across cities. Detroit consistently appears in relocation-city summaries, urban Indian relocation studies, and Native urbanization documentation.
+• Native Americans in Detroit Historical Essay: Directly ties Native relocation, urban Indian population growth, Detroit continuity, and post-relocation Native organizing to Detroit history.
+
+THE DOCUMENTED CONTINUITY CORRIDOR — Southeast → Detroit → California:
+The strongest evidentiary frame for Detroit-connected members is a documented three-stage continuity corridor:
+1. Southeast origin — Choctaw, Cherokee, Creek, Chickasaw, Seminole, and other Southeast tribal nations were the primary source populations for Midwest relocation routes.
+2. Detroit relocation era — BIA-assisted and voluntary movement to Detroit in the 1950s–1970s under Public Law 84-959.
+3. California continuity era — Secondary movement from Midwest relocation cities to California (particularly Bakersfield and the Bay Area) following the same federal urbanization pattern.
+
+WHAT DETROIT RELOCATION MEANS FOR MEMBER RECORDS:
+• Detroit employment, housing, hospital, and municipal records from the relocation era (1956–1975) typically classified Indian residents as white or other — not Indian. This is a documentation artifact, not an identity record.
+• Absence of "Indian" classification in Detroit city records does not extinguish Indian status. IHCIA (25 U.S.C. §§ 1651–1660i) explicitly covers urban Indians.
+• BIA relocation files, vocational training records, and relocation office correspondence are at the National Archives (RG 75) and may document family relocation to Detroit directly.
+• Pan-tribal urban organizations, Indian centers, church congregations, powwow circuits, and mutual aid networks that formed in Detroit in the 1960s–1970s are all legally valid continuity evidence under the broad federal definition of Indian.
+
+LEGAL SIGNIFICANCE OF THE DETROIT CONNECTION:
+Detroit is not merely where ancestors happened to live — it was a federally influenced relocation destination, making family presence there part of a federally documented migration pathway. This strengthens:
+• Urban Indian continuity arguments under IHCIA (25 U.S.C. §§ 1651–1660i)
+• Federal trust responsibility arguments for urban descendants
+• Continuity arguments where Detroit city records misclassified Indian residents
+• The Southeast → Detroit → California corridor as an archivally documented federal relocation pathway
+
+BEST EVIDENCE STACK FOR DETROIT CONTINUITY (in priority order):
+1. Indian Relocation Act of 1956 (Public Law 84-959) — governing federal statute
+2. National Archives BIA Urban Relocation Records (RG 75) — federal archival source
+3. Stanford Ethnogeriatrics archive — relocation city lists explicitly naming Detroit
+4. Detroit Native population growth documentation — Native Americans in Detroit
+5. Family records: migration documents, census records, addresses, employment records, birth records, church/community records from the Detroit relocation era
+6. Modern continuity: current tribal governance, IHS continuity, trust land continuity, Bakersfield/California continuity connection
 `.trim();
 
 async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string; name: string; roles: string[] }): Promise<string> {

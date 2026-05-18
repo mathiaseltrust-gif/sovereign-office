@@ -1148,14 +1148,14 @@
     "era": "termination",
     "event_type": "Act of Congress",
     "policy_area": "Urban Relocation",
-    "description": "Federal program that actively moved Indian people from reservations to designated cities — Chicago, Los Angeles, Denver, San Francisco, Seattle, Minneapolis — with promises of jobs, housing, and vocational training. Promises were frequently broken. Created the modern urban Indian population. Designed in part to reduce the visible reservation Indian population and accelerate termination.",
+    "description": "Federal program that actively moved Indian people from reservations to designated cities — Chicago, Los Angeles, Denver, San Francisco, Seattle, Minneapolis, Detroit, Cleveland, and Dallas — with promises of jobs, housing, and vocational training. Promises were frequently broken. Created the modern urban Indian population. Designed in part to reduce the visible reservation Indian population and accelerate termination.",
     "plain_language_summary": "The federal government ran a program offering Native people one-way bus tickets to cities with promises of jobs and housing. The promises were often broken. The program moved tens of thousands of people to cities and then largely abandoned them.",
     "identity_impact": "Relocation brochures described the program as a path to becoming 'regular Americans.' City social workers, schools, and hospitals classified Indian relocatees by census race categories — often as 'white' or 'other.'",
     "reclassification_impact": "City records from Chicago, Los Angeles, and Denver show Indian relocatees classified in employment, school, and hospital records as non-Indian throughout the 1950s and 1960s.",
     "continuity_impact": "Relocatees formed intertribal community organizations in every relocation city within years of arrival — maintaining Indigenous identity and community in new urban settings.",
     "family_impact": "Families were separated across reservation and city. Relocatees who could not afford to return were permanently separated from extended family networks.",
     "public_school_impact": "Relocatee children entered urban public schools without Indian education support. Many were placed in remedial tracks based on standardized tests that measured cultural difference, not ability.",
-    "urbanization_impact": "Created the modern urban Indian population. Cities receiving the most relocatees: Los Angeles (largest), Chicago, Minneapolis, Denver, San Francisco Bay Area, Seattle.",
+    "urbanization_impact": "Created the modern urban Indian population. Cities receiving the most relocatees: Los Angeles (largest), Chicago, Minneapolis, Denver, San Francisco Bay Area, Seattle, Detroit, Cleveland, Dallas.",
     "health_access_impact": "Indian Health Service did not cover urban relocatees. City hospitals treated Indian patients as uninsured. Urban Indian health organizations developed in response to this gap.",
     "housing_impact": "Federal housing assistance promised to relocatees typically lasted 3–6 months, after which families were on their own in city housing markets. Many ended up in substandard housing or transient hotels.",
     "labor_migration_impact": "Vocational training programs were inadequate. Most relocatees entered low-wage industrial or domestic service jobs. Many were unemployed within a year.",
@@ -1173,7 +1173,10 @@
       "Illinois",
       "Minnesota",
       "Colorado",
-      "Washington"
+      "Washington",
+      "Michigan",
+      "Ohio",
+      "Texas"
     ],
     "coordinates": [
       34.0,
@@ -1192,11 +1195,70 @@
       "chicago",
       "los-angeles",
       "minneapolis",
+      "detroit",
+      "cleveland",
+      "dallas",
       "critical"
     ],
     "severity_level": "critical",
     "continuity_survival_note": "Within years of relocation, Indian people in every relocation city organized community centers, powwows, church congregations, sports leagues, and mutual aid networks. Urban Indian identity was not lost — it was remade in new settings.",
-    "ancestor_relevance_note": "If an ancestor moved to Chicago, Los Angeles, Minneapolis, Denver, or the Bay Area in the late 1950s or 1960s, they may have been a formal relocation participant. BIA relocation records are at the National Archives."
+    "ancestor_relevance_note": "If an ancestor moved to Chicago, Los Angeles, Minneapolis, Denver, the Bay Area, Detroit, Cleveland, or Dallas in the late 1950s or 1960s, they may have been a formal relocation participant. BIA relocation records are at the National Archives (RG 75)."
+  },
+  {
+    "id": "evt-detroit-relocation",
+    "title": "Detroit — Documented BIA Urban Relocation Destination",
+    "short_title": "Detroit Relocation Hub",
+    "year": 1956,
+    "date_start": "1956-01-01",
+    "date_end": "1975-01-01",
+    "era": "termination",
+    "event_type": "Federal Policy",
+    "policy_area": "Urban Relocation",
+    "description": "Detroit was one of the federally promoted BIA urban relocation destination cities under Public Law 84-959 (Indian Relocation Act of 1956). Archival sources — Stanford Ethnogeriatrics records, National Archives BIA collections (RG 75), and Newberry Library Bureau of Indian Affairs collections — explicitly name Detroit alongside Chicago, Cleveland, Dallas, and Denver as relocation cities. Native people relocated to Detroit entered a city that had already absorbed Indian defense-industry workers from WWII. Detroit became a pan-tribal urban Indian continuity center, with Native organizing, community networks, and intertribal kinship systems forming within years of relocation-era arrivals.",
+    "plain_language_summary": "Federal records and archives document Detroit as one of the cities where the BIA sent Native people under the relocation program. Indian families who came to Detroit in the 1950s–1970s were part of a federal program — not random migrants. Their descendants retain full tribal rights regardless of how city records classified them.",
+    "identity_impact": "City records in Detroit rarely classified Native residents as Indian. Employment records, housing documents, hospital records, and school enrollment records typically classified Indian relocatees as white or other — creating the same identity documentation gap found in every relocation city.",
+    "reclassification_impact": "Indian relocatees in Detroit appear in city records as white or other — not as Indian. This creates evidentiary challenges for descendants establishing their family's presence in Detroit during the relocation era. That misclassification is a documentation artifact, not an identity record.",
+    "continuity_impact": "Detroit's Native community organized rapidly post-relocation, following the pan-tribal urbanization pattern found in every relocation city. Urban Indian centers, intertribal powwow circuits, and community networks formed in Detroit during the 1960s–1970s.",
+    "family_impact": "Families relocated to Detroit were separated from extended reservation and community networks. The one-way nature of relocation funding meant many could not afford to return.",
+    "urbanization_impact": "Detroit became one of the Midwest urban Indian continuity centers — a node in the documented Southeast → Detroit → California relocation corridor connecting ancestral communities to modern urban Indian populations.",
+    "health_access_impact": "Detroit relocatees were outside IHS service area. Urban Indian health access remained a documented gap in Detroit throughout the relocation era.",
+    "housing_impact": "Federal housing assistance for Detroit relocatees lasted 3–6 months, after which families navigated the city housing market without support — the same broken promise pattern as every relocation city.",
+    "labor_migration_impact": "Detroit's automotive and manufacturing industry attracted both voluntary and BIA-assisted Indian migrants. Factory employment records from this period may document Native workers without Indian racial classification.",
+    "land_impact": null,
+    "jurisdiction_impact": "Detroit relocatees lost access to federal Indian services. Urban Indian organizations eventually developed to fill this gap.",
+    "modern_effect": "Detroit's urban Indian community is a documented relocation-era continuity network. Descendants of Detroit relocatees retain full tribal rights and federal Indian status regardless of city records that did not classify their ancestors as Indian.",
+    "affected_people": "All tribal nations — particularly Southeast tribal nations (Choctaw, Cherokee, Creek, Chickasaw, Seminole) relocated via the Southeast-to-Midwest corridor",
+    "affected_regions": [
+      "Midwest",
+      "Great Lakes",
+      "Southeast"
+    ],
+    "states_affected": [
+      "Michigan"
+    ],
+    "coordinates": [
+      42.33,
+      -83.05
+    ],
+    "source_title": "Stanford Ethnogeriatrics Termination & Relocation Archive; National Archives BIA Urban Relocation Records (RG 75); Newberry Library BIA Indian Relocation Records",
+    "source_url": "https://geriatrics.stanford.edu/ethnomed/american_indian/introduction/historical/",
+    "source_type": "Archival / Academic",
+    "citation": "Stanford Ethnogeriatrics; National Archives RG 75; Newberry Library BIA Relocation Records; Public Law 84-959 (1956)",
+    "public_law_number": "Public Law 84-959",
+    "status": "historical",
+    "tags": [
+      "detroit",
+      "urban",
+      "relocation",
+      "continuity",
+      "midwest",
+      "michigan",
+      "termination",
+      "critical"
+    ],
+    "severity_level": "critical",
+    "continuity_survival_note": "Detroit's Indian community organized rapidly after relocation — forming intertribal networks, urban Indian centers, and community coalitions that maintained Indigenous identity outside the reservation system. Urban Indian identity in Detroit was not lost — it was rebuilt in a new setting.",
+    "ancestor_relevance_note": "Ancestors documented in Detroit in the 1950s–1970s may have been BIA-assisted relocatees under Public Law 84-959. BIA relocation records are at the National Archives (RG 75). Detroit employment, housing, and municipal records from this period likely classified Indian residents as white or other — not Indian. That misclassification is a documentation artifact, not an identity record."
   },
   {
     "id": "evt-016",
@@ -1800,16 +1862,57 @@
     "jurisdiction_impact": "State identity classifications created administrative barriers to federal Indian law protections that persist in genealogical and legal research today.",
     "modern_effect": "Census misclassification from this era is the primary source of documentary 'evidence' incorrectly used to challenge Native ancestry today. The correct answer: a census listing of 'W,' 'B,' or 'M' for an ancestor in any Southern state between 1883 and 1967 is evidence of reclassification — not of actual non-Native identity.",
     "affected_people": "All Native Americans in anti-miscegenation states, particularly: Virginia Indians, Georgia Cherokee, Louisiana Houma and Chitimacha, Mississippi Choctaw, North Carolina Lumbee and Coharie, Tennessee Cherokee and Melungeon families, Alabama Creek and Cherokee remnants, South Carolina Catawba",
-    "affected_regions": ["Southeast", "South", "Mid-Atlantic", "South Central", "National"],
-    "states_affected": ["Virginia", "Georgia", "Louisiana", "Mississippi", "Alabama", "North Carolina", "Tennessee", "South Carolina", "Arkansas", "Florida", "Kentucky", "Maryland", "Oklahoma", "Texas", "West Virginia", "Missouri", "Indiana", "Montana", "Wyoming", "Nebraska", "South Dakota", "North Dakota"],
-    "coordinates": [33.5, -86.8],
+    "affected_regions": [
+      "Southeast",
+      "South",
+      "Mid-Atlantic",
+      "South Central",
+      "National"
+    ],
+    "states_affected": [
+      "Virginia",
+      "Georgia",
+      "Louisiana",
+      "Mississippi",
+      "Alabama",
+      "North Carolina",
+      "Tennessee",
+      "South Carolina",
+      "Arkansas",
+      "Florida",
+      "Kentucky",
+      "Maryland",
+      "Oklahoma",
+      "Texas",
+      "West Virginia",
+      "Missouri",
+      "Indiana",
+      "Montana",
+      "Wyoming",
+      "Nebraska",
+      "South Dakota",
+      "North Dakota"
+    ],
+    "coordinates": [
+      33.5,
+      -86.8
+    ],
     "source_title": "Racial Integrity Act of Virginia (1924); Anti-Miscegenation Statutes, Multiple States (1883–1967)",
     "source_url": "https://www.encyclopediavirginia.org/Racial_Integrity_Laws_of_the_1920s",
     "source_type": "State Records",
     "citation": "Virginia Acts of Assembly, 1924, Chapter 371; Loving v. Virginia, 388 U.S. 1 (1967)",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["reclassification", "census", "identity", "paper-genocide", "anti-miscegenation", "critical", "southeastern", "national"],
+    "tags": [
+      "reclassification",
+      "census",
+      "identity",
+      "paper-genocide",
+      "anti-miscegenation",
+      "critical",
+      "southeastern",
+      "national"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Native communities in every affected state maintained ceremonies, kinship networks, oral histories, and governance structures throughout this era. Their survival is documented in living communities — not in the official records that were deliberately falsified.",
     "ancestor_relevance_note": "An ancestor classified as 'colored,' 'negro,' 'mulatto,' or 'free person of color' in any Southern state record between 1883 and 1967 may be a victim of racial reclassification policy — not evidence of non-Native ancestry. Community recognition, oral tradition, and kinship documentation are legally valid identity markers under federal Indian law."
@@ -1839,16 +1942,31 @@
     "jurisdiction_impact": null,
     "modern_effect": "Georgia Native ancestry research is complicated by the systematic 'colored' classification in 20th-century vital records. The absence of Georgia state-recognized tribes correlates with the record erasure of this era.",
     "affected_people": "Georgia Cherokee, Georgia Creek (Muscogee) descendants, mixed-ancestry families in northern and central Georgia",
-    "affected_regions": ["Southeast"],
-    "states_affected": ["Georgia"],
-    "coordinates": [32.8, -83.6],
+    "affected_regions": [
+      "Southeast"
+    ],
+    "states_affected": [
+      "Georgia"
+    ],
+    "coordinates": [
+      32.8,
+      -83.6
+    ],
     "source_title": "Georgia Vital Statistics Records, 1920s–1960s; Georgia Department of Public Health Archives",
     "source_url": "https://www.atlantahistorycenter.com/",
     "source_type": "State Records",
     "citation": "Georgia Code, Vital Statistics Act (1927 amendments)",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["reclassification", "state-records", "georgia", "cherokee", "creek", "paper-genocide", "critical"],
+    "tags": [
+      "reclassification",
+      "state-records",
+      "georgia",
+      "cherokee",
+      "creek",
+      "paper-genocide",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Georgia Cherokee and Creek families maintained kinship networks, cultural traditions, and community memory across this era even as official records denied their existence.",
     "ancestor_relevance_note": "Georgia ancestors listed as 'colored' or 'negro' in vital records after 1927 may be Native families subject to state reclassification policy. Oral history, kinship documentation, and community recognition are controlling over administrative record classifications."
@@ -1878,16 +1996,33 @@
     "jurisdiction_impact": null,
     "modern_effect": "The United Houma Nation's federal recognition petition remains pending. The Louisiana vital records classification is one of the evidentiary challenges in their recognition case. Their 'colored' classification in official records is cited against them — when it was the state's own reclassification policy.",
     "affected_people": "United Houma Nation, Chitimacha, Tunica-Biloxi, Coushatta, Atakapas-Ishak, and mixed-ancestry Native Louisiana families",
-    "affected_regions": ["South Central", "Gulf Coast"],
-    "states_affected": ["Louisiana", "Mississippi"],
-    "coordinates": [29.4, -91.2],
+    "affected_regions": [
+      "South Central",
+      "Gulf Coast"
+    ],
+    "states_affected": [
+      "Louisiana",
+      "Mississippi"
+    ],
+    "coordinates": [
+      29.4,
+      -91.2
+    ],
     "source_title": "Louisiana Vital Statistics Records; Houma Nation Federal Recognition Petition; Mary Haas, 'Tunica Texts' (1941)",
     "source_url": "https://www.unitedhoumanation.org/",
     "source_type": "State Records",
     "citation": "Louisiana Revised Statutes, Vital Statistics provisions (1910–1967); Loving v. Virginia, 388 U.S. 1 (1967)",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["reclassification", "louisiana", "houma", "chitimacha", "paper-genocide", "one-drop", "critical"],
+    "tags": [
+      "reclassification",
+      "louisiana",
+      "houma",
+      "chitimacha",
+      "paper-genocide",
+      "one-drop",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The Houma and other Louisiana Native nations have maintained active tribal governance, community ceremonies, and cultural preservation throughout the era of official erasure. Their survival as peoples is the authoritative record — not the state's vital statistics.",
     "ancestor_relevance_note": "Louisiana ancestors classified as 'colored,' 'negro,' or 'free person of color' may be Native people subject to the one-drop classification policy. Federal Indian law does not recognize state vital statistics classifications as controlling over actual Indigenous ancestry and community membership."
@@ -1917,16 +2052,34 @@
     "jurisdiction_impact": null,
     "modern_effect": "Mississippi Choctaw ancestry research often encounters the 1930 census break. A family appearing as Indian through 1920 and as Negro from 1930 onward is a reclassification artifact — not a change in ancestry. The Dawes Roll, the 1910 Indian Schedule, and the 1898 Mississippi Choctaw census are the controlling identity documents.",
     "affected_people": "Mississippi Band of Choctaw Indians (Article XIV Choctaw), mixed-ancestry Native Mississippi families",
-    "affected_regions": ["Southeast", "South"],
-    "states_affected": ["Mississippi", "Alabama", "Tennessee"],
-    "coordinates": [32.3, -89.0],
+    "affected_regions": [
+      "Southeast",
+      "South"
+    ],
+    "states_affected": [
+      "Mississippi",
+      "Alabama",
+      "Tennessee"
+    ],
+    "coordinates": [
+      32.3,
+      -89.0
+    ],
     "source_title": "U.S. Census Bureau Enumerator Instructions (1930); Mississippi Band of Choctaw Indians Tribal Records",
     "source_url": "https://www.choctaw.org/",
     "source_type": "Census Materials",
     "citation": "U.S. Census Bureau, Instructions to Enumerators (1930); Mississippi Choctaw Agency Records (Bureau of Indian Affairs)",
     "public_law_number": null,
     "status": "documented",
-    "tags": ["reclassification", "census", "mississippi", "choctaw", "paper-genocide", "critical", "1930"],
+    "tags": [
+      "reclassification",
+      "census",
+      "mississippi",
+      "choctaw",
+      "paper-genocide",
+      "critical",
+      "1930"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The Mississippi Band of Choctaw Indians maintained community governance, language, ceremony, and tribal structure through the 1930 reclassification era and continues as a federally recognized tribe today. The census record does not define the people.",
     "ancestor_relevance_note": "If a Mississippi ancestor appears as 'Indian' in pre-1930 census records and as 'Negro' in 1930 or later records, the 1930 enumerator instructions explain the change — not a change in ancestry. The Dawes Roll, 1910 Indian Schedule, and community records are the authoritative sources."
@@ -1956,16 +2109,35 @@
     "jurisdiction_impact": "Federal non-recognition based on tri-racial isolate classification left NC Native communities without access to BIA services, Indian land protections, and ICWA protections.",
     "modern_effect": "The Lumbee Tribe of North Carolina remains the largest non-federally-recognized tribe in the U.S. — with over 55,000 enrolled members. Their federal recognition has been blocked in Congress repeatedly. The tri-racial isolate classification from this era is still an obstacle in their recognition case.",
     "affected_people": "Lumbee Tribe of North Carolina, Coharie Tribe, Waccamaw Siouan Tribe, Haliwa-Saponi Tribe, and other NC Native communities",
-    "affected_regions": ["Southeast", "Mid-Atlantic"],
-    "states_affected": ["North Carolina", "Maryland", "Virginia"],
-    "coordinates": [34.6, -79.0],
+    "affected_regions": [
+      "Southeast",
+      "Mid-Atlantic"
+    ],
+    "states_affected": [
+      "North Carolina",
+      "Maryland",
+      "Virginia"
+    ],
+    "coordinates": [
+      34.6,
+      -79.0
+    ],
     "source_title": "Berry, Brewton, 'Almost White' (1963); North Carolina State Archives, Indian Division Records",
     "source_url": "https://www.lumbeetribe.com/",
     "source_type": "State Records",
     "citation": "North Carolina Session Laws; Berry, 'Almost White' (1963); Dial & Eliades, 'The Only Land I Know: A History of the Lumbee Indians' (1975)",
     "public_law_number": null,
     "status": "ongoing",
-    "tags": ["reclassification", "north-carolina", "lumbee", "coharie", "tri-racial", "paper-genocide", "critical", "federal-recognition"],
+    "tags": [
+      "reclassification",
+      "north-carolina",
+      "lumbee",
+      "coharie",
+      "tri-racial",
+      "paper-genocide",
+      "critical",
+      "federal-recognition"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The Lumbee people have maintained tribal governance, cultural identity, and community integrity for centuries despite systematic denial from both state and federal governments. Their continuity is documented in their people — not in the government records that denied them.",
     "ancestor_relevance_note": "Lumbee, Coharie, and other NC Native ancestors may appear with inconsistent racial classifications depending on which state or federal record is consulted. The tri-racial isolate classification in anthropological and government reports does not override actual Native ancestry and community membership."
@@ -1995,16 +2167,40 @@
     "jurisdiction_impact": null,
     "modern_effect": "Plecker's surname hit list is a publicly known document. Families with surnames on that list — including Adkins, Branham, Clark, Dungey, Hamilton, Johns, Painter, Sorrells, Shortt, and dozens more — should assume their ancestors' records were targeted for reclassification regardless of the record classification that appears.",
     "affected_people": "Virginia Indian families and all families with surnames on Plecker's surname list across the Southeast",
-    "affected_regions": ["Mid-Atlantic", "Southeast", "South"],
-    "states_affected": ["Virginia", "West Virginia", "North Carolina", "Georgia", "Tennessee", "Alabama", "South Carolina", "Maryland"],
-    "coordinates": [37.5, -78.5],
+    "affected_regions": [
+      "Mid-Atlantic",
+      "Southeast",
+      "South"
+    ],
+    "states_affected": [
+      "Virginia",
+      "West Virginia",
+      "North Carolina",
+      "Georgia",
+      "Tennessee",
+      "Alabama",
+      "South Carolina",
+      "Maryland"
+    ],
+    "coordinates": [
+      37.5,
+      -78.5
+    ],
     "source_title": "Plecker, W.A., Circular Letters to Virginia County Registrars (1930–1946); National Archives, Indian Records Collection",
     "source_url": "https://www.encyclopediavirginia.org/Walter_Ashby_Plecker",
     "source_type": "State Records",
     "citation": "Virginia Department of Health Records; Morales, Robert, 'The Racial Integrity Act and the Monacan Indians' (1992)",
     "public_law_number": null,
     "status": "documented",
-    "tags": ["reclassification", "plecker", "paper-genocide", "virginia", "southeastern", "critical", "census"],
+    "tags": [
+      "reclassification",
+      "plecker",
+      "paper-genocide",
+      "virginia",
+      "southeastern",
+      "critical",
+      "census"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "The families on Plecker's hit list survived his campaign. They maintained identity through kinship, ceremony, oral tradition, and community structures that paper never captured and never could.",
     "ancestor_relevance_note": "If your ancestor's surname appears on Plecker's surname list and they lived in any Virginia or surrounding state county between 1930 and 1967, their records were almost certainly reviewed and potentially altered by registrars acting on Plecker's instructions. The record classification in vital statistics is the product of this campaign — not a reflection of actual identity."
@@ -2034,16 +2230,35 @@
     "jurisdiction_impact": null,
     "modern_effect": "Melungeon ancestry research is a specific field precisely because of the incompatible and politically motivated record classifications of this era. The Melungeon Heritage Association documents the multi-ethnic Native, African, and European ancestry of Appalachian communities whose records were systematically falsified.",
     "affected_people": "Eastern Band Cherokee families in Tennessee, Melungeon communities of Appalachian Tennessee, mixed-ancestry Native families in East and Middle Tennessee",
-    "affected_regions": ["Southeast", "Appalachia"],
-    "states_affected": ["Tennessee", "North Carolina", "Virginia", "Kentucky"],
-    "coordinates": [36.1, -83.5],
+    "affected_regions": [
+      "Southeast",
+      "Appalachia"
+    ],
+    "states_affected": [
+      "Tennessee",
+      "North Carolina",
+      "Virginia",
+      "Kentucky"
+    ],
+    "coordinates": [
+      36.1,
+      -83.5
+    ],
     "source_title": "Tennessee Vital Statistics Records; Melungeon Heritage Association Documentation; Hashaw, Tim, 'The Birth of Black America' (2007)",
     "source_url": "https://www.melungeon.org/",
     "source_type": "State Records",
     "citation": "Tennessee Code Annotated, Anti-Miscegenation Provisions (pre-1967); Loving v. Virginia, 388 U.S. 1 (1967)",
     "public_law_number": null,
     "status": "repealed",
-    "tags": ["reclassification", "tennessee", "cherokee", "melungeon", "paper-genocide", "appalachia", "critical"],
+    "tags": [
+      "reclassification",
+      "tennessee",
+      "cherokee",
+      "melungeon",
+      "paper-genocide",
+      "appalachia",
+      "critical"
+    ],
     "severity_level": "critical",
     "continuity_survival_note": "Cherokee and Melungeon communities in Tennessee maintained cultural identity, kinship networks, and community recognition structures through this entire era. Living community membership is the authoritative identity record.",
     "ancestor_relevance_note": "Tennessee ancestors classified as 'colored' or 'free persons of color' in the Jim Crow era may be Native families subject to the two-race classification policy. Eastern Band Cherokee documentation and Melungeon community records are more reliable than Tennessee vital statistics from this period."
