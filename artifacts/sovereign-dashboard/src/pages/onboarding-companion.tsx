@@ -8,21 +8,14 @@ type Message = { role: "user" | "assistant"; content: string };
 
 const WELCOME_PARAGRAPHS = [
   "Welcome to Companion.",
-  "It's good to see you here.",
-  "Companion is part of a living system built to help preserve our history, strengthen continuity, organize knowledge, and support our people moving forward with greater awareness and direction.",
-  "A lot is changing around us. History is still unfolding in real time. Because of that, understanding who we are, where we come from, and how we protect and preserve that legacy matters now more than ever.",
-  "That's why Companion exists.",
-  "As you move through the platform, Companion will guide you naturally through the system — helping you explore tools, organize information, document history, learn, build, and navigate the platform with greater ease.",
-  "You can ask Companion questions at any time.",
-  "Whether you're trying to understand a process, locate tools or records, build documentation, organize family or ancestral information, learn about protections and continuity, or simply figure out where to begin — Companion is designed to help guide you there.",
-  "Over time, Companion may softly ask questions about your background, interests, family history, goals, or the areas you're exploring. This helps personalize your experience and allows the system to better assist you as it grows alongside you.",
-  "Nothing here is intended to feel forced, rushed, or transactional.",
-  "We are building continuity. We are preserving memory. We are organizing knowledge. We are protecting identity, history, and legacy for the generations still to come.",
+  "Companion is part of a living system built to help preserve our history, strengthen continuity, organize knowledge, and support our people moving forward.",
+  "As you move through the platform, Companion will guide you naturally — helping you explore tools, organize information, document history, build documentation, and navigate with greater ease.",
+  "You can ask Companion questions at any time. Nothing here is intended to feel forced, rushed, or transactional.",
   "We're glad you're here, Family.\n\nWelcome to Companion.",
 ];
 
 const INITIAL_COMPANION_MESSAGE =
-  `It's good to see you here, Family.\n\nI'm Companion — an intelligent guide built into this platform to help you navigate, understand, and make the most of what's here.\n\nThis system was built to help preserve history, organize knowledge, protect identity and legacy, and support our people moving forward. That's a meaningful mission — and I'm here to help make it feel accessible.\n\nBefore we explore the platform together, I'd like to get to know you a little.\n\nTo start simply: what would you like me to call you?`;
+  `It's good to see you here, Family.\n\nI'm Companion — your guide through this platform. I'm here to help you navigate tools, organize information, document history, and find what you need.\n\nBefore we get started, I'd like to get to know you a little.\n\nWhat would you like me to call you?`;
 
 export default function OnboardingCompanionPage() {
   const [, navigate] = useLocation();
@@ -75,7 +68,16 @@ export default function OnboardingCompanionPage() {
       });
       if (!res.ok) throw new Error("Response failed");
       const data = (await res.json()) as { reply: string };
-      setMessages((prev) => [...prev, { role: "assistant", content: data.reply }]);
+      const clean = (data.reply as string)
+        .replace(/\*\*(.+?)\*\*/gs, "$1")
+        .replace(/\*(.+?)\*/gs, "$1")
+        .replace(/__(.+?)__/gs, "$1")
+        .replace(/_(.+?)_/gs, "$1")
+        .replace(/^#{1,6}\s+/gm, "")
+        .replace(/`([^`]+)`/g, "$1")
+        .replace(/\[([^\]]+)\]\([^\)]+\)/g, "$1")
+        .replace(/^[*-]\s+/gm, "• ");
+      setMessages((prev) => [...prev, { role: "assistant", content: clean }]);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -149,9 +151,9 @@ export default function OnboardingCompanionPage() {
             <button
               onClick={completeOnboarding}
               disabled={completing}
-              className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1.5 text-xs font-medium text-foreground/70 border border-border px-5 py-2.5 rounded-xl hover:bg-muted/50 hover:text-foreground transition-colors disabled:opacity-50"
             >
-              Skip and explore the platform →
+              Skip — I'm ready to explore the platform <ArrowRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
@@ -174,7 +176,7 @@ export default function OnboardingCompanionPage() {
         <button
           onClick={completeOnboarding}
           disabled={completing}
-          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-primary border border-primary/30 rounded-lg hover:bg-primary/5 transition-colors disabled:opacity-60"
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold text-foreground border border-border rounded-lg hover:bg-muted/50 transition-colors disabled:opacity-60"
         >
           {completing ? (
             <Loader2 className="w-3.5 h-3.5 animate-spin" />
@@ -236,6 +238,9 @@ export default function OnboardingCompanionPage() {
             }}
             placeholder="Share something about yourself, or ask Companion a question…"
             rows={2}
+            spellCheck={false}
+            autoCorrect="off"
+            autoCapitalize="off"
             className="flex-1 resize-none rounded-xl border border-input bg-background px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 placeholder:text-muted-foreground/50 leading-relaxed"
           />
           <button

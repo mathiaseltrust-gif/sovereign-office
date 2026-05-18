@@ -1150,6 +1150,62 @@ const INTAKE_QUESTIONS = [
   },
 ];
 
+/* ── Incomplete intake indicator ── */
+const INTAKE_TYPES = [
+  { key: "identity-lineage", label: "Identity & Lineage" },
+  { key: "housing-land",     label: "Housing & Land Protection" },
+  { key: "healthcare",       label: "Healthcare & Benefits" },
+  { key: "welfare",          label: "Welfare & Protection" },
+  { key: "business",         label: "Sovereign Business" },
+] as const;
+
+function IntakeStatusIndicator() {
+  const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+  const [open, setOpen] = useState(false);
+  const incomplete = INTAKE_TYPES.filter(
+    (t) => !sessionStorage.getItem(`intake_completed_${t.key}`)
+  );
+  if (incomplete.length === 0) return null;
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-sm overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/30 transition-colors"
+      >
+        <div className="flex items-center gap-2">
+          <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" />
+          <span className="text-xs font-medium text-foreground">
+            {incomplete.length} intake{incomplete.length > 1 ? "s" : ""} not yet completed
+          </span>
+        </div>
+        <ChevronDown
+          className={`w-3.5 h-3.5 text-muted-foreground transition-transform ${open ? "rotate-180" : ""}`}
+        />
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2 border-t border-border pt-3">
+          <p className="text-[11px] text-muted-foreground leading-relaxed">
+            The following intakes have not been completed yet. You can continue at any time — your profile
+            will be updated as more information is gathered.
+          </p>
+          <div className="flex flex-wrap gap-2 pt-1">
+            {incomplete.map((t) => (
+              <a
+                key={t.key}
+                href={`${base}/intake-companion?type=${t.key}`}
+                className="inline-flex items-center gap-1.5 text-xs text-primary border border-primary/30 rounded-lg px-3 py-1.5 hover:bg-primary/5 transition-colors"
+              >
+                <ChevronRight className="w-3 h-3" />
+                {t.label}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 /* ═══════════════════════════════════════════════════
    Main Page
 ═══════════════════════════════════════════════════ */
@@ -1772,6 +1828,9 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
+
+      {/* ── Incomplete intake indicator ── */}
+      <IntakeStatusIndicator />
 
       {/* ── Smoke check ── */}
       <SmokeCheckBar />
