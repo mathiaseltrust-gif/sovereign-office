@@ -425,7 +425,10 @@ export default function Atlas() {
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [yearRange, setYearRange] = useState<[number, number]>([1790, new Date().getFullYear()]);
   const [atlasMode, setAtlasMode] = useState(false);
-  const [authenticated] = useState(() => isAtlasAuthenticated());
+  // Re-check localStorage on every render when atlasMode is on so tokens
+  // written after page load (e.g. from signing into Sovereign Dashboard in
+  // another tab) are picked up without requiring a page refresh.
+  const authenticated = atlasMode ? isAtlasAuthenticated() : false;
 
   const [activeEras, setActiveEras] = useState<string[]>([]);
   const [activeTypes, setActiveTypes] = useState<string[]>([]);
@@ -460,16 +463,16 @@ export default function Atlas() {
   });
 
   const { data: ancestors = [], isLoading: ancestorsLoading } = useQuery({
-    queryKey: ["/api/atlas/ancestors", authenticated],
+    queryKey: ["/api/atlas/ancestors", atlasMode, authenticated],
     queryFn: fetchAncestors,
-    enabled: atlasMode && authenticated,
+    enabled: atlasMode,
     staleTime: 5 * 60_000,
   });
 
   const { data: contextMatches = [] } = useQuery({
-    queryKey: ["/api/atlas/ancestors/context", authenticated],
+    queryKey: ["/api/atlas/ancestors/context", atlasMode, authenticated],
     queryFn: fetchAncestorContext,
-    enabled: atlasMode && authenticated,
+    enabled: atlasMode,
     staleTime: 5 * 60_000,
   });
 

@@ -62,8 +62,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         ORDER BY created_at DESC
         LIMIT 1
       ) tl ON true
-      WHERE fl.added_by_member_id = ${userId}
-        AND fl.is_deceased = true
+      WHERE fl.is_deceased = true
+        AND (fl.is_ancestor = true OR fl.added_by_member_id = ${userId})
       ORDER BY fl.generational_position NULLS LAST, fl.full_name NULLS LAST
     `);
 
@@ -249,8 +249,8 @@ router.get("/ancestors/context", requireAuth, async (req, res, next) => {
       FROM family_lineage fl
       CROSS JOIN atlas_events ae
       WHERE
-        fl.added_by_member_id = ${userId}
-        AND fl.is_deceased = true
+        fl.is_deceased = true
+        AND (fl.is_ancestor = true OR fl.added_by_member_id = ${userId})
         AND (fl.birth_year IS NOT NULL OR fl.death_year IS NOT NULL)
         AND (
           (fl.birth_year IS NULL OR fl.birth_year <= ae.year + 30)

@@ -119,6 +119,8 @@ const REGION_COORD_MAP: Record<string, [number, number]> = {
   arkansas: [34.8, -92.2],
   texas: [31.0, -100.0],
   california: [36.5, -119.5],
+  "mathias el": [34.05, -118.24],
+  "mathias el tribe": [34.05, -118.24],
   "los angeles": [34.05, -118.24],
   chicago: [41.88, -87.63],
   minneapolis: [44.98, -93.27],
