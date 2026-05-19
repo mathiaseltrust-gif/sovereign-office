@@ -1710,7 +1710,7 @@ function ParcelDetailDrawer({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex">
+    <div className="fixed inset-0 z-[9999] flex">
       <div className="flex-1 bg-black/40" onClick={onClose} />
       <div className="w-full max-w-[520px] bg-background border-l border-border shadow-2xl flex flex-col h-full overflow-hidden">
         {/* ── Header ── */}
@@ -2030,12 +2030,13 @@ function MapTab({ parcels, onSelectParcel }: { parcels: Parcel[]; onSelectParcel
               </div>
             </div>
           `);
-        marker.on("click", () => { onSelectRef.current?.(p); });
         marker.on("popupopen", (e: unknown) => {
-          const el = (e as { popup: { getElement(): HTMLElement | null } }).popup.getElement();
+          const popup = (e as { popup: { getElement(): HTMLElement | null; close(): void } }).popup;
+          const el = popup.getElement();
           el?.querySelectorAll("[data-parcel-open]").forEach(node => {
             (node as HTMLElement).addEventListener("click", (ev) => {
               ev.stopPropagation();
+              popup.close();
               onSelectRef.current?.(p);
             });
           });
