@@ -1,7 +1,7 @@
 # ============================================================================
 # Sovereign Office — CI/CD Pipeline
 #
-# Triggers on every push to `main`.
+# Triggers on every push to `main` (production) and `staging`.
 #
 # What it does:
 #   1. Builds all four Docker images (api, sovereign, trust, community)
@@ -31,6 +31,18 @@
 #   SMTP_PORT          SMTP server port              e.g. 587
 #   SMTP_USERNAME      SMTP auth username            e.g. apikey
 #   SMTP_PASSWORD      SMTP auth password / API key
+#
+# Staging requires the same secrets defined in the `staging` GitHub Actions
+# environment (Settings → Environments → staging → Secrets):
+#
+#   ACR_REGISTRY, ACR_USERNAME, ACR_PASSWORD   (may share production ACR)
+#   DEPLOY_HOST       IP of the staging VM
+#   DEPLOY_USER       SSH login user on the staging VM
+#   DEPLOY_SSH_KEY    Private key for the staging VM
+#   DEPLOY_PATH       Absolute path on the staging VM  e.g. /opt/sovereign-office-staging
+#
+#   The alert secrets (SLACK_WEBHOOK_URL, NOTIFY_EMAIL, SMTP_*) can also be
+#   added to the staging environment to receive failure alerts for staging deploys.
 # ============================================================================
 
 name: Build & Deploy
@@ -39,6 +51,7 @@ on:
   push:
     branches:
       - main
+      - staging
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -47,7 +60,7 @@ concurrency:
 env:
   REGISTRY: ${{ secrets.ACR_REGISTRY }}
 
-  # ── Public domain names — SINGLE SOURCE OF TRUTH ─────────────────────────
+  # ── Production domain names — SINGLE SOURCE OF TRUTH ─────────────────────
   # To change a domain, update the matching GitHub Actions variable under
   # Settings → Secrets and variables → Actions → Variables, then update the
   # fallback default here.  These five values are referenced by every
@@ -69,10 +82,15 @@ env:
   ATLAS_URL:       ${{ vars.ATLAS_URL       || 'https://atlas.sovereignoffice.org' }}
 
 jobs:
-  # ── 1. Build and push all images ──────────────────────────────────────────
+  # ════════════════════════════════════════════════════════════════════════════
+  # PRODUCTION  (main branch only)
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── 1. Build and push all images (production) ─────────────────────────────
   build-and-push:
-    name: Build & Push Docker images
+    name: "[prod] Build & Push Docker images"
     runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main'
 
     outputs:
       image_tag: ${{ steps.meta.outputs.sha_tag }}
@@ -170,11 +188,12 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/urban-indian-atlas:latest
           cache-to: type=inline
 
-  # ── 2. Deploy to Azure VM via SSH ─────────────────────────────────────────
+  # ── 2. Deploy to Azure VM via SSH (production) ────────────────────────────
   deploy:
-    name: Rolling restart on Azure VM
+    name: "[prod] Rolling restart on Azure VM"
     runs-on: ubuntu-latest
     needs: build-and-push
+    environment: production
 
     steps:
       - name: Deploy via SSH
@@ -371,6 +390,329 @@ jobs:
           # Convert comma-separated service names into a plain-text bulleted list
           BULLET_LIST=$(printf '%s' "${FAILED_SERVICES:-unknown}" | awk -F', ' '{for(i=1;i<=NF;i++) printf "  • %s\n", $i}')
           BODY="One or more HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services:\n${BULLET_LIST}\n\nPlease review the workflow run for details:\n${RUN_URL}"
+          printf '%b' "$BODY" | curl -sf \
+            --url "smtp://${SMTP_HOST}:${PORT}" \
+            --ssl-reqd \
+            --user "${SMTP_USERNAME}:${SMTP_PASSWORD}" \
+            --mail-from "${SMTP_USERNAME}" \
+            --mail-rcpt "${NOTIFY_EMAIL}" \
+            --upload-file - \
+            --header "Subject: ${SUBJECT}" \
+            --header "Content-Type: text/plain"
+          echo "Email notification sent to ${NOTIFY_EMAIL}."
+
+  # ════════════════════════════════════════════════════════════════════════════
+  # STAGING  (staging branch only)
+  #
+  # URL variables are defined in the `staging` GitHub Actions environment:
+  #   Settings → Environments → staging → Variables
+  #
+  #   VITE_API_URL    │ https://api-staging.sovereignoffice.org
+  #   SOVEREIGN_URL   │ https://sovereign-staging.sovereignoffice.org
+  #   TRUST_URL       │ https://trust-staging.sovereignoffice.org
+  #   COMMUNITY_URL   │ https://community-staging.sovereignoffice.org
+  #   ATLAS_URL       │ https://atlas-staging.sovereignoffice.org
+  #
+  # Images are tagged with a `staging-` prefix to keep them separate from
+  # production images in ACR.
+  # ════════════════════════════════════════════════════════════════════════════
+
+  # ── 1. Build and push all images (staging) ────────────────────────────────
+  build-and-push-staging:
+    name: "[staging] Build & Push Docker images"
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/staging'
+    environment: staging
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.sha_tag }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set image tag
+        id: meta
+        run: echo "sha_tag=staging-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Azure Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ secrets.ACR_REGISTRY }}
+          username: ${{ secrets.ACR_USERNAME }}
+          password: ${{ secrets.ACR_PASSWORD }}
+
+      # ── API Server ─────────────────────────────────────────────────────────
+      - name: Build and push — api
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/api-server/Dockerfile
+          push: true
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/sovereign-api:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/sovereign-api:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/sovereign-api:staging
+          cache-to: type=inline
+
+      # ── Sovereign Office Dashboard ─────────────────────────────────────────
+      - name: Build and push — sovereign-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/sovereign-dashboard/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/sovereign-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/sovereign-dashboard:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/sovereign-dashboard:staging
+          cache-to: type=inline
+
+      # ── Trust Instruments Dashboard ────────────────────────────────────────
+      - name: Build and push — trust-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/trust-dashboard/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/trust-dashboard:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/trust-dashboard:staging
+          cache-to: type=inline
+
+      # ── Family & Community Dashboard ───────────────────────────────────────
+      - name: Build and push — community-dashboard
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/community-dashboard/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/community-dashboard:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/community-dashboard:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/community-dashboard:staging
+          cache-to: type=inline
+
+      # ── Urban Indian Continuity Atlas ───────────────────────────────────────
+      - name: Build and push — urban-indian-atlas
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/urban-indian-atlas/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:staging
+          cache-to: type=inline
+
+  # ── 2. Deploy to staging VM via SSH ───────────────────────────────────────
+  deploy-staging:
+    name: "[staging] Rolling restart on staging VM"
+    runs-on: ubuntu-latest
+    needs: build-and-push-staging
+    environment: staging
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            echo "==> Logging in to ACR"
+            echo "${{ secrets.ACR_PASSWORD }}" | \
+              docker login "${{ secrets.ACR_REGISTRY }}" \
+                --username "${{ secrets.ACR_USERNAME }}" \
+                --password-stdin
+
+            echo "==> Pinning IMAGE_TAG to ${{ needs.build-and-push-staging.outputs.image_tag }}"
+            export IMAGE_TAG="${{ needs.build-and-push-staging.outputs.image_tag }}"
+
+            echo "==> Pulling new staging images (all five services)"
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas
+
+            echo "==> Rolling restart — api"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api
+            echo "    Waiting for api to become healthy..."
+            timeout 90 bash -c \
+              'until docker compose -f docker-compose.prod.yml ps api | grep -q "healthy"; do sleep 3; done'
+
+            echo "==> Rolling restart — sovereign dashboard"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build sovereign
+
+            echo "==> Rolling restart — trust dashboard"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build trust
+
+            echo "==> Rolling restart — community dashboard"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build community
+
+            echo "==> Rolling restart — urban indian atlas"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build atlas
+
+            echo "==> Pruning unused images (keeps disk clean)"
+            docker image prune -f
+
+            echo "==> Smoke-testing all five staging services..."
+            SMOKE_FAIL=0
+            # API health check
+            if curl -sf --max-time 10 http://localhost:8080/api/healthz > /dev/null; then
+              echo "  ✓ api (8080)"
+            else
+              echo "  ✗ api (8080) — health check FAILED"
+              SMOKE_FAIL=1
+            fi
+            # Dashboard HTTP checks (nginx returns 200 for SPA index)
+            for PORT_NAME in "3001:sovereign" "3002:trust" "3003:community" "3004:atlas"; do
+              PORT="${PORT_NAME%%:*}"
+              NAME="${PORT_NAME##*:}"
+              CODE=$(curl -sf --max-time 10 -o /dev/null -w "%{http_code}" http://localhost:$PORT/ || echo "000")
+              if [ "$CODE" = "200" ]; then
+                echo "  ✓ $NAME ($PORT)"
+              else
+                echo "  ✗ $NAME ($PORT) — HTTP $CODE"
+                SMOKE_FAIL=1
+              fi
+            done
+            [ "$SMOKE_FAIL" -eq 0 ] || { echo "One or more staging services failed smoke test"; exit 1; }
+
+            echo "==> Staging deploy complete. Running containers:"
+            docker compose -f docker-compose.prod.yml ps
+
+      # ── 3. External HTTPS health check for staging ────────────────────────
+      # Reads URLs from the `staging` GitHub Actions environment variables.
+      # Skipped when VITE_API_URL is still an http:// address or unset.
+      - name: HTTPS health check — all five staging endpoints
+        id: healthcheck
+        if: vars.VITE_API_URL != '' && startsWith(vars.VITE_API_URL, 'https://')
+        env:
+          API_URL:       ${{ vars.VITE_API_URL    || 'https://api-staging.sovereignoffice.org' }}
+          SOVEREIGN_URL: ${{ vars.SOVEREIGN_URL   || 'https://sovereign-staging.sovereignoffice.org' }}
+          TRUST_URL:     ${{ vars.TRUST_URL       || 'https://trust-staging.sovereignoffice.org' }}
+          COMMUNITY_URL: ${{ vars.COMMUNITY_URL   || 'https://community-staging.sovereignoffice.org' }}
+          ATLAS_URL:     ${{ vars.ATLAS_URL       || 'https://atlas-staging.sovereignoffice.org' }}
+        run: |
+          set -euo pipefail
+          FAIL=0
+          FAILED_SERVICES=""
+
+          check_url() {
+            local label="$1"
+            local url="$2"
+            if [ -z "$url" ]; then
+              echo "  ✗ $label — URL variable is not set (check staging environment variables)"
+              FAILED_SERVICES="${FAILED_SERVICES}${label}, "
+              FAIL=1
+              return
+            fi
+            local code
+            code=$(curl -sf --max-time 15 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "  ✓ $label — HTTP $code"
+            else
+              echo "  ✗ $label — HTTP $code  ($url)"
+              FAILED_SERVICES="${FAILED_SERVICES}${label} (HTTP ${code}), "
+              FAIL=1
+            fi
+          }
+
+          echo "==> Checking staging HTTPS endpoints..."
+          check_url "api (healthz)"  "${API_URL%/}/healthz"
+          check_url "sovereign"      "${SOVEREIGN_URL}"
+          check_url "trust"          "${TRUST_URL}"
+          check_url "community"      "${COMMUNITY_URL}"
+          check_url "atlas"          "${ATLAS_URL}"
+
+          # Trim trailing ", " and export for notification steps
+          FAILED_SERVICES="${FAILED_SERVICES%, }"
+          echo "failed_services=${FAILED_SERVICES}" >> "$GITHUB_OUTPUT"
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo ""
+            echo "One or more staging HTTPS health checks failed — deployment aborted."
+            exit 1
+          fi
+          echo "==> All five staging HTTPS endpoints returned 200."
+
+      # ── 4. Alert on staging health-check failure ──────────────────────────
+      # Mirrors the production alert steps. Configure alert secrets in the
+      # `staging` GitHub Actions environment to receive staging failure notices.
+      #
+      # Slack  — set staging environment secret SLACK_WEBHOOK_URL
+      # Email  — set staging environment secrets NOTIFY_EMAIL + SMTP_HOST
+      #          + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD
+
+      - name: Notify Slack — staging health check failed
+        if: steps.healthcheck.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FAILED_SERVICES:   ${{ steps.healthcheck.outputs.failed_services }}
+          COMMIT_SHA:        ${{ github.sha }}
+          RUN_URL:           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification"
+            exit 0
+          fi
+          SHORT_SHA="${COMMIT_SHA::8}"
+          PAYLOAD=$(printf '{
+            "text": ":rotating_light: *Staging health check FAILED*",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":rotating_light: *Staging health check FAILED*\n*Commit:* `%s`\n*Failed services:* %s\n<%s|View workflow run \u2192>"
+                }
+              }
+            ]
+          }' "$SHORT_SHA" "${FAILED_SERVICES:-unknown}" "$RUN_URL")
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD"
+          echo "Slack notification sent."
+
+      - name: Notify email — staging health check failed
+        if: steps.healthcheck.outcome == 'failure'
+        env:
+          NOTIFY_EMAIL:    ${{ secrets.NOTIFY_EMAIL }}
+          SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+          FAILED_SERVICES: ${{ steps.healthcheck.outputs.failed_services }}
+          COMMIT_SHA:      ${{ github.sha }}
+          RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NOTIFY_EMAIL" ] || [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USERNAME" ] || [ -z "$SMTP_PASSWORD" ]; then
+            echo "Email secrets not fully configured (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD required) — skipping email notification"
+            exit 0
+          fi
+          SHORT_SHA="${COMMIT_SHA::8}"
+          PORT="${SMTP_PORT:-587}"
+          SUBJECT="[Sovereign Office Staging] Health check FAILED — ${SHORT_SHA}"
+          BODY="One or more staging HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services: ${FAILED_SERVICES:-unknown}\n\nPlease review the workflow run for details:\n${RUN_URL}"
           printf '%b' "$BODY" | curl -sf \
             --url "smtp://${SMTP_HOST}:${PORT}" \
             --ssl-reqd \
