@@ -150,6 +150,7 @@ interface AtlasMapProps {
   leftPanelOpen?: boolean;
   onToggleRightPanel?: () => void;
   rightPanelOpen?: boolean;
+  flyToCoords?: [number, number] | null;
 }
 
 // Grabs the Leaflet map instance and passes it up via callback.
@@ -480,6 +481,7 @@ export function AtlasMap({
   activeLayers, yearRange, hasActiveQuery = false,
   onToggleLeftPanel, leftPanelOpen = true,
   onToggleRightPanel, rightPanelOpen = false,
+  flyToCoords,
 }: AtlasMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
@@ -549,7 +551,10 @@ export function AtlasMap({
         />
 
         <MapInstanceGrabber onReady={handleMapReady} />
-        {mapCenter && <MapCenterController center={mapCenter} />}
+        {flyToCoords
+          ? <MapCenterController center={flyToCoords} zoom={7} />
+          : mapCenter && <MapCenterController center={mapCenter} />
+        }
 
         {/* ── Tribal Territory GeoJSON polygons (time-aware) ── */}
         {visibleGeoJSON && visibleGeoJSON.features.length > 0 && (

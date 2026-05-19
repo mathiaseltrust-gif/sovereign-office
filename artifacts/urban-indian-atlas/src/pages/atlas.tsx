@@ -460,6 +460,7 @@ function ancestorMatchesExposureFilters(
 export default function Atlas() {
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [selectedPersonId, setSelectedPersonId] = useState<number | null>(null);
+  const [focusedEventCoords, setFocusedEventCoords] = useState<[number, number] | null>(null);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [yearRange, setYearRange] = useState<[number, number]>([1790, new Date().getFullYear()]);
   const [atlasMode, setAtlasMode] = useState(false);
@@ -760,6 +761,7 @@ export default function Atlas() {
             leftPanelOpen={!sidebarCollapsed}
             onToggleRightPanel={() => setRightPanelHidden(h => !h)}
             rightPanelOpen={!rightPanelHidden && !!(selectedEventId || (selectedPersonId && atlasMode))}
+            flyToCoords={focusedEventCoords}
           />
 
           <AtlasTimeline
@@ -789,6 +791,7 @@ export default function Atlas() {
             ancestor={selectedAncestor}
             contextMatches={selectedAncestorContext}
             onClose={() => setSelectedPersonId(null)}
+            onEventFocus={(coords) => setFocusedEventCoords(coords)}
           />
         )}
       </div>
