@@ -1,5 +1,6 @@
-import { useQuery } from "@tanstack/react-query";
-import { useParams, Link } from "wouter";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useParams, Link, useLocation } from "wouter";
+import { useState } from "react";
 import {
   ArrowLeft,
   FolderOpen,
@@ -20,8 +21,11 @@ import {
   AlertCircle,
   ExternalLink,
   ChevronRight,
+  History,
+  GitBranch,
+  X,
 } from "lucide-react";
-import { api, ApiError, CaseFileDetail } from "@/lib/api";
+import { api, ApiError, CaseFileDetail, CaseNumberHistoryEntry } from "@/lib/api";
 import { cn } from "@/lib/utils";
 import { SessionExpiredBanner } from "@/App";
 
@@ -321,10 +325,179 @@ function RelatedCasesSection({ cases }: { cases: CaseFileDetail["relatedCaseFile
   );
 }
 
+// ── Section: Number History ───────────────────────────────────────────────────
+
+function NumberHistorySection({ history }: { history: CaseNumberHistoryEntry[] }) {
+  if (!history.length) return null;
+  const AMENDMENT_LABELS: Record<string, string> = {
+    reclassification: "Reclassification",
+    amendment: "Amendment",
+    correction: "Correction",
+    consolidation: "Consolidation",
+    transfer: "Transfer",
+  };
+  return (
+    <div className="bg-card border border-amber-200 rounded-lg p-5">
+      <SectionHeader icon={History} label="Case Number History" count={history.length} />
+      <div className="space-y-2">
+        {history.map((h, i) => (
+          <div key={h.id} className="flex flex-wrap items-start gap-3 px-3 py-3 rounded-md border border-amber-100 bg-amber-50/40">
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="font-mono text-xs font-semibold text-amber-700 line-through opacity-70">{h.formerCaseNumber}</span>
+              <ChevronRight className="h-3 w-3 text-amber-500" />
+              <span className="font-mono text-xs font-semibold text-foreground">{h.newCaseNumber}</span>
+            </div>
+            {h.amendmentType && (
+              <span className="text-xs bg-amber-100 text-amber-800 border border-amber-200 rounded-full px-2 py-0.5">
+                {AMENDMENT_LABELS[h.amendmentType] ?? h.amendmentType}
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground ml-auto">{fmtDate(h.reclassifiedAt)}</span>
+            {h.reason && (
+              <div className="w-full text-xs text-muted-foreground mt-0.5 pl-0.5 italic">
+                "{h.reason}"
+              </div>
+            )}
+            {h.notes && (
+              <div className="w-full text-xs text-foreground/60 pl-0.5">{h.notes}</div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Reclassify Modal ──────────────────────────────────────────────────────────
+
+const AMENDMENT_TYPES = [
+  { value: "reclassification", label: "Reclassification" },
+  { value: "amendment", label: "Amendment" },
+  { value: "correction", label: "Correction (clerical)" },
+  { value: "consolidation", label: "Consolidation" },
+  { value: "transfer", label: "Transfer" },
+];
+
+function ReclassifyModal({
+  currentCaseNumber,
+  onClose,
+  onSuccess,
+}: {
+  currentCaseNumber: string;
+  onClose: () => void;
+  onSuccess: (newCaseNumber: string) => void;
+}) {
+  const [newCaseNumber, setNewCaseNumber] = useState("");
+  const [reason, setReason] = useState("");
+  const [amendmentType, setAmendmentType] = useState("reclassification");
+  const [notes, setNotes] = useState("");
+  const [err, setErr] = useState<string | null>(null);
+
+  const mutation = useMutation({
+    mutationFn: () =>
+      api.reclassifyCaseFile(currentCaseNumber, { newCaseNumber: newCaseNumber.trim(), reason: reason.trim(), amendmentType, notes: notes.trim() || undefined }),
+    onSuccess: (res) => {
+      onSuccess(res.caseFile.caseNumber);
+    },
+    onError: (e: unknown) => {
+      setErr(e instanceof Error ? e.message : "Reclassification failed");
+    },
+  });
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="bg-card border border-border rounded-xl shadow-xl w-full max-w-md p-6 space-y-4">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <GitBranch className="h-4 w-4 text-amber-600" />
+            <h2 className="font-semibold text-foreground">Reclassify Case Number</h2>
+          </div>
+          <button onClick={onClose} className="text-muted-foreground hover:text-foreground transition-colors">
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+
+        <div className="bg-amber-50 border border-amber-200 rounded-md px-3 py-2 text-xs text-amber-800">
+          The former number <span className="font-mono font-semibold">{currentCaseNumber}</span> will be preserved in the case history. All documents referencing it will resolve to the new number and can render <span className="italic">"formerly known as {currentCaseNumber}"</span> on reprints.
+        </div>
+
+        <div className="space-y-3">
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">New Case Number</label>
+            <input
+              className="w-full border border-border rounded-md px-3 py-2 text-sm font-mono bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="e.g. SOV-2026-0002"
+              value={newCaseNumber}
+              onChange={(e) => setNewCaseNumber(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Amendment Type</label>
+            <select
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              value={amendmentType}
+              onChange={(e) => setAmendmentType(e.target.value)}
+            >
+              {AMENDMENT_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>{t.label}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Reason <span className="text-red-500">*</span></label>
+            <input
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30"
+              placeholder="Reason for reclassification…"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+            />
+          </div>
+
+          <div>
+            <label className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground block mb-1">Notes (optional)</label>
+            <textarea
+              rows={2}
+              className="w-full border border-border rounded-md px-3 py-2 text-sm bg-background focus:outline-none focus:ring-2 focus:ring-primary/30 resize-none"
+              placeholder="Additional context for the record…"
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+            />
+          </div>
+        </div>
+
+        {err && (
+          <div className="text-xs text-red-700 bg-red-50 border border-red-200 rounded-md px-3 py-2">{err}</div>
+        )}
+
+        <div className="flex gap-2 pt-1">
+          <button
+            onClick={onClose}
+            className="flex-1 border border-border rounded-md py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted/30 transition-colors"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={() => { setErr(null); mutation.mutate(); }}
+            disabled={!newCaseNumber.trim() || !reason.trim() || mutation.isPending}
+            className="flex-1 bg-amber-600 hover:bg-amber-700 text-white rounded-md py-2 text-sm font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {mutation.isPending ? "Reclassifying…" : "Confirm Reclassification"}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 
 export default function CaseFileDetailPage() {
   const { caseNumber } = useParams<{ caseNumber: string }>();
+  const [, navigate] = useLocation();
+  const [showReclassifyModal, setShowReclassifyModal] = useState(false);
+  const queryClient = useQueryClient();
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["case-file-detail", caseNumber],
@@ -369,11 +542,23 @@ export default function CaseFileDetailPage() {
 
   if (!data) return null;
 
-  const { caseFile: cf, linkedMember, linkedPipelineRecord, protectiveOrders, nfrDocuments, complaints, nfrInvestigationCount, relatedCaseFiles } = data;
-  const statusCfg = STATUS_CONFIG[cf.status] ?? STATUS_CONFIG.open;
+  const { caseFile: cf, redirected, formerNumber, numberHistory, linkedMember, linkedPipelineRecord, protectiveOrders, nfrDocuments, complaints, nfrInvestigationCount, relatedCaseFiles } = data;
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-5">
+      {/* Reclassify modal */}
+      {showReclassifyModal && (
+        <ReclassifyModal
+          currentCaseNumber={cf.caseNumber}
+          onClose={() => setShowReclassifyModal(false)}
+          onSuccess={(newNum) => {
+            setShowReclassifyModal(false);
+            queryClient.invalidateQueries({ queryKey: ["case-files"] });
+            navigate(`/case-files/${encodeURIComponent(newNum)}`);
+          }}
+        />
+      )}
+
       {/* Back nav */}
       <Link href="/case-files">
         <button className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -381,6 +566,19 @@ export default function CaseFileDetailPage() {
           Case File Registry
         </button>
       </Link>
+
+      {/* Redirect notice — arrived via a former number */}
+      {redirected && formerNumber && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-200 rounded-lg px-4 py-3 text-sm text-amber-800">
+          <History className="h-4 w-4 shrink-0 text-amber-600" />
+          <span>
+            You navigated using a former case number{" "}
+            <span className="font-mono font-semibold">{formerNumber}</span>.
+            This case was reclassified to{" "}
+            <span className="font-mono font-semibold">{cf.caseNumber}</span>.
+          </span>
+        </div>
+      )}
 
       {/* Case Header Card */}
       <div className="bg-card border border-border rounded-lg p-5">
@@ -391,6 +589,12 @@ export default function CaseFileDetailPage() {
           <div className="flex-1 min-w-0">
             <div className="flex flex-wrap items-center gap-2 mb-1">
               <h1 className="font-mono text-lg font-bold text-primary">{cf.caseNumber}</h1>
+              {numberHistory.length > 0 && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-amber-50 text-amber-700 border border-amber-200">
+                  <History className="h-3 w-3" />
+                  formerly {numberHistory[0].formerCaseNumber}
+                </span>
+              )}
               <CaseTypeBadge caseType={cf.caseType} />
               <StatusBadge status={cf.status} />
               {nfrInvestigationCount > 0 && (
@@ -402,14 +606,19 @@ export default function CaseFileDetailPage() {
             </div>
             <div className="text-base font-semibold text-foreground leading-tight">{cf.title}</div>
           </div>
+          {/* Reclassify action */}
+          <button
+            onClick={() => setShowReclassifyModal(true)}
+            className="flex items-center gap-1.5 text-xs border border-amber-200 text-amber-700 bg-amber-50 hover:bg-amber-100 rounded-md px-3 py-1.5 transition-colors shrink-0"
+          >
+            <GitBranch className="h-3.5 w-3.5" />
+            Reclassify
+          </button>
         </div>
 
         {/* Core fields grid */}
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-x-6 gap-y-4 pt-4 border-t border-border">
-          <Field
-            label="Case Type"
-            value={CASE_TYPE_LABELS[cf.caseType] ?? cf.caseType}
-          />
+          <Field label="Case Type" value={CASE_TYPE_LABELS[cf.caseType] ?? cf.caseType} />
           <Field label="Jurisdiction" value={<span className="capitalize">{cf.jurisdictionLevel}</span>} />
           {cf.matterType && (
             <Field label="Matter Type" value={cf.matterType.replace(/_/g, " ")} />
@@ -466,6 +675,7 @@ export default function CaseFileDetailPage() {
           { label: "Complaints", count: complaints.length, icon: MessageSquare, color: "text-violet-700" },
           { label: "Investigations", count: nfrInvestigationCount, icon: Scale, color: "text-red-700" },
           { label: "Related Files", count: relatedCaseFiles.length, icon: FolderOpen, color: "text-foreground" },
+          { label: "Prior Numbers", count: numberHistory.length, icon: History, color: "text-amber-600" },
         ].map(({ label, count, icon: Icon, color }) => (
           <div key={label} className="flex items-center gap-2 bg-card border border-border rounded-lg px-4 py-2.5">
             <Icon className={cn("h-4 w-4 shrink-0", color)} />
@@ -493,8 +703,11 @@ export default function CaseFileDetailPage() {
       {/* Related Case Files */}
       <RelatedCasesSection cases={relatedCaseFiles} />
 
+      {/* Number History */}
+      <NumberHistorySection history={numberHistory} />
+
       {/* Empty state */}
-      {!linkedMember && !linkedPipelineRecord && !protectiveOrders.length && !nfrDocuments.length && !complaints.length && !relatedCaseFiles.length && (
+      {!linkedMember && !linkedPipelineRecord && !protectiveOrders.length && !nfrDocuments.length && !complaints.length && !relatedCaseFiles.length && !numberHistory.length && (
         <div className="bg-card border border-border rounded-lg p-8 text-center">
           <FileText className="h-8 w-8 text-muted-foreground/40 mx-auto mb-3" />
           <div className="text-sm font-medium text-muted-foreground">No linked records found</div>
@@ -507,7 +720,13 @@ export default function CaseFileDetailPage() {
       {/* Cross-dashboard link */}
       <div className="flex items-center gap-3 bg-muted/30 border border-border rounded-lg px-4 py-3 text-xs text-muted-foreground">
         <Hash className="h-4 w-4 shrink-0" />
-        <span>Case number <span className="font-mono font-semibold text-foreground">{cf.caseNumber}</span> is globally accessible across all dashboards in the Mathias El Tribe system.</span>
+        <span>
+          Case number <span className="font-mono font-semibold text-foreground">{cf.caseNumber}</span>
+          {numberHistory.length > 0 && (
+            <> — formerly <span className="font-mono font-semibold text-amber-700">{numberHistory[numberHistory.length - 1].formerCaseNumber}</span></>
+          )}{" "}
+          is globally accessible across all dashboards in the Mathias El Tribe system.
+        </span>
         <a
           href="/sovereign-dashboard/"
           className="ml-auto flex items-center gap-1 text-primary hover:underline shrink-0"

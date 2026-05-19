@@ -260,8 +260,21 @@ export interface LinkedComplaint {
   createdAt: string;
 }
 
+export interface CaseNumberHistoryEntry {
+  id: number;
+  formerCaseNumber: string;
+  newCaseNumber: string;
+  reclassifiedAt: string;
+  reason: string | null;
+  amendmentType: string | null;
+  notes: string | null;
+}
+
 export interface CaseFileDetail {
   caseFile: CaseFile;
+  redirected: boolean;
+  formerNumber: string | null;
+  numberHistory: CaseNumberHistoryEntry[];
   linkedMember: LinkedMember | null;
   linkedPipelineRecord: LinkedPipelineRecord | null;
   protectiveOrders: LinkedProtectiveOrder[];
@@ -360,4 +373,16 @@ export const api = {
       method: "PATCH",
       body: JSON.stringify({ status, notes }),
     }),
+
+  reclassifyCaseFile: (
+    currentCaseNumber: string,
+    opts: { newCaseNumber: string; reason: string; amendmentType?: string; notes?: string },
+  ) =>
+    request<{ success: boolean; formerCaseNumber: string; caseFile: CaseFile }>(
+      `/api/case-files/${encodeURIComponent(currentCaseNumber)}/reclassify`,
+      {
+        method: "PATCH",
+        body: JSON.stringify(opts),
+      },
+    ),
 };

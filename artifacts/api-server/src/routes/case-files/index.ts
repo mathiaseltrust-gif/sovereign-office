@@ -13,7 +13,13 @@ import { db } from "@workspace/db";
 import { caseFilesTable } from "@workspace/db";
 import { eq, desc, and, like, or, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { openCaseFile, updateCaseFileStatus } from "../../lib/case-file-service";
+import {
+  openCaseFile,
+  updateCaseFileStatus,
+  reclassifyCaseFile,
+  resolveCaseFileByNumber,
+  getCaseNumberHistory,
+} from "../../lib/case-file-service";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -46,18 +52,13 @@ router.get("/:caseNumber/detail", requireAuth, async (req, res, next) => {
   try {
     const caseNumber = req.params.caseNumber as string;
 
-    const rows = await db
-      .select()
-      .from(caseFilesTable)
-      .where(eq(caseFilesTable.caseNumber, caseNumber))
-      .limit(1);
-
-    if (!rows[0]) {
+    const resolved = await resolveCaseFileByNumber(caseNumber);
+    if (!resolved) {
       res.status(404).json({ error: "Case file not found" });
       return;
     }
 
-    const cf = rows[0];
+    const { caseFile: cf, redirected, formerNumber } = resolved;
 
     const [
       protectiveOrders,
@@ -159,8 +160,21 @@ router.get("/:caseNumber/detail", requireAuth, async (req, res, next) => {
     const memberRow = linkedMemberRows.rows[0] ?? null;
     const pipelineRow = linkedPipelineRows.rows[0] ?? null;
 
+    const numberHistory = await getCaseNumberHistory(cf.id);
+
     res.json({
       caseFile: cf,
+      redirected,
+      formerNumber,
+      numberHistory: numberHistory.map((h) => ({
+        id: h.id,
+        formerCaseNumber: h.formerCaseNumber,
+        newCaseNumber: h.newCaseNumber,
+        reclassifiedAt: h.reclassifiedAt,
+        reason: h.reason,
+        amendmentType: h.amendmentType,
+        notes: h.notes,
+      })),
       linkedMember: memberRow
         ? {
             id: memberRow.id,
@@ -306,6 +320,51 @@ router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => 
     logger.info({ caseNumber: record.caseNumber, userId: req.user?.dbId }, "Case file manually opened via API");
     res.status(201).json(record);
   } catch (err) {
+    next(err);
+  }
+});
+
+router.patch("/:caseNumber/reclassify", requireAuth, requireRole("officer"), async (req, res, next) => {
+  try {
+    const currentCaseNumber = req.params.caseNumber as string;
+    const { newCaseNumber, reason, amendmentType, notes } = req.body as {
+      newCaseNumber?: string;
+      reason?: string;
+      amendmentType?: string;
+      notes?: string;
+    };
+
+    if (!newCaseNumber) {
+      res.status(400).json({ error: "newCaseNumber is required" });
+      return;
+    }
+    if (!reason) {
+      res.status(400).json({ error: "reason is required" });
+      return;
+    }
+
+    const updated = await reclassifyCaseFile(currentCaseNumber, {
+      newCaseNumber,
+      reason,
+      amendmentType: amendmentType ?? "reclassification",
+      notes,
+      reclassifiedById: req.user?.dbId ?? undefined,
+    });
+
+    logger.info(
+      { formerCaseNumber: currentCaseNumber, newCaseNumber, userId: req.user?.dbId },
+      "Case file reclassified via API",
+    );
+    res.json({ success: true, formerCaseNumber: currentCaseNumber, caseFile: updated });
+  } catch (err: unknown) {
+    if (err instanceof Error && err.message.includes("already in use")) {
+      res.status(409).json({ error: err.message });
+      return;
+    }
+    if (err instanceof Error && err.message.includes("not found")) {
+      res.status(404).json({ error: err.message });
+      return;
+    }
     next(err);
   }
 });

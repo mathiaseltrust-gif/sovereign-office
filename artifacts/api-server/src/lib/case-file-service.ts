@@ -11,8 +11,8 @@
  */
 
 import { db } from "@workspace/db";
-import { caseFilesTable, type InsertCaseFile } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { caseFilesTable, caseNumberHistoryTable, type InsertCaseFile } from "@workspace/db";
+import { eq, desc } from "drizzle-orm";
 import { nextDocRef, caseTypeToDocType } from "./doc-ref";
 import { logger } from "./logger";
 
@@ -110,4 +110,116 @@ export async function updateCaseFileStatus(
       updatedAt: new Date(),
     })
     .where(eq(caseFilesTable.id, id));
+}
+
+export interface ReclassifyOptions {
+  newCaseNumber: string;
+  reason: string;
+  amendmentType?: string;
+  notes?: string;
+  reclassifiedById?: number;
+}
+
+/**
+ * Reclassifies a case file to a new case number.
+ * Records the former number in case_number_history so documents
+ * can render "formerly known as [old number]" on reprints and amendments.
+ * The old number remains resolvable via getCaseFileByFormerNumber().
+ */
+export async function reclassifyCaseFile(
+  currentCaseNumber: string,
+  opts: ReclassifyOptions,
+): Promise<typeof caseFilesTable.$inferSelect> {
+  const rows = await db
+    .select()
+    .from(caseFilesTable)
+    .where(eq(caseFilesTable.caseNumber, currentCaseNumber))
+    .limit(1);
+
+  if (!rows[0]) throw new Error(`Case file not found: ${currentCaseNumber}`);
+  const cf = rows[0];
+
+  // Guard: new number must not already be in use
+  const conflict = await db
+    .select({ id: caseFilesTable.id })
+    .from(caseFilesTable)
+    .where(eq(caseFilesTable.caseNumber, opts.newCaseNumber))
+    .limit(1);
+  if (conflict[0]) throw new Error(`Case number already in use: ${opts.newCaseNumber}`);
+
+  // Write history first, then update the primary record
+  await db.insert(caseNumberHistoryTable).values({
+    caseFileId:       cf.id,
+    formerCaseNumber: currentCaseNumber,
+    newCaseNumber:    opts.newCaseNumber,
+    reason:           opts.reason,
+    amendmentType:    opts.amendmentType ?? "reclassification",
+    notes:            opts.notes ?? null,
+    reclassifiedById: opts.reclassifiedById ?? null,
+  });
+
+  const [updated] = await db
+    .update(caseFilesTable)
+    .set({ caseNumber: opts.newCaseNumber, updatedAt: new Date() })
+    .where(eq(caseFilesTable.id, cf.id))
+    .returning();
+
+  if (!updated) throw new Error("Reclassification update did not return a record");
+
+  logger.info(
+    { formerCaseNumber: currentCaseNumber, newCaseNumber: opts.newCaseNumber, caseFileId: cf.id },
+    "Case file reclassified",
+  );
+  return updated;
+}
+
+/**
+ * Resolves a case file by either its current number OR any former number
+ * stored in case_number_history. Returns { caseFile, redirected, formerNumber }.
+ */
+export async function resolveCaseFileByNumber(caseNumber: string): Promise<{
+  caseFile: typeof caseFilesTable.$inferSelect;
+  redirected: boolean;
+  formerNumber: string | null;
+} | null> {
+  // Try current number first
+  const direct = await db
+    .select()
+    .from(caseFilesTable)
+    .where(eq(caseFilesTable.caseNumber, caseNumber))
+    .limit(1);
+
+  if (direct[0]) return { caseFile: direct[0], redirected: false, formerNumber: null };
+
+  // Try as a former number
+  const histRows = await db
+    .select()
+    .from(caseNumberHistoryTable)
+    .where(eq(caseNumberHistoryTable.formerCaseNumber, caseNumber))
+    .orderBy(desc(caseNumberHistoryTable.reclassifiedAt))
+    .limit(1);
+
+  if (!histRows[0]) return null;
+
+  const current = await db
+    .select()
+    .from(caseFilesTable)
+    .where(eq(caseFilesTable.caseNumber, histRows[0].newCaseNumber))
+    .limit(1);
+
+  if (!current[0]) return null;
+  return { caseFile: current[0], redirected: true, formerNumber: caseNumber };
+}
+
+/**
+ * Returns the full reclassification history for a case file (by DB id), newest first.
+ */
+export async function getCaseNumberHistory(
+  caseFileId: number,
+): Promise<typeof caseNumberHistoryTable.$inferSelect[]> {
+  return db
+    .select()
+    .from(caseNumberHistoryTable)
+    .where(eq(caseNumberHistoryTable.caseFileId, caseFileId))
+    .orderBy(desc(caseNumberHistoryTable.reclassifiedAt));
 }
