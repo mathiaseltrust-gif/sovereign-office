@@ -1664,7 +1664,7 @@ function StewardshipTab({ pipeline, onRefresh }: { pipeline: StewardshipEntry[];
 
 // ── Parcel Detail Drawer ───────────────────────────────────────────────────────
 function ParcelDetailDrawer({
-  parcel, assignments, leases, assets, encumbrances, deeds, parcels,
+  parcel, assignments, leases, assets, encumbrances, notices, deeds, parcels,
   onClose, onNavigateTab, navigate, onRefresh,
 }: {
   parcel: Parcel;
@@ -1672,6 +1672,7 @@ function ParcelDetailDrawer({
   leases: Lease[];
   assets: Asset[];
   encumbrances: Encumbrance[];
+  notices: Notice[];
   deeds: Deed[];
   parcels: Parcel[];
   onClose: () => void;
@@ -1687,7 +1688,9 @@ function ParcelDetailDrawer({
   const parcelLeases    = useMemo(() => leases.filter(l => l.parcel_id === parcel.id), [leases, parcel.id]);
   const parcelAssets    = useMemo(() => assets.filter(a => a.parcel_id === parcel.id), [assets, parcel.id]);
   const parcelEnc       = useMemo(() => encumbrances.filter(e => e.parcel_id === parcel.id), [encumbrances, parcel.id]);
+  const parcelNotices   = useMemo(() => notices.filter(n => n.parcel_id === parcel.id), [notices, parcel.id]);
   const parcelDeeds     = useMemo(() => deeds.filter(d => d.parcel_id === parcel.id), [deeds, parcel.id]);
+  const [expandedNotice, setExpandedNotice] = useState<number | null>(null);
 
   const tribalStatusLabel   = INTERNAL_TRIBAL_STATUSES.find(s => s.value === parcel.internal_tribal_status)?.label ?? parcel.internal_tribal_status ?? "—";
   const jurisdictionLabel   = JURISDICTIONAL_STATUSES.find(s => s.value === parcel.jurisdictional_status)?.label ?? parcel.jurisdictional_status ?? "—";
@@ -1764,14 +1767,40 @@ function ParcelDetailDrawer({
             </div>
 
             {/* ── Location & Legal ── */}
-            {([parcel.county, parcel.state].some(Boolean) || parcel.plss_description) && (
+            {([parcel.county, parcel.state, parcel.legal_description].some(Boolean) || parcel.plss_description) && (
               <div className="space-y-2">
                 <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Location</p>
-                {[parcel.county, parcel.state].filter(Boolean).length > 0 && (
-                  <div className="flex items-center gap-1.5 text-xs text-foreground/80">
-                    <MapPin className="w-3 h-3 text-amber-500/60 shrink-0" />
-                    <span>{[parcel.county, parcel.state].filter(Boolean).join(", ")}</span>
-                  </div>
+                {parcel.legal_description && (
+                  <button
+                    onClick={() => {
+                      const query = parcel.lat && parcel.lng
+                        ? `${parcel.lat},${parcel.lng}`
+                        : encodeURIComponent(parcel.legal_description || [parcel.county, parcel.state].filter(Boolean).join(", "));
+                      window.open(`https://maps.google.com/?q=${query}`, "_blank", "noopener");
+                    }}
+                    className="flex items-start gap-1.5 text-xs text-amber-300/80 hover:text-amber-200 text-left transition-colors group w-full"
+                    title="Open in Google Maps"
+                  >
+                    <MapPin className="w-3 h-3 text-amber-500/60 shrink-0 mt-0.5 group-hover:text-amber-400" />
+                    <span className="underline underline-offset-2 decoration-amber-600/40 leading-relaxed">{parcel.legal_description}</span>
+                    <ExternalLink className="w-2.5 h-2.5 shrink-0 mt-0.5 opacity-50 group-hover:opacity-100" />
+                  </button>
+                )}
+                {!parcel.legal_description && [parcel.county, parcel.state].filter(Boolean).length > 0 && (
+                  <button
+                    onClick={() => {
+                      const query = parcel.lat && parcel.lng
+                        ? `${parcel.lat},${parcel.lng}`
+                        : encodeURIComponent([parcel.county, parcel.state].filter(Boolean).join(", "));
+                      window.open(`https://maps.google.com/?q=${query}`, "_blank", "noopener");
+                    }}
+                    className="flex items-center gap-1.5 text-xs text-amber-300/80 hover:text-amber-200 transition-colors group"
+                    title="Open in Google Maps"
+                  >
+                    <MapPin className="w-3 h-3 text-amber-500/60 shrink-0 group-hover:text-amber-400" />
+                    <span className="underline underline-offset-2 decoration-amber-600/40">{[parcel.county, parcel.state].filter(Boolean).join(", ")}</span>
+                    <ExternalLink className="w-2.5 h-2.5 opacity-50 group-hover:opacity-100" />
+                  </button>
                 )}
                 {parcel.plss_description && (
                   <p className="text-xs text-muted-foreground font-mono leading-snug">{parcel.plss_description}</p>
@@ -1846,26 +1875,34 @@ function ParcelDetailDrawer({
                       </p>
                     ) : (
                       householdMembers.map(a => (
-                        <div key={a.id} className="flex items-center justify-between gap-3 bg-blue-950/30 border border-blue-800/30 rounded-lg px-3 py-2.5">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-foreground truncate">{a.member_name}</p>
-                            <p className="text-[10px] text-blue-400/80 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}</p>
-                            {a.family_name && <p className="text-[10px] text-muted-foreground">{a.family_name}</p>}
-                          </div>
-                          <div className="flex items-center gap-1.5 shrink-0">
+                        <div key={a.id} className="bg-blue-950/30 border border-blue-800/30 rounded-lg overflow-hidden">
+                          <button
+                            onClick={() => { navigate(`/family-tree?search=${encodeURIComponent(a.member_name)}`); onClose(); }}
+                            className="flex items-center gap-3 w-full px-3 py-2.5 text-left hover:bg-blue-900/20 transition-colors group"
+                            title={`View ${a.member_name} in Family Tree`}
+                          >
+                            <div className="w-7 h-7 rounded-full bg-blue-800/50 border border-blue-700/40 flex items-center justify-center text-[11px] font-bold text-blue-200 shrink-0">
+                              {a.member_name.split(" ").map(n => n[0]).slice(0, 2).join("")}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-foreground truncate group-hover:text-amber-200 transition-colors">{a.member_name}</p>
+                              <p className="text-[10px] text-blue-400/80 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}{a.family_name ? ` · ${a.family_name}` : ""}</p>
+                            </div>
+                            <ExternalLink className="w-3 h-3 text-amber-500/50 group-hover:text-amber-400 shrink-0" />
+                          </button>
+                          <div className="flex border-t border-blue-800/20">
                             <button
                               onClick={() => { setHouseholdEditing(a); setHouseholdDefaultRole(a.assignment_role); setHouseholdModal(true); }}
-                              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
-                              title="Edit"
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/20 transition-colors"
                             >
-                              <Edit2 className="w-3.5 h-3.5" />
+                              <Edit2 className="w-2.5 h-2.5" /> Edit
                             </button>
+                            <div className="w-px bg-blue-800/20" />
                             <button
-                              onClick={() => { navigate(`/search?q=${encodeURIComponent(a.member_name)}`); onClose(); }}
-                              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 rounded px-1.5 py-0.5"
-                              title="View profile"
+                              onClick={() => { navigate(`/family-tree?search=${encodeURIComponent(a.member_name)}`); onClose(); }}
+                              className="flex-1 flex items-center justify-center gap-1 py-1.5 text-[10px] text-amber-400 hover:text-amber-300 hover:bg-amber-900/10 transition-colors"
                             >
-                              View
+                              <ExternalLink className="w-2.5 h-2.5" /> View Profile
                             </button>
                           </div>
                         </div>
@@ -1908,14 +1945,123 @@ function ParcelDetailDrawer({
               </div>
             )}
 
-            {/* ── Related Records ── */}
-            {(parcelLeases.length + parcelAssets.length + parcelEnc.length + parcelDeeds.length) > 0 && (
+            {/* ── Active Notices ── */}
+            {parcelNotices.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
+                    <ScrollText className="w-3 h-3" /> Sovereign Notices
+                  </p>
+                  <button onClick={() => { onNavigateTab("notices"); onClose(); }} className="text-[10px] text-amber-400 hover:underline">View all →</button>
+                </div>
+                {parcelNotices.map(n => {
+                  const isExpanded = expandedNotice === n.id;
+                  const statusColor = n.status === "issued" || n.status === "served" ? "text-emerald-400" : n.status === "draft" ? "text-amber-400/70" : "text-muted-foreground";
+                  const noticeLabel = NOTICE_TYPES.find(t => t.value === n.notice_type)?.label ?? n.notice_type?.replace(/_/g, " ") ?? "Notice";
+                  return (
+                    <div key={n.id} className="border border-amber-700/25 rounded-lg bg-amber-900/8 overflow-hidden">
+                      <button
+                        onClick={() => setExpandedNotice(isExpanded ? null : n.id)}
+                        className="flex items-start gap-2 w-full px-3 py-2.5 text-left hover:bg-amber-900/15 transition-colors"
+                      >
+                        <ScrollText className="w-3 h-3 text-amber-500/60 mt-0.5 shrink-0" />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <span className="text-[10px] font-semibold text-amber-400/80 uppercase tracking-wide">{noticeLabel}</span>
+                            <span className={`text-[9px] font-mono ${statusColor} capitalize`}>{n.status}</span>
+                          </div>
+                          {n.title && <p className="text-xs text-foreground/80 leading-snug mt-0.5 font-medium">{n.title}</p>}
+                          {n.issued_date && <p className="text-[9px] text-muted-foreground mt-0.5">Issued: {n.issued_date}</p>}
+                        </div>
+                        <ChevronRight className={`w-3 h-3 text-muted-foreground/40 shrink-0 mt-0.5 transition-transform ${isExpanded ? "rotate-90" : ""}`} />
+                      </button>
+                      {isExpanded && n.content && (
+                        <div className="border-t border-amber-700/20 px-3 py-2.5 bg-black/20">
+                          <pre className="text-[10px] text-foreground/70 whitespace-pre-wrap leading-relaxed font-mono max-h-48 overflow-y-auto">{n.content}</pre>
+                          {(n.tribal_code_ref || n.federal_law_ref) && (
+                            <p className="text-[9px] text-amber-500/60 mt-2 pt-2 border-t border-amber-700/20">
+                              {[n.tribal_code_ref, n.federal_law_ref].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* ── Active Encumbrances (inline) ── */}
+            {parcelEnc.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
+                    <ShieldAlert className="w-3 h-3" /> Encumbrances
+                  </p>
+                  <button onClick={() => { onNavigateTab("encumbrances"); onClose(); }} className="text-[10px] text-amber-400 hover:underline">Manage →</button>
+                </div>
+                {parcelEnc.map(e => (
+                  <div key={e.id} className="border border-red-800/30 rounded-lg bg-red-950/20 px-3 py-2.5 space-y-1">
+                    <div className="flex items-start gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs font-semibold text-foreground/90 leading-snug">{e.title || `Encumbrance #${e.id}`}</span>
+                          {e.void_ab_initio && (
+                            <span className="text-[9px] bg-violet-800/50 text-violet-300 border border-violet-700/40 rounded px-1 py-0.5 font-mono whitespace-nowrap">VOID AB INITIO</span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2 mt-0.5 flex-wrap">
+                          <span className="text-[10px] text-red-400/80 capitalize">{e.encumbrance_type?.replace(/_/g, " ")}</span>
+                          <span className={`text-[10px] capitalize font-medium ${e.status === "active" ? "text-red-400" : e.status === "resolved" ? "text-emerald-400" : "text-amber-400"}`}>{e.status}</span>
+                        </div>
+                      </div>
+                    </div>
+                    {e.description && <p className="text-[10px] text-muted-foreground leading-relaxed line-clamp-2">{e.description}</p>}
+                    {e.federal_law_implicated && (
+                      <p className="text-[9px] text-amber-500/60 font-mono leading-snug line-clamp-1">{e.federal_law_implicated}</p>
+                    )}
+                    {e.resolution_notes && (
+                      <p className="text-[10px] text-emerald-400/70 italic">{e.resolution_notes}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Active Leases (inline) ── */}
+            {parcelLeases.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
+                    <FileText className="w-3 h-3" /> Leases
+                  </p>
+                  <button onClick={() => { onNavigateTab("leases"); onClose(); }} className="text-[10px] text-amber-400 hover:underline">Manage →</button>
+                </div>
+                {parcelLeases.map(l => (
+                  <div key={l.id} className="border border-border/40 rounded-lg bg-card/60 px-3 py-2.5 space-y-0.5">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-xs font-semibold text-foreground truncate">{l.lessee_name || "—"}</p>
+                      <span className={`text-[9px] font-mono capitalize px-1.5 py-0.5 rounded ${l.status === "active" ? "bg-emerald-900/40 text-emerald-400" : l.status === "expired" ? "bg-red-900/30 text-red-400" : "bg-muted/40 text-muted-foreground"}`}>{l.status}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground capitalize">{l.lease_type?.replace(/_/g, " ")}</p>
+                    {(l.start_date || l.end_date) && (
+                      <p className="text-[10px] text-muted-foreground/70">{[l.start_date, l.end_date].filter(Boolean).join(" → ")}</p>
+                    )}
+                    {l.annual_rent && (
+                      <p className="text-[10px] text-emerald-400/80 font-mono">${Number(l.annual_rent).toLocaleString()}/yr</p>
+                    )}
+                    {l.description && <p className="text-[10px] text-muted-foreground/60 leading-snug line-clamp-2 mt-1">{l.description}</p>}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Related Records (jump links for remaining types) ── */}
+            {(parcelAssets.length + parcelDeeds.length) > 0 && (
               <div className="space-y-1.5">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Related Records</p>
-                <JumpButton tab="leases"       label="Leases"        count={parcelLeases.length} />
-                <JumpButton tab="assets"       label="Assets"        count={parcelAssets.length} />
-                <JumpButton tab="deeds"        label="Deed Records"  count={parcelDeeds.length} />
-                <JumpButton tab="encumbrances" label="Encumbrances"  count={parcelEnc.length} />
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">More Records</p>
+                <JumpButton tab="assets" label="Assets & Infrastructure" count={parcelAssets.length} />
+                <JumpButton tab="deeds"  label="Deed Records"            count={parcelDeeds.length} />
               </div>
             )}
           </div>
@@ -3301,6 +3447,7 @@ export default function LandPage() {
           leases={leasesQ.data ?? []}
           assets={assetsQ.data ?? []}
           encumbrances={encQ.data ?? []}
+          notices={noticesQ.data ?? []}
           deeds={deedsQ.data ?? []}
           parcels={parcelsQ.data ?? []}
           onClose={() => setSelectedParcel(null)}
