@@ -70,55 +70,68 @@ services:
 
   # ---------------------------------------------------------------------------
   # Sovereign Office Dashboard — staff portal with Microsoft SSO
-  # Accessible at: http://YOUR-SERVER:3001
+  # Internal only — HTTPS access via gateway on port 3001
   # ---------------------------------------------------------------------------
   sovereign:
     image: ${ACR_REGISTRY}/sovereign-dashboard:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "3001:80"
     depends_on:
       api:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Trust Instruments Dashboard
-  # Accessible at: http://YOUR-SERVER:3002
+  # Internal only — HTTPS access via gateway on port 3002
   # ---------------------------------------------------------------------------
   trust:
     image: ${ACR_REGISTRY}/trust-dashboard:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "3002:80"
     depends_on:
       api:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Family & Community Dashboard — public-facing portal
-  # Accessible at: http://YOUR-SERVER:3003
+  # Internal only — HTTPS access via gateway on port 3003
   # ---------------------------------------------------------------------------
   community:
     image: ${ACR_REGISTRY}/community-dashboard:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "3003:80"
     depends_on:
       api:
         condition: service_healthy
 
   # ---------------------------------------------------------------------------
   # Urban Indian Continuity Atlas — mapping and continuity records
-  # Accessible at: http://YOUR-SERVER:3004
+  # Internal only — HTTPS access via gateway on port 3004
   # ---------------------------------------------------------------------------
   atlas:
     image: ${ACR_REGISTRY}/urban-indian-atlas:${IMAGE_TAG:-latest}
     restart: unless-stopped
-    ports:
-      - "3004:80"
     depends_on:
       api:
         condition: service_healthy
+
+  # ---------------------------------------------------------------------------
+  # SSL Gateway — nginx that terminates HTTPS on ports 3001-3004
+  # Generates a self-signed certificate on first start.
+  # Accessible at: https://YOUR-SERVER:3001 through :3004
+  # ---------------------------------------------------------------------------
+  gateway:
+    image: ${ACR_REGISTRY}/sovereign-gateway:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3001:3001"
+      - "3002:3002"
+      - "3003:3003"
+      - "3004:3004"
+    environment:
+      SERVER_IP: ${SERVER_IP:-20.83.210.26}
+    depends_on:
+      - sovereign
+      - trust
+      - community
+      - atlas
 
 volumes:
   db_data:

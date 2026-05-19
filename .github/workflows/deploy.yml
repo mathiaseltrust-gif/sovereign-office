@@ -231,6 +231,19 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/urban-indian-atlas:latest
           cache-to: type=inline
 
+      # ── SSL Gateway (nginx HTTPS termination on ports 3001-3004) ───────────
+      - name: Build and push — sovereign-gateway
+        uses: docker/build-push-action@v5
+        with:
+          context: deploy-package/gateway
+          file: deploy-package/gateway/Dockerfile
+          push: true
+          tags: |
+            ${{ env.REGISTRY }}/sovereign-gateway:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/sovereign-gateway:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/sovereign-gateway:latest
+          cache-to: type=inline
+
   # ── 2. Deploy to Azure VM via SSH (production) ────────────────────────────
   deploy:
     name: "[prod] Rolling restart on Azure VM"
@@ -261,8 +274,8 @@ jobs:
             echo "==> Pinning IMAGE_TAG to ${{ needs.build-and-push.outputs.image_tag }}"
             export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
 
-            echo "==> Pulling new images (all five services)"
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas
+            echo "==> Pulling new images (all six services)"
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas gateway
 
             echo "==> Rolling restart — api"
             docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api
@@ -282,27 +295,30 @@ jobs:
             echo "==> Rolling restart — urban indian atlas"
             docker compose -f docker-compose.prod.yml up -d --no-deps --no-build atlas
 
+            echo "==> Rolling restart — SSL gateway"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build gateway
+
             echo "==> Pruning unused images (keeps disk clean)"
             docker image prune -f
 
-            echo "==> Smoke-testing all five services..."
+            echo "==> Smoke-testing all services..."
             SMOKE_FAIL=0
-            # API health check
+            # API health check (plain HTTP)
             if curl -sf --max-time 10 http://localhost:8080/api/healthz > /dev/null; then
               echo "  ✓ api (8080)"
             else
               echo "  ✗ api (8080) — health check FAILED"
               SMOKE_FAIL=1
             fi
-            # Dashboard HTTP checks (nginx returns 200 for SPA index)
+            # Dashboard HTTPS checks via gateway (self-signed cert — skip verify)
             for PORT_NAME in "3001:sovereign" "3002:trust" "3003:community" "3004:atlas"; do
               PORT="${PORT_NAME%%:*}"
               NAME="${PORT_NAME##*:}"
-              CODE=$(curl -sf --max-time 10 -o /dev/null -w "%{http_code}" http://localhost:$PORT/ || echo "000")
+              CODE=$(curl -sfk --max-time 10 -o /dev/null -w "%{http_code}" https://localhost:$PORT/ || echo "000")
               if [ "$CODE" = "200" ]; then
-                echo "  ✓ $NAME ($PORT)"
+                echo "  ✓ $NAME (https :$PORT)"
               else
-                echo "  ✗ $NAME ($PORT) — HTTP $CODE"
+                echo "  ✗ $NAME (https :$PORT) — HTTP $CODE"
                 SMOKE_FAIL=1
               fi
             done
