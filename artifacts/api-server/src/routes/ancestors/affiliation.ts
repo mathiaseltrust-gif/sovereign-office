@@ -2,15 +2,16 @@ import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { eq, or, sql } from "drizzle-orm";
 import { analyzeAncestralAffiliation, analyzeAncestors, type AncestorInput } from "../../lib/tribal-affiliation-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();
 
 // ── GET /api/ancestors/affiliations ────────────────────────────────────────
-// Batch: run the tribal affiliation logic engine on all of the
-// current user's deceased ancestors. Returns one result per ancestor.
+// Batch: run the tribal affiliation logic engine on all historical/deceased
+// ancestor records in the system. Sovereign-auth required — the chief sees
+// the full lineage, not just records they personally added.
 router.get("/affiliations", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
@@ -35,23 +36,29 @@ router.get("/affiliations", requireAuth, async (req, res, next) => {
         generationalPosition: familyLineageTable.generationalPosition,
       })
       .from(familyLineageTable)
-      .where(eq(familyLineageTable.addedByMemberId, userId))
+      .where(or(
+        eq(familyLineageTable.isDeceased, true),
+        eq(familyLineageTable.isAncestor, true),
+      ))
       .orderBy(familyLineageTable.generationalPosition, familyLineageTable.fullName);
 
-    const inputs: AncestorInput[] = rows.map(r => ({
-      id: r.id,
-      fullName: r.fullName,
-      birthYear: r.birthYear,
-      deathYear: r.deathYear,
-      tribalNation: r.tribalNation,
-      birthPlace: r.birthPlace,
-      deathPlace: r.deathPlace,
-      locationAddress: r.locationAddress,
-      locationLat: r.locationLat,
-      locationLng: r.locationLng,
-      notes: r.notes,
-      generationalPosition: r.generationalPosition,
-    }));
+    const inputs: AncestorInput[] = await Promise.all(
+      rows.map(async r => ({
+        id: r.id,
+        fullName: r.fullName,
+        birthYear: r.birthYear,
+        deathYear: r.deathYear,
+        tribalNation: r.tribalNation,
+        birthPlace: r.birthPlace,
+        deathPlace: r.deathPlace,
+        locationAddress: r.locationAddress,
+        locationLat: r.locationLat,
+        locationLng: r.locationLng,
+        notes: r.notes,
+        generationalPosition: r.generationalPosition,
+        descendantLocations: await fetchDescendantLocations(r.id),
+      }))
+    );
 
     const results = analyzeAncestors(inputs);
 
