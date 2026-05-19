@@ -307,7 +307,7 @@ function BarcodeScannerOverlay({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-foreground">Aim at the barcode on the back of your ID</p>
+        <p className="text-xs font-semibold text-foreground">Aim your camera or webcam at the barcode on the back of your ID</p>
         <button onClick={onCancel} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
           Use file upload instead
         </button>
@@ -339,7 +339,7 @@ function BarcodeScannerOverlay({
       </div>
 
       <p className="text-[10px] text-muted-foreground">
-        The barcode is on the back of most driver's licenses. Hold your camera 6–12 inches away in good lighting.
+        The barcode is on the back of most driver's licenses. Hold it 6–12 inches from the camera or webcam in good lighting.
       </p>
 
       <Button size="sm" variant="ghost" className="h-8 text-xs w-full" onClick={onCancel}>
@@ -663,7 +663,7 @@ function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean;
           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setStep("idle")}>Cancel</Button>
         </div>
 
-        <div className="sm:hidden">
+        <div>
           <div className="flex items-center gap-2 my-1">
             <div className="flex-1 h-px bg-border" />
             <span className="text-[10px] text-muted-foreground uppercase tracking-widest">or</span>
@@ -679,13 +679,9 @@ function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean;
             <Camera className="h-3.5 w-3.5" /> Scan with Camera
           </Button>
           <p className="text-[10px] text-muted-foreground mt-1.5">
-            Point your camera at the barcode on the back of a driver's license for 97% accuracy extraction.
+            Point your camera or webcam at the barcode on the back of a driver's license for 97% accuracy extraction. Images are stored encrypted and only accessible to Trustees.
           </p>
         </div>
-
-        <p className="text-[10px] text-muted-foreground hidden sm:block">
-          For driver's licenses, uploading the back enables high-accuracy barcode extraction. Images are stored encrypted and only accessible to Trustees.
-        </p>
       </div>
     );
   }
