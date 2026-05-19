@@ -238,6 +238,10 @@ function LandRecordPanel() {
 }
 
 /* ── Barcode Scanner Overlay ── */
+function isMobileDevice(): boolean {
+  return /Mobi|Android/i.test(navigator.userAgent);
+}
+
 function BarcodeScannerOverlay({
   onSuccess,
   onCancel,
@@ -250,13 +254,18 @@ function BarcodeScannerOverlay({
   const [detected, setDetected] = useState(false);
   const controlsRef = useRef<{ stop: () => void } | null>(null);
   const detectedRef = useRef(false);
+  const isMobile = isMobileDevice();
 
   useEffect(() => {
     const reader = new BrowserMultiFormatReader();
 
+    const videoConstraints: MediaTrackConstraints = isMobile
+      ? { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      : { width: { ideal: 1280 }, height: { ideal: 720 } };
+
     reader
       .decodeFromConstraints(
-        { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        { video: videoConstraints },
         videoRef.current!,
         (result, err) => {
           if (result && !detectedRef.current) {
@@ -307,7 +316,9 @@ function BarcodeScannerOverlay({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <p className="text-xs font-semibold text-foreground">Aim your camera or webcam at the barcode on the back of your ID</p>
+        <p className="text-xs font-semibold text-foreground">
+          Aim your {isMobile ? "rear camera" : "webcam"} at the barcode on the back of your ID
+        </p>
         <button onClick={onCancel} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
           Use file upload instead
         </button>
@@ -339,7 +350,7 @@ function BarcodeScannerOverlay({
       </div>
 
       <p className="text-[10px] text-muted-foreground">
-        The barcode is on the back of most driver's licenses. Hold it 6–12 inches from the camera or webcam in good lighting.
+        The barcode is on the back of most driver's licenses. Hold it 6–12 inches from the {isMobile ? "rear camera" : "webcam"} in good lighting.
       </p>
 
       <Button size="sm" variant="ghost" className="h-8 text-xs w-full" onClick={onCancel}>
