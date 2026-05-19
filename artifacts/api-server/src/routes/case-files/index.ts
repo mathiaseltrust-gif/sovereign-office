@@ -43,7 +43,7 @@ router.get("/", requireAuth, async (req, res, next) => {
 
 router.get("/:caseNumber", requireAuth, async (req, res, next) => {
   try {
-    const { caseNumber } = req.params;
+    const caseNumber = req.params.caseNumber as string;
     const rows = await db
       .select()
       .from(caseFilesTable)
