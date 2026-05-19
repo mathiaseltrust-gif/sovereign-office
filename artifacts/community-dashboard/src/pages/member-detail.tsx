@@ -609,6 +609,7 @@ function TribalIdCard({ member, locationAddress }: { member: {
   trustBeneficiary?: boolean | null;
   isAncestor?: boolean | null;
   photoFilename?: string | null;
+  photoUrl?: string | null;
 }; locationAddress?: string | null }) {
   const memberSince = member.birthYear ? `${member.birthYear}` : "—";
   const idNumber = member.tribalEnrollmentNumber || "—";
@@ -636,7 +637,7 @@ function TribalIdCard({ member, locationAddress }: { member: {
         <div className="flex gap-5 items-start">
           {/* Photo */}
           <Avatar className="h-20 w-20 border-2 border-primary/40 shadow shrink-0 rounded-md">
-            <AvatarImage src={`/assets/${member.photoFilename || ""}`} className="object-cover" />
+            <AvatarImage src={member.photoUrl || (member.photoFilename ? `/assets/${member.photoFilename}` : "")} className="object-cover" />
             <AvatarFallback className="text-2xl font-bold text-primary bg-primary/10 rounded-md">
               {initials}
             </AvatarFallback>
@@ -746,7 +747,7 @@ function parseGedcomPlaces(notes: string | null | undefined): { label: string; p
 
 // ─── Mini Family Tree ──────────────────────────────────────────────────────────
 
-type FamilyPerson = { id: number; fullName?: string | null; firstName?: string | null; lastName?: string | null; birthYear?: number | null; photoFilename?: string | null };
+type FamilyPerson = { id: number; fullName?: string | null; firstName?: string | null; lastName?: string | null; birthYear?: number | null; photoFilename?: string | null; photoUrl?: string | null };
 
 function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: boolean }) {
   const initials = `${person.firstName?.charAt(0) ?? ""}${person.lastName?.charAt(0) ?? ""}`;
@@ -761,7 +762,7 @@ function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: b
   const inner = (
     <>
       <Avatar className="h-8 w-8">
-        <AvatarImage src={`/assets/${person.photoFilename || ""}`} className="object-cover" />
+        <AvatarImage src={person.photoUrl || (person.photoFilename ? `/assets/${person.photoFilename}` : "")} className="object-cover" />
         <AvatarFallback className={`text-xs font-bold ${isMain ? "bg-primary/20 text-primary" : isAncestor ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground"}`}>{initials}</AvatarFallback>
       </Avatar>
       <span className="text-[10px] font-medium leading-tight line-clamp-2">{person.fullName ?? "—"}</span>
@@ -1060,7 +1061,7 @@ export default function MemberDetail() {
           <CardContent className="p-6 pt-0 relative">
             <div className="flex flex-col sm:flex-row gap-6 items-start sm:items-end -mt-12 mb-6">
               <Avatar className="h-24 w-24 border-4 border-card shadow-lg bg-card">
-                <AvatarImage src={`/assets/${member.photoFilename || ""}`} />
+                <AvatarImage src={member.photoUrl || (member.photoFilename ? `/assets/${member.photoFilename}` : "")} />
                 <AvatarFallback className="text-3xl font-bold text-primary bg-primary/10">
                   {member.firstName?.charAt(0) || ""}{member.lastName?.charAt(0) || ""}
                 </AvatarFallback>
@@ -1281,7 +1282,7 @@ export default function MemberDetail() {
                           const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={`/assets/${sibling.photoFilename || ""}`} />
+                                <AvatarImage src={sibling.photoUrl || (sibling.photoFilename ? `/assets/${sibling.photoFilename}` : "")} />
                                 <AvatarFallback className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">{sibling.firstName?.charAt(0) || ""}{sibling.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col flex-1">
@@ -1308,7 +1309,7 @@ export default function MemberDetail() {
                           const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={`/assets/${parent.photoFilename || ""}`} />
+                                <AvatarImage src={parent.photoUrl || (parent.photoFilename ? `/assets/${parent.photoFilename}` : "")} />
                                 <AvatarFallback className="text-xs bg-primary/10">{parent.firstName?.charAt(0) || ""}{parent.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col flex-1">
@@ -1334,7 +1335,7 @@ export default function MemberDetail() {
                           <Link key={spouse.id} href={`/directory/${spouse.id}`}>
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={`/assets/${spouse.photoFilename || ""}`} />
+                                <AvatarImage src={spouse.photoUrl || (spouse.photoFilename ? `/assets/${spouse.photoFilename}` : "")} />
                                 <AvatarFallback className="text-xs bg-primary/10">{spouse.firstName?.charAt(0) || ""}{spouse.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col">
@@ -1357,7 +1358,7 @@ export default function MemberDetail() {
                           const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
-                                <AvatarImage src={`/assets/${child.photoFilename || ""}`} />
+                                <AvatarImage src={child.photoUrl || (child.photoFilename ? `/assets/${child.photoFilename}` : "")} />
                                 <AvatarFallback className="text-xs bg-primary/10">{child.firstName?.charAt(0) || ""}{child.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
                               <div className="flex flex-col flex-1">

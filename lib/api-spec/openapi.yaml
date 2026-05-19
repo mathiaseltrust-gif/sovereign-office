@@ -981,6 +981,7 @@ components:
         childrenIds: { type: array, items: { type: integer } }
         spouseIds: { type: array, items: { type: integer } }
         photoFilename: { type: ["string", "null"] }
+        photoUrl: { type: ["string", "null"] }
         generationalPosition: { type: ["integer", "null"] }
         createdAt: { type: string }
       required: [id, fullName, createdAt]
@@ -1011,6 +1012,7 @@ components:
         spouseIds: { type: array, items: { type: integer } }
         lineageTags: { type: array, items: { type: string } }
         photoFilename: { type: ["string", "null"] }
+        photoUrl: { type: ["string", "null"] }
         generationalPosition: { type: ["integer", "null"] }
         sourceType: { type: ["string", "null"] }
         ancestralLocationText: { type: ["string", "null"] }

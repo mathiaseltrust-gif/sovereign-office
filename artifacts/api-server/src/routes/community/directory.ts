@@ -60,6 +60,7 @@ router.get("/", async (req, res, next) => {
       childrenIds: (r.childrenIds as number[]) ?? [],
       spouseIds: (r.spouseIds as number[]) ?? [],
       photoFilename: r.photoFilename,
+      photoUrl: r.photoUrl,
       generationalPosition: r.generationalPosition,
       createdAt: r.createdAt.toISOString(),
     }));
@@ -222,6 +223,7 @@ router.get("/:id", async (req, res, next) => {
       childrenIds: (r.childrenIds as number[]) ?? [],
       spouseIds: (r.spouseIds as number[]) ?? [],
       photoFilename: r.photoFilename,
+      photoUrl: r.photoUrl,
       generationalPosition: r.generationalPosition,
       createdAt: r.createdAt.toISOString(),
     });

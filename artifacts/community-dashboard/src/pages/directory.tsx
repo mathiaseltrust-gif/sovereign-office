@@ -144,7 +144,7 @@ export default function Directory() {
                   <CardHeader className="flex flex-row items-center gap-4 pb-4 border-b bg-muted/20 cursor-pointer">
                     <div className="relative">
                       <Avatar className="h-16 w-16 border-2 border-background shadow-sm group-hover:border-primary/20 transition-colors">
-                        <AvatarImage src={`/assets/${member.photoFilename || ""}`} />
+                        <AvatarImage src={member.photoUrl || (member.photoFilename ? `/assets/${member.photoFilename}` : "")} />
                         <AvatarFallback className="bg-primary/10 text-primary text-xl">
                           {member.firstName?.charAt(0) || ""}{member.lastName?.charAt(0) || ""}
                         </AvatarFallback>

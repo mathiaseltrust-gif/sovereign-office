@@ -42,6 +42,8 @@ export interface CommunityMember {
   /** @nullable */
   photoFilename?: string | null;
   /** @nullable */
+  photoUrl?: string | null;
+  /** @nullable */
   generationalPosition?: number | null;
   createdAt: string;
 }
@@ -87,6 +89,8 @@ export interface CommunityMemberDetail {
   lineageTags?: string[];
   /** @nullable */
   photoFilename?: string | null;
+  /** @nullable */
+  photoUrl?: string | null;
   /** @nullable */
   generationalPosition?: number | null;
   /** @nullable */
