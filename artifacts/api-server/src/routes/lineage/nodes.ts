@@ -118,17 +118,35 @@ router.get("/self", requireAuth, async (req, res, next) => {
 
     if (!selfNode) { res.json({ nodes: [] }); return; }
 
-    // Collect all directly connected node IDs
+    // Collect immediate family IDs (level 1: parents, children, spouses)
     const parentIds   = Array.isArray(selfNode.parentIds)   ? (selfNode.parentIds   as number[]) : [];
     const childrenIds = Array.isArray(selfNode.childrenIds) ? (selfNode.childrenIds as number[]) : [];
     const spouseIds   = Array.isArray(selfNode.spouseIds)   ? (selfNode.spouseIds   as number[]) : [];
-    const familyIds   = [...new Set([selfNode.id, ...parentIds, ...childrenIds, ...spouseIds])];
+    const level1Ids   = [...new Set([selfNode.id, ...parentIds, ...childrenIds, ...spouseIds])];
 
-    const familyNodes = familyIds.length > 0
-      ? await db.select().from(familyLineageTable).where(inArray(familyLineageTable.id, familyIds))
+    // Fetch level 1 nodes so we can look up their parents (grandparents) and children
+    const level1Nodes = level1Ids.length > 0
+      ? await db.select().from(familyLineageTable).where(inArray(familyLineageTable.id, level1Ids))
       : [selfNode];
 
-    res.json({ nodes: familyNodes });
+    // Level 2: grandparents (parents' parents + parents' spouses) + grandchildren
+    const level2Ids: number[] = [];
+    for (const n of level1Nodes) {
+      const nParents   = Array.isArray(n.parentIds)   ? (n.parentIds   as number[]) : [];
+      const nChildren  = Array.isArray(n.childrenIds) ? (n.childrenIds as number[]) : [];
+      const nSpouses   = Array.isArray(n.spouseIds)   ? (n.spouseIds   as number[]) : [];
+      level2Ids.push(...nParents, ...nChildren, ...nSpouses);
+    }
+    const uniqueLevel2 = [...new Set(level2Ids)].filter((id) => !level1Ids.includes(id));
+    const level2Nodes = uniqueLevel2.length > 0
+      ? await db.select().from(familyLineageTable).where(inArray(familyLineageTable.id, uniqueLevel2))
+      : [];
+
+    const allNodes = [...level1Nodes, ...level2Nodes];
+    const seen = new Set<number>();
+    const deduped = allNodes.filter((n) => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
+
+    res.json({ nodes: deduped });
   } catch (err) {
     next(err);
   }
@@ -405,12 +423,13 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 
     const parentIds = Array.isArray(node.parentIds) ? (node.parentIds as number[]) : [];
     const childrenIds = Array.isArray(node.childrenIds) ? (node.childrenIds as number[]) : [];
+    const spouseIds = Array.isArray(node.spouseIds) ? (node.spouseIds as number[]) : [];
 
     const resolveNames = async (ids: number[]) => {
       if (ids.length === 0) return [];
       const rows = await Promise.all(
         ids.map((pid) =>
-          db.select({ id: familyLineageTable.id, fullName: familyLineageTable.fullName, birthYear: familyLineageTable.birthYear })
+          db.select({ id: familyLineageTable.id, fullName: familyLineageTable.fullName, birthYear: familyLineageTable.birthYear, photoUrl: familyLineageTable.photoUrl })
             .from(familyLineageTable).where(eq(familyLineageTable.id, pid)).limit(1)
             .then((r) => r[0] ?? null)
         )
@@ -418,9 +437,41 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       return rows.filter(Boolean);
     };
 
-    const [parents, children] = await Promise.all([resolveNames(parentIds), resolveNames(childrenIds)]);
+    // If the node is linked to a user profile, fetch enriched profile fields
+    let profileData: {
+      legalName: string | null;
+      preferredName: string | null;
+      tribalName: string | null;
+      nickname: string | null;
+      mailingAddress: string | null;
+      lineageVerified: boolean | null;
+      membershipVerified: boolean | null;
+    } | null = null;
 
-    res.json({ ...node, _parents: parents, _children: children });
+    if (node.linkedProfileUserId) {
+      const [profile] = await db
+        .select({
+          legalName: profilesTable.legalName,
+          preferredName: profilesTable.preferredName,
+          tribalName: profilesTable.tribalName,
+          nickname: profilesTable.nickname,
+          mailingAddress: profilesTable.mailingAddress,
+          lineageVerified: profilesTable.lineageVerified,
+          membershipVerified: profilesTable.membershipVerified,
+        })
+        .from(profilesTable)
+        .where(eq(profilesTable.userId, node.linkedProfileUserId))
+        .limit(1);
+      profileData = profile ?? null;
+    }
+
+    const [parents, children, spouses] = await Promise.all([
+      resolveNames(parentIds),
+      resolveNames(childrenIds),
+      resolveNames(spouseIds),
+    ]);
+
+    res.json({ ...node, _parents: parents, _children: children, _spouses: spouses, _profile: profileData });
   } catch (err) {
     next(err);
   }
@@ -575,6 +626,23 @@ router.post("/member", requireAuth, async (req, res, next) => {
       const existingSpouses = Array.isArray(submitterNode.spouseIds) ? (submitterNode.spouseIds as number[]) : [];
       if (!existingSpouses.includes(node.id)) {
         await db.update(familyLineageTable).set({ spouseIds: [...existingSpouses, node.id] }).where(eq(familyLineageTable.id, submitterNode.id));
+      }
+    }
+
+    // Back-link: for parent/aunt_uncle, add the new node to the submitter's parentIds
+    if ((relationshipType === "parent" || relationshipType === "aunt_uncle") && submitterNode) {
+      const [currentSubmitter] = await db
+        .select({ parentIds: familyLineageTable.parentIds })
+        .from(familyLineageTable)
+        .where(eq(familyLineageTable.id, submitterNode.id))
+        .limit(1);
+      if (currentSubmitter) {
+        const existingParentIds = Array.isArray(currentSubmitter.parentIds) ? (currentSubmitter.parentIds as number[]) : [];
+        if (!existingParentIds.includes(node.id)) {
+          await db.update(familyLineageTable)
+            .set({ parentIds: [...existingParentIds, node.id], updatedAt: new Date() })
+            .where(eq(familyLineageTable.id, submitterNode.id));
+        }
       }
     }
 

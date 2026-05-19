@@ -59,8 +59,18 @@ interface LineageNode {
   locationLat?: number | null;
   locationLng?: number | null;
   locationAddress?: string | null;
-  _parents?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
-  _children?: Array<{ id: number; fullName: string; birthYear?: number | null }>;
+  _parents?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
+  _children?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
+  _spouses?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
+  _profile?: {
+    legalName?: string | null;
+    preferredName?: string | null;
+    tribalName?: string | null;
+    nickname?: string | null;
+    mailingAddress?: string | null;
+    lineageVerified?: boolean | null;
+    membershipVerified?: boolean | null;
+  } | null;
 }
 
 interface PositionedNode extends LineageNode {
@@ -890,7 +900,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // 4 = + Great-grandparents
   // 5 = 2× Great-grandparents
   // 99 = Full tree (no depth restriction)
-  const [generationDepth, setGenerationDepth] = useState(1);
+  const [generationDepth, setGenerationDepth] = useState(2);
 
   const DEPTH_MAX = 99;
   const DEPTH_LABELS: Record<number, string> = {
@@ -2258,6 +2268,9 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
           <div className="space-y-1">
             {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
             {n.lastName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Last name</span><span>{n.lastName}</span></div>}
+            {n._profile?.legalName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Legal name</span><span className="font-medium">{n._profile.legalName}</span></div>}
+            {n._profile?.preferredName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Preferred name</span><span>{n._profile.preferredName}</span></div>}
+            {n._profile?.nickname && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Nickname</span><span>{n._profile.nickname}</span></div>}
             {(n.birthYear || n.birthDate || n.birthPlace) && (
               <div className="flex gap-2">
                 <span className="text-muted-foreground w-28 shrink-0">Born</span>
@@ -2272,8 +2285,22 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             )}
             {n.burialPlace && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Buried at</span><span>{n.burialPlace}</span></div>}
             {n.gender && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Gender</span><span className="capitalize">{n.gender}</span></div>}
-            {n.tribalNation && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>}
+            {(n._profile?.tribalName || n.tribalNation) && (
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-28 shrink-0">Tribal name</span>
+                <span>{n._profile?.tribalName ?? n.tribalNation}</span>
+              </div>
+            )}
+            {n._profile?.tribalName && n.tribalNation && n._profile.tribalName !== n.tribalNation && (
+              <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>
+            )}
             {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">SSMEL No.</span><span className="font-semibold">{n.tribalEnrollmentNumber}</span></div>}
+            {n._profile?.mailingAddress && (
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-28 shrink-0">Mailing address</span>
+                <span className="break-all">{n._profile.mailingAddress}</span>
+              </div>
+            )}
             {n.generationalPosition !== undefined && n.generationalPosition !== null && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Generation</span><span>{n.generationalPosition}</span></div>}
             {n.sourceType && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Source</span><span className="capitalize">{n.sourceType}</span></div>}
             {n.linkedProfileUserId && (
@@ -2284,6 +2311,12 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
                 ) : (
                   <a href="/sovereign-dashboard/profile" className="text-primary underline text-sm hover:opacity-80">View profile</a>
                 )}
+              </div>
+            )}
+            {n._profile && (n._profile.lineageVerified || n._profile.membershipVerified) && (
+              <div className="flex gap-1.5 flex-wrap pt-0.5">
+                {n._profile.lineageVerified && <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">✓ Lineage verified</span>}
+                {n._profile.membershipVerified && <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full">✓ Membership verified</span>}
               </div>
             )}
           </div>
@@ -2351,14 +2384,36 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
           {n._parents && n._parents.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Parents</p>
-              {n._parents.map((p) => <p key={p.id} className="text-xs">{p.fullName}{p.birthYear ? ` (b.${p.birthYear})` : ""}</p>)}
+              {n._parents.map((p) => (
+                <div key={p.id} className="flex items-center gap-1.5 py-0.5">
+                  {p.photoUrl ? <img src={p.photoUrl} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" /> : <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[9px] text-muted-foreground shrink-0">👤</span>}
+                  <span className="text-xs">{p.fullName}{p.birthYear ? ` (b.${p.birthYear})` : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {n._spouses && n._spouses.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Spouse / Partner</p>
+              {n._spouses.map((s) => (
+                <div key={s.id} className="flex items-center gap-1.5 py-0.5">
+                  {s.photoUrl ? <img src={s.photoUrl} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" /> : <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[9px] text-muted-foreground shrink-0">👤</span>}
+                  <span className="text-xs">{s.fullName}{s.birthYear ? ` (b.${s.birthYear})` : ""}</span>
+                </div>
+              ))}
             </div>
           )}
 
           {n._children && n._children.length > 0 && (
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Children</p>
-              {n._children.map((c) => <p key={c.id} className="text-xs">{c.fullName}{c.birthYear ? ` (b.${c.birthYear})` : ""}</p>)}
+              {n._children.map((c) => (
+                <div key={c.id} className="flex items-center gap-1.5 py-0.5">
+                  {c.photoUrl ? <img src={c.photoUrl} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" /> : <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[9px] text-muted-foreground shrink-0">👤</span>}
+                  <span className="text-xs">{c.fullName}{c.birthYear ? ` (b.${c.birthYear})` : ""}</span>
+                </div>
+              ))}
             </div>
           )}
 
