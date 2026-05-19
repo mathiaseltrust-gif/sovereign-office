@@ -251,11 +251,91 @@ const REGION_COORD_MAP: Record<string, [number, number]> = {
   "san salvador":     [13.69,  -89.19],
   "el salvador":      [13.83,  -88.92],
   "san miguel":       [13.48,  -88.18],
+  // ── Disambiguation entries ────────────────────────────────────────────────
+  // Compound "city/county, state" keys are tried first (longer = more specific)
+  // because geocodeText sorts by key length descending. This prevents ambiguous
+  // single-word keys (e.g. "washington") from matching the wrong state.
+  "washington, maryland":          [39.60,  -77.72],  // Washington County, MD
+  "washington county, maryland":   [39.60,  -77.72],
+  "washington county, virginia":   [36.73,  -82.00],
+  "washington county, tennessee":  [36.30,  -82.47],
+  "washington county, arkansas":   [36.10,  -94.12],
+  "washington county, ohio":       [39.46,  -81.45],
+  "west virginia":                 [38.60,  -80.50],
+  hagerstown:                      [39.64,  -77.72],  // Hagerstown, MD (GEDCOM common)
+  cumberland:                      [39.65,  -78.76],  // Cumberland, MD
+  frederick:                       [39.41,  -77.41],  // Frederick, MD
+  annapolis:                       [38.97,  -76.49],  // Annapolis, MD
+  baltimore:                       [39.29,  -76.61],  // Baltimore, MD
+  richmond:                        [37.54,  -77.43],  // Richmond, VA
+  roanoke:                         [37.27,  -79.94],  // Roanoke, VA
+  norfolk:                         [36.85,  -76.29],  // Norfolk, VA
+  charleston:                      [32.78,  -79.93],  // Charleston, SC (default SC)
+  "charleston, west virginia":     [38.35,  -81.63],
+  columbia:                        [34.00,  -81.03],  // Columbia, SC
+  savannah:                        [32.08,  -81.10],  // Savannah, GA
+  macon:                           [32.84,  -83.63],  // Macon, GA
+  athens:                          [33.96,  -83.38],  // Athens, GA
+  montgomery:                      [32.37,  -86.30],  // Montgomery, AL
+  mobile:                          [30.69,  -88.04],  // Mobile, AL
+  huntsville:                      [34.73,  -86.59],  // Huntsville, AL
+  selma:                           [32.41,  -87.02],  // Selma, AL
+  memphis:                         [35.15,  -90.05],  // Memphis, TN
+  nashville:                       [36.17,  -86.78],  // Nashville, TN
+  knoxville:                       [35.96,  -83.92],  // Knoxville, TN
+  "new orleans":                   [29.95,  -90.07],  // New Orleans, LA
+  baton:                           [30.45,  -91.15],  // Baton Rouge, LA
+  shreveport:                      [32.52,  -93.75],  // Shreveport, LA
+  jackson:                         [32.30,  -90.18],  // Jackson, MS
+  vicksburg:                       [32.35,  -90.88],  // Vicksburg, MS
+  "little rock":                   [34.75,  -92.29],  // Little Rock, AR
+  cincinnati:                      [39.10,  -84.51],  // Cincinnati, OH
+  cleveland:                       [41.50,  -81.69],  // Cleveland, OH
+  columbus:                        [39.96,  -82.99],  // Columbus, OH
+  indianapolis:                    [39.77,  -86.16],  // Indianapolis, IN
+  louisville:                      [38.25,  -85.76],  // Louisville, KY
+  lexington:                       [38.04,  -84.50],  // Lexington, KY
+  "st. louis":                     [38.63,  -90.20],  // St. Louis, MO
+  "saint louis":                   [38.63,  -90.20],
+  "kansas city":                   [39.10,  -94.58],  // Kansas City, MO
+  omaha:                           [41.26,  -95.94],  // Omaha, NE
+  "sioux city":                    [42.50,  -96.40],  // Sioux City, IA
+  milwaukee:                       [43.04,  -87.91],  // Milwaukee, WI
+  "green bay":                     [44.52,  -88.02],  // Green Bay, WI
+  duluth:                          [46.79,  -92.11],  // Duluth, MN
+  "st. paul":                      [44.95,  -93.09],  // St. Paul, MN
+  "saint paul":                    [44.95,  -93.09],
+  "rapid city":                    [44.08, -103.23],  // Rapid City, SD
+  bismarck:                        [46.81, -100.78],  // Bismarck, ND
+  billings:                        [45.78, -108.50],  // Billings, MT
+  missoula:                        [46.87, -113.99],  // Missoula, MT
+  albuquerque:                     [35.10, -106.65],  // Albuquerque, NM
+  "santa fe":                      [35.69, -105.94],  // Santa Fe, NM
+  "salt lake":                     [40.76, -111.89],  // Salt Lake City, UT
+  portland:                        [45.52, -122.68],  // Portland, OR
+  spokane:                         [47.66, -117.43],  // Spokane, WA (city)
+  tacoma:                          [47.25, -122.44],  // Tacoma, WA
+  oakland:                         [37.80, -122.27],  // Oakland, CA
+  sacramento:                      [38.58, -121.49],  // Sacramento, CA
+  "san diego":                     [32.72, -117.16],  // San Diego, CA
+  "san jose":                      [37.34, -121.89],  // San Jose, CA
+  fresno:                          [36.75, -119.77],  // Fresno, CA
+  "long beach":                    [33.77, -118.19],  // Long Beach, CA
+  anchorage:                       [61.22, -149.90],  // Anchorage, AK
+  fairbanks:                       [64.84, -147.72],  // Fairbanks, AK
+  juneau:                          [58.30, -134.42],  // Juneau, AK
+  honolulu:                        [21.31, -157.85],  // Honolulu, HI
 };
+
+// Sorted once at module load — longer keys are more specific and take priority.
+// e.g. "washington, maryland" (20 chars) beats "washington" (10 chars) so
+// "Hagerstown, Washington, Maryland" resolves to MD instead of WA state.
+const SORTED_REGION_ENTRIES: [string, [number, number]][] = Object.entries(REGION_COORD_MAP)
+  .sort((a, b) => b[0].length - a[0].length);
 
 function geocodeText(text: string): [number, number] | null {
   const lower = text.toLowerCase();
-  for (const [key, coords] of Object.entries(REGION_COORD_MAP)) {
+  for (const [key, coords] of SORTED_REGION_ENTRIES) {
     if (lower.includes(key)) return coords;
   }
   return null;
