@@ -460,6 +460,8 @@ export default function Atlas() {
   const [activeLayers, setActiveLayers] = useState<ActiveLayers>(DEFAULT_LAYERS);
   const [activeExposureFilters, setActiveExposureFilters] = useState<string[]>([]);
   const [aiQueryMessage, setAIQueryMessage] = useState<string | null>(null);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+  const [rightPanelHidden, setRightPanelHidden] = useState(false);
 
   const applyAIFilters = (result: AIQueryResult) => {
     setAIQueryMessage(result.message);
@@ -706,6 +708,8 @@ export default function Atlas() {
               }))
             : undefined}
           bearerToken={authenticated ? getAtlasBearerToken() : null}
+          collapsed={sidebarCollapsed}
+          onToggleCollapsed={() => setSidebarCollapsed(c => !c)}
         />
 
         <div className="flex-1 flex flex-col relative h-full">
@@ -722,6 +726,10 @@ export default function Atlas() {
             activeLayers={activeLayers}
             yearRange={yearRange}
             hasActiveQuery={!!aiQueryMessage && activeExposureFilters.length > 0}
+            onToggleLeftPanel={() => setSidebarCollapsed(c => !c)}
+            leftPanelOpen={!sidebarCollapsed}
+            onToggleRightPanel={() => setRightPanelHidden(h => !h)}
+            rightPanelOpen={!rightPanelHidden && !!(selectedEventId || (selectedPersonId && atlasMode))}
           />
 
           <AtlasTimeline
@@ -735,7 +743,7 @@ export default function Atlas() {
         </div>
 
         {/* Event Detail Panel */}
-        {selectedEventId && !selectedPersonId && (
+        {selectedEventId && !selectedPersonId && !rightPanelHidden && (
           <AtlasDetailPanel
             event={selectedEvent}
             onClose={() => setSelectedEventId(null)}
@@ -746,7 +754,7 @@ export default function Atlas() {
         )}
 
         {/* Person Context Panel */}
-        {selectedPersonId && atlasMode && (
+        {selectedPersonId && atlasMode && !rightPanelHidden && (
           <PersonContextPanel
             ancestor={selectedAncestor}
             contextMatches={selectedAncestorContext}

@@ -35,6 +35,8 @@ interface AtlasSidebarProps {
   onClearAIFilters: () => void;
   ancestorSummary?: import("@/components/AtlasAIQuery").AncestorSummaryItem[];
   bearerToken?: string | null;
+  collapsed?: boolean;
+  onToggleCollapsed?: () => void;
 }
 
 const ERA_LABELS: Record<string, string> = {
@@ -208,8 +210,12 @@ export function AtlasSidebar({
   onClearAIFilters,
   ancestorSummary,
   bearerToken,
+  collapsed: propCollapsed,
+  onToggleCollapsed: propToggle,
 }: AtlasSidebarProps) {
-  const [collapsed, setCollapsed] = useState(false);
+  const [localCollapsed, setLocalCollapsed] = useState(false);
+  const collapsed = propCollapsed !== undefined ? propCollapsed : localCollapsed;
+  const handleToggle = propToggle ?? (() => setLocalCollapsed(c => !c));
 
   const eras = Array.from(new Set(events.map(e => e.era))).sort(
     (a, b) => events.findIndex(e => e.era === a) - events.findIndex(e => e.era === b)
@@ -247,7 +253,7 @@ export function AtlasSidebar({
       className="h-full border-r border-border bg-sidebar bg-parchment-texture z-10 flex flex-col relative"
     >
       <button
-        onClick={() => setCollapsed(!collapsed)}
+        onClick={handleToggle}
         className="absolute -right-3 top-4 bg-background border border-border rounded-full p-1 shadow-sm z-20 hover:bg-muted"
         data-testid="sidebar-collapse-button"
       >

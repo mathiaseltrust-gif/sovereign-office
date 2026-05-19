@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useEffect, useState, useMemo, useCallback } from "react";
 import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON as GeoJSONLayer, Polyline, Tooltip, useMap } from "react-leaflet";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
@@ -146,6 +146,18 @@ interface AtlasMapProps {
   activeLayers: ActiveLayers;
   yearRange: [number, number];
   hasActiveQuery?: boolean;
+  onToggleLeftPanel?: () => void;
+  leftPanelOpen?: boolean;
+  onToggleRightPanel?: () => void;
+  rightPanelOpen?: boolean;
+}
+
+// Grabs the Leaflet map instance and passes it up via callback.
+// Must be rendered inside <MapContainer>.
+function MapInstanceGrabber({ onReady }: { onReady: (m: L.Map) => void }) {
+  const map = useMap();
+  useEffect(() => { onReady(map); }, [map, onReady]);
+  return null;
 }
 
 const severityColors = {
@@ -466,9 +478,13 @@ export function AtlasMap({
   events, filteredEvents, selectedEventId, onSelectEvent,
   urbanLocations, atlasMode, ancestors, selectedPersonId, onSelectPerson,
   activeLayers, yearRange, hasActiveQuery = false,
+  onToggleLeftPanel, leftPanelOpen = true,
+  onToggleRightPanel, rightPanelOpen = false,
 }: AtlasMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
+  const [leafletMap, setLeafletMap] = useState<L.Map | null>(null);
+  const handleMapReady = useCallback((m: L.Map) => setLeafletMap(m), []);
 
   useEffect(() => { setMounted(true); }, []);
 
@@ -532,6 +548,7 @@ export function AtlasMap({
           maxZoom={20}
         />
 
+        <MapInstanceGrabber onReady={handleMapReady} />
         {mapCenter && <MapCenterController center={mapCenter} />}
 
         {/* ── Tribal Territory GeoJSON polygons (time-aware) ── */}
@@ -1024,6 +1041,130 @@ export function AtlasMap({
         })}
 
       </MapContainer>
+
+      {/* ── Floating Map Controls — zoom in/out + sidebar toggles ─────────────
+          Positioned above the legend, outside MapContainer to avoid Leaflet
+          z-index layers. Zoom actions call the Leaflet map instance directly.
+      ── */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 200,
+          right: 10,
+          zIndex: 1000,
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        {/* Left sidebar toggle */}
+        <button
+          onClick={onToggleLeftPanel}
+          title={leftPanelOpen ? "Collapse filter panel" : "Expand filter panel"}
+          style={{
+            width: 32, height: 32,
+            background: "rgba(18,15,10,0.92)",
+            border: "1px solid rgba(201,169,110,0.35)",
+            borderRadius: 6,
+            color: "#c9a96e",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            transition: "background 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.18)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+        >
+          {leftPanelOpen ? "◀" : "▶"}
+        </button>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(201,169,110,0.2)", margin: "2px 4px" }} />
+
+        {/* Zoom In */}
+        <button
+          onClick={() => leafletMap?.zoomIn()}
+          title="Zoom in"
+          style={{
+            width: 32, height: 32,
+            background: "rgba(18,15,10,0.92)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 6,
+            color: "#e8dcc8",
+            fontSize: 18,
+            fontWeight: 400,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+        >
+          +
+        </button>
+
+        {/* Zoom Out */}
+        <button
+          onClick={() => leafletMap?.zoomOut()}
+          title="Zoom out"
+          style={{
+            width: 32, height: 32,
+            background: "rgba(18,15,10,0.92)",
+            border: "1px solid rgba(255,255,255,0.12)",
+            borderRadius: 6,
+            color: "#e8dcc8",
+            fontSize: 18,
+            fontWeight: 400,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            transition: "background 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
+          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+        >
+          −
+        </button>
+
+        {/* Divider */}
+        <div style={{ height: 1, background: "rgba(201,169,110,0.2)", margin: "2px 4px" }} />
+
+        {/* Right panel toggle */}
+        <button
+          onClick={onToggleRightPanel}
+          title={rightPanelOpen ? "Collapse detail panel" : "Expand detail panel"}
+          style={{
+            width: 32, height: 32,
+            background: rightPanelOpen
+              ? "rgba(201,169,110,0.18)"
+              : "rgba(18,15,10,0.92)",
+            border: `1px solid ${rightPanelOpen ? "rgba(201,169,110,0.55)" : "rgba(201,169,110,0.35)"}`,
+            borderRadius: 6,
+            color: "#c9a96e",
+            fontSize: 14,
+            fontWeight: 700,
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            lineHeight: 1,
+            transition: "background 0.15s, border-color 0.15s",
+          }}
+          onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.25)")}
+          onMouseLeave={e => (e.currentTarget.style.background = rightPanelOpen ? "rgba(201,169,110,0.18)" : "rgba(18,15,10,0.92)")}
+        >
+          {rightPanelOpen ? "▶" : "◀"}
+        </button>
+      </div>
 
       {/* ── Persistent Map Legend — always visible, bottom-right of the map canvas ──
           Positioned as a sibling of MapContainer (not inside it) to avoid
