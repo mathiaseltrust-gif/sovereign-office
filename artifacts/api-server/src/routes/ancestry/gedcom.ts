@@ -318,19 +318,33 @@ async function mergeIntoExisting(staged: StagedRow, ancestorId: number): Promise
   if (!existing.gender    && staged.gender)     updates.gender    = staged.gender;
   if (!existing.isDeceased && (staged.deathYear || staged.deathDate)) updates.isDeceased = true;
 
+  // Write dedicated place columns — never overwrite existing data
+  if (!existing.birthPlace && staged.birthPlace)  updates.birthPlace = staged.birthPlace;
+  if (!existing.birthDate  && staged.birthDate)   updates.birthDate  = staged.birthDate;
+  if (!existing.deathPlace && staged.deathPlace)  updates.deathPlace = staged.deathPlace;
+  if (!existing.deathDate  && staged.deathDate)   updates.deathDate  = staged.deathDate;
+
+  // Burial place comes from life events (BURI tag)
+  const lifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
+  const burialEvent = lifeEvents.find(e => e.type === "burial");
+  if (!existing.burialPlace && burialEvent?.place) updates.burialPlace = burialEvent.place;
+
+  // Profile photo reference (OBJE.FILE) → photoFilename if empty
+  const mediaRefs = (staged.mediaRefs as GedcomMediaRef[] | null) ?? [];
+  const profilePhoto = mediaRefs.find(m => m.isProfilePhoto) ?? mediaRefs[0];
+  if (!existing.photoFilename && profilePhoto?.fileRef) updates.photoFilename = profilePhoto.fileRef;
+
   // Write location_address from GEDCOM place data if the record has none.
   // Atlas priority order: residence → birth → death/burial.
   if (!existing.locationAddress) {
-    const lifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
     const residencePlace = lifeEvents.find(e => e.type === "residence")?.place;
     updates.locationAddress = residencePlace ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
   }
 
-  // Merge notes — append GEDCOM details without overwriting
+  // Merge notes — only biographical notes and source citations, NOT place data
+  // (places now live in their dedicated columns above)
   const gedcomNote = [
-    staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
-    staged.deathPlace  ? `Death place: ${staged.deathPlace}`  : null,
-    staged.notes       ? staged.notes                          : null,
+    staged.notes       ? staged.notes : null,
     (staged.sourceRecords as string[])?.length
       ? `GEDCOM sources: ${(staged.sourceRecords as string[]).join("; ")}`
       : null,
@@ -430,10 +444,10 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
     } else {
       // ── Insert path: create a new lineage record ──────────────────────────────
       const isDeceased = !!staged.deathYear || !!staged.deathDate;
+
+      // Notes only get biographical text and source citations — place data goes in dedicated columns
       const noteText = [
         staged.notes,
-        staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
-        staged.deathPlace  ? `Death place: ${staged.deathPlace}`  : null,
         (staged.sourceRecords as string[])?.length
           ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
       ].filter(Boolean).join("\n\n") || undefined;
@@ -443,15 +457,28 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
       const residencePlaceNew = stagedLifeEvents.find(e => e.type === "residence")?.place;
       const locationAddress = residencePlaceNew ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
 
+      // Burial place from BURI life event
+      const burialEventNew = stagedLifeEvents.find(e => e.type === "burial");
+
+      // Profile photo reference from OBJE.FILE
+      const stagedMediaRefs = (staged.mediaRefs as GedcomMediaRef[] | null) ?? [];
+      const profilePhotoNew = stagedMediaRefs.find(m => m.isProfilePhoto) ?? stagedMediaRefs[0];
+
       const [created] = await db.insert(familyLineageTable).values({
         firstName:       staged.givenName ?? undefined,
         lastName:        staged.surname   ?? undefined,
         fullName:        staged.fullName,
         birthYear:       staged.birthYear ?? undefined,
+        birthDate:       staged.birthDate ?? undefined,
+        birthPlace:      staged.birthPlace ?? undefined,
         deathYear:       staged.deathYear ?? undefined,
+        deathDate:       staged.deathDate ?? undefined,
+        deathPlace:      staged.deathPlace ?? undefined,
+        burialPlace:     burialEventNew?.place ?? undefined,
         gender:          staged.gender    ?? undefined,
         notes:           noteText,
         locationAddress,
+        photoFilename:   profilePhotoNew?.fileRef ?? undefined,
         lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
         sourceType:      "gedcom",
         isDeceased,

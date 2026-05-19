@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
-import { familyLineageTable } from "@workspace/db";
+import { familyLineageTable, ancestorLifeEventsTable } from "@workspace/db";
 import { ilike, or, eq, and, sql } from "drizzle-orm";
 import { ensureCommunitySeeded } from "./seed";
 
@@ -188,6 +188,19 @@ router.get("/:id", async (req, res, next) => {
     `);
     const ancestralLocationText = (timelineLocationResult.rows[0] as { location?: string } | undefined)?.location ?? null;
 
+    // Fetch structured life events (RESI, BURI, CENS, etc.) stored from GEDCOM import.
+    const lifeEventsRows = await db
+      .select({
+        eventType: ancestorLifeEventsTable.eventType,
+        eventDate: ancestorLifeEventsTable.eventDate,
+        eventYear: ancestorLifeEventsTable.eventYear,
+        eventPlace: ancestorLifeEventsTable.eventPlace,
+        eventNote: ancestorLifeEventsTable.eventNote,
+      })
+      .from(ancestorLifeEventsTable)
+      .where(eq(ancestorLifeEventsTable.personId, id))
+      .orderBy(ancestorLifeEventsTable.eventYear);
+
     const toSummary = (r: typeof member) => ({
       id: r.id,
       fullName: r.fullName,
@@ -224,6 +237,13 @@ router.get("/:id", async (req, res, next) => {
       locationLat: member.locationLat ?? null,
       locationLng: member.locationLng ?? null,
       locationAddress: member.locationAddress ?? null,
+      birthPlace: member.birthPlace ?? null,
+      deathPlace: member.deathPlace ?? null,
+      burialPlace: member.burialPlace ?? null,
+      birthDate: member.birthDate ?? null,
+      deathDate: member.deathDate ?? null,
+      photoUrl: member.photoUrl ?? null,
+      lifeEvents: lifeEventsRows,
       ancestralLocationText,
       updatedAt: member.updatedAt.toISOString(),
       parents: parentIds.map((pid) => byId.get(pid)).filter(Boolean).map(toSummary),

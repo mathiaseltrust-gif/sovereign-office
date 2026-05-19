@@ -1131,29 +1131,70 @@ export default function MemberDetail() {
 
             {/* ── Known Locations ─────────────────────────────────────────── */}
             {(() => {
-              const m = member as typeof member & { locationAddress?: string | null; notes?: string | null };
-              const places = parseGedcomPlaces(m.notes);
-              const hasAddress = !!m.locationAddress;
-              const hasPlaces = places.length > 0;
-              if (!hasAddress && !hasPlaces) return null;
+              type LifeEventRow = { eventType: string; eventDate: string | null; eventYear: number | null; eventPlace: string | null; eventNote: string | null };
+              const m = member as typeof member & {
+                locationAddress?: string | null;
+                birthPlace?: string | null;
+                deathPlace?: string | null;
+                burialPlace?: string | null;
+                lifeEvents?: LifeEventRow[];
+              };
+
+              // Build deduplicated location list from dedicated columns + structured life events
+              const entries: { label: string; place: string; year?: number | null; icon: "pin" | "globe" | "birth" | "death" | "burial" | "resi" }[] = [];
+              const seen = new Set<string>();
+              const add = (label: string, place: string | null | undefined, icon: typeof entries[0]["icon"], year?: number | null) => {
+                if (!place) return;
+                const key = `${label}:${place}`;
+                if (seen.has(key)) return;
+                seen.add(key);
+                entries.push({ label, place, icon, year });
+              };
+
+              add("Birth Place", m.birthPlace, "birth");
+              add("Death Place", m.deathPlace, "death");
+              add("Burial Place", m.burialPlace, "burial");
+
+              // Structured life events from ancestor_life_events table (GEDCOM RESI/CENS/etc.)
+              const rawEvents = m.lifeEvents ?? [];
+              // Sort residences/census by year for chronological display
+              const resiEvents = rawEvents
+                .filter(e => e.eventType === "residence" || e.eventType === "census")
+                .sort((a, b) => (a.eventYear ?? 0) - (b.eventYear ?? 0));
+              for (const ev of resiEvents) {
+                const label = ev.eventType === "census"
+                  ? `Census${ev.eventYear ? ` (${ev.eventYear})` : ""}`
+                  : `Residence${ev.eventYear ? ` (${ev.eventYear})` : ""}`;
+                add(label, ev.eventPlace, "resi", ev.eventYear);
+              }
+
+              // Fall back to locationAddress as "Last Known Address" if nothing else
+              if (entries.length === 0 && m.locationAddress) {
+                add("Last Known Address", m.locationAddress, "pin");
+              } else if (m.locationAddress) {
+                // Only show locationAddress if it differs from already-listed places
+                add("Last Known Address", m.locationAddress, "pin");
+              }
+
+              if (entries.length === 0) return null;
+
+              const iconEl = (icon: typeof entries[0]["icon"]) => {
+                if (icon === "birth")  return <span className="text-[10px] font-bold text-emerald-600 mt-0.5 shrink-0 w-4 text-center">B</span>;
+                if (icon === "death")  return <span className="text-[10px] font-bold text-rose-600 mt-0.5 shrink-0 w-4 text-center">D</span>;
+                if (icon === "burial") return <span className="text-[10px] font-bold text-stone-500 mt-0.5 shrink-0 w-4 text-center">✝</span>;
+                if (icon === "resi")   return <Globe2 className="h-4 w-4 text-amber-500/70 mt-0.5 shrink-0" />;
+                return <MapPin className="h-4 w-4 text-primary/60 mt-0.5 shrink-0" />;
+              };
+
               return (
                 <div className="mt-6 space-y-3">
                   <h3 className="text-lg font-semibold flex items-center gap-2">
                     <MapPin className="h-5 w-5 text-primary" /> Known Locations
                   </h3>
                   <div className="bg-muted/30 rounded-lg border divide-y divide-border/60">
-                    {hasAddress && (
-                      <div className="flex items-start gap-3 px-4 py-3">
-                        <MapPin className="h-4 w-4 text-primary/60 mt-0.5 shrink-0" />
-                        <div>
-                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Last Known Address</p>
-                          <p className="text-sm text-foreground/90">{m.locationAddress}</p>
-                        </div>
-                      </div>
-                    )}
-                    {places.map((pl, i) => (
+                    {entries.map((pl, i) => (
                       <div key={i} className="flex items-start gap-3 px-4 py-3">
-                        <Globe2 className="h-4 w-4 text-amber-500/70 mt-0.5 shrink-0" />
+                        {iconEl(pl.icon)}
                         <div>
                           <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">{pl.label}</p>
                           <p className="text-sm text-foreground/90">{pl.place}</p>
