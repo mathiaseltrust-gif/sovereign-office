@@ -167,7 +167,7 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, onConfi
         <div className="flex items-center justify-between px-5 py-3.5 border-b border-border bg-amber-50 dark:bg-amber-950/20">
           <div className="flex items-center gap-2">
             <MapPin className="h-4 w-4 text-amber-700 dark:text-amber-400" />
-            <span className="text-sm font-semibold text-amber-900 dark:text-amber-300">Pin Homeland Location</span>
+            <span className="text-sm font-semibold text-amber-900 dark:text-amber-300">Pin Likely Ancestral Location</span>
           </div>
           <button
             onClick={onCancel}

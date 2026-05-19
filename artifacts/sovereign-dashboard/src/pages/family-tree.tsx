@@ -2241,12 +2241,12 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
             </div>
           )}
 
-          {/* ── Homeland Location ── */}
+          {/* ── Likely Ancestral Location ── */}
           {(canEdit || n.locationLat != null) && (
             <div className="border rounded-md px-3 py-2.5 space-y-1.5">
               <div className="flex items-center justify-between gap-2">
                 <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                  <MapPin className="w-3 h-3" /> Homeland Location
+                  <MapPin className="w-3 h-3" /> Likely Ancestral Location
                 </p>
                 {canEdit && (
                   <button

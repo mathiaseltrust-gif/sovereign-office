@@ -40,6 +40,8 @@ export const gedcomStagingTable = pgTable("gedcom_staging", {
   matchedAncestorName: varchar("matched_ancestor_name", { length: 400 }),
   duplicateGroupId: varchar("duplicate_group_id", { length: 100 }),
   status: varchar("status", { length: 50 }).notNull().default("pending"),
+  lifeEvents: jsonb("life_events").default([]),
+  mediaRefs: jsonb("media_refs").default([]),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

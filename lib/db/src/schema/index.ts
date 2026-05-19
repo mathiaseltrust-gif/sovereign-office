@@ -51,3 +51,4 @@ export * from "./authority-legal-map";
 export * from "./authority-intake-extractions";
 export * from "./case-files";
 export * from "./case-number-history";
+export * from "./ancestor-life-events";

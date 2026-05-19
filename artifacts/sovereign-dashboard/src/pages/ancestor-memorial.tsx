@@ -479,12 +479,12 @@ function AncestorDetail({ id }: { id: number }) {
         </div>
       </div>
 
-      {/* ── Homeland Location ── */}
+      {/* ── Likely Ancestral Location ── */}
       <Card>
         <CardHeader className="pb-3 flex flex-row items-center justify-between">
           <CardTitle className="text-base flex items-center gap-2">
             <MapPin className="w-4 h-4 text-amber-600" />
-            Homeland Location
+            Likely Ancestral Location
           </CardTitle>
           <Button
             size="sm"

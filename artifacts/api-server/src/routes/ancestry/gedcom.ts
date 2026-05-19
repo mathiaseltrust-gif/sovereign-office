@@ -1,10 +1,10 @@
 import { Router } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
-import { gedcomImportBatchesTable, gedcomStagingTable, familyLineageTable } from "@workspace/db";
+import { gedcomImportBatchesTable, gedcomStagingTable, familyLineageTable, ancestorLifeEventsTable, ancestorMediaTable } from "@workspace/db";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { parseGedcom, resolveRelationships } from "../../lib/gedcom-parser";
+import { parseGedcom, resolveRelationships, type GedcomLifeEvent, type GedcomMediaRef } from "../../lib/gedcom-parser";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -189,6 +189,8 @@ router.post(
             matchedAncestorName: dedup.matchedAncestorName,
             duplicateGroupId: dedup.duplicateGroupId,
             status: "pending",
+            lifeEvents: indi.lifeEvents,
+            mediaRefs: indi.mediaRefs,
           };
         })
       );
@@ -254,6 +256,46 @@ router.get("/staging", requireAuth, requireAdminOrTrustee, async (req, res, next
   } catch (err) { next(err); }
 });
 
+// ── Life-event & media writer ─────────────────────────────────────────────────
+// After a staging row is approved and we have a real lineage person_id, write
+// the extracted life events and media references to their dedicated tables.
+
+async function writeLifeEventsAndMedia(personId: number, staged: StagedRow): Promise<void> {
+  const lifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
+  const mediaRefs  = (staged.mediaRefs  as GedcomMediaRef[]  | null) ?? [];
+
+  if (lifeEvents.length > 0) {
+    const rows = lifeEvents.map(ev => ({
+      personId,
+      eventType: ev.type,
+      eventDate: ev.date ?? undefined,
+      eventYear: ev.year ?? undefined,
+      eventPlace: ev.place ?? undefined,
+      eventPlaceConfidence: "documented" as const,
+      atlasVisible: true,
+      sourceType: "gedcom" as const,
+    }));
+    // Insert in batches of 50 to stay within parameter limits
+    for (let i = 0; i < rows.length; i += 50) {
+      await db.insert(ancestorLifeEventsTable).values(rows.slice(i, i + 50));
+    }
+  }
+
+  if (mediaRefs.length > 0) {
+    const rows = mediaRefs.map(m => ({
+      personId,
+      mediaFileRef: m.fileRef ?? undefined,
+      mediaType: m.mediaForm ?? undefined,
+      mediaTitle: m.title ?? undefined,
+      isProfilePhoto: m.isProfilePhoto,
+      sourceSystem: "gedcom" as const,
+    }));
+    for (let i = 0; i < rows.length; i += 50) {
+      await db.insert(ancestorMediaTable).values(rows.slice(i, i + 50));
+    }
+  }
+}
+
 // ── Merge helper ──────────────────────────────────────────────────────────────
 // Enriches an existing family_lineage record with missing fields from a staged
 // GEDCOM record. Only overwrites NULL / empty fields — never destroys existing data.
@@ -277,9 +319,11 @@ async function mergeIntoExisting(staged: StagedRow, ancestorId: number): Promise
   if (!existing.isDeceased && (staged.deathYear || staged.deathDate)) updates.isDeceased = true;
 
   // Write location_address from GEDCOM place data if the record has none.
-  // Birth place is preferred (most historically stable); death place is the fallback.
-  if (!existing.locationAddress && (staged.birthPlace || staged.deathPlace)) {
-    updates.locationAddress = staged.birthPlace ?? staged.deathPlace;
+  // Atlas priority order: residence → birth → death/burial.
+  if (!existing.locationAddress) {
+    const lifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
+    const residencePlace = lifeEvents.find(e => e.type === "residence")?.place;
+    updates.locationAddress = residencePlace ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
   }
 
   // Merge notes — append GEDCOM details without overwriting
@@ -394,6 +438,11 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
           ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
       ].filter(Boolean).join("\n\n") || undefined;
 
+      // Atlas priority order: residence → birth → death/burial
+      const stagedLifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
+      const residencePlaceNew = stagedLifeEvents.find(e => e.type === "residence")?.place;
+      const locationAddress = residencePlaceNew ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
+
       const [created] = await db.insert(familyLineageTable).values({
         firstName:       staged.givenName ?? undefined,
         lastName:        staged.surname   ?? undefined,
@@ -402,7 +451,7 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
         deathYear:       staged.deathYear ?? undefined,
         gender:          staged.gender    ?? undefined,
         notes:           noteText,
-        locationAddress: staged.birthPlace ?? staged.deathPlace ?? undefined,
+        locationAddress,
         lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
         sourceType:      "gedcom",
         isDeceased,
@@ -419,6 +468,9 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
       matchedAncestorId:   resultId,
       matchedAncestorName: resultName,
     }).where(eq(gedcomStagingTable.id, id));
+
+    // Write extracted life events and media references to their dedicated tables
+    await writeLifeEventsAndMedia(resultId, staged).catch(() => {});
 
     if (staged.batchId) {
       await db.execute(sql`
@@ -543,10 +595,11 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
         const shouldMerge = staged.matchType !== "new" && !!staged.matchedAncestorId;
 
         if (shouldMerge) {
-          await mergeIntoExisting(staged, staged.matchedAncestorId!);
+          const mergedResult = await mergeIntoExisting(staged, staged.matchedAncestorId!);
           await db.update(gedcomStagingTable).set({
             status: "approved",
           }).where(eq(gedcomStagingTable.id, staged.id));
+          await writeLifeEventsAndMedia(mergedResult.id, staged).catch(() => {});
           merged++;
         } else {
           const isDeceased = !!staged.deathYear || !!staged.deathDate;
@@ -558,6 +611,11 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
               ? `Sources: ${(staged.sourceRecords as string[]).join("; ")}` : null,
           ].filter(Boolean).join("\n\n") || undefined;
 
+          // Atlas priority order: residence → birth → death/burial
+          const bulkLifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
+          const bulkResidencePlace = bulkLifeEvents.find(e => e.type === "residence")?.place;
+          const bulkLocationAddress = bulkResidencePlace ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
+
           const [bulkCreated] = await db.insert(familyLineageTable).values({
             firstName:       staged.givenName ?? undefined,
             lastName:        staged.surname   ?? undefined,
@@ -566,7 +624,7 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
             deathYear:       staged.deathYear ?? undefined,
             gender:          staged.gender    ?? undefined,
             notes:           noteText,
-            locationAddress: staged.birthPlace ?? staged.deathPlace ?? undefined,
+            locationAddress: bulkLocationAddress,
             lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
             sourceType:      "gedcom",
             isDeceased,
@@ -578,6 +636,7 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
             matchedAncestorId:   bulkCreated.id,
             matchedAncestorName: bulkCreated.fullName,
           }).where(eq(gedcomStagingTable.id, staged.id));
+          await writeLifeEventsAndMedia(bulkCreated.id, staged).catch(() => {});
           approved++;
         }
       } catch {
