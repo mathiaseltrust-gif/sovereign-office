@@ -13,7 +13,12 @@ export interface ParsedPerson {
   firstName?: string;
   lastName?: string;
   birthYear?: number;
+  birthDate?: string;
+  birthPlace?: string;
   deathYear?: number;
+  deathDate?: string;
+  deathPlace?: string;
+  burialPlace?: string;
   gender?: string;
   tribalNation?: string;
   tribalEnrollmentNumber?: string;
@@ -137,14 +142,22 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
         if (currentTag === "BIRT" && tag === "DATE") {
           const yearMatch = value.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
           if (yearMatch) indi.birthYear = parseInt(yearMatch[1], 10);
+          if (value.trim()) indi.birthDate = value.trim();
         } else if (currentTag === "BIRT" && tag === "PLAC") {
-          indi.notes = indi.notes ? `${indi.notes}; born ${value}` : `born ${value}`;
-        } else if ((currentTag === "DEAT" || currentTag === "BURI") && tag === "DATE") {
+          if (value.trim()) indi.birthPlace = value.trim();
+        } else if (currentTag === "DEAT" && tag === "DATE") {
           const yearMatch = value.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
-          if (yearMatch) {
-            indi.deathYear = parseInt(yearMatch[1], 10);
-            indi.isDeceased = true;
-          }
+          if (yearMatch) { indi.deathYear = parseInt(yearMatch[1], 10); indi.isDeceased = true; }
+          if (value.trim()) indi.deathDate = value.trim();
+        } else if (currentTag === "DEAT" && tag === "PLAC") {
+          if (value.trim()) indi.deathPlace = value.trim();
+          indi.isDeceased = true;
+        } else if (currentTag === "BURI" && tag === "DATE") {
+          const yearMatch = value.match(/\b(1[0-9]{3}|2[0-9]{3})\b/);
+          if (yearMatch && !indi.deathYear) { indi.deathYear = parseInt(yearMatch[1], 10); indi.isDeceased = true; }
+        } else if (currentTag === "BURI" && tag === "PLAC") {
+          if (value.trim()) indi.burialPlace = value.trim();
+          indi.isDeceased = true;
         } else if (currentTag === "NOTE" && tag === "CONC") {
           indi.notes = (indi.notes ?? "") + " " + value;
         }
@@ -192,7 +205,12 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
       firstName: indi.firstName,
       lastName: indi.lastName,
       birthYear: indi.birthYear,
+      birthDate: indi.birthDate,
+      birthPlace: indi.birthPlace,
       deathYear: indi.deathYear,
+      deathDate: indi.deathDate,
+      deathPlace: indi.deathPlace,
+      burialPlace: indi.burialPlace,
       gender: indi.gender,
       tribalNation: indi.tribalNation,
       tribalEnrollmentNumber: indi.tribalEnrollmentNumber,

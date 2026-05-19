@@ -71,6 +71,11 @@ export interface AncestorRecord {
   locationText: string | null;
   hasTimelineLocation: boolean;
   photoUrl: string | null;
+  birthPlace: string | null;
+  birthDate: string | null;
+  deathPlace: string | null;
+  deathDate: string | null;
+  burialPlace: string | null;
   // Record classification for display and location resolution:
   //   "ancestor"          — deceased family member or confirmed ancestor
   //   "household_member"  — living immediate household (self / spouse / children)
@@ -293,6 +298,11 @@ interface DbAncestorRow {
   location_text: string | null;
   has_timeline_location: boolean;
   photo_url: string | null;
+  birth_place: string | null;
+  birth_date: string | null;
+  death_place: string | null;
+  death_date: string | null;
+  burial_place: string | null;
   record_status: "ancestor" | "household_member" | "extended_family";
 }
 
@@ -317,6 +327,11 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
     photoUrl: r.photo_url ?? null,
+    birthPlace: r.birth_place ?? null,
+    birthDate: r.birth_date ?? null,
+    deathPlace: r.death_place ?? null,
+    deathDate: r.death_date ?? null,
+    burialPlace: r.burial_place ?? null,
     recordStatus: r.record_status ?? "ancestor",
   };
 }

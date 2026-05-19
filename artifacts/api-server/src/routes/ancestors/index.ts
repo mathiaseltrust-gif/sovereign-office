@@ -34,6 +34,11 @@ router.get("/", requireAuth, async (req, res, next) => {
         locationLat: familyLineageTable.locationLat,
         locationLng: familyLineageTable.locationLng,
         locationAddress: familyLineageTable.locationAddress,
+        birthPlace: familyLineageTable.birthPlace,
+        birthDate: familyLineageTable.birthDate,
+        deathPlace: familyLineageTable.deathPlace,
+        deathDate: familyLineageTable.deathDate,
+        burialPlace: familyLineageTable.burialPlace,
       })
       .from(familyLineageTable)
       .where(

@@ -48,6 +48,11 @@ interface LineageNode {
   supportingDocumentName?: string | null;
   visibility?: string | null;
   photoUrl?: string | null;
+  birthPlace?: string | null;
+  birthDate?: string | null;
+  deathPlace?: string | null;
+  deathDate?: string | null;
+  burialPlace?: string | null;
   createdAt?: string;
   locationLat?: number | null;
   locationLng?: number | null;
@@ -2218,8 +2223,19 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
           <div className="space-y-1">
             {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
             {n.lastName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Last name</span><span>{n.lastName}</span></div>}
-            {n.birthYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Birth year</span><span>{n.birthYear}</span></div>}
-            {n.deathYear && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Death year</span><span>{n.deathYear}</span></div>}
+            {(n.birthYear || n.birthDate || n.birthPlace) && (
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-28 shrink-0">Born</span>
+                <span>{[n.birthDate ?? (n.birthYear?.toString()), n.birthPlace].filter(Boolean).join(" — ")}</span>
+              </div>
+            )}
+            {(n.deathYear || n.deathDate || n.deathPlace) && (
+              <div className="flex gap-2">
+                <span className="text-muted-foreground w-28 shrink-0">Died</span>
+                <span>{[n.deathDate ?? (n.deathYear?.toString()), n.deathPlace].filter(Boolean).join(" — ")}</span>
+              </div>
+            )}
+            {n.burialPlace && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Buried at</span><span>{n.burialPlace}</span></div>}
             {n.gender && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Gender</span><span className="capitalize">{n.gender}</span></div>}
             {n.tribalNation && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">Tribal nation</span><span>{n.tribalNation}</span></div>}
             {n.tribalEnrollmentNumber && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">SSMEL No.</span><span className="font-semibold">{n.tribalEnrollmentNumber}</span></div>}
@@ -3037,6 +3053,11 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
     parentSearch: "",
     selectedParentIds: Array.isArray(editingNode?.parentIds) ? (editingNode!.parentIds as number[]) : [] as number[],
     photoUrl: editingNode?.photoUrl ?? "",
+    birthPlace: editingNode?.birthPlace ?? "",
+    birthDate: editingNode?.birthDate ?? "",
+    deathPlace: editingNode?.deathPlace ?? "",
+    deathDate: editingNode?.deathDate ?? "",
+    burialPlace: editingNode?.burialPlace ?? "",
   });
 
   const f = (field: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) =>
@@ -3070,6 +3091,11 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
         membershipStatus: form.membershipStatus,
         parentIds: form.selectedParentIds,
         ...(!isOwnNode && { photoUrl: form.photoUrl || null }),
+        birthPlace: form.birthPlace || null,
+        birthDate: form.birthDate || null,
+        deathPlace: form.deathPlace || null,
+        deathDate: form.deathDate || null,
+        burialPlace: form.burialPlace || null,
       };
 
       const url = isEdit ? `/api/lineage/nodes/${editingNode!.id}` : "/api/lineage/nodes";
@@ -3120,6 +3146,30 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
               <Label>Death Year</Label>
               <Input className="mt-1" type="number" value={form.deathYear} onChange={f("deathYear")} placeholder="blank if living" />
             </div>
+            <div>
+              <Label>Birth Date</Label>
+              <Input className="mt-1" value={form.birthDate} onChange={f("birthDate")} placeholder="e.g. 12 MAR 1845" />
+            </div>
+            <div>
+              <Label>Death Date</Label>
+              <Input className="mt-1" value={form.deathDate} onChange={f("deathDate")} placeholder="e.g. 4 JUL 1902" />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <Label>Birthplace</Label>
+              <Input className="mt-1" value={form.birthPlace} onChange={f("birthPlace")} placeholder="City, State or County" />
+            </div>
+            <div>
+              <Label>Place of Death</Label>
+              <Input className="mt-1" value={form.deathPlace} onChange={f("deathPlace")} placeholder="City, State or County" />
+            </div>
+          </div>
+
+          <div>
+            <Label>Buried At</Label>
+            <Input className="mt-1" value={form.burialPlace} onChange={f("burialPlace")} placeholder="Cemetery or town name" />
           </div>
 
           <div className="grid grid-cols-2 gap-3">

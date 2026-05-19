@@ -53,6 +53,11 @@ router.get("/", requireAuth, async (req, res, next) => {
       supportingDocumentName: familyLineageTable.supportingDocumentName,
       visibility: familyLineageTable.visibility,
       photoUrl: familyLineageTable.photoUrl,
+      birthPlace: familyLineageTable.birthPlace,
+      birthDate: familyLineageTable.birthDate,
+      deathPlace: familyLineageTable.deathPlace,
+      deathDate: familyLineageTable.deathDate,
+      burialPlace: familyLineageTable.burialPlace,
       createdAt: familyLineageTable.createdAt,
     };
 
@@ -766,7 +771,8 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
     const allowed = ["fullName", "firstName", "lastName", "birthYear", "deathYear", "gender",
       "tribalNation", "tribalEnrollmentNumber", "notes", "generationalPosition",
       "icwaEligible", "welfareEligible", "trustBeneficiary", "protectionLevel",
-      "nameVariants", "parentIds", "membershipStatus", "isDeceased", "isAncestor", "photoUrl"];
+      "nameVariants", "parentIds", "membershipStatus", "isDeceased", "isAncestor", "photoUrl",
+      "birthPlace", "birthDate", "deathPlace", "deathDate", "burialPlace", "locationAddress"];
 
     for (const field of allowed) {
       if (body[field] !== undefined) {

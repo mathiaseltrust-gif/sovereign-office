@@ -343,6 +343,29 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
                 )}
               </div>
 
+              {(ancestor.birthDate || ancestor.birthPlace || ancestor.deathDate || ancestor.deathPlace || ancestor.burialPlace) && (
+                <div className="text-xs space-y-1 mb-3 border border-border/50 rounded-md px-3 py-2 bg-muted/30">
+                  {(ancestor.birthDate || ancestor.birthPlace) && (
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground w-16 shrink-0">Born</span>
+                      <span className="text-foreground">{[ancestor.birthDate, ancestor.birthPlace].filter(Boolean).join(" — ")}</span>
+                    </div>
+                  )}
+                  {(ancestor.deathDate || ancestor.deathPlace) && (
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground w-16 shrink-0">Died</span>
+                      <span className="text-foreground">{[ancestor.deathDate, ancestor.deathPlace].filter(Boolean).join(" — ")}</span>
+                    </div>
+                  )}
+                  {ancestor.burialPlace && (
+                    <div className="flex gap-2">
+                      <span className="text-muted-foreground w-16 shrink-0">Buried</span>
+                      <span className="text-foreground">{ancestor.burialPlace}</span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex flex-wrap gap-2">
                 {ancestor.generationalPosition !== undefined && ancestor.generationalPosition !== null && ancestor.generationalPosition > 0 && (
                   <Badge variant="secondary" className="text-[10px] uppercase tracking-wider">
