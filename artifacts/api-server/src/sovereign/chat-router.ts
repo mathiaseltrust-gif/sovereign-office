@@ -55,6 +55,8 @@ export interface ChatResponse {
 export interface ChatInput {
   message: string;
   userName?: string;
+  userRole?: string;
+  userTitle?: string;
   userId?: number;
   uploadedDocumentText?: string;
   conversationHistory?: ConversationMessage[];
@@ -80,8 +82,24 @@ const FUNNELS: FunnelDef[] = [
       /how\s+(do|does)\s+(you|this)\s+work/i,
       /^(get\s+)?started\s*$/i,
     ],
-    respond: ({ userName }) =>
-      `Hello${userName ? `, ${userName}` : ""}! I am the Sovereign Office Assistant for the Mathias El Tribe.\n\nI can help you with:\n\n• Filing a complaint or reporting a violation\n• Understanding your ICWA, trust land, and jurisdictional rights\n• Getting the right legal documents and forms\n• Welfare and health benefit assistance\n• Membership and enrollment questions\n• Sovereignty and self-determination guidance\n\nFor most questions, I respond immediately using our federal Indian law knowledge base. For complex legal analysis, new court rulings, or document review, our AI legal system assists — but only when truly needed to keep your access costs minimal.\n\nWhat can I help you with today?`,
+    respond: ({ userName, userRole, userTitle }) => {
+      const r = (userRole ?? "").toLowerCase();
+      const isChiefJustice = r === "chief_justice" || r === "sovereign_admin" || r === "admin";
+      const isTrustee = r === "trustee";
+      const isOfficer = r === "officer";
+      const displayName = userName ?? "Chief";
+
+      if (isChiefJustice) {
+        return `${userTitle ?? "Chief Justice & Trustee"} — your Office is open. I hold the full sovereign record.\n\nI am ready to assist you with governance matters: drafting a sovereign instrument, reviewing a pending trust or land matter, analyzing a jurisdictional situation, enforcing fiduciary duty, or advising on any matter before this Office.\n\nWhat requires your attention?`;
+      }
+      if (isTrustee) {
+        return `${displayName}, the Trust is in session. I hold the full fiduciary record.\n\nI can help you review trust instruments, protect beneficiary rights, enforce trust terms, or draft formal trust correspondence. What trust matter needs your attention?`;
+      }
+      if (isOfficer) {
+        return `Officer ${displayName}, the intake system is ready. I can help you open a case, review a document for waiver language, assess a situation for Notice of Federal Review, or draft an agency notice. What matter is before you?`;
+      }
+      return `Hello${userName ? `, ${userName}` : ""}! I am the Sovereign Office Companion for the Mathias El Tribe.\n\nI can help you with:\n\n• Filing a complaint or reporting a violation\n• Understanding your ICWA, trust land, and jurisdictional rights\n• Getting the right legal documents and forms\n• Welfare and health benefit assistance\n• Membership and enrollment questions\n• Sovereignty and self-determination guidance\n\nWhat can I help you with today?`;
+    },
     actions: [
       { label: "File a Complaint", href: "/complaints" },
       { label: "ICWA Rights", intent: "ICWA_GUIDE" },

@@ -31,6 +31,8 @@ router.post("/", requireAuth, async (req, res, next) => {
     const user = req.user;
     const userId = user?.dbId;
     const userName = user?.name ?? user?.email?.split("@")[0] ?? undefined;
+    const userRole = (user?.roles?.[0] ?? "member") as string;
+    const userTitle = user?.name ?? undefined;
 
     const conversationHistory = userId ? await getHistory(userId) : [];
 
@@ -44,6 +46,8 @@ router.post("/", requireAuth, async (req, res, next) => {
     const response = await routeChat({
       message: trimmedMessage,
       userName,
+      userRole,
+      userTitle,
       userId,
       uploadedDocumentText,
       conversationHistory,

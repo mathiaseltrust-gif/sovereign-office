@@ -1664,8 +1664,8 @@ function StewardshipTab({ pipeline, onRefresh }: { pipeline: StewardshipEntry[];
 
 // ── Parcel Detail Drawer ───────────────────────────────────────────────────────
 function ParcelDetailDrawer({
-  parcel, assignments, leases, assets, encumbrances, deeds,
-  onClose, onNavigateTab, navigate,
+  parcel, assignments, leases, assets, encumbrances, deeds, parcels,
+  onClose, onNavigateTab, navigate, onRefresh,
 }: {
   parcel: Parcel;
   assignments: MemberAssignment[];
@@ -1673,10 +1673,16 @@ function ParcelDetailDrawer({
   assets: Asset[];
   encumbrances: Encumbrance[];
   deeds: Deed[];
+  parcels: Parcel[];
   onClose: () => void;
   onNavigateTab: (tab: string) => void;
   navigate: (path: string) => void;
+  onRefresh?: () => void;
 }) {
+  const [householdModal, setHouseholdModal] = useState(false);
+  const [householdEditing, setHouseholdEditing] = useState<MemberAssignment | null>(null);
+  const [householdDefaultRole, setHouseholdDefaultRole] = useState<string>("spouse");
+
   const parcelAssignments = useMemo(() => assignments.filter(a => a.parcel_id === parcel.id && a.status === "active"), [assignments, parcel.id]);
   const parcelLeases    = useMemo(() => leases.filter(l => l.parcel_id === parcel.id), [leases, parcel.id]);
   const parcelAssets    = useMemo(() => assets.filter(a => a.parcel_id === parcel.id), [assets, parcel.id]);
@@ -1802,29 +1808,97 @@ function ParcelDetailDrawer({
               </div>
             )}
 
-            {/* ── Member / Steward Assignments ── */}
-            {parcelAssignments.length > 0 && (
-              <div className="space-y-2">
-                <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Active Stewards &amp; Assignees</p>
-                {parcelAssignments.map(a => (
-                  <div key={a.id} className="flex items-center justify-between gap-3 bg-card/60 border border-border/40 rounded-lg px-3 py-2.5">
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-foreground truncate">{a.member_name}</p>
-                      <p className="text-[10px] text-amber-400/70 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}</p>
-                      {a.family_name && <p className="text-[10px] text-muted-foreground">{a.family_name}</p>}
+            {/* ── Household Members ── */}
+            {(() => {
+              const householdMembers = parcelAssignments.filter(a => HOUSEHOLD_ROLES.has(a.assignment_role));
+              const stewardAssignments = parcelAssignments.filter(a => !HOUSEHOLD_ROLES.has(a.assignment_role));
+              return (
+                <>
+                  {/* Household Members panel — always shown so user can add */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50 flex items-center gap-1">
+                        <Users className="w-3 h-3" /> Household Members
+                      </p>
+                      <div className="flex items-center gap-1.5">
+                        {(["spouse", "child"] as const).map(role => (
+                          <button
+                            key={role}
+                            onClick={() => { setHouseholdEditing(null); setHouseholdDefaultRole(role); setHouseholdModal(true); }}
+                            className="text-[10px] px-2 py-0.5 rounded border border-amber-700/40 text-amber-400 hover:bg-amber-900/20 hover:text-amber-300 transition-colors flex items-center gap-0.5"
+                          >
+                            <Plus className="w-2.5 h-2.5" />
+                            {role === "spouse" ? "Spouse" : "Child"}
+                          </button>
+                        ))}
+                        <button
+                          onClick={() => { setHouseholdEditing(null); setHouseholdDefaultRole("sibling"); setHouseholdModal(true); }}
+                          className="text-[10px] px-2 py-0.5 rounded border border-border/40 text-muted-foreground hover:text-foreground hover:border-amber-700/30 transition-colors"
+                        >
+                          + Other
+                        </button>
+                      </div>
                     </div>
-                    <button
-                      onClick={() => { navigate(`/search?q=${encodeURIComponent(a.member_name)}`); onClose(); }}
-                      className="flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-300 transition-colors shrink-0 border border-amber-700/40 rounded px-2 py-1 hover:bg-amber-900/20"
-                      title={`View ${a.member_name}'s profile`}
-                    >
-                      View Profile
-                      <ExternalLink className="w-3 h-3" />
-                    </button>
+
+                    {householdMembers.length === 0 ? (
+                      <p className="text-xs text-muted-foreground/60 italic py-1">
+                        No household members linked to this parcel yet. Use the buttons above to add your spouse or children.
+                      </p>
+                    ) : (
+                      householdMembers.map(a => (
+                        <div key={a.id} className="flex items-center justify-between gap-3 bg-blue-950/30 border border-blue-800/30 rounded-lg px-3 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{a.member_name}</p>
+                            <p className="text-[10px] text-blue-400/80 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}</p>
+                            {a.family_name && <p className="text-[10px] text-muted-foreground">{a.family_name}</p>}
+                          </div>
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            <button
+                              onClick={() => { setHouseholdEditing(a); setHouseholdDefaultRole(a.assignment_role); setHouseholdModal(true); }}
+                              className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground"
+                              title="Edit"
+                            >
+                              <Edit2 className="w-3.5 h-3.5" />
+                            </button>
+                            <button
+                              onClick={() => { navigate(`/search?q=${encodeURIComponent(a.member_name)}`); onClose(); }}
+                              className="text-[10px] text-amber-400 hover:text-amber-300 border border-amber-700/40 rounded px-1.5 py-0.5"
+                              title="View profile"
+                            >
+                              View
+                            </button>
+                          </div>
+                        </div>
+                      ))
+                    )}
                   </div>
-                ))}
-              </div>
-            )}
+
+                  {/* Steward Assignments */}
+                  {stewardAssignments.length > 0 && (
+                    <div className="space-y-2">
+                      <p className="text-[10px] uppercase tracking-widest text-muted-foreground/50">Active Stewards &amp; Assignees</p>
+                      {stewardAssignments.map(a => (
+                        <div key={a.id} className="flex items-center justify-between gap-3 bg-card/60 border border-border/40 rounded-lg px-3 py-2.5">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-foreground truncate">{a.member_name}</p>
+                            <p className="text-[10px] text-amber-400/70 capitalize">{ASSIGNMENT_ROLES.find(r => r.value === a.assignment_role)?.label ?? a.assignment_role}</p>
+                            {a.family_name && <p className="text-[10px] text-muted-foreground">{a.family_name}</p>}
+                          </div>
+                          <button
+                            onClick={() => { navigate(`/search?q=${encodeURIComponent(a.member_name)}`); onClose(); }}
+                            className="flex items-center gap-1 text-[11px] font-medium text-amber-400 hover:text-amber-300 transition-colors shrink-0 border border-amber-700/40 rounded px-2 py-1 hover:bg-amber-900/20"
+                            title={`View ${a.member_name}'s profile`}
+                          >
+                            View Profile
+                            <ExternalLink className="w-3 h-3" />
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
 
             {/* ── Notes ── */}
             {parcel.notes && (
@@ -1863,6 +1937,16 @@ function ParcelDetailDrawer({
           </button>
         </div>
       </div>
+      {householdModal && (
+        <AssignmentModal
+          assignment={householdEditing ?? undefined}
+          parcels={parcels.length > 0 ? parcels : [parcel]}
+          defaultRole={householdDefaultRole}
+          defaultParcelId={String(parcel.id)}
+          onClose={() => { setHouseholdModal(false); setHouseholdEditing(null); }}
+          onSaved={() => { setHouseholdModal(false); setHouseholdEditing(null); onRefresh?.(); }}
+        />
+      )}
     </div>
   );
 }
@@ -2556,7 +2640,13 @@ const ASSIGNMENT_ROLES = [
   { value: "beneficiary",    label: "Beneficiary (Land Benefit)" },
   { value: "committee",      label: "Land Committee Member" },
   { value: "trustee",        label: "Trustee Assignment" },
+  { value: "spouse",         label: "Spouse / Partner" },
+  { value: "child",          label: "Child / Dependent" },
+  { value: "parent",         label: "Parent / Guardian" },
+  { value: "sibling",        label: "Sibling" },
 ];
+
+const HOUSEHOLD_ROLES = new Set(["spouse", "child", "parent", "sibling"]);
 
 const EMPTY_ASSIGN = {
   parcelId: "", memberId: "", memberName: "", memberEmail: "", assignmentRole: "steward",
@@ -2565,7 +2655,11 @@ const EMPTY_ASSIGN = {
   tribalCodeRef: "", authorizedBy: "", notes: "",
 };
 
-function AssignmentModal({ assignment, parcels, onClose, onSaved }: { assignment?: MemberAssignment; parcels: Parcel[]; onClose: () => void; onSaved: () => void }) {
+function AssignmentModal({ assignment, parcels, defaultRole, defaultParcelId, onClose, onSaved }: {
+  assignment?: MemberAssignment; parcels: Parcel[];
+  defaultRole?: string; defaultParcelId?: string;
+  onClose: () => void; onSaved: () => void;
+}) {
   const [form, setForm] = useState(assignment ? {
     parcelId: String(assignment.parcel_id ?? ""), memberId: assignment.member_id ?? "",
     memberName: assignment.member_name ?? "", memberEmail: assignment.member_email ?? "",
@@ -2576,7 +2670,7 @@ function AssignmentModal({ assignment, parcels, onClose, onSaved }: { assignment
     responsibilities: assignment.responsibilities ?? "", culturalConnection: assignment.cultural_connection ?? "",
     tribalCodeRef: assignment.tribal_code_ref ?? "", authorizedBy: assignment.authorized_by ?? "",
     notes: assignment.notes ?? "",
-  } : { ...EMPTY_ASSIGN });
+  } : { ...EMPTY_ASSIGN, assignmentRole: defaultRole ?? "steward", parcelId: defaultParcelId ?? "" });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
   const set = (k: string) => (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => setForm(f => ({ ...f, [k]: e.target.value }));
@@ -2663,6 +2757,10 @@ function AssignmentsTab({ assignments, parcels, onRefresh }: { assignments: Memb
     cultural_keeper: "bg-rose-800 text-rose-100",
     family_steward: "bg-amber-800 text-amber-100",
     trustee: "bg-violet-800 text-violet-100",
+    spouse: "bg-blue-800 text-blue-100",
+    child: "bg-sky-800 text-sky-100",
+    parent: "bg-indigo-800 text-indigo-100",
+    sibling: "bg-cyan-800 text-cyan-100",
   }[r] ?? "bg-muted text-muted-foreground");
 
   const statusColor = (s: string) => ({
@@ -3203,9 +3301,11 @@ export default function LandPage() {
           assets={assetsQ.data ?? []}
           encumbrances={encQ.data ?? []}
           deeds={deedsQ.data ?? []}
+          parcels={parcelsQ.data ?? []}
           onClose={() => setSelectedParcel(null)}
           onNavigateTab={(t) => { setTab(t); setSelectedParcel(null); }}
           navigate={navigate}
+          onRefresh={() => refresh(["land-assignments"])}
         />
       )}
     </div>
