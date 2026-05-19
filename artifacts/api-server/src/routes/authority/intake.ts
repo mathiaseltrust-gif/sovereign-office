@@ -145,12 +145,19 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
     const detectedState = contextHints?.state ?? (extracted.detectedState as string | null);
     const detectedCounty = contextHints?.county ?? (extracted.detectedCounty as string | null);
 
-    // ── Look up routing rule ──────────────────────────────────────────────────
-    const [routingRule] = await db
+    // ── Look up routing rule — fall back to "general" if specific type has no rule ─
+    let [routingRule] = await db
       .select()
       .from(authorityMatterRoutingTable)
       .where(eq(authorityMatterRoutingTable.matterType, matterType))
       .limit(1);
+    if (!routingRule && matterType !== "general") {
+      [routingRule] = await db
+        .select()
+        .from(authorityMatterRoutingTable)
+        .where(eq(authorityMatterRoutingTable.matterType, "general"))
+        .limit(1);
+    }
 
     // ── Legal authorities ─────────────────────────────────────────────────────
     const legalAuthorities = await db
@@ -163,23 +170,40 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
     let matchedAgencyId: number | null = null;
 
     if (detectedState || (extracted.detectedEntityName as string | null)) {
-      const conditions: SQL<unknown>[] = [];
-      if (detectedState) conditions.push(eq(authorityAgenciesTable.stateCode, detectedState.toUpperCase()));
-      if (detectedCounty) conditions.push(ilike(authorityAgenciesTable.county, `%${detectedCounty}%`));
-      if (extracted.detectedEntityName) {
-        const entityQ = (extracted.detectedEntityName as string).split(/\s+/).slice(0, 3).join(" ");
-        conditions.push(ilike(authorityAgenciesTable.agencyName, `%${entityQ}%`) as SQL<unknown>);
-      }
+      // Strategy: best-match first (state+county+name), then progressively broaden
+      // so we always return something useful rather than nothing on a partial match.
+      const stateCondition = detectedState
+        ? eq(authorityAgenciesTable.stateCode, detectedState.toUpperCase())
+        : null;
+      const countyCondition = detectedCounty
+        ? ilike(authorityAgenciesTable.county, `%${detectedCounty}%`)
+        : null;
+      const entityQ = extracted.detectedEntityName
+        ? (extracted.detectedEntityName as string).split(/\s+/).slice(0, 3).join(" ")
+        : null;
+      const nameCondition = entityQ
+        ? (ilike(authorityAgenciesTable.agencyName, `%${entityQ}%`) as SQL<unknown>)
+        : null;
 
-      if (conditions.length > 0) {
+      // Try narrowest match first (all three), then fall back to state+county, then state only
+      const attempts: Array<SQL<unknown>[]> = [];
+      const full: SQL<unknown>[] = [stateCondition, countyCondition, nameCondition].filter(Boolean) as SQL<unknown>[];
+      const stateCounty: SQL<unknown>[] = [stateCondition, countyCondition].filter(Boolean) as SQL<unknown>[];
+      const stateOnly: SQL<unknown>[] = [stateCondition].filter(Boolean) as SQL<unknown>[];
+      if (full.length > 0) attempts.push(full);
+      if (stateCounty.length > 0 && stateCounty.length < full.length) attempts.push(stateCounty);
+      if (stateOnly.length > 0 && stateOnly.length < stateCounty.length) attempts.push(stateOnly);
+
+      for (const conds of attempts) {
         matchedAgencies = await db
           .select()
           .from(authorityAgenciesTable)
-          .where(conditions.length === 1 ? conditions[0] : and(...(conditions as [SQL<unknown>, ...SQL<unknown>[]])))
+          .where(conds.length === 1 ? conds[0] : and(...(conds as [SQL<unknown>, ...SQL<unknown>[]])))
           .limit(5)
           .orderBy(desc(authorityAgenciesTable.confidenceScore));
-        matchedAgencyId = matchedAgencies[0]?.id ?? null;
+        if (matchedAgencies.length > 0) break;
       }
+      matchedAgencyId = matchedAgencies[0]?.id ?? null;
     }
 
     // ── Build routing recommendation ──────────────────────────────────────────
@@ -208,7 +232,7 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
         name: oversightAgency.agencyName,
         mailingAddress: oversightAgency.mailingAddress ?? oversightAgency.physicalAddress ?? null,
       } : routingRule?.oversightEntityType ? { name: routingRule.oversightEntityType } : null,
-      ccList: routingRule ? [routingRule.oversightEntityType, routingRule.primaryRecipientNote].filter(Boolean) : [],
+      ccList: routingRule ? [routingRule.oversightEntityType].filter(Boolean) : [],
       legalFlagSummary,
       suggestedTemplateKey: routingRule?.requiredNoticeTemplate ?? null,
       escalationPath: routingRule?.escalationPath ?? null,
