@@ -335,7 +335,9 @@ sudo systemctl status certbot.timer
 sudo certbot renew --dry-run
 ```
 
-### 9e. Open ports 80 and 443 in the Azure NSG and UFW
+### 9e. Open ports 80 and 443 in the Azure NSG and UFW, then close the raw service ports
+
+#### 9e-i. Open 80 and 443 (run before Certbot)
 
 ```bash
 # UFW (on the VM)
@@ -360,8 +362,55 @@ az network nsg rule create \
   --destination-port-ranges 443
 ```
 
-> The individual service ports (8080, 3001–3004) should now be **closed** in the
-> NSG — all traffic must flow through nginx on 443.
+#### 9e-ii. Close raw service ports (run **after** Certbot succeeds and all HTTPS URLs are verified)
+
+> **Required step.** Once nginx is live and TLS certificates are issued, ports
+> 8080, 3001, 3002, 3003, and 3004 must be removed from the NSG and blocked in
+> UFW. Leaving them open lets anyone reach the apps over plain HTTP, bypassing
+> TLS entirely.
+
+Verify all five HTTPS URLs return 200 before running these commands:
+
+```bash
+curl -sf https://api.sovereignoffice.org/api/healthz && echo "API OK"
+curl -sf -o /dev/null -w "%{http_code}" https://sovereign.sovereignoffice.org/
+curl -sf -o /dev/null -w "%{http_code}" https://trust.sovereignoffice.org/
+curl -sf -o /dev/null -w "%{http_code}" https://community.sovereignoffice.org/
+curl -sf -o /dev/null -w "%{http_code}" https://atlas.sovereignoffice.org/
+```
+
+Then close the ports:
+
+```bash
+# ── UFW: block service ports from external access (on the VM) ─────────────────
+for port in 8080 3001 3002 3003 3004; do
+  sudo ufw delete allow "$port/tcp" 2>/dev/null || true
+  sudo ufw deny "$port/tcp"
+done
+sudo ufw reload
+sudo ufw status numbered
+
+# ── Azure NSG: delete the inbound rules for each service port ─────────────────
+# (Run from your local machine or Azure Cloud Shell)
+for rule in Allow-API-8080 Allow-Dashboard-3001 Allow-Trust-3002 Allow-Community-3003 Allow-Atlas-3004; do
+  az network nsg rule delete \
+    --resource-group <your-rg> \
+    --nsg-name <your-nsg-name> \
+    --name "$rule"
+done
+```
+
+> If your NSG rules use different names, find them with:
+> `az network nsg rule list --resource-group <your-rg> --nsg-name <your-nsg-name> --output table`
+> and substitute the correct names above.
+
+Alternatively, if you used the `sovereign-install.sh` script, a helper is
+already written to `/opt/sovereign-office/close-service-ports.sh` on the VM.
+Run it after confirming HTTPS works:
+
+```bash
+sudo bash /opt/sovereign-office/close-service-ports.sh
+```
 
 ### 9f. nginx config reference (bootstrap — HTTP only)
 

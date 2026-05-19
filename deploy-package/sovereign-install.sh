@@ -149,13 +149,107 @@ echo "  closed to external traffic once nginx is configured — see DEPLOY.md §
 sudo ufw allow 80/tcp  2>/dev/null || true
 sudo ufw allow 443/tcp 2>/dev/null || true
 # Also open service ports temporarily for initial smoke-testing before nginx is
-# in place; remove these NSG rules after confirming HTTPS URLs work (DEPLOY.md §9e).
+# in place.  *** Run close-service-ports.sh (written below) after confirming
+# all HTTPS URLs work.  See DEPLOY.md §9e-ii. ***
 for port in 8080 3001 3002 3003 3004; do
   sudo ufw allow "$port/tcp" 2>/dev/null || true
 done
 sudo ufw reload 2>/dev/null || true
-echo "✓ Ports 80, 443, 8080, 3001-3004 open"
-echo "  (Close 8080/3001-3004 in the Azure NSG after nginx+TLS are live — see DEPLOY.md §9e)"
+echo "✓ Ports 80, 443, 8080, 3001-3004 open (UFW)"
+echo "  ⚠  IMPORTANT: after nginx+TLS are live, run:"
+echo "     sudo bash $DEPLOY_DIR/close-service-ports.sh"
+echo "  This removes external access to ports 8080/3001-3004 so all traffic"
+echo "  is forced through nginx on 443. See DEPLOY.md §9e-ii for details."
+
+# ── Step 6b: Write close-service-ports.sh helper ─────────────────────────────
+cat > "$DEPLOY_DIR/close-service-ports.sh" << 'CLOSEEOF'
+#!/usr/bin/env bash
+# =============================================================================
+# close-service-ports.sh — run AFTER nginx is live and all HTTPS URLs verified
+#
+# Removes UFW rules that allowed external access to the raw service ports
+# (8080, 3001-3004).  Run the companion NSG commands from DEPLOY.md §9e-ii
+# from your local machine / Azure Cloud Shell to complete the lockdown.
+# =============================================================================
+set -euo pipefail
+
+DEPLOY_DIR_LOCAL="$(cd "$(dirname "$0")" && pwd)"
+
+echo ""
+echo "╔══════════════════════════════════════════════════════════════╗"
+echo "║  Close raw service ports — post-nginx hardening             ║"
+echo "╚══════════════════════════════════════════════════════════════╝"
+echo ""
+
+# Derive HTTPS URLs from .env when available; fall back to built-in defaults.
+# This makes the script work for any domain, not just sovereignoffice.org.
+if [ -f "$DEPLOY_DIR_LOCAL/.env" ]; then
+  set -a
+  # shellcheck disable=SC1091
+  source "$DEPLOY_DIR_LOCAL/.env"
+  set +a
+fi
+
+API_URL="${APP_URL:-https://api.sovereignoffice.org}"
+SOVEREIGN_URL="${SOVEREIGN_DASHBOARD_URL:-https://sovereign.sovereignoffice.org}"
+TRUST_URL="${TRUST_DASHBOARD_URL:-https://trust.sovereignoffice.org}"
+COMMUNITY_URL="${COMMUNITY_DASHBOARD_URL:-https://community.sovereignoffice.org}"
+ATLAS_URL="${ATLAS_DASHBOARD_URL:-https://atlas.sovereignoffice.org}"
+
+# Verify HTTPS endpoints are healthy before locking out the fallback ports
+echo "▶ Verifying HTTPS endpoints before closing ports..."
+ALL_OK=true
+check_url() {
+  local label="$1" url="$2"
+  if curl -sf -o /dev/null -w "" "$url" 2>/dev/null; then
+    echo "  ✓ $label ($url)"
+  else
+    echo "  ✗ $label ($url) — NOT reachable via HTTPS (check nginx/Certbot before closing ports)"
+    ALL_OK=false
+  fi
+}
+check_url "API"                "${API_URL}/api/healthz"
+check_url "Sovereign Dashboard" "${SOVEREIGN_URL}/"
+check_url "Trust Dashboard"    "${TRUST_URL}/"
+check_url "Community Dashboard" "${COMMUNITY_URL}/"
+check_url "Urban Indian Atlas" "${ATLAS_URL}/"
+
+if [ "$ALL_OK" != "true" ]; then
+  echo ""
+  echo "  ⛔  One or more HTTPS endpoints are not responding."
+  echo "  Fix nginx/Certbot first, then re-run this script."
+  exit 1
+fi
+
+echo ""
+echo "▶ All HTTPS endpoints healthy — closing UFW rules for service ports..."
+for port in 8080 3001 3002 3003 3004; do
+  sudo ufw delete allow "$port/tcp" 2>/dev/null || true
+  sudo ufw deny  "$port/tcp" 2>/dev/null || true
+  echo "  ✓ Port $port blocked"
+done
+sudo ufw reload
+echo ""
+echo "✓ UFW updated. Current status:"
+sudo ufw status numbered
+echo ""
+echo "═══════════════════════════════════════════════════════════════"
+echo "  Next: delete the Azure NSG inbound rules for these ports."
+echo "  Run from your local machine or Azure Cloud Shell:"
+echo ""
+echo "  for rule in Allow-API-8080 Allow-Dashboard-3001 Allow-Trust-3002 \\"
+echo "              Allow-Community-3003 Allow-Atlas-3004; do"
+echo "    az network nsg rule delete \\"
+echo "      --resource-group <your-rg> \\"
+echo "      --nsg-name <your-nsg-name> \\"
+echo "      --name \"\$rule\""
+echo "  done"
+echo ""
+echo "  See DEPLOY.md §9e-ii for full details and rule-name discovery commands."
+echo "═══════════════════════════════════════════════════════════════"
+CLOSEEOF
+chmod +x "$DEPLOY_DIR/close-service-ports.sh"
+echo "✓ close-service-ports.sh written to $DEPLOY_DIR"
 
 # ── Step 7: Log in to ACR ─────────────────────────────────────────────────────
 echo ""
