@@ -1,17 +1,21 @@
 # ============================================================================
 # Sovereign Office — Alert Pipeline Test
 #
-# Manually trigger this workflow from the Actions tab to confirm that Slack
-# and email notifications are correctly wired up — without needing a real
-# deployment failure.
+# This workflow runs automatically every Monday at 09:00 UTC to confirm that
+# Slack and email notifications are still working.  It can also be triggered
+# manually from the Actions tab at any time.
 #
-# How to run:
-#   GitHub → Actions → "Test Alert Pipeline" → Run workflow
+# Scheduled run behaviour
+#   - Messages are labelled "automated weekly check" so operators are not
+#     alarmed by the notification.
+#   - If a channel's secrets are missing or the send fails, the step exits
+#     with a non-zero code so the failure is visible in the Actions dashboard.
 #
-# Optional inputs (leave blank to use the defaults):
-#   message   — custom note to include in the alert body
+# Manual run behaviour
+#   - Same as before: skips a channel when its secrets are absent and accepts
+#     an optional custom note via the message input.
 #
-# Required secrets (same as deploy.yml, add at least one):
+# Required secrets (add at least one channel):
 #   SLACK_WEBHOOK_URL  — Incoming Webhook URL from your Slack app
 #   NOTIFY_EMAIL       — Recipient address e.g. ops@sovereignoffice.org
 #   SMTP_HOST          — SMTP server hostname
@@ -23,6 +27,9 @@
 name: Test Alert Pipeline
 
 on:
+  schedule:
+    # Every Monday at 09:00 UTC
+    - cron: "0 9 * * 1"
   workflow_dispatch:
     inputs:
       message:
@@ -42,20 +49,39 @@ jobs:
           CUSTOM_MESSAGE:    ${{ inputs.message }}
           RUN_URL:           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRIGGERED_BY:      ${{ github.actor }}
+          EVENT_NAME:        ${{ github.event_name }}
         run: |
-          if [ -z "$SLACK_WEBHOOK_URL" ]; then
-            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification"
-            exit 0
+          IS_SCHEDULED="false"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            IS_SCHEDULED="true"
           fi
 
-          MAIN_TEXT=":test_tube: *[TEST] Alert pipeline test — this is NOT a real incident*\nThis message was triggered manually by *${TRIGGERED_BY}* to verify that Slack notifications are working correctly.\n*Simulated failed services:* api (HTTP 000), sovereign (HTTP 000)"
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            if [ "$IS_SCHEDULED" = "true" ]; then
+              echo "ERROR: SLACK_WEBHOOK_URL is not configured. Add the secret under Settings → Secrets and variables → Actions."
+              exit 1
+            else
+              echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification"
+              exit 0
+            fi
+          fi
+
+          if [ "$IS_SCHEDULED" = "true" ]; then
+            LABEL=":calendar: *[AUTOMATED WEEKLY CHECK] Alert pipeline — this is NOT a real incident*"
+            DETAIL="This message was sent automatically by the weekly scheduled workflow to confirm that Slack notifications are still working correctly."
+          else
+            LABEL=":test_tube: *[TEST] Alert pipeline test — this is NOT a real incident*"
+            DETAIL="This message was triggered manually by *${TRIGGERED_BY}* to verify that Slack notifications are working correctly."
+          fi
+
+          MAIN_TEXT="${LABEL}\n${DETAIL}\n*Simulated failed services:* api (HTTP 000), sovereign (HTTP 000)"
           if [ -n "$CUSTOM_MESSAGE" ]; then
             MAIN_TEXT="${MAIN_TEXT}\n*Note:* ${CUSTOM_MESSAGE}"
           fi
           MAIN_TEXT="${MAIN_TEXT}\n<${RUN_URL}|View workflow run →>"
 
           PAYLOAD=$(jq -n \
-            --arg text ":test_tube: *[TEST] Alert pipeline test — this is NOT a real incident*" \
+            --arg text "$LABEL" \
             --arg mrkdwn "$MAIN_TEXT" \
             '{
               text: $text,
@@ -80,15 +106,33 @@ jobs:
           CUSTOM_MESSAGE: ${{ inputs.message }}
           RUN_URL:        ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
           TRIGGERED_BY:   ${{ github.actor }}
+          EVENT_NAME:     ${{ github.event_name }}
         run: |
+          IS_SCHEDULED="false"
+          if [ "$EVENT_NAME" = "schedule" ]; then
+            IS_SCHEDULED="true"
+          fi
+
           if [ -z "$NOTIFY_EMAIL" ] || [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USERNAME" ] || [ -z "$SMTP_PASSWORD" ]; then
-            echo "Email secrets not fully configured (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD required) — skipping email notification"
-            exit 0
+            if [ "$IS_SCHEDULED" = "true" ]; then
+              echo "ERROR: One or more email secrets are missing (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD). Add them under Settings → Secrets and variables → Actions."
+              exit 1
+            else
+              echo "Email secrets not fully configured (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD required) — skipping email notification"
+              exit 0
+            fi
           fi
 
           PORT="${SMTP_PORT:-587}"
-          SUBJECT="[TEST] [Sovereign Office] Alert pipeline test — NOT a real incident"
-          BODY="THIS IS A TEST — not a real incident.\n\nThis email was triggered manually by ${TRIGGERED_BY} to verify that email notifications are working correctly.\n\nSimulated failed services: api (HTTP 000), sovereign (HTTP 000)\n"
+
+          if [ "$IS_SCHEDULED" = "true" ]; then
+            SUBJECT="[AUTOMATED WEEKLY CHECK] [Sovereign Office] Alert pipeline — NOT a real incident"
+            BODY="THIS IS AN AUTOMATED WEEKLY CHECK — not a real incident.\n\nThis email was sent automatically by the weekly scheduled workflow to confirm that email notifications are still working correctly.\n\nSimulated failed services: api (HTTP 000), sovereign (HTTP 000)\n"
+          else
+            SUBJECT="[TEST] [Sovereign Office] Alert pipeline test — NOT a real incident"
+            BODY="THIS IS A TEST — not a real incident.\n\nThis email was triggered manually by ${TRIGGERED_BY} to verify that email notifications are working correctly.\n\nSimulated failed services: api (HTTP 000), sovereign (HTTP 000)\n"
+          fi
+
           if [ -n "$CUSTOM_MESSAGE" ]; then
             BODY="${BODY}\nNote: ${CUSTOM_MESSAGE}\n"
           fi
@@ -107,10 +151,17 @@ jobs:
 
       - name: Summary
         run: |
-          echo "## Alert pipeline test complete" >> "$GITHUB_STEP_SUMMARY"
+          if [ "${{ github.event_name }}" = "schedule" ]; then
+            echo "## Automated weekly alert check complete" >> "$GITHUB_STEP_SUMMARY"
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "This run was triggered automatically (every Monday at 09:00 UTC)." >> "$GITHUB_STEP_SUMMARY"
+            echo "A failed step means a secret is missing or the channel is broken — fix it before a real incident occurs." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## Alert pipeline test complete" >> "$GITHUB_STEP_SUMMARY"
+          fi
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo "Check the steps above to see whether each channel:" >> "$GITHUB_STEP_SUMMARY"
+          echo "Check the steps above to see whether each channel succeeded:" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Slack** — sent if \`SLACK_WEBHOOK_URL\` is configured" >> "$GITHUB_STEP_SUMMARY"
           echo "- **Email** — sent if \`NOTIFY_EMAIL\`, \`SMTP_HOST\`, \`SMTP_USERNAME\`, and \`SMTP_PASSWORD\` are all configured" >> "$GITHUB_STEP_SUMMARY"
           echo "" >> "$GITHUB_STEP_SUMMARY"
-          echo 'If a channel shows "not configured — skipping", add the missing secret(s) under **Settings → Secrets and variables → Actions**.' >> "$GITHUB_STEP_SUMMARY"
+          echo 'If a channel shows an error, add the missing secret(s) under **Settings → Secrets and variables → Actions**.' >> "$GITHUB_STEP_SUMMARY"
