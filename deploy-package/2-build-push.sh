@@ -40,7 +40,7 @@ echo "============================================================"
 echo ""
 
 # 1. Log into ACR
-echo "Step 1/6 — Logging into Azure Container Registry..."
+echo "Step 1/7 — Logging into Azure Container Registry..."
 if [ -n "${ACR_USERNAME:-}" ] && [ -n "${ACR_PASSWORD:-}" ]; then
   echo "$ACR_PASSWORD" | docker login "$ACR_REGISTRY" -u "$ACR_USERNAME" --password-stdin
 else
@@ -68,26 +68,31 @@ build_and_push() {
   echo ""
 }
 
-echo "Step 2/6 — API Server..."
+echo "Step 2/7 — API Server..."
 build_and_push "sovereign-api" \
   "artifacts/api-server/Dockerfile"
 
-echo "Step 3/6 — Sovereign Dashboard..."
+echo "Step 3/7 — Sovereign Dashboard..."
 build_and_push "sovereign-dashboard" \
   "artifacts/sovereign-dashboard/Dockerfile" \
   "--build-arg BASE_PATH=/ --build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
 
-echo "Step 4/6 — Trust Dashboard..."
+echo "Step 4/7 — Trust Dashboard..."
 build_and_push "trust-dashboard" \
   "artifacts/trust-dashboard/Dockerfile" \
   "--build-arg BASE_PATH=/ --build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
 
-echo "Step 5/6 — Community Dashboard..."
+echo "Step 5/7 — Community Dashboard..."
 build_and_push "community-dashboard" \
   "artifacts/community-dashboard/Dockerfile" \
   "--build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
 
-echo "Step 6/6 — Done!"
+echo "Step 6/7 — Urban Indian Continuity Atlas..."
+build_and_push "urban-indian-atlas" \
+  "artifacts/urban-indian-atlas/Dockerfile" \
+  "--build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
+
+echo "Done!"
 echo ""
 echo "============================================================"
 echo "  All images pushed to $ACR_REGISTRY"

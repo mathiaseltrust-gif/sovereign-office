@@ -107,5 +107,18 @@ services:
       api:
         condition: service_healthy
 
+  # ---------------------------------------------------------------------------
+  # Urban Indian Continuity Atlas — mapping and continuity records
+  # Accessible at: http://YOUR-SERVER:3004
+  # ---------------------------------------------------------------------------
+  atlas:
+    image: ${ACR_REGISTRY}/urban-indian-atlas:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    ports:
+      - "3004:80"
+    depends_on:
+      api:
+        condition: service_healthy
+
 volumes:
   db_data:

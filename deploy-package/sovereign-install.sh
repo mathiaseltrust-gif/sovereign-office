@@ -62,6 +62,7 @@ APP_URL=http://20.83.210.26:8080
 SOVEREIGN_DASHBOARD_URL=http://20.83.210.26:3001
 TRUST_DASHBOARD_URL=http://20.83.210.26:3002
 COMMUNITY_DASHBOARD_URL=http://20.83.210.26:3003
+ATLAS_DASHBOARD_URL=http://20.83.210.26:3004
 
 AZURE_ENTRA_TENANT_ID=3b71074d-80fb-46a1-a481-3aed69152480
 AZURE_ENTRA_CLIENT_ID=9d408980-8fbf-4384-a712-436e70480eb9
@@ -129,17 +130,26 @@ services:
     depends_on:
       api:
         condition: service_healthy
+
+  atlas:
+    image: sovereignoffice.azurecr.io/urban-indian-atlas:latest
+    restart: unless-stopped
+    ports:
+      - "3004:80"
+    depends_on:
+      api:
+        condition: service_healthy
 COMPOSEEOF
 echo "✓ docker-compose.prod.yml written"
 
 # ── Step 6: Open firewall ports ───────────────────────────────────────────────
 echo ""
 echo "▶ Opening firewall ports..."
-for port in 8080 3001 3002 3003; do
+for port in 8080 3001 3002 3003 3004; do
   sudo ufw allow "$port/tcp" 2>/dev/null || true
 done
 sudo ufw reload 2>/dev/null || true
-echo "✓ Ports 8080, 3001, 3002, 3003 open"
+echo "✓ Ports 8080, 3001, 3002, 3003, 3004 open"
 
 # ── Step 7: Log in to ACR ─────────────────────────────────────────────────────
 echo ""
@@ -159,7 +169,78 @@ echo "▶ Starting all services..."
 docker compose -f docker-compose.prod.yml up -d
 echo "✓ Services started"
 
-# ── Step 10: Wait for API (runs DB migrations on first boot) ──────────────────
+# ── Step 10: Set up nightly backup cron job ───────────────────────────────────
+echo ""
+echo "▶ Setting up nightly database backup (02:00 UTC → Azure Blob Storage)..."
+source .env
+BACKUP_LOG="/var/log/sovereign-backup.log"
+CRON_FILE="/etc/cron.d/sovereign-backup"
+
+# Install azure-cli if missing (needed by backup.sh)
+if ! command -v az &>/dev/null; then
+  echo "  Installing Azure CLI..."
+  curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash 2>/dev/null
+fi
+# Install pg_dump if missing
+if ! command -v pg_dump &>/dev/null; then
+  sudo apt-get install -y postgresql-client 2>/dev/null || true
+fi
+
+sudo touch "$BACKUP_LOG"
+sudo chown "$USER" "$BACKUP_LOG" 2>/dev/null || true
+sudo tee "$CRON_FILE" > /dev/null <<CRON
+# Sovereign Office — nightly PostgreSQL backup to Azure Blob Storage
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 2 * * * $USER set -a && . $DEPLOY_DIR/.env && set +a && $DEPLOY_DIR/backup.sh >> $BACKUP_LOG 2>&1
+CRON
+sudo chmod 644 "$CRON_FILE"
+
+# backup.sh is embedded below so this script works without a GitHub repo URL
+cat > "$DEPLOY_DIR/backup.sh" << 'BACKUPEOF'
+#!/usr/bin/env bash
+set -euo pipefail
+RETENTION_DAYS="${BACKUP_RETENTION_DAYS:-30}"
+BACKUP_DIR="${BACKUP_DIR:-/tmp/pg-backups}"
+TIMESTAMP="$(date -u +%Y%m%dT%H%M%SZ)"
+DUMP_FILE="${BACKUP_DIR}/sovereign_office_${TIMESTAMP}.dump"
+: "${DATABASE_URL:?DATABASE_URL is required}"
+: "${AZURE_STORAGE_ACCOUNT:?AZURE_STORAGE_ACCOUNT is required}"
+: "${AZURE_STORAGE_KEY:?AZURE_STORAGE_KEY is required}"
+: "${AZURE_BACKUP_CONTAINER:?AZURE_BACKUP_CONTAINER is required}"
+mkdir -p "$BACKUP_DIR"
+echo "[backup] $(date -u +%FT%TZ) — starting backup"
+pg_dump "$DATABASE_URL" --no-owner --no-acl --format=custom --file="$DUMP_FILE"
+DUMP_SIZE="$(du -sh "$DUMP_FILE" | cut -f1)"
+echo "[backup] dump complete — size: ${DUMP_SIZE}"
+BLOB_NAME="$(basename "$DUMP_FILE")"
+az storage blob upload \
+  --account-name "$AZURE_STORAGE_ACCOUNT" --account-key "$AZURE_STORAGE_KEY" \
+  --container-name "$AZURE_BACKUP_CONTAINER" --name "$BLOB_NAME" \
+  --file "$DUMP_FILE" --overwrite --output none
+echo "[backup] uploaded: $BLOB_NAME"
+rm -f "$DUMP_FILE"
+CUTOFF="$(date -u -d "-${RETENTION_DAYS} days" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
+  || date -u -v-${RETENTION_DAYS}d +%Y-%m-%dT%H:%M:%SZ)"
+az storage blob list \
+  --account-name "$AZURE_STORAGE_ACCOUNT" --account-key "$AZURE_STORAGE_KEY" \
+  --container-name "$AZURE_BACKUP_CONTAINER" \
+  --query "[?properties.lastModified < '${CUTOFF}'].name" --output tsv | \
+while read -r OLD_BLOB; do
+  [[ -n "$OLD_BLOB" ]] && az storage blob delete \
+    --account-name "$AZURE_STORAGE_ACCOUNT" --account-key "$AZURE_STORAGE_KEY" \
+    --container-name "$AZURE_BACKUP_CONTAINER" --name "$OLD_BLOB" --output none && \
+    echo "[backup] deleted old: $OLD_BLOB"
+done
+echo "[backup] $(date -u +%FT%TZ) — finished"
+BACKUPEOF
+chmod +x "$DEPLOY_DIR/backup.sh"
+
+echo "✓ Nightly backup scheduled (cron at 02:00 UTC)"
+echo "  Logs: $BACKUP_LOG"
+echo "  Test: sudo bash $DEPLOY_DIR/backup.sh"
+
+# ── Step 11: Wait for API (runs DB migrations on first boot) ──────────────────
 echo ""
 echo "▶ Waiting for API to come online (DB migrations run on first boot)..."
 WAIT=0
@@ -194,6 +275,7 @@ echo "  API Server:          http://$PUBLIC_IP:8080"
 echo "  Sovereign Dashboard: http://$PUBLIC_IP:3001"
 echo "  Trust Dashboard:     http://$PUBLIC_IP:3002"
 echo "  Community Dashboard: http://$PUBLIC_IP:3003"
+echo "  Urban Indian Atlas:  http://$PUBLIC_IP:3004"
 echo ""
 echo "  Useful commands:"
 echo "    Logs:    docker compose -f $DEPLOY_DIR/docker-compose.prod.yml logs -f"

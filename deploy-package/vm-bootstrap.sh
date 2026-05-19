@@ -8,7 +8,7 @@
 # Prerequisites:
 #   - Ubuntu 22.04 LTS VM at 20.83.210.26
 #   - This script and your .env file in the same directory
-#   - Inbound ports open: 8080, 3001, 3002, 3003
+#   - Inbound ports open: 8080, 3001, 3002, 3003, 3004
 #
 # Usage:
 #   chmod +x vm-bootstrap.sh
@@ -67,11 +67,12 @@ fi
 
 # ── 4. Open firewall ports ────────────────────────────────────────────────────
 echo ""
-echo "==> Opening ports 8080, 3001, 3002, 3003 in UFW..."
+echo "==> Opening ports 8080, 3001, 3002, 3003, 3004 in UFW..."
 sudo ufw allow 8080/tcp 2>/dev/null || true
 sudo ufw allow 3001/tcp 2>/dev/null || true
 sudo ufw allow 3002/tcp 2>/dev/null || true
 sudo ufw allow 3003/tcp 2>/dev/null || true
+sudo ufw allow 3004/tcp 2>/dev/null || true
 sudo ufw reload 2>/dev/null || true
 
 # ── 5. Load .env and login to ACR ────────────────────────────────────────────
@@ -90,7 +91,7 @@ echo "    Login successful."
 # ── 6. Pull all images ────────────────────────────────────────────────────────
 echo ""
 echo "==> Pulling images from ACR (this may take a few minutes)..."
-docker compose -f docker-compose.prod.yml pull api sovereign trust community
+docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas
 
 # ── 7. Start all services ─────────────────────────────────────────────────────
 echo ""
@@ -119,6 +120,7 @@ echo "    API Server:          http://20.83.210.26:8080"
 echo "    Sovereign Dashboard: http://20.83.210.26:3001"
 echo "    Trust Dashboard:     http://20.83.210.26:3002"
 echo "    Community Dashboard: http://20.83.210.26:3003"
+echo "    Urban Indian Atlas:  http://20.83.210.26:3004"
 echo ""
 echo "  To view logs:    docker compose -f docker-compose.prod.yml logs -f"
 echo "  To stop:         docker compose -f docker-compose.prod.yml down"

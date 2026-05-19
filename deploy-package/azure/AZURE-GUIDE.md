@@ -45,6 +45,7 @@ That's it. The script runs for about 3–5 minutes and prints your live HTTPS UR
 | Sovereign Dashboard | `sovereign-dashboard` | Container App |
 | Trust Dashboard | `trust-dashboard` | Container App |
 | Community Dashboard | `community-dashboard` | Container App |
+| Urban Indian Atlas | `urban-indian-atlas` | Container App |
 
 All apps get **free managed HTTPS** certificates automatically (`*.azurecontainerapps.io`).
 

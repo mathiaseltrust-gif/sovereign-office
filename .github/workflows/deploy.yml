@@ -124,6 +124,21 @@ jobs:
           cache-from: type=registry,ref=${{ env.REGISTRY }}/community-dashboard:latest
           cache-to: type=inline
 
+      # ── Urban Indian Continuity Atlas ───────────────────────────────────────
+      - name: Build and push — urban-indian-atlas
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/urban-indian-atlas/Dockerfile
+          push: true
+          build-args: |
+            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+          tags: |
+            ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/urban-indian-atlas:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/urban-indian-atlas:latest
+          cache-to: type=inline
+
   # ── 2. Deploy to Azure VM via SSH ─────────────────────────────────────────
   deploy:
     name: Rolling restart on Azure VM
@@ -150,8 +165,11 @@ jobs:
                 --username "${{ secrets.ACR_USERNAME }}" \
                 --password-stdin
 
-            echo "==> Pulling new images"
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community
+            echo "==> Pinning IMAGE_TAG to ${{ needs.build-and-push.outputs.image_tag }}"
+            export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
+
+            echo "==> Pulling new images (all five services)"
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas
 
             echo "==> Rolling restart — api"
             docker compose -f docker-compose.prod.yml up -d --no-deps --no-build api
@@ -168,8 +186,34 @@ jobs:
             echo "==> Rolling restart — community dashboard"
             docker compose -f docker-compose.prod.yml up -d --no-deps --no-build community
 
+            echo "==> Rolling restart — urban indian atlas"
+            docker compose -f docker-compose.prod.yml up -d --no-deps --no-build atlas
+
             echo "==> Pruning unused images (keeps disk clean)"
             docker image prune -f
+
+            echo "==> Smoke-testing all five services..."
+            SMOKE_FAIL=0
+            # API health check
+            if curl -sf --max-time 10 http://localhost:8080/api/healthz > /dev/null; then
+              echo "  ✓ api (8080)"
+            else
+              echo "  ✗ api (8080) — health check FAILED"
+              SMOKE_FAIL=1
+            fi
+            # Dashboard HTTP checks (nginx returns 200 for SPA index)
+            for PORT_NAME in "3001:sovereign" "3002:trust" "3003:community" "3004:atlas"; do
+              PORT="${PORT_NAME%%:*}"
+              NAME="${PORT_NAME##*:}"
+              CODE=$(curl -sf --max-time 10 -o /dev/null -w "%{http_code}" http://localhost:$PORT/ || echo "000")
+              if [ "$CODE" = "200" ]; then
+                echo "  ✓ $NAME ($PORT)"
+              else
+                echo "  ✗ $NAME ($PORT) — HTTP $CODE"
+                SMOKE_FAIL=1
+              fi
+            done
+            [ "$SMOKE_FAIL" -eq 0 ] || { echo "One or more services failed smoke test"; exit 1; }
 
             echo "==> Deploy complete. Running containers:"
             docker compose -f docker-compose.prod.yml ps

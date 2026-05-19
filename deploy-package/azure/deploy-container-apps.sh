@@ -190,7 +190,7 @@ echo "  ✓ Trust Dashboard → $TRUST_URL"
 
 # ── 7. Deploy Community Dashboard ─────────────────────────────────────────────
 echo ""
-echo "▶ Step 7/7 — Deploying Family & Community Dashboard..."
+echo "▶ Step 7/8 — Deploying Family & Community Dashboard..."
 az containerapp create \
   --name "community-dashboard" \
   --resource-group "$RESOURCE_GROUP" \
@@ -218,6 +218,36 @@ COMMUNITY_URL="https://$(az containerapp show \
   --query "properties.configuration.ingress.fqdn" -o tsv)"
 echo "  ✓ Community Dashboard → $COMMUNITY_URL"
 
+# ── 8. Deploy Urban Indian Continuity Atlas ────────────────────────────────────
+echo ""
+echo "▶ Step 8/8 — Deploying Urban Indian Continuity Atlas..."
+az containerapp create \
+  --name "urban-indian-atlas" \
+  --resource-group "$RESOURCE_GROUP" \
+  --environment "$ENVIRONMENT_NAME" \
+  --image "$ACR_SERVER/urban-indian-atlas:$IMAGE_TAG" \
+  --registry-server "$ACR_SERVER" \
+  --registry-username "$ACR_USERNAME" \
+  --registry-password "$ACR_PASSWORD" \
+  --target-port 80 \
+  --ingress external \
+  --min-replicas 1 \
+  --max-replicas 2 \
+  --cpu 0.5 \
+  --memory 1.0Gi \
+  --output none 2>/dev/null || \
+az containerapp update \
+  --name "urban-indian-atlas" \
+  --resource-group "$RESOURCE_GROUP" \
+  --image "$ACR_SERVER/urban-indian-atlas:$IMAGE_TAG" \
+  --output none
+
+ATLAS_URL="https://$(az containerapp show \
+  --name "urban-indian-atlas" \
+  --resource-group "$RESOURCE_GROUP" \
+  --query "properties.configuration.ingress.fqdn" -o tsv)"
+echo "  ✓ Urban Indian Atlas → $ATLAS_URL"
+
 # ── Summary ───────────────────────────────────────────────────────────────────
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -230,6 +260,7 @@ echo "  API Server:          $API_URL"
 echo "  Sovereign Dashboard: $SOVEREIGN_URL"
 echo "  Trust Dashboard:     $TRUST_URL"
 echo "  Community Dashboard: $COMMUNITY_URL"
+echo "  Urban Indian Atlas:  $ATLAS_URL"
 echo ""
 echo "  ⚠  REQUIRED: Add this Redirect URI in Azure Portal:"
 echo "  App Registrations → your app → Authentication → Redirect URIs"

@@ -67,7 +67,7 @@ echo "Step 5 — Starting all services..."
 # Start with local postgres if USE_AZURE_DB is not true
 if [ "${USE_AZURE_DB:-false}" = "true" ]; then
   echo "  Using Azure Database for PostgreSQL (skipping local postgres container)"
-  docker compose -f docker-compose.prod.yml up -d api sovereign trust community
+  docker compose -f docker-compose.prod.yml up -d api sovereign trust community atlas
 else
   docker compose -f docker-compose.prod.yml --profile local-db up -d
 fi
@@ -83,7 +83,43 @@ for i in $(seq 1 12); do
   sleep 5
 done
 
-# 7. Show status
+# 7. Set up nightly backup cron job
+echo ""
+echo "Step 7 — Setting up nightly database backup (02:00 UTC → Azure Blob Storage)..."
+BACKUP_LOG="/var/log/sovereign-backup.log"
+CRON_FILE="/etc/cron.d/sovereign-backup"
+BACKUP_SCRIPT="$SCRIPT_DIR/backup.sh"
+
+# Install dependencies if missing
+if ! command -v az &>/dev/null; then
+  echo "  Installing Azure CLI..."
+  curl -sL https://aka.ms/InstallAzureCLIDeb | sudo bash 2>/dev/null
+fi
+if ! command -v pg_dump &>/dev/null; then
+  sudo apt-get install -y postgresql-client 2>/dev/null || true
+fi
+
+sudo touch "$BACKUP_LOG"
+sudo chown "$(whoami)" "$BACKUP_LOG" 2>/dev/null || true
+
+if [[ -f "$BACKUP_SCRIPT" ]]; then
+  chmod +x "$BACKUP_SCRIPT"
+  sudo tee "$CRON_FILE" > /dev/null <<CRON
+# Sovereign Office — nightly PostgreSQL backup to Azure Blob Storage
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/sbin:/bin:/usr/sbin:/usr/bin
+0 2 * * * $(whoami) set -a && . ${SCRIPT_DIR}/.env && set +a && ${BACKUP_SCRIPT} >> ${BACKUP_LOG} 2>&1
+CRON
+  sudo chmod 644 "$CRON_FILE"
+  echo "  ✓ Nightly backup cron scheduled at 02:00 UTC"
+  echo "    Logs: $BACKUP_LOG"
+  echo "    Test: sudo bash $BACKUP_SCRIPT"
+else
+  echo "  ⚠  backup.sh not found at $BACKUP_SCRIPT"
+  echo "  Copy scripts/backup.sh from the repo to $SCRIPT_DIR/backup.sh and re-run to activate backups."
+fi
+
+# 8. Show status
 echo ""
 echo "============================================================"
 echo "  Deployment complete!"
@@ -96,6 +132,7 @@ echo "  API Server:            http://$(curl -sf ifconfig.me 2>/dev/null || echo
 echo "  Sovereign Dashboard:   http://$(curl -sf ifconfig.me 2>/dev/null || echo 'YOUR-IP'):3001"
 echo "  Trust Dashboard:       http://$(curl -sf ifconfig.me 2>/dev/null || echo 'YOUR-IP'):3002"
 echo "  Community Dashboard:   http://$(curl -sf ifconfig.me 2>/dev/null || echo 'YOUR-IP'):3003"
+echo "  Urban Indian Atlas:    http://$(curl -sf ifconfig.me 2>/dev/null || echo 'YOUR-IP'):3004"
 echo ""
 echo "Run logs:  docker compose -f docker-compose.prod.yml logs -f"
 echo "Stop all:  docker compose -f docker-compose.prod.yml down"

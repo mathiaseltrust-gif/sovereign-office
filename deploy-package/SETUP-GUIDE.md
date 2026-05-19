@@ -49,9 +49,9 @@ progress at each step and a summary of live URLs at the end.
 | 2 | Create `/opt/sovereign-office/` |
 | 3 | Write `.env` with all credentials pre-filled |
 | 4 | Write `docker-compose.prod.yml` |
-| 5 | Open firewall ports 8080, 3001, 3002, 3003 |
+| 5 | Open firewall ports 8080, 3001, 3002, 3003, 3004 |
 | 6 | Log in to `sovereignoffice.azurecr.io` |
-| 7 | Pull all 4 images |
+| 7 | Pull all 5 images |
 | 8 | Start all services |
 | 9 | Auto-apply database migrations (first boot only) |
 | 10 | Health-check the API and print live URLs |
@@ -66,6 +66,7 @@ progress at each step and a summary of live URLs at the end.
 | Sovereign Dashboard | http://20.83.210.26:3001 |
 | Trust Dashboard | http://20.83.210.26:3002 |
 | Community Dashboard | http://20.83.210.26:3003 |
+| Urban Indian Atlas | http://20.83.210.26:3004 |
 
 ---
 
@@ -118,6 +119,30 @@ curl http://localhost:8080/api/healthz
 
 ---
 
+## Verifying nightly backups
+
+After running `3-vm-deploy.sh`, backups are scheduled at 02:00 UTC. To confirm:
+
+```bash
+# Check the cron entry
+cat /etc/cron.d/sovereign-backup
+
+# Run a test backup immediately (ensure AZURE_STORAGE_ACCOUNT/KEY/BACKUP_CONTAINER
+# are set in .env)
+sudo bash /opt/sovereign-office/backup.sh
+
+# Confirm the dump was uploaded to Azure Blob Storage
+az storage blob list \
+  --account-name "$AZURE_STORAGE_ACCOUNT" \
+  --account-key "$AZURE_STORAGE_KEY" \
+  --container-name "db-backups" -o table
+
+# Check backup log
+cat /var/log/sovereign-backup.log
+```
+
+---
+
 ## Automatic CI/CD via GitHub Actions (optional)
 
 Once connected to GitHub, every push to `main` auto-builds and auto-deploys.
@@ -143,5 +168,5 @@ See `.github/workflows/deploy.yml`. Add these secrets to your GitHub repo
 | API exits immediately | `docker compose -f docker-compose.prod.yml logs api` |
 | Microsoft login fails | Add redirect URI in Azure Portal (see above) |
 | Dashboard shows blank | API health check not passing yet — wait 30 s and reload |
-| Port not reachable | Check Azure VM Network Security Group — allow inbound 8080, 3001, 3002, 3003 |
+| Port not reachable | Check Azure VM Network Security Group — allow inbound 8080, 3001, 3002, 3003, 3004 |
 | Database errors on boot | Check `DATABASE_URL` in `.env` — host must end in `.postgres.database.azure.com` |
