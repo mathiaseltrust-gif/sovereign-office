@@ -151,6 +151,8 @@ const PROTECTION_COLORS: Record<string, string> = {
   standard: "bg-green-100 text-green-800",
   elevated: "bg-orange-100 text-orange-800",
   critical: "bg-red-100 text-red-800",
+  "in-law": "bg-purple-100 text-purple-800",
+  affiliate: "bg-purple-100 text-purple-800",
 };
 
 const NODE_W = 200;
@@ -334,6 +336,8 @@ function nodeCardClasses(node: LineageNode): { border: string; bg: string } {
     case "descendant": return { border: "border-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30" };
     case "member":
     case "spouse": return { border: "border-rose-300", bg: "bg-rose-50 dark:bg-rose-950/20" };
+    case "in-law":
+    case "affiliate": return { border: "border-purple-300", bg: "bg-purple-50 dark:bg-purple-950/20" };
     default: return { border: "border-border", bg: "bg-card" };
   }
 }
@@ -344,6 +348,8 @@ function protectionBadge(level?: string | null) {
     case "descendant": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-200 text-blue-900">Descendant</span>;
     case "member": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Member</span>;
     case "spouse": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Spouse</span>;
+    case "in-law": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">In-Law</span>;
+    case "affiliate": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-purple-100 text-purple-800">Affiliate</span>;
     case "pending": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">Pending</span>;
     default: return level ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 capitalize">{level}</span> : null;
   }
@@ -1459,7 +1465,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               { label: "Status",     value: filterStatus,     set: setFilterStatus,     opts: [["all","All"],["verified","Verified"],["pending","Pending"],["rejected","Rejected"]] },
               { label: "Source",     value: filterSource,     set: setFilterSource,     opts: [["all","All"],["manual","Manual"],["gedcom","GEDCOM"],["member_self","Member"]] },
               { label: "Living",     value: filterDeceased,   set: setFilterDeceased,   opts: [["all","All"],["living","Living"],["deceased","Deceased"]] },
-              { label: "Protection", value: filterProtection, set: setFilterProtection, opts: [["all","All"],["ancestor","Ancestor"],["descendant","Descendant"],["pending","Pending"]] },
+              { label: "Protection", value: filterProtection, set: setFilterProtection, opts: [["all","All"],["ancestor","Ancestor"],["descendant","Descendant"],["spouse","Spouse"],["member","Member"],["in-law","In-Law"],["affiliate","Affiliate"],["pending","Pending"]] },
             ].map(({ label, value, set, opts }) => (
               <div key={label} className="flex items-center gap-1.5">
                 <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground w-[62px] shrink-0">{label}</span>
@@ -1956,6 +1962,28 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
   const [showMapPicker, setShowMapPicker] = useState(false);
   const [showHousehold, setShowHousehold] = useState(false);
   const [householdRel, setHouseholdRel] = useState<"spouse" | "child" | "dependent">("child");
+  const [showReclassify, setShowReclassify] = useState(false);
+  const [reclassifyLevel, setReclassifyLevel] = useState<string>("");
+
+  const reclassifyMutation = useMutation({
+    mutationFn: async (level: string) => {
+      const r = await fetch(`/api/lineage/nodes/${node.id}`, {
+        method: "PATCH",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ protectionLevel: level }),
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Failed"); }
+      return r.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Classification updated", description: `${node.fullName} is now classified as "${reclassifyLevel}".` });
+      setShowReclassify(false);
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      queryClient.invalidateQueries({ queryKey: ["lineage-node-detail", node.id] });
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Reclassify failed", description: err.message, variant: "destructive" }),
+  });
 
   // Fetch the current user's own linked lineage node (for household membership check)
   const { data: selfNodeData, refetch: refetchSelf } = useQuery<{ nodes: Array<{ id: number; spouseIds: unknown; childrenIds: unknown }> }>({
@@ -2653,6 +2681,70 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             </div>
           )}
 
+          {/* ── Reclassify Connection Type (officers only) ─────────────────── */}
+          {isOfficer && (
+            <div className="border border-purple-200 dark:border-purple-800 rounded-md overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 bg-purple-50 dark:bg-purple-950/30 hover:bg-purple-100 dark:hover:bg-purple-950/50 transition-colors text-left"
+                onClick={() => { setShowReclassify((v) => !v); setReclassifyLevel(n.protectionLevel ?? "pending"); }}
+              >
+                <span className="text-xs font-semibold text-purple-800 dark:text-purple-300 uppercase tracking-widest">
+                  Connection Type
+                </span>
+                <span className="flex items-center gap-1.5">
+                  {protectionBadge(n.protectionLevel)}
+                  <span className="text-xs text-purple-700 dark:text-purple-400">{showReclassify ? "▲" : "▼"}</span>
+                </span>
+              </button>
+
+              {showReclassify && (
+                <div className="p-3 space-y-3 bg-card">
+                  <p className="text-xs text-muted-foreground leading-relaxed">
+                    Change how <strong>{n.fullName}</strong> is classified in the lineage record. Only blood relatives should be labeled Ancestor or Descendant.
+                  </p>
+                  <div className="grid grid-cols-1 gap-1.5">
+                    {([
+                      ["ancestor",   "🟡 Ancestor",          "Blood ancestor — part of the direct lineage"],
+                      ["descendant", "🔵 Descendant",        "Blood descendant — part of the direct lineage"],
+                      ["spouse",     "🌹 Spouse / Partner",  "Legally married or partnered into the family"],
+                      ["in-law",     "🟣 In-Law",            "Related through a spouse or partner, not by blood"],
+                      ["affiliate",  "🟣 Affiliate",         "Associated with the family, no blood or marriage tie"],
+                      ["member",     "🌹 Member",            "Tribal member by affiliation or enrollment"],
+                      ["pending",    "⬜ Pending Review",    "Classification not yet confirmed"],
+                    ] as const).map(([val, label, desc]) => (
+                      <label
+                        key={val}
+                        className={`flex items-start gap-2 rounded-md border px-2.5 py-2 cursor-pointer transition-colors ${reclassifyLevel === val ? "border-purple-400 bg-purple-50 dark:bg-purple-950/30" : "border-border hover:border-purple-300 hover:bg-muted/40"}`}
+                      >
+                        <input
+                          type="radio"
+                          name="reclassify"
+                          value={val}
+                          checked={reclassifyLevel === val}
+                          onChange={() => setReclassifyLevel(val)}
+                          className="mt-0.5 accent-purple-600"
+                        />
+                        <div>
+                          <div className="text-xs font-semibold text-foreground">{label}</div>
+                          <div className="text-[10px] text-muted-foreground">{desc}</div>
+                        </div>
+                      </label>
+                    ))}
+                  </div>
+                  <Button
+                    size="sm"
+                    className="w-full bg-purple-700 hover:bg-purple-800 text-white"
+                    disabled={reclassifyMutation.isPending || reclassifyLevel === (n.protectionLevel ?? "pending")}
+                    onClick={() => reclassifyMutation.mutate(reclassifyLevel)}
+                  >
+                    {reclassifyMutation.isPending ? "Saving…" : "Save Classification"}
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
+
           {canEdit && (
             <div className="space-y-2 pt-2">
               <div className="flex gap-2">
@@ -3033,10 +3125,13 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
             <div>
               <Label>Protection Level</Label>
               <select data-testid="add-person-protection" value={form.protectionLevel} onChange={f("protectionLevel")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
-                <option value="member">Member (by marriage / affiliation)</option>
+                <option value="ancestor">Ancestor (blood lineage)</option>
                 <option value="descendant">Descendant (blood lineage)</option>
-                <option value="ancestor">Ancestor</option>
-                <option value="pending">Pending</option>
+                <option value="spouse">Spouse / Partner</option>
+                <option value="in-law">In-Law (related by marriage, not blood)</option>
+                <option value="affiliate">Affiliate (associated, not blood or marriage)</option>
+                <option value="member">Member (tribal affiliation)</option>
+                <option value="pending">Pending Review</option>
               </select>
             </div>
           </div>
