@@ -1,0 +1,97 @@
+Paste this into Replit:
+
+⸻
+
+Update Atlas Mode → Family Ancestors Locations logic.
+
+The current map behavior is incorrect. It appears to be placing too many family/ancestor records in my current location, including Bakersfield, even when those relatives did not live or travel there.
+
+Required correction
+
+When the user toggles Family / Ancestors / Locations, the map should not default all relatives or ancestors to the current user’s location.
+
+Only the user’s immediate household should default to the user’s current address/location unless manually updated:
+
+self + spouse + children / household members
+
+Everyone else should use ancestry-derived or historically grounded locations.
+
+Location hierarchy
+
+For each family/ancestor record, location should resolve in this order:
+
+1. Known Ancestry address or place record
+2. Last known life location from ancestry data
+3. Birth / residence / death / census location
+4. Historical family/lineage location
+5. Likely ancestral affiliation / likely homeland
+6. If none exists, mark as Location unknown, not Bakersfield
+
+Do not infer Bakersfield merely because the user currently lives there.
+
+Identity display correction
+
+Do not label the location as:
+
+Tribal Nation Homeland
+
+Instead use softer, more accurate language:
+
+Likely Affiliation / Ancestral Location
+
+or:
+
+Likely Family / Lineage Location
+
+Because being present in a territory does not automatically mean a person was governed by, subject to, or politically part of that tribal nation.
+
+Add explanatory logic:
+
+This location is based on known ancestry records, last known residence, historical movement, and likely lineage affiliation. It does not determine political jurisdiction or tribal citizenship by itself.
+
+Status logic
+
+Living immediate household members = Protected Members
+
+Living family outside immediate household = Eligible Family / Protected Lineage
+
+Deceased family = Ancestors
+
+Deceased ancestors should remain shown as ancestors, not active household members.
+
+Membership logic
+
+Do not change the core rule:
+
+All living family / ancestors / other ancestors remain eligible for membership according to our system logic.
+
+This update only changes how they are displayed on the Atlas map, not their eligibility.
+
+Map behavior
+
+When I toggle:
+
+Family → Locations
+
+The map should show:
+
+* my household at Bakersfield, unless their address is updated otherwise
+* deceased ancestors at their ancestry-derived last known or historical locations
+* living relatives outside my household at their own known or likely locations
+* unknown records as “location unknown,” not forced into my address
+
+Replace hard wording
+
+Replace:
+
+Mathias El Tribe (approximate territory)
+
+with:
+
+Likely Mathias El Lineage / Family Affiliation
+
+or:
+
+Likely Ancestral Location
+
+This keeps the record thoughtful, historically grounded, and legally safer.

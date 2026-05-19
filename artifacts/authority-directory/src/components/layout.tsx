@@ -5,6 +5,7 @@ import {
   FileSearch,
   BookOpen,
   Scale,
+  FolderOpen,
   Menu,
   X,
   ChevronRight,
@@ -37,6 +38,12 @@ const navItems = [
     label: "Legal Authority Map",
     icon: Scale,
     description: "Applicable laws and doctrines",
+  },
+  {
+    path: "/case-files",
+    label: "Case File Registry",
+    icon: FolderOpen,
+    description: "All cases with auto-generated numbers",
   },
 ];
 

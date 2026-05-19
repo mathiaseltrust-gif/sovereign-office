@@ -184,6 +184,26 @@ export interface IntakeAnalysisResult {
   suggestedPendingReview: true;
 }
 
+export interface CaseFile {
+  id: number;
+  caseNumber: string;
+  caseType: string;
+  jurisdictionLevel: string;
+  matterType: string | null;
+  title: string;
+  status: string;
+  linkedDocumentType: string | null;
+  linkedDocumentId: number | null;
+  linkedDocumentRef: string | null;
+  assignedOfficerId: number | null;
+  openedAt: string;
+  closedAt: string | null;
+  notes: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export interface ContextHints {
   state?: string;
   county?: string;
@@ -243,4 +263,31 @@ export const api = {
 
   getIntake: (id: number) =>
     request<IntakeAnalysisResult>(`/api/authority/intake/${id}`),
+
+  getCaseFiles: (params?: {
+    caseType?: string;
+    jurisdictionLevel?: string;
+    status?: string;
+    matterType?: string;
+    q?: string;
+  }) => {
+    const sp = new URLSearchParams();
+    if (params?.caseType)         sp.set("caseType", params.caseType);
+    if (params?.jurisdictionLevel) sp.set("jurisdictionLevel", params.jurisdictionLevel);
+    if (params?.status)           sp.set("status", params.status);
+    if (params?.matterType)       sp.set("matterType", params.matterType);
+    if (params?.q)                sp.set("q", params.q);
+    return request<{ total: number; cases: CaseFile[] }>(
+      `/api/case-files?${sp.toString()}`
+    );
+  },
+
+  getCaseFile: (caseNumber: string) =>
+    request<CaseFile>(`/api/case-files/${encodeURIComponent(caseNumber)}`),
+
+  updateCaseFileStatus: (id: number, status: string, notes?: string) =>
+    request<CaseFile>(`/api/case-files/${id}/status`, {
+      method: "PATCH",
+      body: JSON.stringify({ status, notes }),
+    }),
 };

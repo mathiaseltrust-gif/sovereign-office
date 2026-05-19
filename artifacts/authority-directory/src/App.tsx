@@ -12,6 +12,7 @@ import JurisdictionPage from "@/pages/jurisdiction";
 import IntakePage from "@/pages/intake";
 import MattersPage from "@/pages/matters";
 import LegalMapPage from "@/pages/legal-map";
+import CaseFilesPage from "@/pages/case-files";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -82,6 +83,7 @@ function Router() {
           <Route path="/intake" component={IntakePage} />
           <Route path="/matters" component={MattersPage} />
           <Route path="/legal-map" component={LegalMapPage} />
+          <Route path="/case-files" component={CaseFilesPage} />
           <Route component={NotFound} />
         </Switch>
       </Layout>
