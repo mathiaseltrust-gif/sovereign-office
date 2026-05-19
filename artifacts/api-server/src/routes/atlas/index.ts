@@ -78,8 +78,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
             WHERE (uf.linked_profile_user_id = ${userId} OR uf.user_id = ${userId})
               AND (
                 fl.id = uf.id
-                OR (uf.spouse_ids IS NOT NULL AND fl.id = ANY(uf.spouse_ids))
-                OR (uf.children_ids IS NOT NULL AND fl.id = ANY(uf.children_ids))
+                OR (uf.spouse_ids IS NOT NULL AND uf.spouse_ids @> jsonb_build_array(fl.id))
+                OR (uf.children_ids IS NOT NULL AND uf.children_ids @> jsonb_build_array(fl.id))
               )
           ) THEN 'household_member'
           ELSE 'extended_family'
@@ -103,8 +103,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
           WHERE (uf.linked_profile_user_id = ${userId} OR uf.user_id = ${userId})
             AND (
               fl.id = uf.id
-              OR (uf.spouse_ids IS NOT NULL AND fl.id = ANY(uf.spouse_ids))
-              OR (uf.children_ids IS NOT NULL AND fl.id = ANY(uf.children_ids))
+              OR (uf.spouse_ids IS NOT NULL AND uf.spouse_ids @> jsonb_build_array(fl.id))
+              OR (uf.children_ids IS NOT NULL AND uf.children_ids @> jsonb_build_array(fl.id))
             )
         )
       ORDER BY

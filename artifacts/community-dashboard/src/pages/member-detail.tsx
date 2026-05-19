@@ -475,26 +475,74 @@ function TribalIdCard({ member, locationAddress }: { member: {
   );
 }
 
+// ─── Helpers ────────────────────────────────────────────────────────────────────
+
+const CURRENT_YEAR = new Date().getFullYear();
+const DECEASED_AGE_THRESHOLD = 95;
+
+function likelyDeceased(birthYear?: number | null): boolean {
+  return !!birthYear && (CURRENT_YEAR - birthYear) > DECEASED_AGE_THRESHOLD;
+}
+
+/** Parse GEDCOM-enriched notes for birth / death / residence place lines */
+function parseGedcomPlaces(notes: string | null | undefined): { label: string; place: string }[] {
+  if (!notes) return [];
+  const results: { label: string; place: string }[] = [];
+  const seen = new Set<string>();
+  for (const line of notes.split("\n")) {
+    const trimmed = line.trim();
+    const birthM = trimmed.match(/^Birth place:\s*(.+)/i);
+    const deathM = trimmed.match(/^Death place:\s*(.+)/i);
+    const resiM  = trimmed.match(/^Residence place:\s*(.+)/i);
+    if (birthM) {
+      const p = birthM[1].trim();
+      if (p && !seen.has(`b:${p}`)) { results.push({ label: "Birth Place", place: p }); seen.add(`b:${p}`); }
+    }
+    if (deathM) {
+      const p = deathM[1].trim();
+      if (p && !seen.has(`d:${p}`)) { results.push({ label: "Death Place", place: p }); seen.add(`d:${p}`); }
+    }
+    if (resiM) {
+      const p = resiM[1].trim();
+      if (p && !seen.has(`r:${p}`)) { results.push({ label: "Residence", place: p }); seen.add(`r:${p}`); }
+    }
+  }
+  return results;
+}
+
 // ─── Mini Family Tree ──────────────────────────────────────────────────────────
 
 type FamilyPerson = { id: number; fullName?: string | null; firstName?: string | null; lastName?: string | null; birthYear?: number | null; photoFilename?: string | null };
 
 function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: boolean }) {
   const initials = `${person.firstName?.charAt(0) ?? ""}${person.lastName?.charAt(0) ?? ""}`;
-  return (
-    <Link href={`/directory/${person.id}`}>
-      <div className={`flex flex-col items-center gap-1 px-2 py-2 rounded-lg border text-center cursor-pointer transition-colors w-[90px] shrink-0 ${
-        isMain ? "bg-primary/10 border-primary/40 shadow-sm" : "bg-muted/40 border-border hover:bg-muted/60 hover:border-primary/30"
-      }`}>
-        <Avatar className="h-8 w-8">
-          <AvatarImage src={`/assets/${person.photoFilename || ""}`} className="object-cover" />
-          <AvatarFallback className={`text-xs font-bold ${isMain ? "bg-primary/20 text-primary" : "bg-muted text-muted-foreground"}`}>{initials}</AvatarFallback>
-        </Avatar>
-        <span className="text-[10px] font-medium leading-tight line-clamp-2">{person.fullName ?? "—"}</span>
-        {person.birthYear && <span className="text-[9px] text-muted-foreground">b. {person.birthYear}</span>}
-      </div>
-    </Link>
+  const isAncestor = !isMain && likelyDeceased(person.birthYear);
+  const cardClass = `flex flex-col items-center gap-1 px-2 py-2 rounded-lg border text-center cursor-pointer transition-colors w-[90px] shrink-0 ${
+    isMain
+      ? "bg-primary/10 border-primary/40 shadow-sm"
+      : isAncestor
+        ? "bg-amber-50 dark:bg-amber-950/20 border-amber-200 dark:border-amber-800 hover:bg-amber-100 dark:hover:bg-amber-950/40"
+        : "bg-muted/40 border-border hover:bg-muted/60 hover:border-primary/30"
+  }`;
+  const inner = (
+    <>
+      <Avatar className="h-8 w-8">
+        <AvatarImage src={`/assets/${person.photoFilename || ""}`} className="object-cover" />
+        <AvatarFallback className={`text-xs font-bold ${isMain ? "bg-primary/20 text-primary" : isAncestor ? "bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400" : "bg-muted text-muted-foreground"}`}>{initials}</AvatarFallback>
+      </Avatar>
+      <span className="text-[10px] font-medium leading-tight line-clamp-2">{person.fullName ?? "—"}</span>
+      {person.birthYear && <span className="text-[9px] text-muted-foreground">b. {person.birthYear}</span>}
+      {isAncestor && <span className="text-[8px] text-amber-600 dark:text-amber-400 font-semibold">Atlas ↗</span>}
+    </>
   );
+  if (isAncestor) {
+    return (
+      <a href={`/urban-indian-atlas/?mode=atlas&person=${person.id}`} target="_blank" rel="noopener noreferrer" className={cardClass}>
+        {inner}
+      </a>
+    );
+  }
+  return <Link href={`/directory/${person.id}`}><div className={cardClass}>{inner}</div></Link>;
 }
 
 // Base URL prefix for the community dashboard (e.g. "/community-dashboard")
@@ -789,7 +837,7 @@ export default function MemberDetail() {
                   {member.birthYear && (
                     <span className="flex items-center gap-1">
                       <Calendar className="h-4 w-4" />
-                      {member.birthYear} {member.deathYear ? `- ${member.deathYear}` : '(Living)'}
+                      {member.birthYear}{member.deathYear ? ` – ${member.deathYear}` : (member.isDeceased || (2026 - (member.birthYear ?? 9999)) > 95) ? ' (Deceased)' : ' (Living)'}
                     </span>
                   )}
                   {member.tribalNation && (
@@ -846,6 +894,54 @@ export default function MemberDetail() {
                 </div>
               </div>
             )}
+
+            {/* ── Known Locations ─────────────────────────────────────────── */}
+            {(() => {
+              const m = member as typeof member & { locationAddress?: string | null; notes?: string | null };
+              const places = parseGedcomPlaces(m.notes);
+              const hasAddress = !!m.locationAddress;
+              const hasPlaces = places.length > 0;
+              if (!hasAddress && !hasPlaces) return null;
+              return (
+                <div className="mt-6 space-y-3">
+                  <h3 className="text-lg font-semibold flex items-center gap-2">
+                    <MapPin className="h-5 w-5 text-primary" /> Known Locations
+                  </h3>
+                  <div className="bg-muted/30 rounded-lg border divide-y divide-border/60">
+                    {hasAddress && (
+                      <div className="flex items-start gap-3 px-4 py-3">
+                        <MapPin className="h-4 w-4 text-primary/60 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">Last Known Address</p>
+                          <p className="text-sm text-foreground/90">{m.locationAddress}</p>
+                        </div>
+                      </div>
+                    )}
+                    {places.map((pl, i) => (
+                      <div key={i} className="flex items-start gap-3 px-4 py-3">
+                        <Globe2 className="h-4 w-4 text-amber-500/70 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-0.5">{pl.label}</p>
+                          <p className="text-sm text-foreground/90">{pl.place}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  {(member.isDeceased || member.isAncestor) && (
+                    <a
+                      href={`/urban-indian-atlas/?mode=atlas&person=${member.id}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors"
+                    >
+                      <Globe2 className="h-3.5 w-3.5" />
+                      View full location history in Ancestral Atlas
+                      <ExternalLink className="h-3 w-3 opacity-60" />
+                    </a>
+                  )}
+                </div>
+              );
+            })()}
           </CardContent>
         </Card>
 
@@ -905,20 +1001,25 @@ export default function MemberDetail() {
                         Siblings
                       </h4>
                       <div className="space-y-3">
-                        {(member as typeof member & { siblings?: typeof member.parents }).siblings!.map(sibling => (
-                          <Link key={sibling.id} href={`/directory/${sibling.id}`}>
+                        {(member as typeof member & { siblings?: typeof member.parents }).siblings!.map(sibling => {
+                          const isAnc = likelyDeceased(sibling.birthYear);
+                          const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={`/assets/${sibling.photoFilename || ""}`} />
                                 <AvatarFallback className="text-xs bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300">{sibling.firstName?.charAt(0) || ""}{sibling.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col">
+                              <div className="flex flex-col flex-1">
                                 <span className="text-sm font-medium group-hover:text-primary transition-colors">{sibling.fullName}</span>
                                 <span className="text-xs text-muted-foreground">{sibling.birthYear ? `b. ${sibling.birthYear}` : ''}</span>
                               </div>
+                              {isAnc && <Globe2 className="h-3.5 w-3.5 text-amber-500/70 shrink-0" />}
                             </div>
-                          </Link>
-                        ))}
+                          );
+                          return isAnc
+                            ? <a key={sibling.id} href={`/urban-indian-atlas/?mode=atlas&person=${sibling.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            : <Link key={sibling.id} href={`/directory/${sibling.id}`}>{card}</Link>;
+                        })}
                       </div>
                     </div>
                   )}
@@ -927,20 +1028,25 @@ export default function MemberDetail() {
                     <div className="p-4 border-b">
                       <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Parents</h4>
                       <div className="space-y-3">
-                        {member.parents.map(parent => (
-                          <Link key={parent.id} href={`/directory/${parent.id}`}>
+                        {member.parents.map(parent => {
+                          const isAnc = likelyDeceased(parent.birthYear);
+                          const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={`/assets/${parent.photoFilename || ""}`} />
                                 <AvatarFallback className="text-xs bg-primary/10">{parent.firstName?.charAt(0) || ""}{parent.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col">
+                              <div className="flex flex-col flex-1">
                                 <span className="text-sm font-medium group-hover:text-primary transition-colors">{parent.fullName}</span>
                                 <span className="text-xs text-muted-foreground">{parent.birthYear ? `b. ${parent.birthYear}` : ''}</span>
                               </div>
+                              {isAnc && <Globe2 className="h-3.5 w-3.5 text-amber-500/70 shrink-0" />}
                             </div>
-                          </Link>
-                        ))}
+                          );
+                          return isAnc
+                            ? <a key={parent.id} href={`/urban-indian-atlas/?mode=atlas&person=${parent.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            : <Link key={parent.id} href={`/directory/${parent.id}`}>{card}</Link>;
+                        })}
                       </div>
                     </div>
                   )}
@@ -971,20 +1077,25 @@ export default function MemberDetail() {
                     <div className="p-4">
                       <h4 className="text-sm font-semibold text-muted-foreground uppercase tracking-wider mb-3">Children</h4>
                       <div className="space-y-3">
-                        {member.children.map(child => (
-                          <Link key={child.id} href={`/directory/${child.id}`}>
+                        {member.children.map(child => {
+                          const isAnc = likelyDeceased(child.birthYear);
+                          const card = (
                             <div className="flex items-center gap-3 p-2 rounded-md hover:bg-muted cursor-pointer transition-colors group">
                               <Avatar className="h-8 w-8">
                                 <AvatarImage src={`/assets/${child.photoFilename || ""}`} />
                                 <AvatarFallback className="text-xs bg-primary/10">{child.firstName?.charAt(0) || ""}{child.lastName?.charAt(0) || ""}</AvatarFallback>
                               </Avatar>
-                              <div className="flex flex-col">
+                              <div className="flex flex-col flex-1">
                                 <span className="text-sm font-medium group-hover:text-primary transition-colors">{child.fullName}</span>
                                 <span className="text-xs text-muted-foreground">{child.birthYear ? `b. ${child.birthYear}` : ''}</span>
                               </div>
+                              {isAnc && <Globe2 className="h-3.5 w-3.5 text-amber-500/70 shrink-0" />}
                             </div>
-                          </Link>
-                        ))}
+                          );
+                          return isAnc
+                            ? <a key={child.id} href={`/urban-indian-atlas/?mode=atlas&person=${child.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            : <Link key={child.id} href={`/directory/${child.id}`}>{card}</Link>;
+                        })}
                       </div>
                     </div>
                   )}

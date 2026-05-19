@@ -237,6 +237,13 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
       confidence: "records",
     });
   }
+  if (ancestor.locationAddress && !locationRecords.some(r => r.text === ancestor.locationAddress)) {
+    locationRecords.push({
+      label: "Known address / location",
+      text: ancestor.locationAddress,
+      confidence: "records",
+    });
+  }
   if (ancestor.tribalNation) {
     locationRecords.push({
       label: "Likely Ancestral Affiliation / Lineage",
