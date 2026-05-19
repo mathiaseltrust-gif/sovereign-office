@@ -14,6 +14,7 @@ import Announcements from "@/pages/announcements";
 import Admin from "@/pages/admin";
 import University from "@/pages/university";
 import ProfilePage from "@/pages/profile";
+import Legal from "@/pages/legal";
 import { ChatManagerProvider } from "@/components/ChatManager";
 import { getSovereignSession } from "@/lib/utils";
 
@@ -67,6 +68,7 @@ function Router() {
         <Route path="/admin" component={Admin} />
         <Route path="/university" component={University} />
         <Route path="/profile" component={ProfilePage} />
+        <Route path="/legal" component={Legal} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
