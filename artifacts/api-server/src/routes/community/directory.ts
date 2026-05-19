@@ -2,7 +2,7 @@ import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
-import { like, or, eq, and, sql } from "drizzle-orm";
+import { ilike, or, eq, and, sql } from "drizzle-orm";
 import { ensureCommunitySeeded } from "./seed";
 
 const router = Router();
@@ -26,11 +26,11 @@ router.get("/", async (req, res, next) => {
       const searchTerm = `%${q}%`;
       conditions.push(
         or(
-          like(familyLineageTable.fullName, searchTerm),
-          like(familyLineageTable.firstName, searchTerm),
-          like(familyLineageTable.lastName, searchTerm),
-          like(familyLineageTable.tribalNation, searchTerm),
-          like(familyLineageTable.tribalEnrollmentNumber, searchTerm),
+          ilike(familyLineageTable.fullName, searchTerm),
+          ilike(familyLineageTable.firstName, searchTerm),
+          ilike(familyLineageTable.lastName, searchTerm),
+          ilike(familyLineageTable.tribalNation, searchTerm),
+          ilike(familyLineageTable.tribalEnrollmentNumber, searchTerm),
         ) as ReturnType<typeof eq>
       );
     }
