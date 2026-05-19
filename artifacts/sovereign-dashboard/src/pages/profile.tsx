@@ -21,7 +21,7 @@ import {
   Printer, Workflow, ChevronRight, ChevronDown, AlertTriangle, Wifi,
   User, Upload, Camera, Lock, Eye, EyeOff, ShieldCheck, MapPin,
   Key, UserCheck, ShieldAlert, Trash2, Clock, Edit2, Feather, Save,
-  Download, CreditCard,
+  Download, CreditCard, ScanLine, IdCard, Info,
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -233,6 +233,394 @@ function LandRecordPanel() {
       )}
     </div>
   );
+}
+
+/* ── ID Document Panel ── */
+interface ExtractedIdFields {
+  documentType: string;
+  issuingJurisdictionCode: string;
+  issuingJurisdictionName: string;
+  fullName: string;
+  firstName: string;
+  lastName: string;
+  middleName: string;
+  dateOfBirth: string;
+  expiryDate: string;
+  issueDate: string;
+  idNumber: string;
+  streetAddress: string;
+  city: string;
+  state: string;
+  postalCode: string;
+  fullAddress: string;
+  sex: string;
+  eyeColor: string;
+  height: string;
+  vehicleClass?: string;
+  restrictions?: string;
+  endorsements?: string;
+  extractionMethod: "barcode" | "vision_ocr" | "none";
+  confidenceScore: number;
+}
+
+interface JurisdictionAdvisory {
+  hasAdvisory: boolean;
+  level: "info" | "advisory" | "none";
+  message: string | null;
+  tribalOverlapNote: string | null;
+}
+
+interface IdExtractionResult {
+  fields: ExtractedIdFields;
+  jurisdictionAdvisory: JurisdictionAdvisory;
+  extractionMethod: string;
+  confidenceScore: number;
+}
+
+const DOC_TYPE_LABELS: Record<string, string> = {
+  dl: "Driver's License",
+  state_id: "State ID",
+  passport: "Passport",
+  tribal_id: "Tribal ID",
+  auto: "Auto-detect",
+  unknown: "ID Document",
+};
+
+function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean; idDocumentType?: string | null; idDocumentUploadedAt?: string | null; idJurisdictionCode?: string | null } }) {
+  const { toast } = useToast();
+  const [step, setStep] = useState<"idle" | "upload" | "review" | "done">(vaultData?.hasIdDocument ? "done" : "idle");
+  const [docType, setDocType] = useState<"auto" | "dl" | "passport" | "tribal">("auto");
+  const [frontFile, setFrontFile] = useState<File | null>(null);
+  const [backFile, setBackFile] = useState<File | null>(null);
+  const [frontPreview, setFrontPreview] = useState<string | null>(null);
+  const [backPreview, setBackPreview] = useState<string | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [result, setResult] = useState<IdExtractionResult | null>(null);
+  const [editedFields, setEditedFields] = useState<Partial<ExtractedIdFields>>({});
+  const [saving, setSaving] = useState(false);
+  const [updateAddress, setUpdateAddress] = useState<boolean | null>(null);
+  const [scanSessionId, setScanSessionId] = useState<string | null>(null);
+
+  const frontInputRef = useRef<HTMLInputElement>(null);
+  const backInputRef = useRef<HTMLInputElement>(null);
+
+  const handleFileSelect = (side: "front" | "back", file: File) => {
+    const url = URL.createObjectURL(file);
+    if (side === "front") { setFrontFile(file); setFrontPreview(url); }
+    else { setBackFile(file); setBackPreview(url); }
+  };
+
+  const handleExtract = async () => {
+    if (!frontFile && !backFile) {
+      toast({ title: "Upload at least one side of the ID", variant: "destructive" });
+      return;
+    }
+    setExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append("docType", docType);
+      if (frontFile) fd.append("front", frontFile);
+      if (backFile) fd.append("back", backFile);
+
+      const resp = await fetch(`${API}/api/user/id-document`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: fd,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Extraction failed");
+      }
+      const data: IdExtractionResult & { scanSessionId?: string } = await resp.json();
+      setResult(data);
+      setEditedFields(data.fields);
+      setUpdateAddress(null);
+      setScanSessionId(data.scanSessionId ?? null);
+      setStep("review");
+    } catch (err) {
+      toast({ title: "Could not extract ID data", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handleConfirm = async () => {
+    if (!result) return;
+    if (updateAddress === null) {
+      toast({ title: "Please answer the mailing address question before saving.", variant: "destructive" });
+      return;
+    }
+    setSaving(true);
+    try {
+      const merged = { ...result.fields, ...editedFields };
+      const resp = await fetch(`${API}/api/user/id-document/confirm`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: JSON.stringify({
+          fields: merged,
+          scanSessionId: scanSessionId ?? undefined,
+          idDocumentType: merged.documentType,
+          idJurisdictionCode: merged.issuingJurisdictionCode,
+          jurisdictionAdvisory: result.jurisdictionAdvisory,
+          updateVault: updateAddress,
+        }),
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Save failed");
+      }
+      setStep("done");
+      toast({
+        title: "ID document saved",
+        description: updateAddress
+          ? "Your identity data and mailing address have been updated."
+          : "Your identity data has been confirmed. Mailing address was not changed.",
+      });
+    } catch (err) {
+      toast({ title: "Save failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const ef = (key: keyof ExtractedIdFields) => {
+    const v = (editedFields as unknown as Record<string, unknown>)[key] ?? (result?.fields as unknown as Record<string, unknown>)?.[key] ?? "";
+    return String(v);
+  };
+
+  const setEf = (key: keyof ExtractedIdFields, value: string) => {
+    setEditedFields((p) => ({ ...p, [key]: value }));
+  };
+
+  if (step === "done") {
+    const docTypeLabel = DOC_TYPE_LABELS[vaultData?.idDocumentType ?? editedFields.documentType ?? "unknown"] ?? "ID Document";
+    const uploadedAt = vaultData?.idDocumentUploadedAt ?? new Date().toISOString();
+    const jurisdictionCode = vaultData?.idJurisdictionCode ?? editedFields.issuingJurisdictionCode ?? "";
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2.5 p-3 rounded-lg border border-green-200 bg-green-50">
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          <div className="flex-1 min-w-0">
+            <p className="text-xs font-semibold text-green-800">ID on file — {docTypeLabel}</p>
+            <p className="text-[10px] text-green-700">
+              Uploaded {new Date(uploadedAt).toLocaleDateString()} · Jurisdiction: {jurisdictionCode || "—"}
+            </p>
+          </div>
+          <button
+            onClick={() => { setStep("upload"); setResult(null); setEditedFields({}); setFrontFile(null); setBackFile(null); setFrontPreview(null); setBackPreview(null); }}
+            className="text-[10px] text-green-700 underline underline-offset-2 hover:text-green-900 transition-colors shrink-0"
+          >
+            Update
+          </button>
+        </div>
+        <p className="text-[10px] text-muted-foreground">
+          Your identity document is stored encrypted. Officers can see the document type and upload date. Only Trustees can access the stored images.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === "idle") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-start gap-2.5 p-3 rounded-lg bg-muted/40 border border-border">
+          <IdCard className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-medium text-foreground">No ID on file</p>
+            <p className="text-[10px] text-muted-foreground leading-relaxed mt-0.5">
+              Scan or upload your government-issued ID to automatically extract and verify your identity and address. Supports driver's licenses, state IDs, passports, and tribal IDs.
+            </p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={() => setStep("upload")}>
+          <ScanLine className="h-3.5 w-3.5" /> Scan Government ID
+        </Button>
+      </div>
+    );
+  }
+
+  if (step === "upload") {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Document Type</span>
+          <select
+            value={docType}
+            onChange={(e) => setDocType(e.target.value as typeof docType)}
+            className="h-7 text-xs rounded-md border border-input bg-background px-2 focus:outline-none focus:ring-1 focus:ring-ring"
+          >
+            <option value="auto">Auto-detect</option>
+            <option value="dl">Driver's License</option>
+            <option value="passport">Passport</option>
+            <option value="tribal">Tribal ID</option>
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {(["front", "back"] as const).map((side) => {
+            const preview = side === "front" ? frontPreview : backPreview;
+            const inputRef = side === "front" ? frontInputRef : backInputRef;
+            const file = side === "front" ? frontFile : backFile;
+            return (
+              <div key={side} className="space-y-2">
+                <div className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest flex items-center gap-1.5">
+                  {side === "front" ? "Front" : "Back"} of ID
+                  {file && <CheckCircle2 className="h-3 w-3 text-green-500" />}
+                  {side === "back" && docType !== "passport" && <span className="text-[9px] text-muted-foreground">(required for DL barcode)</span>}
+                </div>
+                <div
+                  className={`relative rounded-lg border-2 border-dashed transition-colors cursor-pointer overflow-hidden ${preview ? "border-primary/40" : "border-border hover:border-primary/30"}`}
+                  style={{ aspectRatio: "1.586" }}
+                  onClick={() => inputRef.current?.click()}
+                >
+                  {preview ? (
+                    <img src={preview} alt={`ID ${side}`} className="absolute inset-0 w-full h-full object-cover" />
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1.5 bg-muted/20">
+                      <Camera className="h-6 w-6 text-muted-foreground/60" />
+                      <p className="text-[10px] text-muted-foreground text-center px-2">Tap to take photo or upload</p>
+                    </div>
+                  )}
+                  <input
+                    ref={inputRef}
+                    type="file"
+                    accept="image/*,.pdf"
+                    capture="environment"
+                    className="hidden"
+                    onChange={(e) => { const f = e.target.files?.[0]; if (f) handleFileSelect(side, f); }}
+                  />
+                </div>
+                {preview && (
+                  <button
+                    className="text-[10px] text-muted-foreground hover:text-destructive underline underline-offset-2 transition-colors"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (side === "front") { setFrontFile(null); setFrontPreview(null); }
+                      else { setBackFile(null); setBackPreview(null); }
+                    }}
+                  >
+                    Remove
+                  </button>
+                )}
+              </div>
+            );
+          })}
+        </div>
+
+        <div className="flex items-center gap-2 flex-wrap">
+          <Button
+            size="sm"
+            className="h-8 text-xs gap-1.5"
+            onClick={handleExtract}
+            disabled={extracting || (!frontFile && !backFile)}
+          >
+            {extracting ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Extracting…</> : <><ScanLine className="h-3.5 w-3.5" /> Extract ID Data</>}
+          </Button>
+          <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setStep("idle")}>Cancel</Button>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground">
+          For driver's licenses, uploading the back enables high-accuracy barcode extraction. Images are stored encrypted and only accessible to Trustees.
+        </p>
+      </div>
+    );
+  }
+
+  if (step === "review" && result) {
+    const advisory = result.jurisdictionAdvisory;
+    return (
+      <div className="space-y-4">
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-4 w-4 text-green-500 shrink-0" />
+          <p className="text-xs font-semibold text-foreground">Data extracted — review and confirm</p>
+          <span className="ml-auto text-[10px] text-muted-foreground">
+            {result.extractionMethod === "barcode" ? "PDF417 barcode" : "Vision OCR"} · {Math.round(result.confidenceScore * 100)}% confidence
+          </span>
+        </div>
+
+        {advisory.hasAdvisory && advisory.level !== "none" && (
+          <div className={`flex items-start gap-2.5 p-3 rounded-lg border text-xs ${advisory.level === "advisory" ? "border-amber-300 bg-amber-50 text-amber-900" : "border-blue-200 bg-blue-50 text-blue-900"}`}>
+            {advisory.level === "advisory" ? <AlertTriangle className="h-3.5 w-3.5 shrink-0 mt-0.5" /> : <Info className="h-3.5 w-3.5 shrink-0 mt-0.5" />}
+            <div className="space-y-1">
+              {advisory.message && <p>{advisory.message}</p>}
+              {advisory.tribalOverlapNote && <p className="text-[10px] opacity-80">{advisory.tribalOverlapNote}</p>}
+            </div>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {([
+            { key: "fullName" as const, label: "Full Legal Name" },
+            { key: "dateOfBirth" as const, label: "Date of Birth" },
+            { key: "idNumber" as const, label: "ID / License Number" },
+            { key: "expiryDate" as const, label: "Expiry Date" },
+            { key: "issueDate" as const, label: "Issue Date" },
+            { key: "issuingJurisdictionName" as const, label: "Issuing State/Authority" },
+          ]).map(({ key, label }) => (
+            <div key={key} className="space-y-1">
+              <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">{label}</Label>
+              <Input
+                className="h-8 text-xs font-mono"
+                value={ef(key)}
+                onChange={(e) => setEf(key, e.target.value)}
+              />
+            </div>
+          ))}
+          <div className="sm:col-span-2 space-y-1">
+            <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Address on ID</Label>
+            <Input
+              className="h-8 text-xs"
+              value={ef("fullAddress")}
+              onChange={(e) => setEf("fullAddress", e.target.value)}
+            />
+          </div>
+        </div>
+
+        {ef("fullAddress") && (
+          <div className="rounded-lg border-2 border-primary/30 bg-primary/5 p-3 space-y-2">
+            <div className="flex items-start gap-2">
+              <MapPin className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+              <div className="flex-1 min-w-0">
+                <p className="text-xs font-semibold text-foreground">Update primary mailing address?</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5 font-mono break-words">{ef("fullAddress")}</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setUpdateAddress(true)}
+                className={`flex-1 h-8 rounded-md border text-xs font-semibold transition-colors ${updateAddress === true ? "border-primary bg-primary text-primary-foreground" : "border-border bg-background text-foreground hover:bg-muted/60"}`}
+              >
+                Yes, update it
+              </button>
+              <button
+                type="button"
+                onClick={() => setUpdateAddress(false)}
+                className={`flex-1 h-8 rounded-md border text-xs font-semibold transition-colors ${updateAddress === false ? "border-destructive bg-destructive/10 text-destructive" : "border-border bg-background text-foreground hover:bg-muted/60"}`}
+              >
+                No, keep current
+              </button>
+            </div>
+            {updateAddress === null && (
+              <p className="text-[10px] text-amber-700 font-medium">Please choose before saving.</p>
+            )}
+          </div>
+        )}
+
+        <div className="flex items-center gap-2 pt-1 border-t border-border">
+          <Button size="sm" className="h-8 text-xs gap-1.5" onClick={handleConfirm} disabled={saving || (!!ef("fullAddress") && updateAddress === null)}>
+            {saving ? <><Loader2 className="h-3.5 w-3.5 animate-spin" /> Saving…</> : <><CheckCircle2 className="h-3.5 w-3.5" /> Confirm & Save</>}
+          </Button>
+          <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => setStep("upload")}>
+            Re-upload
+          </Button>
+          <p className="text-[10px] text-muted-foreground ml-auto">Data stored encrypted.</p>
+        </div>
+      </div>
+    );
+  }
+
+  return null;
 }
 
 /* ── Protections Panel ── */
@@ -1259,6 +1647,7 @@ export default function ProfilePage() {
 
   /* vault state — we never store actual values client-side after save */
   const [vaultHas, setVaultHas] = useState({ dob: false, address: false, email: false, ssn: false });
+  const [vaultIdDoc, setVaultIdDoc] = useState<{ hasIdDocument: boolean; idDocumentType: string | null; idDocumentUploadedAt: string | null; idJurisdictionCode: string | null; idScanRequestedAt: string | null }>({ hasIdDocument: false, idDocumentType: null, idDocumentUploadedAt: null, idJurisdictionCode: null, idScanRequestedAt: null });
   const [vaultFields, setVaultFields] = useState({ dateOfBirth: "", address: "", preferredContact: "email", contactEmail: "", ssn: "" });
   const [isSavingVault, setIsSavingVault] = useState(false);
   const [vaultRevealFields, setVaultRevealFields] = useState({ dateOfBirth: false, address: false, contactEmail: false, ssn: false });
@@ -1350,6 +1739,13 @@ export default function ProfilePage() {
         if (vr.ok) {
           const vd = await vr.json();
           setVaultHas({ dob: vd.hasDob, address: vd.hasAddress, email: vd.hasEmail, ssn: vd.hasSsn });
+          setVaultIdDoc({
+            hasIdDocument: vd.hasIdDocument ?? false,
+            idDocumentType: vd.idDocumentType ?? null,
+            idDocumentUploadedAt: vd.idDocumentUploadedAt ? String(vd.idDocumentUploadedAt) : null,
+            idJurisdictionCode: vd.idJurisdictionCode ?? null,
+            idScanRequestedAt: vd.idScanRequestedAt ? String(vd.idScanRequestedAt) : null,
+          });
           if (vd.preferredContact) {
             setVaultFields((prev) => ({ ...prev, preferredContact: vd.preferredContact }));
           }
@@ -2923,6 +3319,38 @@ export default function ProfilePage() {
       </Card>
         </div>
         )}
+      </div>
+
+      {/* ── ID Document ── */}
+      <div className="border-2 border-[#1C2B4B]/20 rounded-lg overflow-hidden bg-gradient-to-br from-slate-50 to-blue-50/30">
+        <div className="flex items-center gap-3 px-4 py-3">
+          <IdCard className="h-4 w-4 text-[#1C2B4B] shrink-0" />
+          <span className="text-sm font-semibold">Government ID</span>
+          {vaultIdDoc.hasIdDocument ? (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border border-green-300 bg-green-50 text-green-700 ml-1">
+              <CheckCircle2 className="h-2.5 w-2.5" /> On file
+            </span>
+          ) : (
+            <span className="inline-flex items-center gap-1 text-[9px] font-bold px-2 py-0.5 rounded-full border border-amber-300 bg-amber-50 text-amber-700 ml-1">
+              <XCircle className="h-2.5 w-2.5" /> Not uploaded
+            </span>
+          )}
+        </div>
+        {vaultIdDoc.idScanRequestedAt && !vaultIdDoc.hasIdDocument && (
+          <div className="mx-4 mb-0 mt-0 rounded-lg border border-amber-300 bg-amber-50 px-3 py-2.5 flex items-start gap-2.5">
+            <AlertTriangle className="h-4 w-4 text-amber-600 shrink-0 mt-0.5" />
+            <div className="flex-1 min-w-0">
+              <p className="text-xs font-semibold text-amber-900">Action required — An officer has requested your ID verification</p>
+              <p className="text-[10px] text-amber-800 mt-0.5">
+                Please upload a photo of your government-issued ID below to complete identity verification.
+                Requested {new Date(vaultIdDoc.idScanRequestedAt).toLocaleDateString()}.
+              </p>
+            </div>
+          </div>
+        )}
+        <div className="border-t border-[#1C2B4B]/15 px-4 py-4">
+          <IdDocumentPanel vaultData={vaultIdDoc} />
+        </div>
       </div>
 
       {/* ── Delegation panel ── */}

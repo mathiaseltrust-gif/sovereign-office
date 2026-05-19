@@ -87,6 +87,9 @@ import atlasRouter from "./atlas/index";
 import authorityRouter from "./authority/index";
 import caseFilesRouter from "./case-files/index";
 import geocodeRouter from "./geocode";
+import userIdDocumentRouter from "./user/id-document";
+import adminIdDocumentRouter from "./admin/id-document";
+import usersRouter from "./users";
 
 const router: IRouter = Router();
 
@@ -109,6 +112,9 @@ router.use("/tasks", tasksRouter);
 router.use("/search", searchRouter);
 router.use("/user/profile", userProfileRouter);
 router.use("/user/vault", userVaultRouter);
+router.use("/user/id-document", userIdDocumentRouter);
+router.use("/admin/id-document", adminIdDocumentRouter);
+router.use("/users", usersRouter);
 router.use("/admin/entra", adminEntraRouter);
 router.use("/admin/bootstrap", adminBootstrapRouter);
 router.use("/admin/backup", adminBackupRouter);

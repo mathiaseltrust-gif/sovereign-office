@@ -156,6 +156,13 @@ const migrations = [
     created_at TIMESTAMP DEFAULT NOW() NOT NULL
   )`,
 
+  // profile_vault — ID document fields added for government ID scan feature
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_type TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_url_front TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_url_back TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_uploaded_at TIMESTAMP`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_jurisdiction_code TEXT`,
+
   // Authority Directory — safe renames for existing authority_* tables to spec names
   `DO $$ BEGIN
     IF EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'authority_jurisdiction' AND table_schema = 'public')
@@ -326,6 +333,15 @@ const migrations = [
     created_at TIMESTAMP NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
+
+  // profile_vault — ID document columns
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_type TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_url_front TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_url_back TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_document_uploaded_at TIMESTAMP`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_jurisdiction_code TEXT`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_scan_requested_at TIMESTAMP`,
+  `ALTER TABLE profile_vault ADD COLUMN IF NOT EXISTS id_scan_requested_by INTEGER`,
 ];
 
 async function runMigrations() {

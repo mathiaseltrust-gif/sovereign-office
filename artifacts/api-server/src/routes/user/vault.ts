@@ -27,6 +27,12 @@ router.get("/", requireAuth, async (req, res, next) => {
       hasEmail: !!(row?.contactEmail),
       hasSsn: !!(row?.ssn),
       preferredContact: row?.preferredContact ?? null,
+      hasIdDocument: !!(row?.idDocumentType),
+      idDocumentType: row?.idDocumentType ?? null,
+      idDocumentUploadedAt: row?.idDocumentUploadedAt ?? null,
+      idJurisdictionCode: row?.idJurisdictionCode ?? null,
+      idScanRequestedAt: row?.idScanRequestedAt ?? null,
+      idScanRequestedBy: row?.idScanRequestedBy ?? null,
     });
   } catch (err) {
     next(err);

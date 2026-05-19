@@ -204,6 +204,31 @@ export class ObjectStorageService {
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
   }
+
+  async uploadBuffer(
+    buffer: Buffer,
+    contentType: string,
+    label: string,
+  ): Promise<string> {
+    const privateObjectDir = this.getPrivateObjectDir();
+    const objectId = randomUUID();
+    const fullPath = `${privateObjectDir}/${label}/${objectId}`;
+    const { bucketName, objectName } = parseObjectPath(fullPath);
+    const bucket = objectStorageClient.bucket(bucketName);
+    const file = bucket.file(objectName);
+    await file.save(buffer, { contentType, resumable: false });
+    return `/objects/${label}/${objectId}`;
+  }
+
+  async getSignedDownloadUrl(objectPath: string, ttlSec = 900): Promise<string> {
+    const file = await this.getObjectEntityFile(objectPath);
+    const { bucketName, objectName } = parseObjectPath(
+      objectPath.startsWith("/objects/")
+        ? `${this.getPrivateObjectDir()}/${objectPath.slice("/objects/".length)}`
+        : objectPath,
+    );
+    return signObjectURL({ bucketName: file.bucket.name, objectName: file.name, method: "GET", ttlSec });
+  }
 }
 
 function parseObjectPath(path: string): {
