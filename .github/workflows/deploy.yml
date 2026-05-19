@@ -492,6 +492,49 @@ jobs:
         id: meta
         run: echo "sha_tag=staging-${GITHUB_SHA::8}" >> "$GITHUB_OUTPUT"
 
+      - name: Validate required URL variables
+        env:
+          # Use vars.* directly — NOT env.* — so that a missing GitHub Actions
+          # variable produces an empty string here rather than the fallback
+          # default defined in the top-level env: block.
+          RAW_VITE_API_URL:    ${{ vars.VITE_API_URL }}
+          RAW_SOVEREIGN_URL:   ${{ vars.SOVEREIGN_URL }}
+          RAW_TRUST_URL:       ${{ vars.TRUST_URL }}
+          RAW_COMMUNITY_URL:   ${{ vars.COMMUNITY_URL }}
+          RAW_ATLAS_URL:       ${{ vars.ATLAS_URL }}
+        run: |
+          set -euo pipefail
+          FAIL=0
+
+          check_url_var() {
+            local name="$1"
+            local value="$2"
+            if [ -z "$value" ]; then
+              echo "ERROR: $name is not set. Add it under Settings → Environments → staging → Variables." >&2
+              FAIL=1
+            elif [[ "$value" != https://* ]]; then
+              echo "ERROR: $name must start with https:// for staging (got: $value)." >&2
+              FAIL=1
+            else
+              echo "  ✓ $name = $value"
+            fi
+          }
+
+          echo "==> Validating required URL variables..."
+          check_url_var "VITE_API_URL"  "$RAW_VITE_API_URL"
+          check_url_var "SOVEREIGN_URL" "$RAW_SOVEREIGN_URL"
+          check_url_var "TRUST_URL"     "$RAW_TRUST_URL"
+          check_url_var "COMMUNITY_URL" "$RAW_COMMUNITY_URL"
+          check_url_var "ATLAS_URL"     "$RAW_ATLAS_URL"
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo ""
+            echo "One or more required URL variables are missing or not HTTPS." >&2
+            echo "Fix the GitHub Actions variable(s) listed above, then re-run the workflow." >&2
+            exit 1
+          fi
+          echo "==> All five URL variables are valid."
+
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
