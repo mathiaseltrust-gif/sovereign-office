@@ -34,7 +34,7 @@ export default function TribalTrustPage() {
             <img
               src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
               alt="Mathias El Tribe Trust"
-              className="w-20 h-20 object-contain drop-shadow-md shrink-0"
+              className="w-32 h-36 object-contain drop-shadow-md shrink-0"
             />
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Federal Indian Trust</p>
