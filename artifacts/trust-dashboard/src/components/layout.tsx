@@ -26,16 +26,16 @@ export function Layout({ children }: { children: React.ReactNode }) {
         <div className="px-5 py-5 border-b border-sidebar-border">
           <div className="flex flex-col items-center text-center gap-2">
             <img
-              src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
-              alt="Mathias El Tribe Trust — Treasury & Trust Assets"
-              className="w-24 h-24 object-contain drop-shadow-md"
+              src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+              alt="Office of the Chief Justice and Trustee — Mathias El Tribe"
+              className="w-20 h-20 object-contain drop-shadow-md"
             />
             <div className="min-w-0">
               <p className="text-xs font-semibold text-sidebar-primary leading-tight truncate">
-                Mathias El Tribe Trust
+                Mathias El Tribe
               </p>
               <p className="text-[10px] text-sidebar-foreground/60 leading-tight truncate">
-                Treasury & Trust Assets
+                Office of the Chief Justice & Trustee
               </p>
             </div>
           </div>

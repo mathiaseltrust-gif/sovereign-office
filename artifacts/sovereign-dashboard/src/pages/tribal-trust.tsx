@@ -30,17 +30,10 @@ export default function TribalTrustPage() {
     <div data-testid="page-tribal-trust">
       <div className="mb-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <div className="flex items-center gap-4">
-            <img
-              src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
-              alt="Mathias El Tribe Trust"
-              className="w-20 h-20 object-contain drop-shadow-md shrink-0"
-            />
-            <div>
-              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Federal Indian Trust</p>
-              <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Trust</h1>
-              <p className="text-muted-foreground mt-1">Sovereign Trust — Treaty-Based Federal Fiduciary — 25 U.S.C. § 5108</p>
-            </div>
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Federal Indian Trust</p>
+            <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Trust</h1>
+            <p className="text-muted-foreground mt-1">Sovereign Trust — Treaty-Based Federal Fiduciary — 25 U.S.C. § 5108</p>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-amber-700 text-white">Federal Indian Trust</Badge>
