@@ -1,0 +1,113 @@
+Add a Document Gap Listener inside the AI Intake System.
+
+During any intake, listening, investigation, member guidance process, AI interaction, or automated review flow, the system must detect whether the needed document, notice, motion, form, declaration, objection, request, protective instrument, administrative filing, governance record, or other structured output already exists within the template library, workflow system, document engine, or ecosystem infrastructure.
+
+If the required document or structure already exists, the system should route the user to the existing template, populate it with intake data, and continue the workflow using the established ecosystem logic already in place.
+
+If the required document or structure does not already exist, the system must trigger a Dynamic Document Builder operating within the existing ecosystem.
+
+The Dynamic Document Builder shall:
+
+1. Identify the document type needed based on:
+   - User facts
+   - Intake responses
+   - Agency involved
+   - Jurisdiction involved
+   - Requested remedy or action
+   - Triggered protections
+   - Workflow context
+   - Applicable procedural requirements
+   - Existing governance structures
+
+2. Determine whether the document or structure is governed by:
+   - Tribal law
+   - Federal law
+   - State procedure
+   - Administrative rules
+   - Court rules
+   - Treaty principles
+   - Trust responsibilities
+   - Existing internal governance logic
+   - Or a combination of these layers
+
+3. Pull and organize the applicable:
+   - Statutes
+   - Regulations
+   - Procedural requirements
+   - Rights
+   - Protections
+   - Trust obligations
+   - Treaty provisions
+   - Jurisdictional principles
+   - Existing ecosystem logic
+   - Alignment protocols
+   - Governance standards
+   - Existing approved language patterns
+
+4. Generate a properly structured draft document, workflow component, or intake-driven output using the appropriate formatting and logic for that document type, including where applicable:
+   - Heading or caption
+   - Parties or entities
+   - Statement of facts
+   - Jurisdictional basis
+   - Applicable provisions
+   - Procedural compliance
+   - Requests, notices, objections, or remedies
+   - Reservation of rights
+   - Signature blocks
+   - Service sections
+   - Internal workflow triggers
+   - Automation hooks
+   - Metadata tagging
+   - Routing logic
+
+5. Automatically analyze whether the generated structure already overlaps with existing ecosystem components before creating new duplicate logic.
+
+6. Integrate newly generated structures into the ecosystem through continuity and alignment rather than replacement.
+
+7. Ensure all generated provisions, strings, automations, workflows, templates, and intake-generated structures remain in harmony with:
+   - Existing governing principles
+   - Alignment protocols
+   - Tribal law structures
+   - Trust instruments
+   - Jurisdictional frameworks
+   - Existing ecosystem architecture
+   - Existing workflow chains
+   - Existing governors
+   - Existing protections
+   - Existing intake logic
+   - Existing enforcement structures
+   - Existing approved system behavior
+
+8. No generated process, automation, template, logic layer, workflow, listener, or intake-derived document shall:
+   - Violate
+   - Override
+   - Conflict with
+   - Dismantle
+   - Bypass
+   - Duplicate improperly
+   - Or unintentionally weaken
+   the existing ecosystem or its governing structures.
+
+9. New strings, listeners, mechanisms, workflows, and document-generation behaviors must integrate through:
+   - Alignment
+   - Continuity
+   - Reshaping
+   - Repurposing
+   - Harmonization
+   - Ecosystem-aware expansion
+   rather than destructive replacement.
+
+10. If uncertainty exists, the system should still generate a provisional structure using the best applicable logic while flagging the area internally for ecosystem review and refinement rather than refusing generation.
+
+11. All newly generated structures should become reusable ecosystem assets capable of:
+   - Future automation
+   - Template learning
+   - Workflow reuse
+   - Governance expansion
+   - Pattern recognition
+   - Intake optimization
+   - Cross-system integration
+
+This mechanism is not a replacement engine.
+
+It is an ecosystem-aware extension layer operating inside the existing AI Intake System, governance infrastructure, document ecosystem, automation chains, and intelligent workflow architecture already established within the platform.

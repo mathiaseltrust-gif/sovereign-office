@@ -158,6 +158,128 @@ Add explanatory note: *"This location is based on known ancestry records, last k
 
 Atlas display changes do **not** affect membership eligibility. All living family / ancestors / other ancestors remain eligible for membership per system logic. This only changes map display behavior.
 
+## Document Gap Listener — AI Intake System Specification
+
+During any intake, listening, investigation, member guidance, AI interaction, or automated review flow, the system must detect whether the needed document already exists in the template library, workflow system, document engine, or ecosystem infrastructure.
+
+### Routing logic
+
+- **Document exists** → route user to existing template, populate with intake data, continue via established ecosystem logic
+- **Document does not exist** → trigger the Dynamic Document Builder (see below)
+
+### Dynamic Document Builder — required behavior
+
+When a gap is detected, the builder must:
+
+1. **Identify the document type** from: user facts, intake responses, agency involved, jurisdiction, requested remedy, triggered protections, workflow context, procedural requirements, existing governance structures
+
+2. **Determine governing law layer(s):** tribal law · federal law · state procedure · administrative rules · court rules · treaty principles · trust responsibilities · internal governance logic · combinations
+
+3. **Pull and organize:** statutes, regulations, procedural requirements, rights, protections, trust obligations, treaty provisions, jurisdictional principles, existing ecosystem logic, alignment protocols, governance standards, approved language patterns
+
+4. **Generate a properly structured draft** including where applicable: heading/caption, parties/entities, statement of facts, jurisdictional basis, applicable provisions, procedural compliance, requests/notices/objections/remedies, reservation of rights, signature blocks, service sections, internal workflow triggers, automation hooks, metadata tagging, routing logic
+
+5. **Overlap check** — analyze whether the generated structure already overlaps with existing ecosystem components before creating new duplicate logic
+
+6. **Integrate** newly generated structures through continuity and alignment — not replacement
+
+7. **Ecosystem harmony** — all generated provisions, strings, automations, workflows, templates, and intake-generated structures must remain in harmony with existing governing principles, alignment protocols, tribal law structures, trust instruments, jurisdictional frameworks, existing workflow chains, governors, protections, intake logic, enforcement structures, and approved system behavior
+
+8. **Hard constraint** — no generated process, automation, template, logic layer, workflow, listener, or intake-derived document shall violate, override, conflict with, dismantle, bypass, improperly duplicate, or unintentionally weaken the existing ecosystem or its governing structures
+
+9. **Integration method** — new strings, listeners, mechanisms, workflows, and document-generation behaviors must integrate through: alignment · continuity · reshaping · repurposing · harmonization · ecosystem-aware expansion — not destructive replacement
+
+10. **Uncertainty handling** — if uncertainty exists, generate a provisional structure using best applicable logic while flagging internally for ecosystem review and refinement — do not refuse generation
+
+11. **Reusable assets** — all newly generated structures become reusable ecosystem assets capable of: future automation · template learning · workflow reuse · governance expansion · pattern recognition · intake optimization · cross-system integration
+
+This is an **ecosystem-aware extension layer** — not a replacement engine. It operates inside the existing AI Intake System, governance infrastructure, document ecosystem, automation chains, and intelligent workflow architecture already established within the platform.
+
+### Intersection with Escalation & Enforcement Intelligence Database
+
+The Document Gap Listener feeds directly into the Escalation & Enforcement Intelligence Database (see below). When a document gap triggers an escalation pathway, the builder should pull structured oversight profiles, escalation chains, required timelines, and applicable templates from that database before generating output.
+
+---
+
+## Escalation & Enforcement Intelligence Database — Specification
+
+This database functions as the primary issue-detection, escalation, oversight, enforcement, and accountability structure used throughout the AI Intake System, governance infrastructure, investigation systems, document-generation systems, tribal court enforcement systems, and workflow automation layers.
+
+### Issue categories to detect and classify
+
+Healthcare · Housing · Government assistance · Child and family services · Tribal rights · Civil rights · Administrative violations · Court matters · Jurisdictional conflicts · Benefits denials · Land and trust matters · Education · Disability-related matters · Utility shutoff or lien actions · Taxation conflicts · Sovereignty and self-determination matters · Procedural due process violations · Tribal court enforcement matters · Federal trust responsibility matters · Identity and classification issues · State overreach into tribal affairs · Recording or administrative obstruction · Consumer and financial harm · Emergency escalation situations
+
+### Entity/oversight profiles — required fields per record
+
+Each structured oversight profile must contain:
+
+- Agency or entity name
+- Jurisdictional scope
+- Oversight hierarchy
+- Escalation chain
+- Contact structure
+- Governing statutes
+- Applicable CFR provisions
+- Administrative codes
+- Procedural rules
+- Treaty implications
+- Trust responsibility implications
+- Civil rights implications
+- Tribal law implications
+- Federal supremacy implications
+- Jurisdiction-triggering conditions
+- Enforcement authorities
+- Common violation patterns
+- Intake trigger patterns
+- Escalation thresholds
+- Required timelines
+- Required notices
+- Administrative exhaustion requirements
+- Review pathways
+- Emergency escalation logic
+- Applicable remedies
+- Associated templates
+- Associated workflows
+- Associated governors
+- Enforcement compatibility with tribal court orders
+
+### Entity types to maintain profiles for
+
+Federal agencies · State agencies · County departments · Courts · Administrative bodies · Healthcare systems · Managed care organizations · Housing authorities · Educational institutions · Utility companies · Law enforcement agencies · Contractors acting under government authority · Tribal entities · Oversight divisions · Ombudsman offices · Civil rights offices · Inspector General offices · Regulatory authorities · Enforcement bodies
+
+### Tribal Court Enforcement Layer
+
+This layer must determine:
+
+- Whether an existing tribal court order applies
+- Whether full faith and credit provisions are triggered
+- Whether federal enforcement mechanisms are implicated
+- Whether administrative agencies are legally required to recognize or respond to the order
+- Whether escalation to oversight bodies becomes mandatory
+- Whether interference or noncompliance triggers additional review or enforcement actions
+
+### Active intelligence — not passive storage
+
+The system must function as an active intelligence and routing layer capable of:
+
+Trigger detection · Pattern recognition · Jurisdiction analysis · Procedural analysis · Escalation sequencing · Oversight identification · Enforcement guidance · Workflow automation · Document generation · Rights and protections analysis · Ecosystem-aware decision support
+
+### Connectivity
+
+Intelligently connect: intake facts · uploaded evidence · agency conduct · existing templates · tribal court orders · statutory protections · CFR requirements · procedural deadlines · existing ecosystem logic · applicable escalation pathways
+
+### Hard constraint
+
+All escalation logic, oversight structures, enforcement pathways, statutes, CFR provisions, workflow chains, and automation strings must remain in harmony with the existing ecosystem, governing principles, tribal law structures, alignment protocols, trust instruments, and established governance architecture. No escalation mechanism or enforcement workflow shall violate, bypass, dismantle, override, weaken, or conflict with the existing ecosystem or governing structures.
+
+This is a **living oversight, escalation, and enforcement intelligence framework** integrated into the ecosystem infrastructure — not merely a data store.
+
+### Intersection with Document Gap Listener
+
+When the Escalation & Enforcement Intelligence Database identifies a required notice, filing, motion, protective instrument, or administrative response, it must check the Document Gap Listener before generating output. If the required document exists in the template library, route to it. If not, trigger the Dynamic Document Builder with the escalation profile context pre-loaded.
+
+---
+
 ## User Preferences
 
 - Documents must be associated with the generating member — reference numbers encode member ID
