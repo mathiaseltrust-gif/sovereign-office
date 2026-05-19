@@ -37,6 +37,27 @@ concurrency:
 env:
   REGISTRY: ${{ secrets.ACR_REGISTRY }}
 
+  # ── Public domain names — SINGLE SOURCE OF TRUTH ─────────────────────────
+  # To change a domain, update the matching GitHub Actions variable under
+  # Settings → Secrets and variables → Actions → Variables, then update the
+  # fallback default here.  These five values are referenced by every
+  # build-args block and by the HTTPS health-check step below — no other
+  # edits are needed.
+  #
+  #   Variable name   │ Example value
+  #   ────────────────┼──────────────────────────────────────────
+  #   VITE_API_URL    │ https://api.sovereignoffice.org
+  #   SOVEREIGN_URL   │ https://sovereign.sovereignoffice.org
+  #   TRUST_URL       │ https://trust.sovereignoffice.org
+  #   COMMUNITY_URL   │ https://community.sovereignoffice.org
+  #   ATLAS_URL       │ https://atlas.sovereignoffice.org
+  # ─────────────────────────────────────────────────────────────────────────
+  VITE_API_URL:    ${{ vars.VITE_API_URL    || 'https://api.sovereignoffice.org' }}
+  SOVEREIGN_URL:   ${{ vars.SOVEREIGN_URL   || 'https://sovereign.sovereignoffice.org' }}
+  TRUST_URL:       ${{ vars.TRUST_URL       || 'https://trust.sovereignoffice.org' }}
+  COMMUNITY_URL:   ${{ vars.COMMUNITY_URL   || 'https://community.sovereignoffice.org' }}
+  ATLAS_URL:       ${{ vars.ATLAS_URL       || 'https://atlas.sovereignoffice.org' }}
+
 jobs:
   # ── 1. Build and push all images ──────────────────────────────────────────
   build-and-push:
@@ -86,7 +107,7 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
+            VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/sovereign-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/sovereign-dashboard:latest
@@ -102,7 +123,7 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
+            VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/trust-dashboard:latest
@@ -117,7 +138,7 @@ jobs:
           file: artifacts/community-dashboard/Dockerfile
           push: true
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
+            VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/community-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/community-dashboard:latest
@@ -132,7 +153,7 @@ jobs:
           file: artifacts/urban-indian-atlas/Dockerfile
           push: true
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
+            VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/urban-indian-atlas:latest
@@ -223,21 +244,16 @@ jobs:
       # not just localhost.  Skipped when VITE_API_URL is still an http:// address
       # (e.g. local / staging without TLS).
       #
-      # Required GitHub Actions variables (Settings → Secrets and variables →
-      # Variables) when deploying to a TLS-enabled environment:
-      #   VITE_API_URL    — e.g. https://api.sovereignoffice.org
-      #   SOVEREIGN_URL   — e.g. https://sovereign.sovereignoffice.org
-      #   TRUST_URL       — e.g. https://trust.sovereignoffice.org
-      #   COMMUNITY_URL   — e.g. https://community.sovereignoffice.org
-      #   ATLAS_URL       — e.g. https://atlas.sovereignoffice.org
+      # All URLs come from the top-level `env:` block — see "SINGLE SOURCE OF
+      # TRUTH" comment at the top of this file to update domains.
       - name: HTTPS health check — all five public endpoints
-        if: startsWith(vars.VITE_API_URL, 'https://')
+        if: vars.VITE_API_URL != '' && startsWith(vars.VITE_API_URL, 'https://')
         env:
-          API_URL:       ${{ vars.VITE_API_URL }}
-          SOVEREIGN_URL: ${{ vars.SOVEREIGN_URL }}
-          TRUST_URL:     ${{ vars.TRUST_URL }}
-          COMMUNITY_URL: ${{ vars.COMMUNITY_URL }}
-          ATLAS_URL:     ${{ vars.ATLAS_URL }}
+          API_URL:       ${{ env.VITE_API_URL }}
+          SOVEREIGN_URL: ${{ env.SOVEREIGN_URL }}
+          TRUST_URL:     ${{ env.TRUST_URL }}
+          COMMUNITY_URL: ${{ env.COMMUNITY_URL }}
+          ATLAS_URL:     ${{ env.ATLAS_URL }}
         run: |
           set -euo pipefail
           FAIL=0
