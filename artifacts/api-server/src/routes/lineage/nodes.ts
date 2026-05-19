@@ -181,6 +181,79 @@ router.get("/pending-reviews", requireAuth, requireRole("trustee"), async (req, 
   }
 });
 
+// ── Add a lineage node to the current officer's household ────────────────
+// Appends the targetNodeId to the officer's own linked family_lineage record's
+// spouseIds or childrenIds array (used by the Atlas to classify household_member).
+router.post("/household/add", requireAuth, async (req, res, next) => {
+  try {
+    const currentUserId = req.user?.dbId ?? null;
+    if (!currentUserId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    const roles = req.user?.roles ?? [];
+    const canManageHousehold = roles.some((r) => ["trustee", "sovereign_admin", "admin", "elder", "officer"].includes(r));
+    if (!canManageHousehold) {
+      res.status(403).json({ error: "Officer or trustee role required to manage household" });
+      return;
+    }
+
+    const { targetNodeId, relationship } = req.body as { targetNodeId?: number; relationship?: string };
+    if (!targetNodeId || !["spouse", "child", "dependent"].includes(relationship ?? "")) {
+      res.status(400).json({ error: "targetNodeId and relationship (spouse | child | dependent) are required" });
+      return;
+    }
+
+    // Find the current user's linked lineage node
+    const [userNode] = await db
+      .select()
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.linkedProfileUserId, currentUserId))
+      .limit(1);
+
+    if (!userNode) {
+      res.status(404).json({ error: "No lineage node is linked to your profile. Use 'This is me' on your node first." });
+      return;
+    }
+    if (userNode.id === targetNodeId) {
+      res.status(400).json({ error: "You cannot add yourself to your own household." });
+      return;
+    }
+
+    // Verify target exists
+    const [targetNode] = await db
+      .select({ id: familyLineageTable.id, fullName: familyLineageTable.fullName })
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.id, targetNodeId))
+      .limit(1);
+    if (!targetNode) { res.status(404).json({ error: "Target lineage node not found" }); return; }
+
+    const isSpouse = relationship === "spouse";
+    const currentArray: number[] = isSpouse
+      ? (Array.isArray(userNode.spouseIds)   ? (userNode.spouseIds   as number[]) : [])
+      : (Array.isArray(userNode.childrenIds) ? (userNode.childrenIds as number[]) : []);
+
+    if (currentArray.includes(targetNodeId)) {
+      res.json({ success: true, alreadyAdded: true, message: `${targetNode.fullName} is already in your household.` });
+      return;
+    }
+
+    const newArray = [...currentArray, targetNodeId];
+    if (isSpouse) {
+      await db.update(familyLineageTable)
+        .set({ spouseIds: newArray, updatedAt: new Date() })
+        .where(eq(familyLineageTable.id, userNode.id));
+    } else {
+      await db.update(familyLineageTable)
+        .set({ childrenIds: newArray, updatedAt: new Date() })
+        .where(eq(familyLineageTable.id, userNode.id));
+    }
+
+    logger.info({ userNodeId: userNode.id, targetNodeId, relationship, userId: currentUserId }, "Added lineage node to household");
+    res.json({ success: true, alreadyAdded: false, message: `${targetNode.fullName} added to your household as ${relationship}.` });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseInt(String(req.params.id), 10);

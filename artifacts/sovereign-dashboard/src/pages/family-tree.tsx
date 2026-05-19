@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useIsTrustee, useCanReviewLineage, getCurrentBearerToken } from "@/components/auth-provider";
+import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
 } from "lucide-react";
@@ -793,6 +793,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const canApprove = useCanReviewLineage();
+  const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
   const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
@@ -1878,6 +1879,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             node={selectedNode}
             canEdit={canEdit}
             canApprove={canApprove}
+            isOfficer={isOfficer}
             currentUserId={user?.dbId ?? null}
             onClose={() => setSelectedNodeId(null)}
             onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
@@ -1933,10 +1935,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   );
 }
 
-function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
   node: PositionedNode;
   canEdit: boolean;
   canApprove: boolean;
+  isOfficer: boolean;
   currentUserId?: number | null;
   onClose: () => void;
   onEdit: (node: LineageNode) => void;
@@ -1951,6 +1954,45 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
   const [showEnroll, setShowEnroll] = useState(false);
   const [enrollForm, setEnrollForm] = useState({ email: "", name: "", role: "member", temporaryPassword: "" });
   const [showMapPicker, setShowMapPicker] = useState(false);
+  const [showHousehold, setShowHousehold] = useState(false);
+  const [householdRel, setHouseholdRel] = useState<"spouse" | "child" | "dependent">("child");
+
+  // Fetch the current user's own linked lineage node (for household membership check)
+  const { data: selfNodeData, refetch: refetchSelf } = useQuery<{ nodes: Array<{ id: number; spouseIds: unknown; childrenIds: unknown }> }>({
+    queryKey: ["lineage-self-node"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/nodes/self", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
+      if (!r.ok) throw new Error("Failed");
+      return r.json();
+    },
+    enabled: isOfficer,
+    staleTime: 30_000,
+  });
+
+  const selfNode = selfNodeData?.nodes?.[0] ?? null;
+  const selfSpouseIds: number[] = Array.isArray(selfNode?.spouseIds) ? (selfNode!.spouseIds as number[]) : [];
+  const selfChildIds: number[]  = Array.isArray(selfNode?.childrenIds) ? (selfNode!.childrenIds as number[]) : [];
+  const isAlreadyInHousehold = selfNode ? (selfSpouseIds.includes(node.id) || selfChildIds.includes(node.id)) : false;
+
+  const addToHouseholdMutation = useMutation({
+    mutationFn: async () => {
+      const r = await fetch("/api/lineage/nodes/household/add", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        body: JSON.stringify({ targetNodeId: node.id, relationship: householdRel }),
+      });
+      if (!r.ok) { const d = await r.json() as { error?: string }; throw new Error(d.error ?? "Failed to add to household"); }
+      return r.json() as Promise<{ success: boolean; alreadyAdded: boolean; message: string }>;
+    },
+    onSuccess: (data) => {
+      toast({ title: data.alreadyAdded ? "Already in household" : "Added to household", description: data.message });
+      setShowHousehold(false);
+      refetchSelf();
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      onRefresh();
+    },
+    onError: (err: Error) => toast({ title: "Could not add to household", description: err.message, variant: "destructive" }),
+  });
 
   const { data: detail, isLoading } = useQuery<LineageNode>({
     queryKey: ["lineage-node-detail", node.id],
@@ -2545,6 +2587,69 @@ function NodeDetailPanel({ node, canEdit, canApprove, currentUserId, onClose, on
                 </Button>
                 <Button size="sm" variant="outline" onClick={() => setShowEditOwn(false)}>Cancel</Button>
               </div>
+            </div>
+          )}
+
+          {/* ── Add to My Household (officers / trustees only) ──────────────── */}
+          {isOfficer && !n.isDeceased && n.id !== currentUserId && (
+            <div className="border border-emerald-200 dark:border-emerald-800 rounded-md overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 bg-emerald-50 dark:bg-emerald-950/30 hover:bg-emerald-100 dark:hover:bg-emerald-950/50 transition-colors text-left"
+                onClick={() => setShowHousehold((v) => !v)}
+              >
+                <span className="text-xs font-semibold text-emerald-800 dark:text-emerald-300 uppercase tracking-widest flex items-center gap-1.5">
+                  <Users className="w-3 h-3" />
+                  {isAlreadyInHousehold ? "In Your Household" : "Add to My Household"}
+                </span>
+                {isAlreadyInHousehold ? (
+                  <span className="text-xs text-emerald-600 dark:text-emerald-400">✓ Added</span>
+                ) : (
+                  <span className="text-xs text-emerald-700 dark:text-emerald-400">{showHousehold ? "▲" : "▼"}</span>
+                )}
+              </button>
+
+              {showHousehold && (
+                <div className="p-3 space-y-3 bg-card">
+                  {isAlreadyInHousehold ? (
+                    <p className="text-xs text-emerald-700 dark:text-emerald-400 font-medium">
+                      {n.fullName} is already listed in your household. They appear as a household member on the Atlas map.
+                    </p>
+                  ) : !selfNode ? (
+                    <div className="space-y-1.5">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        To add someone to your household, first link a lineage node to your profile using <strong>"This is me"</strong> on your own card.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      <p className="text-xs text-muted-foreground leading-relaxed">
+                        This will add <strong>{n.fullName}</strong> to your household. They will appear as a household member on the Continuity Atlas map.
+                      </p>
+                      <div>
+                        <label className="text-xs font-medium text-foreground block mb-1">Relationship</label>
+                        <select
+                          className="w-full border rounded-md px-2 h-8 text-sm bg-input text-foreground"
+                          value={householdRel}
+                          onChange={(e) => setHouseholdRel(e.target.value as "spouse" | "child" | "dependent")}
+                        >
+                          <option value="spouse">Spouse / Partner</option>
+                          <option value="child">Child / Grandchild</option>
+                          <option value="dependent">Dependent</option>
+                        </select>
+                      </div>
+                      <Button
+                        size="sm"
+                        className="w-full bg-emerald-700 hover:bg-emerald-800 text-white"
+                        disabled={addToHouseholdMutation.isPending}
+                        onClick={() => addToHouseholdMutation.mutate()}
+                      >
+                        {addToHouseholdMutation.isPending ? "Adding…" : `Add as ${householdRel}`}
+                      </Button>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
