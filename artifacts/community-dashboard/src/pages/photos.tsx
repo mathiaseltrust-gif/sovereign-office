@@ -317,8 +317,7 @@ export default function PhotoManager() {
   const [photoMap, setPhotoMap] = useState<Record<number, string>>({});
 
   const { data: allMembers = [], isLoading, refetch } = useListCommunityMembers(
-    {},
-    { query: { staleTime: 30_000 } }
+    {}
   ) as { data: CommunityMember[]; isLoading: boolean; refetch: () => void };
 
   const handleSaved = useCallback((id: number, url: string) => {
