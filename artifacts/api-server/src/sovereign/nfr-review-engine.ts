@@ -26,6 +26,7 @@ import { db } from "@workspace/db";
 import { nfrInvestigationsTable, nfrReviewSignalsTable, nfrAuditLogTable, nfrDocumentsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../lib/logger";
+import { openCaseFile } from "../lib/case-file-service";
 import { createNotification } from "./notification-engine";
 import {
   CHARITABLE_TRUST_NAME,
@@ -878,6 +879,27 @@ Charitable Trust NPI: ${CHARITABLE_TRUST_NPI} · ${CHARITABLE_TRUST_TAXONOMY_LAB
         reviewLevel:      def.reviewLevel,
       },
     }).returning();
+
+    // Open a case file record for this NFR
+    if (nfr?.id) {
+      try {
+        const caseFile = await openCaseFile({
+          caseType:          "nfr",
+          jurisdictionLevel: "federal",
+          matterType:        event.signalType,
+          title:             `NFR — ${def.protectionCategory ?? event.signalType}`,
+          linkedDocumentType: "nfr_document",
+          linkedDocumentId:   nfr.id,
+          assignedOfficerId:  event.affectedUserId ?? undefined,
+          metadata: { investigationId, urgencyScore: def.urgencyScore, triggeringEntity: event.triggeringEntity },
+        });
+        await db.update(nfrDocumentsTable)
+          .set({ tribalRef: caseFile.caseNumber, updatedAt: new Date() })
+          .where(eq(nfrDocumentsTable.id, nfr.id));
+      } catch (caseErr) {
+        logger.warn({ caseErr, nfrId: nfr.id }, "NFR: case file open failed (non-fatal)");
+      }
+    }
 
     return nfr?.id ?? null;
   } catch (err) {

@@ -49,3 +49,4 @@ export * from "./authority-agencies";
 export * from "./authority-matter-routing";
 export * from "./authority-legal-map";
 export * from "./authority-intake-extractions";
+export * from "./case-files";

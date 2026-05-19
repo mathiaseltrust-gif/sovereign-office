@@ -6,6 +6,7 @@ import { db } from "@workspace/db";
 import { courtDocumentsTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { nextDocRef } from "../../lib/doc-ref";
+import { openCaseFile } from "../../lib/case-file-service";
 
 const router = Router();
 
@@ -220,17 +221,30 @@ router.post("/generate", requireAuth, requireRole("officer"), async (req, res, n
       runIntakeAnalysis: runIntakeAnalysis !== false,
     });
 
-    // Assign a tribal reference number to the newly created court document
+    // Assign a tribal reference number + open a case file for the new court document
     let tribalRef: string | undefined;
-    if (result && (result as { id?: number }).id) {
+    const docId = (result as { id?: number }).id;
+    if (result && docId) {
       try {
         tribalRef = await nextDocRef("court_document");
         await db
           .update(courtDocumentsTable)
           .set({ tribalRef })
-          .where(eq(courtDocumentsTable.id, (result as { id: number }).id));
+          .where(eq(courtDocumentsTable.id, docId));
+        // Open a case file record linked to this court document
+        await openCaseFile({
+          caseType:           "court",
+          jurisdictionLevel:  "tribal",
+          matterType:         templateId,
+          title:              (result as { title?: string }).title ?? `Court Document — ${templateId}`,
+          linkedDocumentType: "court_document",
+          linkedDocumentId:   docId,
+          linkedDocumentRef:  tribalRef,
+          assignedOfficerId:  userId,
+          metadata: { templateId, userRole, userEmail },
+        });
       } catch {
-        // non-fatal — document is created, ref assignment failed
+        // non-fatal — document is created, ref/case file assignment failed
       }
     }
 

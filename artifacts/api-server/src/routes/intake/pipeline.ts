@@ -18,6 +18,7 @@ import { runIntakeFilter } from "../../sovereign/intake-filter";
 import { classifyText, applyDoctrine } from "../../lib/doctrine";
 import { getBuiltInTemplate } from "../../sovereign/template-engine";
 import { logger } from "../../lib/logger";
+import { openCaseFile } from "../../lib/case-file-service";
 
 const router = Router();
 
@@ -166,6 +167,23 @@ router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => 
     }
 
     logger.info({ fileNumber, matterType, riskLevel }, "Pipeline: record created");
+
+    // Open a case file record linked to this sovereign pipeline record
+    try {
+      await openCaseFile({
+        caseType:           "sovereign",
+        jurisdictionLevel:  "federal",
+        matterType,
+        title:              templateMatch.title,
+        linkedDocumentType: "sovereign_pipeline",
+        linkedDocumentId:   record.id,
+        linkedDocumentRef:  fileNumber,
+        assignedOfficerId:  userId,
+        metadata: { riskLevel, templateKey: templateMatch.key, analystApproved },
+      });
+    } catch (caseErr) {
+      logger.warn({ caseErr, fileNumber }, "Pipeline: case file open failed (non-fatal)");
+    }
 
     res.status(201).json({
       id: record.id,

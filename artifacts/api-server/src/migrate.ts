@@ -271,6 +271,33 @@ const migrations = [
     updated_at TIMESTAMP NOT NULL DEFAULT NOW()
   )`,
 
+  // Case Files — central case registry (auto-generated sequential case numbers)
+  `CREATE TABLE IF NOT EXISTS case_files (
+    id SERIAL PRIMARY KEY,
+    case_number VARCHAR(60) NOT NULL UNIQUE,
+    case_type VARCHAR(40) NOT NULL DEFAULT 'general',
+    jurisdiction_level VARCHAR(20) NOT NULL DEFAULT 'federal',
+    matter_type VARCHAR(80),
+    title TEXT NOT NULL,
+    status VARCHAR(30) NOT NULL DEFAULT 'open',
+    linked_document_type VARCHAR(60),
+    linked_document_id INTEGER,
+    linked_document_ref VARCHAR(60),
+    assigned_officer_id INTEGER,
+    opened_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    closed_at TIMESTAMP,
+    notes TEXT,
+    metadata JSONB DEFAULT '{}',
+    created_at TIMESTAMP NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMP NOT NULL DEFAULT NOW()
+  )`,
+  `CREATE INDEX IF NOT EXISTS cf_case_type_idx ON case_files(case_type)`,
+  `CREATE INDEX IF NOT EXISTS cf_status_idx ON case_files(status)`,
+  `CREATE INDEX IF NOT EXISTS cf_matter_type_idx ON case_files(matter_type)`,
+  `CREATE INDEX IF NOT EXISTS cf_jurisdiction_idx ON case_files(jurisdiction_level)`,
+  `CREATE INDEX IF NOT EXISTS cf_linked_doc_idx ON case_files(linked_document_type, linked_document_id)`,
+  `CREATE INDEX IF NOT EXISTS cf_officer_idx ON case_files(assigned_officer_id)`,
+
   // Authority Directory — AI document intake extractions
   `CREATE TABLE IF NOT EXISTS document_intake_extractions (
     id SERIAL PRIMARY KEY,

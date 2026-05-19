@@ -1,0 +1,193 @@
+Create a Legal Source Listener & Authority Retrieval Layer inside the ecosystem.
+
+This layer shall operate as an ecosystem-aware legal intelligence and authority retrieval mechanism integrated into:
+- AI Intake Systems
+- Document Builders
+- Escalation Engines
+- Oversight Routing
+- Tribal Court Enforcement Layers
+- Governance Systems
+- Rights & Protections Analysis
+- Workflow Automation
+- Investigation Infrastructure
+- Jurisdictional Analysis Systems
+
+The purpose of this layer is not to replace the existing ecosystem, legal logic, templates, workflow chains, governors, protections, routing systems, or authority structures already established within the platform.
+
+The primary purpose is to:
+- strengthen,
+- supplement,
+- refine,
+- expand,
+- cross-reference,
+- validate,
+- harmonize,
+- and intelligently add to
+the ecosystem already in place.
+
+The system should first use:
+- existing ecosystem logic,
+- existing templates,
+- existing authority maps,
+- existing workflow chains,
+- existing tribal governance structures,
+- existing intake intelligence,
+- existing routing mechanisms,
+- existing escalation logic,
+- existing protections,
+- and existing approved legal authorities
+before attempting external retrieval.
+
+Only when the ecosystem determines that:
+- authority is incomplete,
+- citation support is missing,
+- procedural guidance is insufficient,
+- a unique issue is detected,
+- additional reinforcement is needed,
+- or deeper legal analysis is required,
+should the retrieval layer activate supplemental authority gathering.
+
+The retrieval layer should therefore:
+- build upon,
+- tweak,
+- refine,
+- supplement,
+- reinforce,
+- or intelligently integrate with
+the existing ecosystem rather than generating disconnected or conflicting structures.
+
+This ensures continuity and prevents ecosystem violations.
+
+The system should support retrieval of:
+- United States Code (USC)
+- Code of Federal Regulations (CFR)
+- Federal Register materials
+- Federal Indian law authorities
+- Tribal law resources
+- Agency manuals
+- Administrative guidance
+- Federal policy memoranda
+- Case law
+- Trust responsibility materials
+- ICWA guidance
+- DOI/BIA guidance
+- CMS tribal guidance
+- HUD tribal provisions
+- Indian Health Service materials
+- Department of Justice Indian law guidance
+- Congressional research materials
+- Treaty-related materials
+- Jurisdictional authorities
+- Administrative procedure requirements
+- Rights and protections frameworks
+- Oversight procedures
+- Enforcement standards
+
+Approved and compatible open-source or publicly accessible legal repositories may include:
+- Legal Information Institute (Cornell LII)
+- GovInfo
+- Congress.gov
+- CourtListener
+- Caselaw Access Project
+- OpenJurist
+- Justia
+- Native American Rights Fund resources
+- National Indian Law Library
+- Tribal Court Clearinghouse
+- DOI Indian Affairs resources
+- BIA manuals and handbooks
+- CMS Tribal Affairs resources
+- HUD Office of Native American Programs resources
+- Indian Health Service resources
+- Federal Register API
+- GovTrack
+- OpenStates where applicable
+- Public federal court databases and opinions
+- Other approved public-domain legal repositories
+
+The retrieval layer should:
+1. Detect missing authority or incomplete citation support during drafting or intake analysis.
+2. First analyze whether the needed authority already exists somewhere inside the ecosystem before external retrieval occurs.
+3. Search approved repositories only when supplementation or reinforcement is necessary.
+4. Rank sources by:
+   - Jurisdictional relevance
+   - Applicability
+   - Federal supremacy impact
+   - Tribal relevance
+   - Procedural relevance
+   - Current validity
+   - Trust responsibility implications
+   - Ecosystem compatibility
+5. Pull proper citations, excerpts, references, definitions, holdings, and procedural guidance.
+6. Integrate retrieved material into:
+   - Existing draft documents
+   - Existing legal authority maps
+   - Existing oversight routing
+   - Existing escalation pathways
+   - Existing enforcement workflows
+   - Existing rights analysis
+   - Existing governance guidance
+7. Cross-reference newly retrieved authorities against existing ecosystem logic before insertion.
+8. Detect and avoid:
+   - conflicting authority,
+   - duplicate logic,
+   - overruled authority,
+   - outdated authority,
+   - structurally incompatible provisions,
+   - or authority that weakens existing protections.
+9. Prioritize:
+   - Primary authority
+   - Federal statutes
+   - Binding precedent
+   - Federal Indian law principles
+   - Treaty obligations
+   - Trust responsibility standards
+   - Tribal jurisdiction protections
+   over weak secondary summaries whenever available.
+
+The system should intelligently distinguish between:
+- Binding authority
+- Persuasive authority
+- Administrative guidance
+- Internal agency policy
+- Scholarly commentary
+- Draft or unofficial interpretations
+
+The retrieval layer should support:
+- Citation generation
+- Bluebook-style formatting assistance
+- Cross-linking provisions
+- Building legal authority trees
+- Procedural trigger mapping
+- Case relationship analysis
+- Rights and protections mapping
+- Escalation recommendation logic
+- Dynamic document enhancement
+- Tribal court compatibility review
+
+All retrieved materials, citations, logic layers, workflow strings, and authority integrations must remain in harmony with:
+- the ecosystem,
+- governing principles,
+- alignment protocols,
+- tribal law structures,
+- trust instruments,
+- jurisdictional frameworks,
+- workflow chains,
+- existing governors,
+- intake intelligence,
+- escalation systems,
+- and established governance architecture already active within the platform.
+
+No external retrieval process shall:
+- override,
+- weaken,
+- bypass,
+- dismantle,
+- duplicate improperly,
+- fragment,
+- or conflict with
+the existing ecosystem or governance logic already established within the platform.
+
+This layer is not a replacement system.
+
+It is an ecosystem-aware legal intelligence retrieval and authority enhancement layer operating inside the broader Indigenous Intelligence System.

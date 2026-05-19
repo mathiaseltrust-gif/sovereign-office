@@ -31,7 +31,39 @@ export const DOC_TYPE_PREFIXES: Record<string, string> = {
   land_notice:      "NOTICE",
   land_pipeline:    "LPIPE",
   protective_order: "PROT",
+  // Case file jurisdiction types
+  federal_matter:   "FED",
+  state_matter:     "STATE",
+  private_matter:   "CIV",
+  icwa_matter:      "ICWA",
+  intake_matter:    "INT",
+  general_case:     "CASE",
+  sovereign_matter: "SOV",
 };
+
+/**
+ * Maps a plain jurisdiction/case type string to the corresponding doc_type key
+ * used by nextDocRef so callers don't have to know internal key names.
+ */
+export function caseTypeToDocType(caseType: string): string {
+  const map: Record<string, string> = {
+    federal:   "federal_matter",
+    state:     "state_matter",
+    private:   "private_matter",
+    civil:     "private_matter",
+    icwa:      "icwa_matter",
+    court:     "court_document",
+    nfr:       "nfr_document",
+    trust:     "trust_instrument",
+    filing:    "trust_filing",
+    complaint: "complaint",
+    prot:      "protective_order",
+    intake:    "intake_matter",
+    sovereign: "sovereign_matter",
+    general:   "general_case",
+  };
+  return map[caseType.toLowerCase()] ?? "general_case";
+}
 
 let _seqTableEnsured = false;
 
