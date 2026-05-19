@@ -332,6 +332,8 @@ function nodeCardClasses(node: LineageNode): { border: string; bg: string } {
   switch (node.protectionLevel) {
     case "ancestor": return { border: "border-yellow-400", bg: "bg-yellow-50 dark:bg-yellow-950/30" };
     case "descendant": return { border: "border-blue-400", bg: "bg-blue-50 dark:bg-blue-950/30" };
+    case "member":
+    case "spouse": return { border: "border-rose-300", bg: "bg-rose-50 dark:bg-rose-950/20" };
     default: return { border: "border-border", bg: "bg-card" };
   }
 }
@@ -340,6 +342,8 @@ function protectionBadge(level?: string | null) {
   switch (level) {
     case "ancestor": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-200 text-yellow-900">Ancestor</span>;
     case "descendant": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-blue-200 text-blue-900">Descendant</span>;
+    case "member": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Member</span>;
+    case "spouse": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-rose-100 text-rose-800">Spouse</span>;
     case "pending": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-200 text-gray-700">Pending</span>;
     default: return level ? <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-gray-100 text-gray-600 capitalize">{level}</span> : null;
   }
@@ -1858,6 +1862,9 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <span className="w-2 h-2 rounded-sm bg-sky-50 border border-sky-400 shrink-0" />Descendant
                 </div>
                 <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <span className="w-2 h-2 rounded-sm bg-rose-50 border border-rose-300 shrink-0" />Member
+                </div>
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
                   <span className="w-1.5 h-1.5 rounded-full bg-sky-400 shrink-0" />Male
                   <span className="w-1.5 h-1.5 rounded-full bg-pink-400 shrink-0" />Female
                 </div>
@@ -2825,7 +2832,7 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
     tribalEnrollmentNumber: editingNode?.tribalEnrollmentNumber ?? "",
     notes: editingNode?.notes ?? "",
     generationalPosition: editingNode?.generationalPosition?.toString() ?? "0",
-    protectionLevel: editingNode?.protectionLevel ?? "descendant",
+    protectionLevel: editingNode?.protectionLevel ?? "member",
     membershipStatus: editingNode?.membershipStatus ?? "confirmed",
     parentSearch: "",
     selectedParentIds: Array.isArray(editingNode?.parentIds) ? (editingNode!.parentIds as number[]) : [] as number[],
@@ -2921,7 +2928,8 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
             <div>
               <Label>Protection Level</Label>
               <select data-testid="add-person-protection" value={form.protectionLevel} onChange={f("protectionLevel")} className="mt-1 w-full border rounded-md p-2 text-sm bg-input text-foreground">
-                <option value="descendant">Descendant</option>
+                <option value="member">Member (by marriage / affiliation)</option>
+                <option value="descendant">Descendant (blood lineage)</option>
                 <option value="ancestor">Ancestor</option>
                 <option value="pending">Pending</option>
               </select>

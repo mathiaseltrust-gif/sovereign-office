@@ -391,8 +391,18 @@ router.post("/:id/approve", requireAuth, async (req, res, next) => {
     if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
     if (!existing.pendingReview) { res.status(400).json({ error: "Node is not pending review" }); return; }
 
+    // Determine protection level based on relationship stored in notes
+    // Spouses and by-marriage members are NOT descendants — they are "member"
+    const notesLower = (existing.notes ?? "").toLowerCase();
+    const isSpouseRelation = notesLower.includes("relationship: spouse") || notesLower.includes("relationship: partner");
+    const isAncestorRelation = notesLower.includes("relationship: parent") || notesLower.includes("relationship: grandparent");
+    const approvedProtectionLevel = isSpouseRelation ? "member"
+      : isAncestorRelation ? "ancestor"
+      : "descendant";
+    const approvedMembershipStatus = isSpouseRelation ? "confirmed" : "descendant";
+
     const [updated] = await db.update(familyLineageTable)
-      .set({ pendingReview: false, membershipStatus: "descendant", protectionLevel: "descendant", updatedAt: new Date() })
+      .set({ pendingReview: false, membershipStatus: approvedMembershipStatus, protectionLevel: approvedProtectionLevel, updatedAt: new Date() })
       .where(eq(familyLineageTable.id, id))
       .returning();
 
