@@ -12,6 +12,7 @@ import { SourcesModal } from "@/components/SourcesModal";
 import { Button } from "@/components/ui/button";
 import { BookOpen, Loader2 } from "lucide-react";
 import { getAtlasBearerToken, isAtlasAuthenticated, authHeaders } from "@/lib/atlasAuth";
+import { AIQueryResult } from "@/components/AtlasAIQuery";
 
 export type EventSeverity = "critical" | "high" | "moderate";
 export type Era = "colonial" | "early-republic" | "removal" | "reservation" | "post-civil-war" | "allotment" | "jim-crow" | "termination" | "wwii-migration" | "self-determination" | "modern";
@@ -457,6 +458,20 @@ export default function Atlas() {
   const [activePolicies, setActivePolicies] = useState<string[]>([]);
   const [activeLayers, setActiveLayers] = useState<ActiveLayers>(DEFAULT_LAYERS);
   const [activeExposureFilters, setActiveExposureFilters] = useState<string[]>([]);
+  const [aiQueryMessage, setAIQueryMessage] = useState<string | null>(null);
+
+  const applyAIFilters = (result: AIQueryResult) => {
+    setAIQueryMessage(result.message);
+    if (result.exposureFilters.length > 0) setActiveExposureFilters(result.exposureFilters);
+    if (result.activeEras.length > 0) setActiveEras(result.activeEras);
+    if (result.yearRange) setYearRange(result.yearRange);
+  };
+
+  const clearAIFilters = () => {
+    setAIQueryMessage(null);
+    setActiveExposureFilters([]);
+    setActiveEras([]);
+  };
 
   // Read URL params on mount:
   //   ?mode=atlas  — activate Atlas Mode immediately
@@ -659,6 +674,9 @@ export default function Atlas() {
           setActiveExposureFilters={setActiveExposureFilters}
           ancestorCount={filteredAncestors.length}
           isAuthenticated={authenticated}
+          onApplyAIFilters={applyAIFilters}
+          aiQueryMessage={aiQueryMessage}
+          onClearAIFilters={clearAIFilters}
         />
 
         <div className="flex-1 flex flex-col relative h-full">

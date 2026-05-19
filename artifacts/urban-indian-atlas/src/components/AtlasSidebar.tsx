@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ChevronLeft, ChevronRight, FilterX, Layers, Users, Globe2, MapPin } from "lucide-react";
+import {
+  ChevronLeft, ChevronRight, FilterX, Layers, Users,
+  MapPin, ChevronDown, ChevronRight as ChevronRightSm,
+} from "lucide-react";
 import { AtlasEvent, ActiveLayers } from "@/pages/atlas";
+import { AtlasAIQuery, AIQueryResult } from "@/components/AtlasAIQuery";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -26,6 +30,9 @@ interface AtlasSidebarProps {
   setActiveExposureFilters: (v: string[]) => void;
   ancestorCount: number;
   isAuthenticated: boolean;
+  onApplyAIFilters: (result: AIQueryResult) => void;
+  aiQueryMessage: string | null;
+  onClearAIFilters: () => void;
 }
 
 const ERA_LABELS: Record<string, string> = {
@@ -43,67 +50,6 @@ const ERA_LABELS: Record<string, string> = {
   "modern": "Modern Era",
 };
 
-const EXPOSURE_FILTER_GROUPS: {
-  group: string;
-  label: string;
-  filters: { id: string; label: string; tooltip?: string }[];
-}[] = [
-  {
-    group: "temporal",
-    label: "Temporal Relationship",
-    filters: [
-      { id: "alive_during", label: "Alive During Event", tooltip: "Ancestor's recorded lifespan includes the event year" },
-      { id: "near_contemporary", label: "Near Contemporary (±20 yr)", tooltip: "Ancestor lived within 20 years of the event" },
-      { id: "born_before", label: "Born Before Event", tooltip: "Ancestor was born before the event occurred" },
-    ],
-  },
-  {
-    group: "location",
-    label: "Location & Territory",
-    filters: [
-      { id: "location_match", label: "Tribal Nation Matches Event Region", tooltip: "Ancestor's tribal nation maps to the event's affected states" },
-      { id: "has_tribal_nation", label: "Has Recorded Tribal Nation", tooltip: "Tribal nation is recorded in the family lineage entry" },
-    ],
-  },
-  {
-    group: "policy_era",
-    label: "Policy Era Exposure",
-    filters: [
-      { id: "removal_era", label: "Removal Era (1830–1870)", tooltip: "Alive during Indian Removal Act enforcement" },
-      { id: "allotment_era", label: "Allotment Era (1887–1934)", tooltip: "Alive during the Dawes Act land allotment period" },
-      { id: "boarding_school_era", label: "Boarding School Era (1875–1940)", tooltip: "Alive when federal boarding schools were operating at scale" },
-      { id: "census_era", label: "Federal Census Period (1880–1930)", tooltip: "Alive during the key census decades used in enrollment verification" },
-      { id: "jim_crow_era", label: "Jim Crow & Plecker Era (1900–1965)", tooltip: "Alive when Virginia Plecker-style racial reclassification was active" },
-      { id: "urban_relocation_era", label: "Urban Relocation Program (1950–1975)", tooltip: "Alive during the federal Indian urban relocation policy era" },
-      { id: "termination_era", label: "Termination Era (1945–1970)", tooltip: "Alive during the federal termination and withdrawal policy period" },
-    ],
-  },
-  {
-    group: "impact_type",
-    label: "Impact Type (from matched events)",
-    filters: [
-      { id: "reclassification_risk", label: "Reclassification & Identity Events", tooltip: "Matches events that altered tribal or racial classification in records" },
-      { id: "health_access_impact", label: "Health Access Events", tooltip: "Matches events affecting Indian Health Service or medical access" },
-      { id: "land_displacement", label: "Land & Displacement Events", tooltip: "Matches events involving land seizure, allotment, or removal" },
-      { id: "family_welfare_impact", label: "Family & Child Welfare Events", tooltip: "Matches events affecting Native family structure or child custody (ICWA era)" },
-      { id: "urban_migration_impact", label: "Urban Migration Events", tooltip: "Matches events driving or affecting Native urban migration patterns" },
-      { id: "education_impact", label: "Education & School Policy Events", tooltip: "Matches events affecting Native schooling, boarding schools, or education access" },
-    ],
-  },
-  {
-    group: "data_quality",
-    label: "Location & Data Quality",
-    filters: [
-      { id: "has_location_data", label: "Has Location From Records", tooltip: "Ancestor has a real location string from their ancestral timeline records — shown as a solid blue marker on the map" },
-      { id: "needs_location_review", label: "Location Needs Review", tooltip: "No verified place recorded — location is inferred from tribal nation keyword only. Shown as a grey dashed marker." },
-      { id: "has_dates", label: "Has Birth or Death Year", tooltip: "Ancestor record includes at least one date — improves temporal match accuracy" },
-      { id: "needs_review", label: "Missing Dates — Needs Review", tooltip: "No birth or death year recorded; location inference only; review recommended" },
-      { id: "public_school_impact", label: "Public School / Education Policy", tooltip: "Matches events affecting Native education, boarding schools, or public school access" },
-      { id: "county_state_records", label: "State / County Records Coverage", tooltip: "Location-matched to land, census, or identity events — ancestor may appear in state or county record systems" },
-    ],
-  },
-];
-
 export const POLICY_ERA_RANGES: Record<string, [number, number]> = {
   removal_era: [1830, 1870],
   allotment_era: [1887, 1934],
@@ -114,14 +60,72 @@ export const POLICY_ERA_RANGES: Record<string, [number, number]> = {
   termination_era: [1945, 1970],
 };
 
-// People & Services (Atlas Mode) layers — shown first, prominently, when Atlas mode is on
-const ATLAS_PEOPLE_LAYERS: { key: keyof ActiveLayers; label: string; description: string }[] = [
-  { key: "ancestorLocations", label: "Family Ancestor Locations", description: "Your family members appear as dots on the map showing where they lived, migrated, and resided." },
-  { key: "urbanization", label: "Urban Relocation Cities", description: "Federal relocation program destination cities where many tribal members were sent." },
-  { key: "healthAccess", label: "Urban Indian Health Orgs", description: "Urban Indian health organizations serving tribal members in cities." },
+const EXPOSURE_FILTER_GROUPS: {
+  group: string;
+  label: string;
+  filters: { id: string; label: string; tooltip?: string }[];
+}[] = [
+  {
+    group: "temporal",
+    label: "Temporal Relationship",
+    filters: [
+      { id: "alive_during", label: "Alive During Event" },
+      { id: "near_contemporary", label: "Near Contemporary (±20 yr)" },
+      { id: "born_before", label: "Born Before Event" },
+    ],
+  },
+  {
+    group: "location",
+    label: "Location & Territory",
+    filters: [
+      { id: "location_match", label: "Tribal Nation Matches Region" },
+      { id: "has_tribal_nation", label: "Has Recorded Tribal Nation" },
+    ],
+  },
+  {
+    group: "policy_era",
+    label: "Policy Era Exposure",
+    filters: [
+      { id: "removal_era", label: "Removal Era (1830–1870)" },
+      { id: "allotment_era", label: "Allotment Era (1887–1934)" },
+      { id: "boarding_school_era", label: "Boarding School Era (1875–1940)" },
+      { id: "census_era", label: "Federal Census Period (1880–1930)" },
+      { id: "jim_crow_era", label: "Jim Crow & Plecker Era (1900–1965)" },
+      { id: "urban_relocation_era", label: "Urban Relocation (1950–1975)" },
+      { id: "termination_era", label: "Termination Era (1945–1970)" },
+    ],
+  },
+  {
+    group: "impact_type",
+    label: "Impact Type",
+    filters: [
+      { id: "reclassification_risk", label: "Reclassification & Identity" },
+      { id: "health_access_impact", label: "Health Access Events" },
+      { id: "land_displacement", label: "Land & Displacement" },
+      { id: "family_welfare_impact", label: "Family & Child Welfare" },
+      { id: "urban_migration_impact", label: "Urban Migration Events" },
+      { id: "education_impact", label: "Education & School Policy" },
+    ],
+  },
+  {
+    group: "data_quality",
+    label: "Data Quality",
+    filters: [
+      { id: "has_location_data", label: "Has Location From Records" },
+      { id: "has_dates", label: "Has Birth or Death Year" },
+      { id: "county_state_records", label: "State / County Records Coverage" },
+      { id: "needs_location_review", label: "Location Needs Review" },
+      { id: "needs_review", label: "Missing Dates — Needs Review" },
+    ],
+  },
 ];
 
-// Historical map layers — always available, shown under "Map Layers"
+const ATLAS_PEOPLE_LAYERS: { key: keyof ActiveLayers; label: string; description: string }[] = [
+  { key: "ancestorLocations", label: "Family Ancestor Locations", description: "Shows where your ancestors lived, migrated, and resided." },
+  { key: "urbanization", label: "Urban Relocation Cities", description: "Federal relocation program destination cities." },
+  { key: "healthAccess", label: "Urban Indian Health Orgs", description: "Urban Indian health organizations in cities." },
+];
+
 const HISTORICAL_LAYER_GROUPS: { group: string; items: { key: keyof ActiveLayers; label: string; defaultOn: boolean }[] }[] = [
   {
     group: "Territorial",
@@ -132,34 +136,69 @@ const HISTORICAL_LAYER_GROUPS: { group: string; items: { key: keyof ActiveLayers
     ],
   },
   {
-    group: "Treaties",
+    group: "Treaties & Law",
     items: [
       { key: "treaties", label: "Treaty Timeline", defaultOn: true },
-    ],
-  },
-  {
-    group: "Identity & Classification",
-    items: [
-      { key: "reclassification", label: "Reclassification Events", defaultOn: true },
-      { key: "censusIdentity", label: "Census Identity Markers", defaultOn: true },
+      { key: "courtDecisions", label: "Court Cases & Decisions", defaultOn: true },
       { key: "federalActs", label: "Federal Acts (Tribal Status)", defaultOn: true },
     ],
   },
   {
-    group: "Legal Decisions",
+    group: "Identity & Records",
     items: [
-      { key: "courtDecisions", label: "Court Cases & Decisions", defaultOn: true },
+      { key: "reclassification", label: "Reclassification Events", defaultOn: true },
+      { key: "censusIdentity", label: "Census Identity Markers", defaultOn: true },
+      { key: "historicalEvents", label: "All Historical Events", defaultOn: true },
     ],
   },
   {
-    group: "Community Impact",
+    group: "Schools",
     items: [
-      { key: "historicalEvents", label: "All Historical Events", defaultOn: true },
       { key: "publicSchools", label: "Public / Boarding Schools", defaultOn: true },
       { key: "boardingSchools", label: "Boarding School Locations", defaultOn: false },
     ],
   },
 ];
+
+function AccordionSection({
+  title,
+  icon,
+  badge,
+  defaultOpen = false,
+  children,
+}: {
+  title: string;
+  icon?: React.ReactNode;
+  badge?: number;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <div className="border border-border/30 rounded-lg overflow-hidden">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="w-full flex items-center justify-between px-3 py-2 text-left hover:bg-muted/30 transition-colors"
+      >
+        <span className="flex items-center gap-2 text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">
+          {icon}
+          {title}
+          {badge !== undefined && badge > 0 && (
+            <Badge variant="secondary" className="h-4 px-1 text-[9px] font-bold">
+              {badge}
+            </Badge>
+          )}
+        </span>
+        {open ? (
+          <ChevronDown className="w-3.5 h-3.5 text-muted-foreground/50" />
+        ) : (
+          <ChevronRightSm className="w-3.5 h-3.5 text-muted-foreground/50" />
+        )}
+      </button>
+      {open && <div className="px-3 pb-3 pt-1 space-y-2">{children}</div>}
+    </div>
+  );
+}
 
 export function AtlasSidebar({
   events,
@@ -172,6 +211,9 @@ export function AtlasSidebar({
   activeExposureFilters, setActiveExposureFilters,
   ancestorCount,
   isAuthenticated,
+  onApplyAIFilters,
+  aiQueryMessage,
+  onClearAIFilters,
 }: AtlasSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -196,9 +238,13 @@ export function AtlasSidebar({
     setActiveSeverities([]);
     setActivePolicies([]);
     setActiveExposureFilters([]);
+    onClearAIFilters();
   };
 
-  const activeCount = activeEras.length + activeTypes.length + activeSeverities.length + activePolicies.length + activeExposureFilters.length;
+  const manualFilterCount =
+    activeEras.length + activeTypes.length + activeSeverities.length +
+    activePolicies.length + activeExposureFilters.length;
+  const activeCount = manualFilterCount + (aiQueryMessage ? 1 : 0);
 
   return (
     <motion.div
@@ -217,7 +263,7 @@ export function AtlasSidebar({
       {collapsed ? (
         <div className="flex-1 py-4 flex flex-col items-center">
           {activeCount > 0 && (
-            <Badge variant="destructive" className="mb-4 h-6 w-6 p-0 flex items-center justify-center rounded-full">
+            <Badge variant="destructive" className="mb-4 h-6 w-6 p-0 flex items-center justify-center rounded-full text-[10px]">
               {activeCount}
             </Badge>
           )}
@@ -227,117 +273,101 @@ export function AtlasSidebar({
         </div>
       ) : (
         <div className="flex-1 flex flex-col overflow-hidden">
-          <div className="p-4 border-b border-border/50 flex justify-between items-center bg-background/50">
+          {/* Header */}
+          <div className="p-3 border-b border-border/50 flex justify-between items-center bg-background/50">
             <h2 className="font-serif font-medium text-base flex items-center gap-2">
               {atlasMode ? (
                 <>
-                  <Globe2 className="w-4 h-4 text-primary" />
+                  <MapPin className="w-4 h-4 text-primary" />
                   Atlas Mode
                 </>
               ) : (
-                "Filters"
+                "Map Filters"
               )}
             </h2>
             {activeCount > 0 && (
-              <Button variant="ghost" size="sm" onClick={clearAll} className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground">
-                <FilterX className="w-3 h-3" /> Clear
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={clearAll}
+                className="h-7 text-xs px-2 gap-1 text-muted-foreground hover:text-foreground"
+              >
+                <FilterX className="w-3 h-3" /> Clear all
               </Button>
             )}
           </div>
 
           <ScrollArea className="flex-1">
-            <div className="p-4 space-y-7">
+            <div className="p-3 space-y-4">
 
-              {/* ── Atlas Mode: Family Layer ──────────────────────────────────────
-                  Shown first, prominently, when Atlas Mode is active.
-                  These are additive dots that appear ON TOP of the historical map.
-              ── */}
+              {/* ── AI Query ─────────────────────────────────────────────── */}
+              <AtlasAIQuery
+                onApplyFilters={onApplyAIFilters}
+                onClear={onClearAIFilters}
+                activeMessage={aiQueryMessage}
+                isAuthenticated={isAuthenticated}
+                ancestorCount={ancestorCount}
+              />
+
+              <Separator className="opacity-20" />
+
+              {/* ── Atlas Mode: Family Layer ──────────────────────────────── */}
               {atlasMode && (
                 <div className="space-y-3">
                   <div className="bg-primary/8 border border-primary/20 rounded-lg px-3 py-2.5">
                     <div className="flex items-center gap-1.5 mb-1">
-                      <MapPin className="w-3.5 h-3.5 text-primary" />
+                      <Users className="w-3.5 h-3.5 text-primary" />
                       <span className="text-xs font-semibold text-primary">Family Layer Active</span>
                     </div>
-                    <p className="text-[11px] text-muted-foreground leading-relaxed">
-                      Toggle the layers below to show your family members as dots on the map — placed on top of the historical events already displayed.
-                    </p>
-                    {isAuthenticated && ancestorCount > 0 && (
-                      <p className="text-[11px] text-primary/70 font-medium mt-1.5">
+                    {isAuthenticated && ancestorCount > 0 ? (
+                      <p className="text-[11px] text-primary/70 font-medium">
                         {ancestorCount} ancestor{ancestorCount !== 1 ? "s" : ""} visible on the map
                       </p>
-                    )}
-                    {!isAuthenticated && (
-                      <p className="text-[11px] text-muted-foreground/60 mt-1.5 italic">
+                    ) : !isAuthenticated ? (
+                      <p className="text-[11px] text-muted-foreground/60 italic">
                         Sign in via Community or Sovereign Dashboard to load your family members.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-muted-foreground/60">
+                        No ancestor data — add family records to see ancestor pins.
                       </p>
                     )}
                   </div>
 
-                  <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Users className="w-3 h-3" /> People & Services
-                  </h3>
-
-                  {ATLAS_PEOPLE_LAYERS.map(item => (
-                    <div key={item.key} className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <Checkbox
-                          id={`layer-${item.key}`}
-                          checked={activeLayers[item.key]}
-                          onCheckedChange={() => toggleLayer(item.key)}
-                          data-testid={`layer-${item.key}`}
-                        />
-                        <Label htmlFor={`layer-${item.key}`} className="cursor-pointer text-sm font-medium">
-                          {item.label}
-                        </Label>
-                      </div>
-                      <p className="text-[10px] text-muted-foreground/60 leading-snug pl-6">{item.description}</p>
-                    </div>
-                  ))}
-
-                  <Separator className="opacity-30" />
-                </div>
-              )}
-
-              {/* ── Atlas Mode: Ancestor Exposure Filters ── */}
-              {atlasMode && isAuthenticated && ancestorCount > 0 && (
-                <div className="space-y-5">
-                  <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Users className="w-3 h-3" /> Ancestor Filters
-                  </h3>
-                  {EXPOSURE_FILTER_GROUPS.map(group => (
-                    <div key={group.group} className="space-y-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground/60">
-                        {group.label}
-                      </p>
-                      {group.filters.map(f => (
-                        <div key={f.id} className="flex items-start gap-2">
+                  <div className="space-y-2">
+                    {ATLAS_PEOPLE_LAYERS.map(item => (
+                      <div key={item.key} className="space-y-0.5">
+                        <div className="flex items-center gap-2">
                           <Checkbox
-                            id={`exp-${f.id}`}
-                            checked={activeExposureFilters.includes(f.id)}
-                            onCheckedChange={() => toggleFilter(f.id, activeExposureFilters, setActiveExposureFilters)}
-                            className="mt-0.5"
-                            data-testid={`filter-exposure-${f.id}`}
+                            id={`layer-${item.key}`}
+                            checked={activeLayers[item.key]}
+                            onCheckedChange={() => toggleLayer(item.key)}
+                            data-testid={`layer-${item.key}`}
                           />
-                          <Label htmlFor={`exp-${f.id}`} className="cursor-pointer text-sm leading-snug" title={f.tooltip}>
-                            {f.label}
+                          <Label htmlFor={`layer-${item.key}`} className="cursor-pointer text-sm font-medium">
+                            {item.label}
                           </Label>
                         </div>
-                      ))}
-                    </div>
-                  ))}
-                  <Separator className="opacity-30" />
+                        <p className="text-[10px] text-muted-foreground/50 leading-snug pl-6">{item.description}</p>
+                      </div>
+                    ))}
+                  </div>
+
+                  <Separator className="opacity-20" />
                 </div>
               )}
 
-              {/* ── Historical Map Layers — always visible ──────────────────────── */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Layers className="w-3 h-3" /> Historical Map Layers
-                </h3>
+              {/* ── Map Layers (accordion) ────────────────────────────────── */}
+              <AccordionSection
+                title="Map Layers"
+                icon={<Layers className="w-3 h-3" />}
+                defaultOpen={false}
+              >
                 {HISTORICAL_LAYER_GROUPS.map(group => (
                   <div key={group.group} className="space-y-1.5">
-                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mt-2 mb-1">{group.group}</p>
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 mt-2 mb-1">
+                      {group.group}
+                    </p>
                     {group.items.map(item => (
                       <div key={item.key} className="flex items-center gap-2">
                         <Checkbox
@@ -349,21 +379,56 @@ export function AtlasSidebar({
                         <Label htmlFor={`layer-${item.key}`} className="cursor-pointer text-sm flex items-center gap-1.5">
                           {item.label}
                           {!item.defaultOn && (
-                            <span className="text-[9px] text-muted-foreground/60 bg-muted/40 px-1.5 py-0.5 rounded">off</span>
+                            <span className="text-[9px] text-muted-foreground/50 bg-muted/40 px-1 py-0.5 rounded">off</span>
                           )}
                         </Label>
                       </div>
                     ))}
                   </div>
                 ))}
-              </div>
+              </AccordionSection>
 
-              <Separator className="opacity-30" />
+              {/* ── Advanced Filters (accordion) ──────────────────────────── */}
+              <AccordionSection
+                title="Advanced Filters"
+                icon={<FilterX className="w-3 h-3" />}
+                badge={manualFilterCount}
+                defaultOpen={false}
+              >
+                {/* Ancestor exposure filters — only in Atlas mode with ancestors */}
+                {atlasMode && isAuthenticated && ancestorCount > 0 && (
+                  <div className="space-y-4 mb-3">
+                    <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 pt-1">
+                      Ancestor Exposure
+                    </p>
+                    {EXPOSURE_FILTER_GROUPS.map(group => (
+                      <div key={group.group} className="space-y-1.5">
+                        <p className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/40">
+                          {group.label}
+                        </p>
+                        {group.filters.map(f => (
+                          <div key={f.id} className="flex items-start gap-2">
+                            <Checkbox
+                              id={`exp-${f.id}`}
+                              checked={activeExposureFilters.includes(f.id)}
+                              onCheckedChange={() => toggleFilter(f.id, activeExposureFilters, setActiveExposureFilters)}
+                              className="mt-0.5"
+                              data-testid={`filter-exposure-${f.id}`}
+                            />
+                            <Label htmlFor={`exp-${f.id}`} className="cursor-pointer text-sm leading-snug" title={f.tooltip}>
+                              {f.label}
+                            </Label>
+                          </div>
+                        ))}
+                      </div>
+                    ))}
+                    <Separator className="opacity-20" />
+                  </div>
+                )}
 
-              {/* ── Severity ── */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Severity Level</h3>
-                <div className="space-y-2">
+                {/* Severity */}
+                <div className="space-y-1.5">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50 pt-1">Severity</p>
                   {severities.map(s => (
                     <div key={s} className="flex items-center gap-2">
                       <Checkbox
@@ -372,19 +437,17 @@ export function AtlasSidebar({
                         onCheckedChange={() => toggleFilter(s, activeSeverities, setActiveSeverities)}
                         data-testid={`filter-severity-${s}`}
                       />
-                      <Label htmlFor={`sev-${s}`} className="capitalize flex items-center gap-2 cursor-pointer">
+                      <Label htmlFor={`sev-${s}`} className="capitalize flex items-center gap-2 cursor-pointer text-sm">
                         <span className={`w-2 h-2 rounded-full ${s === "critical" ? "bg-[#a64115]" : s === "high" ? "bg-[#c29b40]" : "bg-[#5c744c]"}`} />
                         {s}
                       </Label>
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* ── Era ── */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Era</h3>
-                <div className="space-y-2">
+                {/* Era */}
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Era</p>
                   {eras.map(e => (
                     <div key={e} className="flex items-center gap-2">
                       <Checkbox
@@ -397,12 +460,10 @@ export function AtlasSidebar({
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* ── Event Type ── */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Event Type</h3>
-                <div className="space-y-2">
+                {/* Event Type */}
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Event Type</p>
                   {types.map(t => (
                     <div key={t} className="flex items-center gap-2">
                       <Checkbox
@@ -415,12 +476,10 @@ export function AtlasSidebar({
                     </div>
                   ))}
                 </div>
-              </div>
 
-              {/* ── Policy Area ── */}
-              <div className="space-y-3">
-                <h3 className="text-xs font-mono font-medium text-muted-foreground uppercase tracking-wider">Policy Area</h3>
-                <div className="space-y-2">
+                {/* Policy Area */}
+                <div className="space-y-1.5 pt-2">
+                  <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">Policy Area</p>
                   {policies.map(p => (
                     <div key={p} className="flex items-center gap-2">
                       <Checkbox
@@ -433,7 +492,7 @@ export function AtlasSidebar({
                     </div>
                   ))}
                 </div>
-              </div>
+              </AccordionSection>
 
             </div>
           </ScrollArea>

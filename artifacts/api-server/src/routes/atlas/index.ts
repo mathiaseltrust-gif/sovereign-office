@@ -513,4 +513,99 @@ router.patch("/events/:id", requireAuth, async (req, res, next) => {
   }
 });
 
+// ── POST /api/atlas/ai-query ────────────────────────────────────────────────
+// No auth required. Takes a natural language query and returns a structured
+// filter state object for the Atlas sidebar. Uses Azure OpenAI to parse
+// intent into exposure filters, era filters, and year range.
+router.post("/ai-query", async (req, res, next) => {
+  try {
+    const { query } = req.body as { query?: string };
+    if (!query || typeof query !== "string" || !query.trim()) {
+      res.status(400).json({ error: "query is required" });
+      return;
+    }
+
+    const systemPrompt = `You are an AI assistant for the Urban Indian Continuity Atlas — a historical map that overlays a family's Native ancestors onto US federal policies that affected tribal identity, land, and survival.
+
+The user is asking you to filter the Atlas map. Parse their natural language query and return a JSON object specifying which filters to activate.
+
+AVAILABLE FILTERS:
+
+exposureFilters (array of strings) — ancestor exposure/relationship filters:
+  Temporal:
+    "alive_during" — ancestor's lifespan includes a matched event's year
+    "near_contemporary" — ancestor lived within 20 years of event
+    "born_before" — ancestor was born before the event
+  Location:
+    "location_match" — ancestor's tribal nation maps to event's affected region
+    "has_tribal_nation" — ancestor has a recorded tribal nation
+  Policy era (ancestor alive during):
+    "removal_era" — Indian Removal Act era (1830–1870)
+    "allotment_era" — Dawes Act allotment era (1887–1934)
+    "boarding_school_era" — federal boarding school era (1875–1940)
+    "census_era" — key federal census period (1880–1930)
+    "jim_crow_era" — Jim Crow / Plecker racial reclassification era (1900–1965)
+    "urban_relocation_era" — federal urban relocation program (1950–1975)
+    "termination_era" — federal termination & withdrawal policy (1945–1970)
+  Impact type (ancestor matched to events of this kind):
+    "reclassification_risk" — events involving racial or tribal reclassification
+    "health_access_impact" — events affecting Indian Health Service or medical access
+    "land_displacement" — events involving land seizure, allotment, or forced removal
+    "family_welfare_impact" — events affecting Native family structure or child custody (ICWA)
+    "urban_migration_impact" — events driving or affecting Native urban migration
+    "education_impact" — boarding schools, education policy, or mission school events
+  Data quality:
+    "has_location_data" — ancestor has a verified location from records
+    "has_dates" — ancestor has birth or death year recorded
+    "county_state_records" — ancestor may appear in state/county record systems
+
+activeEras (array of strings) — filter historical EVENTS by era. Options:
+  "colonial", "early-republic", "removal", "reservation", "post-civil-war",
+  "allotment", "jim-crow", "termination", "wwii-migration", "self-determination", "modern"
+
+yearRange (array of exactly 2 integers: [startYear, endYear]) — set the timeline slider
+
+message (string) — 1–2 sentence explanation of what the map now shows. Write in second person ("Showing your ancestors who…"). Be specific about the era and what it means for continuity proof.
+
+RULES:
+- Return ONLY valid JSON. No markdown fences, no explanatory text outside the JSON.
+- Combine exposureFilters intelligently — e.g. "reclassified" should trigger both "jim_crow_era" and "reclassification_risk"
+- yearRange should match the most relevant policy window for the query
+- If the query is unclear, return an empty filters object with a helpful message
+
+Example response for "show ancestors who may have been racially reclassified":
+{"exposureFilters":["jim_crow_era","reclassification_risk","census_era"],"activeEras":["jim-crow"],"yearRange":[1900,1965],"message":"Showing ancestors who lived during the Jim Crow and Plecker era (1900–1965), when Virginia and other states actively reclassified Native people as 'colored' in census, birth, and marriage records — a key continuity threat for enrollment documentation."}`;
+
+    const result = await callAzureOpenAI(
+      systemPrompt,
+      query.trim(),
+      { maxTokens: 400, temperature: 0.1, timeoutMs: 20000 }
+    );
+
+    let parsed: {
+      exposureFilters?: string[];
+      activeEras?: string[];
+      yearRange?: [number, number];
+      message?: string;
+    } = {};
+
+    try {
+      const cleaned = result.content.replace(/^```json\s*/i, "").replace(/```\s*$/, "").trim();
+      parsed = JSON.parse(cleaned);
+    } catch {
+      res.json({ message: result.content.slice(0, 300), exposureFilters: [], activeEras: [], yearRange: null });
+      return;
+    }
+
+    res.json({
+      message: parsed.message ?? "Filters applied based on your query.",
+      exposureFilters: Array.isArray(parsed.exposureFilters) ? parsed.exposureFilters : [],
+      activeEras: Array.isArray(parsed.activeEras) ? parsed.activeEras : [],
+      yearRange: Array.isArray(parsed.yearRange) && parsed.yearRange.length === 2 ? parsed.yearRange : null,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 export default router;
