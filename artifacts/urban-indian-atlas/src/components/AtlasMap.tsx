@@ -488,6 +488,25 @@ export function AtlasMap({
   const [leafletMap, setLeafletMap] = useState<L.Map | null>(null);
   const handleMapReady = useCallback((m: L.Map) => setLeafletMap(m), []);
 
+  // Helper to generate consistent inline styles for D-pad / zoom nav buttons
+  const navBtnStyle = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
+    width: 30, height: 30,
+    background: "rgba(18,15,10,0.92)",
+    border: "1px solid rgba(255,255,255,0.14)",
+    borderRadius: 6,
+    color: "#e8dcc8",
+    fontSize: 13,
+    fontWeight: 700,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    lineHeight: 1,
+    transition: "background 0.12s",
+    userSelect: "none",
+    ...overrides,
+  });
+
   useEffect(() => { setMounted(true); }, []);
 
   const isEventFilteredOut = (evtId: string) => !filteredEvents.find(e => e.id === evtId);
@@ -1047,128 +1066,160 @@ export function AtlasMap({
 
       </MapContainer>
 
-      {/* ── Floating Map Controls — zoom in/out + sidebar toggles ─────────────
-          Positioned above the legend, outside MapContainer to avoid Leaflet
-          z-index layers. Zoom actions call the Leaflet map instance directly.
+      {/* ── Floating Map Controls ─────────────────────────────────────────────
+          Redesigned: clear D-pad pan arrows, zoom +/−, and panel toggles
+          labeled so they cannot be confused with directional arrows.
+          Positioned outside MapContainer to avoid Leaflet z-index layers.
       ── */}
       <div
         style={{
           position: "absolute",
-          bottom: 200,
+          bottom: 210,
           right: 10,
           zIndex: 1000,
           display: "flex",
           flexDirection: "column",
-          gap: 4,
+          gap: 3,
+          width: 100,
         }}
       >
-        {/* Left sidebar toggle */}
-        <button
-          onClick={onToggleLeftPanel}
-          title={leftPanelOpen ? "Collapse filter panel" : "Expand filter panel"}
-          style={{
-            width: 32, height: 32,
-            background: "rgba(18,15,10,0.92)",
-            border: "1px solid rgba(201,169,110,0.35)",
-            borderRadius: 6,
-            color: "#c9a96e",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            transition: "background 0.15s, border-color 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.18)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
-        >
-          {leftPanelOpen ? "◀" : "▶"}
-        </button>
+        {/* ── Panel toggles ── clearly labeled, not arrows ── */}
+        <div style={{ display: "flex", gap: 3 }}>
+          {/* Filter panel toggle */}
+          <button
+            onClick={onToggleLeftPanel}
+            title={leftPanelOpen ? "Collapse filter panel" : "Expand filter panel"}
+            style={{
+              flex: 1, height: 26,
+              background: leftPanelOpen ? "rgba(201,169,110,0.22)" : "rgba(18,15,10,0.92)",
+              border: `1px solid ${leftPanelOpen ? "rgba(201,169,110,0.6)" : "rgba(201,169,110,0.35)"}`,
+              borderRadius: 5,
+              color: "#c9a96e",
+              fontSize: 9,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              letterSpacing: "0.04em",
+              transition: "background 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.28)")}
+            onMouseLeave={e => (e.currentTarget.style.background = leftPanelOpen ? "rgba(201,169,110,0.22)" : "rgba(18,15,10,0.92)")}
+          >
+            <span style={{ fontSize: 11 }}>☰</span> FILTER
+          </button>
+
+          {/* Detail panel toggle */}
+          <button
+            onClick={onToggleRightPanel}
+            title={rightPanelOpen ? "Collapse detail panel" : "Expand detail panel"}
+            style={{
+              flex: 1, height: 26,
+              background: rightPanelOpen ? "rgba(201,169,110,0.22)" : "rgba(18,15,10,0.92)",
+              border: `1px solid ${rightPanelOpen ? "rgba(201,169,110,0.6)" : "rgba(201,169,110,0.35)"}`,
+              borderRadius: 5,
+              color: "#c9a96e",
+              fontSize: 9,
+              fontWeight: 700,
+              cursor: "pointer",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              gap: 3,
+              letterSpacing: "0.04em",
+              transition: "background 0.15s, border-color 0.15s",
+            }}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.28)")}
+            onMouseLeave={e => (e.currentTarget.style.background = rightPanelOpen ? "rgba(201,169,110,0.22)" : "rgba(18,15,10,0.92)")}
+          >
+            <span style={{ fontSize: 11 }}>ℹ</span> DETAIL
+          </button>
+        </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: "rgba(201,169,110,0.2)", margin: "2px 4px" }} />
+        <div style={{ height: 1, background: "rgba(201,169,110,0.2)", margin: "1px 0" }} />
 
-        {/* Zoom In */}
-        <button
-          onClick={() => leafletMap?.zoomIn()}
-          title="Zoom in"
-          style={{
-            width: 32, height: 32,
-            background: "rgba(18,15,10,0.92)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 6,
-            color: "#e8dcc8",
-            fontSize: 18,
-            fontWeight: 400,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
-        >
-          +
-        </button>
+        {/* ── D-pad directional pan controls ── */}
+        {/* Row 1: pan north */}
+        <div style={{ display: "flex", justifyContent: "center" }}>
+          <button
+            onClick={() => leafletMap?.panBy([0, -180])}
+            title="Pan north"
+            style={navBtnStyle()}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            ▲
+          </button>
+        </div>
 
-        {/* Zoom Out */}
-        <button
-          onClick={() => leafletMap?.zoomOut()}
-          title="Zoom out"
-          style={{
-            width: 32, height: 32,
-            background: "rgba(18,15,10,0.92)",
-            border: "1px solid rgba(255,255,255,0.12)",
-            borderRadius: 6,
-            color: "#e8dcc8",
-            fontSize: 18,
-            fontWeight: 400,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            transition: "background 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.1)")}
-          onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
-        >
-          −
-        </button>
+        {/* Row 2: pan west | zoom in | pan east */}
+        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+          <button
+            onClick={() => leafletMap?.panBy([-180, 0])}
+            title="Pan west"
+            style={navBtnStyle()}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            ◀
+          </button>
 
-        {/* Divider */}
-        <div style={{ height: 1, background: "rgba(201,169,110,0.2)", margin: "2px 4px" }} />
+          <button
+            onClick={() => leafletMap?.zoomIn()}
+            title="Zoom in"
+            style={navBtnStyle({ color: "#e8dcc8", fontSize: 17, fontWeight: 400 })}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            +
+          </button>
 
-        {/* Right panel toggle */}
-        <button
-          onClick={onToggleRightPanel}
-          title={rightPanelOpen ? "Collapse detail panel" : "Expand detail panel"}
-          style={{
-            width: 32, height: 32,
-            background: rightPanelOpen
-              ? "rgba(201,169,110,0.18)"
-              : "rgba(18,15,10,0.92)",
-            border: `1px solid ${rightPanelOpen ? "rgba(201,169,110,0.55)" : "rgba(201,169,110,0.35)"}`,
-            borderRadius: 6,
-            color: "#c9a96e",
-            fontSize: 14,
-            fontWeight: 700,
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            lineHeight: 1,
-            transition: "background 0.15s, border-color 0.15s",
-          }}
-          onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.25)")}
-          onMouseLeave={e => (e.currentTarget.style.background = rightPanelOpen ? "rgba(201,169,110,0.18)" : "rgba(18,15,10,0.92)")}
-        >
-          {rightPanelOpen ? "▶" : "◀"}
-        </button>
+          <button
+            onClick={() => leafletMap?.panBy([180, 0])}
+            title="Pan east"
+            style={navBtnStyle()}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            ▶
+          </button>
+        </div>
+
+        {/* Row 3: pan south | zoom out | (blank) */}
+        <div style={{ display: "flex", gap: 3, justifyContent: "center" }}>
+          <button
+            onClick={() => leafletMap?.panBy([0, 180])}
+            title="Pan south"
+            style={navBtnStyle()}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            ▼
+          </button>
+
+          <button
+            onClick={() => leafletMap?.zoomOut()}
+            title="Zoom out"
+            style={navBtnStyle({ color: "#e8dcc8", fontSize: 17, fontWeight: 400 })}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(255,255,255,0.13)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            −
+          </button>
+
+          <button
+            onClick={() => leafletMap?.setView([39.5, -98.35], 4)}
+            title="Reset to full US view"
+            style={navBtnStyle({ fontSize: 12, color: "rgba(201,169,110,0.7)" })}
+            onMouseEnter={e => (e.currentTarget.style.background = "rgba(201,169,110,0.18)")}
+            onMouseLeave={e => (e.currentTarget.style.background = "rgba(18,15,10,0.92)")}
+          >
+            ⌂
+          </button>
+        </div>
       </div>
 
       {/* ── Persistent Map Legend — always visible, bottom-right of the map canvas ──
