@@ -28,6 +28,7 @@ interface NavItemDef {
   label: string;
   highlight?: boolean;
   icon: LucideIcon;
+  externalHref?: string;
 }
 
 interface NavSectionDef {
@@ -58,6 +59,7 @@ function getTrusteeNav(): NavSectionDef[] {
       defaultOpen: true,
       items: [
         { href: "/files",        label: "Files",                    icon: FolderOpen },
+        { href: "/case-registry", label: "Case File Registry", icon: Scale, externalHref: "/authority-directory/case-files", highlight: true },
         { href: "/filings",      label: "Filings",                  icon: FileText },
         { href: "/templates",    label: "Document Templates",       highlight: true, icon: FilePen },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
@@ -121,6 +123,7 @@ function getOfficerNav(): NavSectionDef[] {
       defaultOpen: true,
       items: [
         { href: "/dashboard/officer",  label: "Dashboard",            icon: LayoutDashboard },
+        { href: "/case-registry-officer", label: "Case File Registry", icon: Scale, externalHref: "/authority-directory/case-files", highlight: true },
         { href: "/my-office",          label: "My Office",            icon: Archive },
         { href: "/land",               label: "Land & Asset Management", highlight: true, icon: Landmark },
         { href: "/membership",         label: "Membership Status",    icon: BadgeCheck },
@@ -267,17 +270,29 @@ const EDU_ITEMS: NavItemDef[] = [
 function NavItem({ item, location }: { item: NavItemDef; location: string }) {
   const active = location === item.href || (item.href.length > 1 && location.startsWith(item.href));
   const Icon = item.icon;
+  const className = [
+    "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+    active
+      ? "bg-primary text-primary-foreground"
+      : item.highlight
+      ? "text-amber-700 dark:text-amber-400 hover:bg-secondary hover:text-foreground font-semibold"
+      : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+  ].join(" ");
+
+  if (item.externalHref) {
+    return (
+      <a href={item.externalHref} className={className}>
+        <Icon className="h-3.5 w-3.5 shrink-0" />
+        <span className="truncate">{item.label}</span>
+        <Globe className="h-2.5 w-2.5 ml-auto shrink-0 opacity-40" />
+      </a>
+    );
+  }
+
   return (
     <Link
       href={item.href}
-      className={[
-        "flex items-center gap-2.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-        active
-          ? "bg-primary text-primary-foreground"
-          : item.highlight
-          ? "text-amber-700 dark:text-amber-400 hover:bg-secondary hover:text-foreground font-semibold"
-          : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-      ].join(" ")}
+      className={className}
     >
       <Icon className="h-3.5 w-3.5 shrink-0" />
       <span className="truncate">{item.label}</span>

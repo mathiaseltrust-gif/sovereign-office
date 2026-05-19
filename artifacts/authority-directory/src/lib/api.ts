@@ -204,6 +204,73 @@ export interface CaseFile {
   updatedAt: string;
 }
 
+export interface LinkedMember {
+  id: number;
+  fullName: string | null;
+  firstName: string | null;
+  lastName: string | null;
+  birthYear: number | null;
+  locationAddress: string | null;
+  membershipStatus: string | null;
+  tribalEnrollmentNumber: string | null;
+  isDeceased: boolean | null;
+  contactEmail: string | null;
+}
+
+export interface LinkedPipelineRecord {
+  id: number;
+  fileNumber: string | null;
+  matterType: string | null;
+  riskLevel: string | null;
+  status: string | null;
+  generatedSummary: string | null;
+  templateTitle: string | null;
+  createdAt: string;
+}
+
+export interface LinkedProtectiveOrder {
+  id: number;
+  caseNumber: string | null;
+  title: string;
+  status: string;
+  namedRespondents: string[];
+  legalBases: string[];
+  issuedDate: string | null;
+  expiresDate: string | null;
+  court: string | null;
+  summary: string | null;
+}
+
+export interface LinkedNfrDocument {
+  id: number;
+  tribalRef: string | null;
+  triggeringEntity: string | null;
+  urgencyScore: number | null;
+  status: string;
+  protectionCategory: string | null;
+  createdAt: string;
+}
+
+export interface LinkedComplaint {
+  id: number;
+  text: string;
+  classification: string | null;
+  status: string;
+  tribalRef: string | null;
+  createdAt: string;
+}
+
+export interface CaseFileDetail {
+  caseFile: CaseFile;
+  linkedMember: LinkedMember | null;
+  linkedPipelineRecord: LinkedPipelineRecord | null;
+  protectiveOrders: LinkedProtectiveOrder[];
+  nfrDocuments: LinkedNfrDocument[];
+  complaints: LinkedComplaint[];
+  nfrInvestigationCount: number;
+  relatedCaseFiles: CaseFile[];
+}
+
 export interface ContextHints {
   state?: string;
   county?: string;
@@ -284,6 +351,9 @@ export const api = {
 
   getCaseFile: (caseNumber: string) =>
     request<CaseFile>(`/api/case-files/${encodeURIComponent(caseNumber)}`),
+
+  getCaseFileDetail: (caseNumber: string) =>
+    request<CaseFileDetail>(`/api/case-files/${encodeURIComponent(caseNumber)}/detail`),
 
   updateCaseFileStatus: (id: number, status: string, notes?: string) =>
     request<CaseFile>(`/api/case-files/${id}/status`, {

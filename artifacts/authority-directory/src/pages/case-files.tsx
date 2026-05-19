@@ -1,18 +1,19 @@
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import {
   FolderOpen,
   Search,
   RefreshCw,
   ChevronDown,
   ChevronUp,
-  ExternalLink,
   CheckCircle2,
   Clock,
   Archive,
   AlertCircle,
   FileText,
   X,
+  ArrowRight,
 } from "lucide-react";
 import { api, CaseFile, ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -119,7 +120,14 @@ function CaseRow({ cf, defaultOpen = false }: { cf: CaseFile; defaultOpen?: bool
 
         <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2 mb-0.5">
-            <span className="text-sm font-mono font-semibold text-primary">{cf.caseNumber}</span>
+            <Link
+              href={`/case-files/${encodeURIComponent(cf.caseNumber)}`}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <span className="text-sm font-mono font-semibold text-primary hover:underline underline-offset-2 cursor-pointer">
+                {cf.caseNumber}
+              </span>
+            </Link>
             <CaseTypeBadge caseType={cf.caseType} />
             <StatusBadge status={cf.status} />
           </div>
@@ -188,6 +196,16 @@ function CaseRow({ cf, defaultOpen = false }: { cf: CaseFile; defaultOpen?: bool
               <p className="text-sm text-foreground/80 bg-background border border-border rounded-md px-3 py-2">{cf.notes}</p>
             </div>
           )}
+
+          {/* View full profile link */}
+          <div className="flex justify-end">
+            <Link href={`/case-files/${encodeURIComponent(cf.caseNumber)}`}>
+              <button className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 transition-colors">
+                View Full Profile
+                <ArrowRight className="h-3 w-3" />
+              </button>
+            </Link>
+          </div>
 
           {/* Status update */}
           <div className="pt-2 border-t border-border">

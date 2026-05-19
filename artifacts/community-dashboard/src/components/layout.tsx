@@ -17,6 +17,7 @@ import {
   Globe2,
   ExternalLink,
   TreePine,
+  FolderOpen,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -46,6 +47,14 @@ const navigation: { name: string; href: string; icon: React.ElementType; externa
     external: true,
     externalHref: "/urban-indian-atlas/?mode=atlas",
     badge: "Atlas",
+  },
+  {
+    name: "Case File Registry",
+    href: "#casefiles",
+    icon: FolderOpen,
+    external: true,
+    externalHref: "/authority-directory/case-files",
+    badge: "Cases",
   },
 ];
 

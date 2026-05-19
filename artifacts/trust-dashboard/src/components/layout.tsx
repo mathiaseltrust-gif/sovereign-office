@@ -55,16 +55,29 @@ export function Layout({ children }: { children: React.ReactNode }) {
                   const active =
                     location === item.href ||
                     (item.href !== "/" && location.startsWith(item.href));
+                  const linkClass = cn(
+                    "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
+                    active
+                      ? "bg-sidebar-primary text-sidebar-primary-foreground"
+                      : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
+                  );
+                  if (item.externalHref) {
+                    return (
+                      <a
+                        key={item.href}
+                        href={item.externalHref}
+                        className={linkClass}
+                      >
+                        <Icon className="w-4 h-4 flex-shrink-0" />
+                        {item.label}
+                      </a>
+                    );
+                  }
                   return (
                     <Link
                       key={item.href}
                       href={item.href}
-                      className={cn(
-                        "flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors",
-                        active
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground"
-                          : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-foreground",
-                      )}
+                      className={linkClass}
                     >
                       <Icon className="w-4 h-4 flex-shrink-0" />
                       {item.label}
