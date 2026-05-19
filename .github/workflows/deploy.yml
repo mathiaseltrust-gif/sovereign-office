@@ -217,3 +217,59 @@ jobs:
 
             echo "==> Deploy complete. Running containers:"
             docker compose -f docker-compose.prod.yml ps
+
+      # ── 3. External HTTPS health check (only when TLS is live) ───────────────
+      # Runs from the GitHub Actions runner so it validates the real public URLs,
+      # not just localhost.  Skipped when VITE_API_URL is still an http:// address
+      # (e.g. local / staging without TLS).
+      #
+      # Required GitHub Actions variables (Settings → Secrets and variables →
+      # Variables) when deploying to a TLS-enabled environment:
+      #   VITE_API_URL    — e.g. https://api.sovereignoffice.org
+      #   SOVEREIGN_URL   — e.g. https://sovereign.sovereignoffice.org
+      #   TRUST_URL       — e.g. https://trust.sovereignoffice.org
+      #   COMMUNITY_URL   — e.g. https://community.sovereignoffice.org
+      #   ATLAS_URL       — e.g. https://atlas.sovereignoffice.org
+      - name: HTTPS health check — all five public endpoints
+        if: startsWith(vars.VITE_API_URL, 'https://')
+        env:
+          API_URL:       ${{ vars.VITE_API_URL }}
+          SOVEREIGN_URL: ${{ vars.SOVEREIGN_URL }}
+          TRUST_URL:     ${{ vars.TRUST_URL }}
+          COMMUNITY_URL: ${{ vars.COMMUNITY_URL }}
+          ATLAS_URL:     ${{ vars.ATLAS_URL }}
+        run: |
+          set -euo pipefail
+          FAIL=0
+
+          check_url() {
+            local label="$1"
+            local url="$2"
+            if [ -z "$url" ]; then
+              echo "  ✗ $label — URL variable is not set (check GitHub Actions variables)"
+              FAIL=1
+              return
+            fi
+            local code
+            code=$(curl -sf --max-time 15 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+            if [ "$code" = "200" ]; then
+              echo "  ✓ $label — HTTP $code"
+            else
+              echo "  ✗ $label — HTTP $code  ($url)"
+              FAIL=1
+            fi
+          }
+
+          echo "==> Checking public HTTPS endpoints..."
+          check_url "api (healthz)"  "${API_URL%/}/healthz"
+          check_url "sovereign"      "${SOVEREIGN_URL}"
+          check_url "trust"          "${TRUST_URL}"
+          check_url "community"      "${COMMUNITY_URL}"
+          check_url "atlas"          "${ATLAS_URL}"
+
+          if [ "$FAIL" -ne 0 ]; then
+            echo ""
+            echo "One or more HTTPS health checks failed — deployment aborted."
+            exit 1
+          fi
+          echo "==> All five HTTPS endpoints returned 200."
