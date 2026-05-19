@@ -21,10 +21,20 @@ router.get("/events", async (_req, res, next) => {
 });
 
 // ── GET /api/atlas/ancestors ────────────────────────────────────────────────
-// Auth-required. Returns ONLY the requesting user's own deceased lineage
-// entries (filtered by addedByMemberId). Only non-sensitive fields are
-// returned — no notes, no membershipStatus, no gender, no photoUrl.
-// The ancestor/deceased flag and lack of living-member data is enforced here.
+// Auth-required. Returns all family records visible to the requesting user:
+//   • Deceased ancestors (is_deceased = true, is_ancestor = true OR added by user)
+//   • Living immediate household (those in the user's own family record's
+//     spouse_ids / children_ids, or the user's own linked record)
+//   • Living extended family added by the user (is_deceased = false)
+//
+// Each row includes a record_status field:
+//   "ancestor"         — deceased ancestor
+//   "household_member" — living immediate household
+//   "extended_family"  — living family outside immediate household
+//
+// Only non-sensitive fields are returned (no notes, no gender, no membershipStatus).
+// Location resolution priority is enforced on the frontend — no location is
+// defaulted to the user's current city/address for non-household records.
 router.get("/ancestors", requireAuth, async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
@@ -33,10 +43,15 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
       return;
     }
 
-    // LEFT JOIN LATERAL to ancestral_timeline_events to get the most recently
-    // recorded location string for each ancestor from actual user records.
-    // This is the authoritative source for ancestor placement on the map — the
-    // fallback (tribal nation keyword heuristic) is secondary.
+    // record_status classification uses a correlated EXISTS subquery to detect
+    // household membership from the user's own family_lineage record's spouse_ids
+    // and children_ids — no client-side array parameter binding needed.
+    //
+    // Location priority is enforced on the frontend:
+    //   1. Verified lat/lng on family_lineage
+    //   2. location_text from ancestral_timeline_events
+    //   3. Tribal nation keyword geocoded to historical territory centroid
+    //   4. null → "Location unknown" — never defaults to user's current city
     const result = await db.execute(sql`
       SELECT
         fl.id,
@@ -55,7 +70,20 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         fl.location_address,
         fl.photo_url,
         tl.location        AS location_text,
-        (tl.location IS NOT NULL) AS has_timeline_location
+        (tl.location IS NOT NULL) AS has_timeline_location,
+        CASE
+          WHEN fl.is_deceased = true THEN 'ancestor'
+          WHEN EXISTS (
+            SELECT 1 FROM family_lineage uf
+            WHERE (uf.linked_profile_user_id = ${userId} OR uf.user_id = ${userId})
+              AND (
+                fl.id = uf.id
+                OR (uf.spouse_ids IS NOT NULL AND fl.id = ANY(uf.spouse_ids))
+                OR (uf.children_ids IS NOT NULL AND fl.id = ANY(uf.children_ids))
+              )
+          ) THEN 'household_member'
+          ELSE 'extended_family'
+        END AS record_status
       FROM family_lineage fl
       LEFT JOIN LATERAL (
         SELECT location
@@ -64,9 +92,25 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         ORDER BY created_at DESC
         LIMIT 1
       ) tl ON true
-      WHERE fl.is_deceased = true
-        AND (fl.is_ancestor = true OR fl.added_by_member_id = ${userId})
-      ORDER BY fl.generational_position NULLS LAST, fl.full_name NULLS LAST
+      WHERE
+        -- Deceased ancestors (system-wide or added by this user)
+        (fl.is_deceased = true AND (fl.is_ancestor = true OR fl.added_by_member_id = ${userId}))
+        -- Living family added by this user (household + extended)
+        OR (fl.is_deceased = false AND fl.added_by_member_id = ${userId})
+        -- Living household members from the user's own spouse_ids / children_ids
+        OR EXISTS (
+          SELECT 1 FROM family_lineage uf
+          WHERE (uf.linked_profile_user_id = ${userId} OR uf.user_id = ${userId})
+            AND (
+              fl.id = uf.id
+              OR (uf.spouse_ids IS NOT NULL AND fl.id = ANY(uf.spouse_ids))
+              OR (uf.children_ids IS NOT NULL AND fl.id = ANY(uf.children_ids))
+            )
+        )
+      ORDER BY
+        CASE WHEN fl.is_deceased = true THEN 0 ELSE 1 END,
+        fl.generational_position NULLS LAST,
+        fl.full_name NULLS LAST
     `);
 
     res.json(result.rows);

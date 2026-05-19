@@ -69,6 +69,11 @@ export interface AncestorRecord {
   locationText: string | null;
   hasTimelineLocation: boolean;
   photoUrl: string | null;
+  // Record classification for display and location resolution:
+  //   "ancestor"          — deceased family member or confirmed ancestor
+  //   "household_member"  — living immediate household (self / spouse / children)
+  //   "extended_family"   — living family outside immediate household
+  recordStatus: "ancestor" | "household_member" | "extended_family";
 }
 
 export interface AncestorContextMatch {
@@ -278,20 +283,16 @@ interface DbAncestorRow {
   is_ancestor: boolean;
   is_deceased: boolean;
   lineage_tags: unknown;
-  // Verified lat/lng stored directly on family_lineage (highest priority).
   location_lat: number | null;
   location_lng: number | null;
-  // Human-readable address (city, county, state) stored with the verified coordinates.
   location_address: string | null;
-  // From LATERAL JOIN to ancestral_timeline_events — real location records.
   location_text: string | null;
   has_timeline_location: boolean;
   photo_url: string | null;
+  record_status: "ancestor" | "household_member" | "extended_family";
 }
 
 function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
-  // node-postgres returns numeric columns as strings from raw SQL queries.
-  // Parse them defensively so coordinate resolution works correctly.
   const parsedLat = r.location_lat != null ? parseFloat(String(r.location_lat)) : null;
   const parsedLng = r.location_lng != null ? parseFloat(String(r.location_lng)) : null;
   return {
@@ -312,6 +313,7 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     locationText: r.location_text ?? null,
     hasTimelineLocation: !!r.has_timeline_location,
     photoUrl: r.photo_url ?? null,
+    recordStatus: r.record_status ?? "ancestor",
   };
 }
 

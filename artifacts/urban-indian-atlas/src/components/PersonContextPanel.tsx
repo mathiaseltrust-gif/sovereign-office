@@ -239,9 +239,9 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
   }
   if (ancestor.tribalNation) {
     locationRecords.push({
-      label: "Tribal nation homeland",
-      text: `${ancestor.tribalNation} (approximate territory)`,
-      confidence: ancestor.hasTimelineLocation ? "inferred" : "inferred",
+      label: "Likely Ancestral Affiliation / Lineage",
+      text: `Likely ${ancestor.tribalNation} lineage / family affiliation`,
+      confidence: "inferred",
     });
   }
 
@@ -283,7 +283,13 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
             <div className="w-7 h-7 rounded-full bg-primary/20 flex items-center justify-center">
               <Users className="w-3.5 h-3.5 text-primary" />
             </div>
-            <Badge variant="outline" className="font-mono bg-background text-xs">Ancestor Record</Badge>
+            {ancestor.recordStatus === "household_member" ? (
+              <Badge variant="outline" className="font-mono bg-background text-xs border-emerald-500/40 text-emerald-400">Protected Member</Badge>
+            ) : ancestor.recordStatus === "extended_family" ? (
+              <Badge variant="outline" className="font-mono bg-background text-xs border-sky-500/40 text-sky-400">Eligible Family / Protected Lineage</Badge>
+            ) : (
+              <Badge variant="outline" className="font-mono bg-background text-xs">Ancestor Record</Badge>
+            )}
           </div>
           <div className="flex items-center gap-1.5">
             <button
@@ -326,13 +332,18 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
                     Gen. {ancestor.generationalPosition}
                   </Badge>
                 )}
-                {ancestor.isDeceased && (
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background opacity-60">
-                    Deceased
+                {ancestor.recordStatus === "household_member" && (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-emerald-900/20 border-emerald-500/30 text-emerald-400">
+                    Protected Member
                   </Badge>
                 )}
-                {ancestor.isAncestor && (
-                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background">
+                {ancestor.recordStatus === "extended_family" && (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-sky-900/20 border-sky-500/30 text-sky-400">
+                    Eligible Family
+                  </Badge>
+                )}
+                {ancestor.isDeceased && (
+                  <Badge variant="outline" className="text-[10px] uppercase tracking-wider bg-background opacity-60">
                     Ancestor
                   </Badge>
                 )}
@@ -374,6 +385,12 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
                   <span>{locationMatchCount} historical event{locationMatchCount !== 1 ? "s" : ""} with region overlap to known locations</span>
                 </div>
               )}
+              {/* Disclaimer — always shown to avoid political misreading */}
+              <div className="mt-2 pt-2 border-t border-border/30">
+                <p className="text-[9px] text-muted-foreground/45 leading-relaxed italic">
+                  This location is based on known ancestry records, last known residence, historical movement, and likely lineage affiliation. It does not determine political jurisdiction or tribal citizenship by itself. Presence in a territory does not automatically mean a person was governed by, subject to, or politically part of that nation.
+                </p>
+              </div>
             </div>
 
             {/* ── Tribal Affiliation Logic Engine ── */}

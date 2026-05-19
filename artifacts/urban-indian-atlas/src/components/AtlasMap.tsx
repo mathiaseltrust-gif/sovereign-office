@@ -202,8 +202,6 @@ const REGION_COORD_MAP: Record<string, [number, number]> = {
   arkansas: [34.8, -92.2],
   texas: [31.0, -100.0],
   california: [36.5, -119.5],
-  "mathias el": [34.05, -118.24],
-  "mathias el tribe": [34.05, -118.24],
   "los angeles": [34.05, -118.24],
   chicago: [41.88, -87.63],
   minneapolis: [44.98, -93.27],
@@ -237,51 +235,57 @@ function geocodeText(text: string): [number, number] | null {
 // Resolves an ancestor's map coordinate with a source label and optional
 // "home" coordinate (tribal nation centroid) for migration arc rendering.
 //
-// Priority: (1) verified lat/lng stored on family_lineage record (documentary-quality),
-//           (2) tribalNation keyword geocoded to a centroid (tribal homeland),
-//           (3) location_text from the most recent ancestral_timeline_events record
-//               — used as a fallback when tribal_nation yields no coordinate.
-//               Mirrors the Community Dashboard member-detail map picker behaviour.
+// Location hierarchy (per system policy):
+//   1. Verified lat/lng stored directly on family_lineage (documentary-quality)
+//   2. location_text from ancestral_timeline_events (recorded place from lineage records)
+//   3. tribalNation keyword geocoded to a historically-grounded centroid
+//      NOTE: Self-identified modern affiliation labels (e.g. "Mathias El Tribe") are
+//      NOT used for geocoding — presence in an affiliation does not establish a
+//      historical geographic location. Only recognised historical nation territories
+//      with entries in REGION_COORD_MAP produce a tribal coord.
+//   4. null → record shown as "Location unknown", NOT pinned to user's current address.
 //
-// homeCoord is always null — under the current priority order, if we reach the
-// "timeline_record" branch it means tribalNation produced no geocodable coord,
-// so there is no tribal centroid to draw a migration arc from.
-// Verified coords are taken as authoritative and no migration arc is drawn.
+// Household members (record_status = "household_member") follow the same hierarchy.
+// If no coord resolves, they are listed as "Location unknown" rather than defaulting
+// to the user's geolocation.
 function resolveAncestorCoord(ancestor: AncestorRecord): {
   coord: [number, number];
   source: "verified_coords" | "timeline_record" | "tribal_nation";
-  homeCoord: [number, number] | null; // tribal homeland, for migration arc
+  homeCoord: [number, number] | null;
 } | null {
-  const tribalCoord = ancestor.tribalNation ? geocodeText(ancestor.tribalNation) : null;
-
-  // Highest priority: verified lat/lng stored directly on the family_lineage record
+  // Priority 1: verified lat/lng stored directly on the family_lineage record
   if (ancestor.locationLat != null && ancestor.locationLng != null) {
     return {
       coord: [ancestor.locationLat, ancestor.locationLng],
       source: "verified_coords",
-      homeCoord: null, // verified point is definitive — no migration arc
+      homeCoord: null,
     };
   }
 
-  // Second priority: tribal nation keyword geocoded to a centroid.
-  // Mirrors Community Dashboard: tribal nation is tried before timeline text.
-  if (tribalCoord) {
-    return { coord: tribalCoord, source: "tribal_nation", homeCoord: null };
-  }
-
-  // Fallback: location_text from the most recent ancestral_timeline_events record.
-  // Used when tribal_nation is absent or unrecognised.
+  // Priority 2: location_text from the most recent ancestral_timeline_events record.
+  // Real, recorded place data takes precedence over keyword inference.
   if (ancestor.locationText) {
     const coord = geocodeText(ancestor.locationText);
     if (coord) {
       return {
         coord,
         source: "timeline_record",
-        homeCoord: null, // no tribal coord available to draw a migration arc from
+        homeCoord: null,
       };
     }
   }
 
+  // Priority 3: tribal nation keyword geocoded to a historically-grounded centroid.
+  // Only recognised historical nations in REGION_COORD_MAP produce a coordinate.
+  // Modern self-identified affiliation labels that lack a historical territory entry
+  // intentionally produce no coordinate — do not fall back to user's current location.
+  const tribalCoord = ancestor.tribalNation ? geocodeText(ancestor.tribalNation) : null;
+  if (tribalCoord) {
+    return { coord: tribalCoord, source: "tribal_nation", homeCoord: null };
+  }
+
+  // No resolvable location → caller treats this record as "Location unknown".
+  // Must NOT default to user's current city or geolocation.
   return null;
 }
 
@@ -729,8 +733,8 @@ export function AtlasMap({
               : source === "timeline_record"
                 ? `From records${ancestor.locationText ? ` · ${ancestor.locationText}` : ""}`
                 : ancestor.tribalNation
-                  ? `Nation · ${ancestor.tribalNation}`
-                  : "Location inferred";
+                  ? `Likely Affiliation · ${ancestor.tribalNation}`
+                  : "Location unknown";
 
             return (
               <Marker
@@ -884,7 +888,7 @@ export function AtlasMap({
             </div>
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#8b2020", border: "2px dashed rgba(255,255,255,0.55)", opacity: 0.82 }}>JM</div>
-              <span className="text-muted-foreground leading-tight">Location inferred</span>
+              <span className="text-muted-foreground leading-tight">Likely Affiliation</span>
             </div>
             <div className="flex items-center gap-2">
               <div className="w-5 h-5 rounded-full flex-shrink-0 flex items-center justify-center text-[8px] font-bold text-white" style={{ background: "#8b2020", border: "2px solid rgba(255,255,255,0.85)" }}>5</div>
