@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
+import { HouseholdStatusPanel } from "@/components/HouseholdStatusPanel";
 
 interface BenefitEligibility {
   icwa: boolean;
@@ -161,6 +162,9 @@ export default function MembershipPage() {
           )}
         </CardContent>
       </Card>
+
+      {/* Household status + inherited protections */}
+      <HouseholdStatusPanel />
 
       {/* Benefit eligibility */}
       <Card>

@@ -254,6 +254,136 @@ router.post("/household/add", requireAuth, async (req, res, next) => {
   }
 });
 
+// ── GET /api/lineage/nodes/household/status ───────────────────────────────────
+// Returns the household head's address + land status and computes inherited
+// protections for every member (spouse, children, dependents).
+// Logic: household membership confers Indian Country jurisdiction, IHS/Urban
+// Indian health eligibility, and ICWA protections to all qualifying members —
+// no separate address entry required. Basis: Snyder Act, IHCIA § 201,
+// Worcester v. Georgia, 25 U.S.C. § 1903 (ICWA).
+router.get("/household/status", requireAuth, async (req, res, next) => {
+  try {
+    const currentUserId = req.user?.dbId ?? null;
+    if (!currentUserId) { res.status(401).json({ error: "Not authenticated" }); return; }
+
+    const [profile] = await db
+      .select({
+        mailingAddress:    profilesTable.mailingAddress,
+        landStatus:        profilesTable.landStatus,
+        tribalLandCode:    profilesTable.tribalLandCode,
+        landClassification: profilesTable.landClassification,
+      })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, currentUserId))
+      .limit(1);
+
+    const [headNode] = await db
+      .select({
+        id:           familyLineageTable.id,
+        fullName:     familyLineageTable.fullName,
+        tribalNation: familyLineageTable.tribalNation,
+        spouseIds:    familyLineageTable.spouseIds,
+        childrenIds:  familyLineageTable.childrenIds,
+      })
+      .from(familyLineageTable)
+      .where(eq(familyLineageTable.linkedProfileUserId, currentUserId))
+      .limit(1);
+
+    const address     = profile?.mailingAddress ?? null;
+    const landStatus  = profile?.landStatus ?? null;
+    const tribalLandCode = profile?.tribalLandCode ?? null;
+
+    const INDIAN_COUNTRY_STATUSES = new Set([
+      "trust", "allotment", "tribal_government_land", "tribal_trust_stewardship",
+      "protected_tribal_land", "sacred_cultural_land", "restricted_fee",
+    ]);
+    const isIndianCountry = !!((landStatus && INDIAN_COUNTRY_STATUSES.has(landStatus)) || tribalLandCode);
+
+    const headTribalNation = headNode?.tribalNation ?? null;
+    const ihsEligible        = !!headTribalNation && !!address;
+    const urbanIndianEligible = !!headTribalNation;
+
+    if (!headNode) {
+      res.json({
+        hasLinkedNode: false,
+        address, landStatus, tribalLandCode, isIndianCountry,
+        ihsEligible, urbanIndianEligible,
+        members: [], memberCount: 0,
+      });
+      return;
+    }
+
+    const spouseIds: number[]   = Array.isArray(headNode.spouseIds)   ? (headNode.spouseIds   as number[]) : [];
+    const childIds: number[]    = Array.isArray(headNode.childrenIds) ? (headNode.childrenIds as number[]) : [];
+    const allMemberIds = [...spouseIds, ...childIds];
+
+    type HouseholdMember = {
+      id: number; fullName: string;
+      relationship: "spouse" | "child_dependent";
+      birthYear: number | null; tribalNation: string | null;
+      inheritedAddress: string | null;
+      inheritedLandStatus: string | null; inheritedTribalLandCode: string | null;
+      isIndianCountry: boolean; ihsEligible: boolean;
+      urbanIndianEligible: boolean; icwaProtected: boolean;
+      protections: string[];
+    };
+
+    let members: HouseholdMember[] = [];
+
+    if (allMemberIds.length > 0) {
+      const memberNodes = await db
+        .select({
+          id: familyLineageTable.id, fullName: familyLineageTable.fullName,
+          birthYear: familyLineageTable.birthYear, deathYear: familyLineageTable.deathYear,
+          tribalNation: familyLineageTable.tribalNation,
+        })
+        .from(familyLineageTable)
+        .where(inArray(familyLineageTable.id, allMemberIds));
+
+      const currentYear = new Date().getFullYear();
+
+      members = memberNodes.map(m => {
+        const isSpouse    = spouseIds.includes(m.id);
+        const relationship = isSpouse ? "spouse" : "child_dependent";
+        const isMinor = !m.deathYear && m.birthYear != null && (currentYear - m.birthYear) < 18;
+        const icwaProtected = !isSpouse && isMinor;
+
+        const memberIhsEligible      = ihsEligible || (isIndianCountry && !!(m.tribalNation || headTribalNation));
+        const memberUrbanIndianEligible = urbanIndianEligible || !!m.tribalNation;
+
+        const protections: string[] = [];
+        if (isIndianCountry)                 protections.push("Indian Country Jurisdiction");
+        if (memberIhsEligible)               protections.push("IHS Eligible");
+        if (memberUrbanIndianEligible)       protections.push("Urban Indian Health");
+        if (icwaProtected)                   protections.push("ICWA Protected");
+        if (isSpouse)                        protections.push("Sovereign Spousal Rights");
+
+        return {
+          id: m.id, fullName: m.fullName,
+          relationship: relationship as "spouse" | "child_dependent",
+          birthYear: m.birthYear ?? null, tribalNation: m.tribalNation ?? null,
+          inheritedAddress: address,
+          inheritedLandStatus: landStatus, inheritedTribalLandCode: tribalLandCode,
+          isIndianCountry, ihsEligible: memberIhsEligible,
+          urbanIndianEligible: memberUrbanIndianEligible, icwaProtected,
+          protections,
+        };
+      });
+    }
+
+    res.json({
+      hasLinkedNode: true,
+      headName: headNode.fullName,
+      headTribalNation,
+      address, landStatus, tribalLandCode,
+      isIndianCountry, ihsEligible, urbanIndianEligible,
+      members, memberCount: members.length,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseInt(String(req.params.id), 10);
