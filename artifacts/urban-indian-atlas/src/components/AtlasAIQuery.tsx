@@ -23,6 +23,7 @@ export interface AIQueryResult {
   directAnswer?: string | null;
   canCompute?: boolean;
   suggestedQueries?: SuggestedQuery[];
+  stateFilter?: string[];
 }
 
 interface AtlasAIQueryProps {

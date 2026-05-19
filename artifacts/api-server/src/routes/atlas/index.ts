@@ -575,20 +575,41 @@ activeEras (array): "colonial","early-republic","removal","reservation","post-ci
 
 yearRange (array of 2 ints: [startYear, endYear])
 
+stateFilter (array of state name strings, e.g. ["Alabama","Mississippi"]):
+  Set this WHENEVER the user mentions a US state by name. It filters the map to only show ancestors whose recorded location is in that state.
+  Always combine with "location_match" in exposureFilters when a state is named.
+
 message (string) — 1 sentence, second person, what the MAP now shows (distinct from directAnswer).
 
 suggestedQueries (array of 2–3 {label, query} objects) — specific follow-up questions this Atlas CAN answer. Base them on what the user was trying to find. Always actionable and era-specific.
 
 canCompute (boolean) — true if you answered from ancestor data, false if data was missing or question is unanswerable.
 
+SOUTHEASTERN TRIBAL REMNANT HISTORY — use this when user asks about Alabama, Mississippi, Georgia, Florida, or "remnant groups":
+  "Tribal nations still existing as remnant groups" = the post-Removal period (1830–1900) in the Southeast.
+  After the Indian Removal Act (1830), most Southeastern nations were forcibly removed west, but remnant groups stayed:
+    - Poarch Band of Creek Indians (Muscogee) — remained in Alabama
+    - Eastern Band of Cherokee — remained in NC/TN mountains
+    - Mississippi Band of Choctaw — remained in Mississippi
+    - Seminole — some remained in Florida swamps
+  Map this concept to: activeEras: ["removal","reservation","post-civil-war"], yearRange: [1830,1900]
+  Key policies that affected Alabama remnant groups during this period:
+    - Indian Removal Act 1830, Treaty of Dancing Rabbit Creek (Choctaw, 1830), Treaty of New Echota (Cherokee, 1835)
+    - End of treaty-making era (1871) — remnant groups lost federal recognition pathways
+    - Post-Reconstruction Jim Crow reclassification (1880s–1930s): Alabama/Mississippi states reclassified Native people as "colored" on census and vital records, erasing tribal identity
+    - Walter Plecker's "paper genocide" circular letters reached Alabama county offices (1930s)
+    - U.S. Census racial misclassification (1890–1930) directly targeted Southeastern remnant communities
+  exposureFilters for this query type: ["removal_era","alive_during","land_displacement","reclassification_risk","county_state_records","location_match"]
+
 RULES:
 - Return ONLY valid JSON. No markdown, no text outside the JSON object.
 - Combine filters — "reclassified" → jim_crow_era + reclassification_risk
 - yearRange should match the most relevant policy window
+- When a US state is named, always set stateFilter to that state's name(s)
 - If unclear, return empty filters + helpful message + 3 suggested queries
 
-Example:
-{"directAnswer":"2 of your 18 ancestors were alive during the Removal Act era: John Smith (b.1812–d.1878) and Mary Doe (b.1820). Their tribal nation was directly affected by the 1830 Indian Removal Act.","canCompute":true,"exposureFilters":["removal_era","alive_during","land_displacement"],"activeEras":["removal"],"yearRange":[1830,1870],"message":"Showing ancestors who lived during the Indian Removal Act era (1830–1870).","suggestedQueries":[{"label":"With verified locations","query":"Show removal-era ancestors who have a verified location on record"},{"label":"Allotment era","query":"Show ancestors who lived during the Dawes Act allotment era"},{"label":"Land displacement","query":"Show ancestors who may have experienced land seizure or forced removal"}]}`;
+Example (Alabama remnant tribes query with ancestors):
+{"directAnswer":"3 of your 18 ancestors were alive in Alabama during the post-Removal remnant period: Sarah Creek (b.1841–d.1903, Muscogee), James Doe (b.1858, Alabama), and Ruth Hill (b.1872–d.1951). They would have faced land dispossession, census reclassification, and loss of federal recognition as remnant Creek families in Alabama.","canCompute":true,"exposureFilters":["removal_era","alive_during","land_displacement","reclassification_risk","location_match"],"activeEras":["removal","reservation","post-civil-war"],"yearRange":[1830,1900],"stateFilter":["Alabama"],"message":"Showing ancestors in Alabama during the tribal remnant period (1830–1900) and the policies that targeted them.","suggestedQueries":[{"label":"Jim Crow reclassification","query":"Show ancestors in Alabama who may have been reclassified from Native to colored on census records"},{"label":"Land records","query":"Show ancestors who may appear in Alabama county land deed or probate records"},{"label":"Creek removal","query":"Show ancestors connected to the Muscogee Creek nation who survived the 1832 removal"}]}`;
 
     const result = await callAzureOpenAI(
       systemPrompt,
@@ -604,6 +625,7 @@ Example:
       yearRange?: [number, number];
       message?: string;
       suggestedQueries?: Array<{ label: string; query: string }>;
+      stateFilter?: string[];
     } = {};
 
     try {
@@ -630,6 +652,7 @@ Example:
       activeEras: Array.isArray(parsed.activeEras) ? parsed.activeEras : [],
       yearRange: Array.isArray(parsed.yearRange) && parsed.yearRange.length === 2 ? parsed.yearRange : null,
       suggestedQueries: Array.isArray(parsed.suggestedQueries) ? parsed.suggestedQueries : [],
+      stateFilter: Array.isArray(parsed.stateFilter) ? parsed.stateFilter : [],
     });
   } catch (err) {
     next(err);

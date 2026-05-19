@@ -462,11 +462,13 @@ export default function Atlas() {
   const [aiQueryMessage, setAIQueryMessage] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightPanelHidden, setRightPanelHidden] = useState(false);
+  const [aiStateFilter, setAIStateFilter] = useState<string[]>([]);
 
   const applyAIFilters = (result: AIQueryResult) => {
     setAIQueryMessage(result.message);
     if (result.exposureFilters.length > 0) setActiveExposureFilters(result.exposureFilters);
     if (result.activeEras.length > 0) setActiveEras(result.activeEras);
+    if (result.stateFilter && result.stateFilter.length > 0) setAIStateFilter(result.stateFilter);
     if (result.yearRange) {
       setYearRange(result.yearRange);
       const [lo, hi] = result.yearRange;
@@ -490,6 +492,7 @@ export default function Atlas() {
     setAIQueryMessage(null);
     setActiveExposureFilters([]);
     setActiveEras([]);
+    setAIStateFilter([]);
     setYearRange([1790, new Date().getFullYear()]);
     setActiveLayers(DEFAULT_LAYERS);
   };
@@ -561,10 +564,22 @@ export default function Atlas() {
       const lifeStart = ancestor.birthYear ?? 1600;
       const lifeEnd = ancestor.deathYear ?? new Date().getFullYear();
       if (lifeEnd < yearRange[0] - 30 || lifeStart > yearRange[1] + 30) return false;
+      // State-level geographic filter (set by AI query stateFilter field)
+      if (aiStateFilter.length > 0) {
+        const locationText = [
+          (ancestor as any).locationAddress,
+          (ancestor as any).locationText,
+          ancestor.tribalNation,
+        ].filter(Boolean).join(" ").toLowerCase();
+        const matchesState = aiStateFilter.some(state =>
+          locationText.includes(state.toLowerCase())
+        );
+        if (!matchesState) return false;
+      }
       // Exposure filters
       return ancestorMatchesExposureFilters(ancestor, contextMatches, activeExposureFilters);
     });
-  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange]);
+  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
 
