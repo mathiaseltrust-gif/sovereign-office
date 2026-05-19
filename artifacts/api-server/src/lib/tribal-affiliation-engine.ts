@@ -62,11 +62,15 @@ export interface AncestorInput {
   birthYear?: number | null;
   deathYear?: number | null;
   tribalNation?: string | null;
+  birthPlace?: string | null;
+  deathPlace?: string | null;
   locationAddress?: string | null;
   locationLat?: number | null;
   locationLng?: number | null;
   notes?: string | null;
   generationalPosition?: number | null;
+  /** Locations from known descendants — used as corroborating geographic evidence */
+  descendantLocations?: string[];
 }
 
 // ─── Knowledge Base ───────────────────────────────────────────────────────────
@@ -925,21 +929,35 @@ export function analyzeAncestralAffiliation(ancestor: AncestorInput): TribalAffi
   let detectedState: string | null = null;
   let locationSource = "";
 
-  // Priority 1: locationAddress (most reliable text source)
-  if (ancestor.locationAddress) {
+  // Priority 1: birthPlace (GEDCOM-imported — most specific vital record)
+  if (ancestor.birthPlace) {
+    detectedState = extractStateFromText(ancestor.birthPlace);
+    if (detectedState) locationSource = `birth place record ("${ancestor.birthPlace}")`;
+    dataSignals.push(`Birth place: "${ancestor.birthPlace}"`);
+  }
+
+  // Priority 2: deathPlace (GEDCOM-imported — next most specific)
+  if (!detectedState && ancestor.deathPlace) {
+    detectedState = extractStateFromText(ancestor.deathPlace);
+    if (detectedState) locationSource = `death place record ("${ancestor.deathPlace}")`;
+    dataSignals.push(`Death place: "${ancestor.deathPlace}"`);
+  }
+
+  // Priority 3: locationAddress (manually entered)
+  if (!detectedState && ancestor.locationAddress) {
     detectedState = extractStateFromText(ancestor.locationAddress);
     if (detectedState) locationSource = `address field ("${ancestor.locationAddress}")`;
     dataSignals.push(`Location address: "${ancestor.locationAddress}"`);
   }
 
-  // Priority 2: notes field
+  // Priority 4: notes field
   if (!detectedState && ancestor.notes) {
     detectedState = extractStateFromText(ancestor.notes);
-    if (detectedState) locationSource = "notes field";
+    if (detectedState) locationSource = "biographical notes";
     dataSignals.push(`Notes field contains location indicators`);
   }
 
-  // Priority 3: tribalNation field as location clue
+  // Priority 5: tribalNation field as location clue
   if (!detectedState && ancestor.tribalNation) {
     detectedState = extractStateFromText(ancestor.tribalNation) ?? extractStateFromTribalNation(ancestor.tribalNation);
     if (detectedState) locationSource = `tribal nation name ("${ancestor.tribalNation}")`;
@@ -948,11 +966,36 @@ export function analyzeAncestralAffiliation(ancestor: AncestorInput): TribalAffi
     dataSignals.push(`Tribal nation recorded: "${ancestor.tribalNation}"`);
   }
 
-  // Priority 4: lat/lng bounding box heuristic
+  // Priority 6: lat/lng bounding box heuristic
   if (!detectedState && ancestor.locationLat && ancestor.locationLng) {
     detectedState = inferStateFromCoords(ancestor.locationLat, ancestor.locationLng);
     if (detectedState) locationSource = `map coordinates (${ancestor.locationLat.toFixed(2)}, ${ancestor.locationLng.toFixed(2)})`;
     dataSignals.push(`Map coordinates available: ${ancestor.locationLat.toFixed(3)}, ${ancestor.locationLng.toFixed(3)}`);
+  }
+
+  // Priority 7: descendant locations as corroborating geographic evidence
+  // If descendants stayed in or near a common region, that region is ancestral territory
+  if (!detectedState && ancestor.descendantLocations && ancestor.descendantLocations.length > 0) {
+    const descStateCounts: Record<string, number> = {};
+    for (const loc of ancestor.descendantLocations) {
+      const s = extractStateFromText(loc);
+      if (s) descStateCounts[s] = (descStateCounts[s] ?? 0) + 1;
+    }
+    const sorted = Object.entries(descStateCounts).sort((a, b) => b[1] - a[1]);
+    if (sorted.length > 0) {
+      detectedState = sorted[0][0];
+      locationSource = `descendant lineage continuity — ${sorted[0][1]} descendant(s) documented in ${capitalizeWords(sorted[0][0])}`;
+      dataSignals.push(`Descendant lineage continuity: ${ancestor.descendantLocations.length} descendants with known locations — dominant region: ${capitalizeWords(sorted[0][0])}`);
+    }
+  } else if (detectedState && ancestor.descendantLocations && ancestor.descendantLocations.length > 0) {
+    // Already have a state — check if descendants confirm it
+    const confirming = ancestor.descendantLocations.filter(loc => {
+      const s = extractStateFromText(loc);
+      return s && STATE_TO_REGION[s] === STATE_TO_REGION[detectedState!];
+    });
+    if (confirming.length > 0) {
+      dataSignals.push(`Descendant lineage corroboration: ${confirming.length} of ${ancestor.descendantLocations.length} descendants have locations in the same historical territory — strengthens ancestral presence`);
+    }
   }
 
   if (birth || death) {

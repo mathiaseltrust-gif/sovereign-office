@@ -31,6 +31,9 @@ import {
   CheckCircle2,
   X,
   Pencil,
+  Landmark,
+  TreePine,
+  ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -237,6 +240,237 @@ type ExposureMatch = {
   description: string; legal_citation: string; impact_types: string[];
   location_match: boolean;
 };
+
+// ─── Tribal Affiliation Panel ──────────────────────────────────────────────────
+
+interface AffiliationMatch {
+  tribalNation: string;
+  confidence: "confirmed" | "high" | "moderate" | "inferred";
+  basis: string;
+  activeEra: string;
+  removalImpact: string | null;
+  treaties: string[];
+  survivingCommunity: string | null;
+}
+
+interface TribalAffiliationResult {
+  ancestorId: number;
+  fullName: string;
+  detectedState: string | null;
+  detectedRegion: string | null;
+  lifespan: { birth: number | null; death: number | null; estimated: boolean };
+  era: string;
+  affiliations: AffiliationMatch[];
+  removalContext: { event: string; year: number | string; federalBasis: string; impact: string; affectedNations: string[] }[];
+  reasoning: string[];
+  logicSummary: string;
+  recommendations: string[];
+  confidence: "confirmed" | "high" | "moderate" | "inferred";
+  dataSignals: string[];
+}
+
+const CONF_STYLES: Record<string, { bg: string; border: string; text: string; dot: string; label: string }> = {
+  confirmed: { bg: "bg-emerald-50 dark:bg-emerald-950/30", border: "border-emerald-300 dark:border-emerald-700", text: "text-emerald-800 dark:text-emerald-300", dot: "bg-emerald-500", label: "Confirmed" },
+  high:      { bg: "bg-sky-50 dark:bg-sky-950/30",     border: "border-sky-300 dark:border-sky-700",     text: "text-sky-800 dark:text-sky-300",     dot: "bg-sky-500",     label: "High" },
+  moderate:  { bg: "bg-amber-50 dark:bg-amber-950/30", border: "border-amber-300 dark:border-amber-700", text: "text-amber-800 dark:text-amber-300", dot: "bg-amber-400",   label: "Moderate" },
+  inferred:  { bg: "bg-muted/40",                      border: "border-border",                          text: "text-muted-foreground",              dot: "bg-gray-400",    label: "Inferred" },
+};
+
+function TribalAffiliationPanel({ memberId, isAncestor, isDeceased, birthYear, deathYear }: {
+  memberId: number;
+  isAncestor?: boolean | null;
+  isDeceased?: boolean | null;
+  birthYear?: number | null;
+  deathYear?: number | null;
+}) {
+  const [expanded, setExpanded] = useState(false);
+  const [showReasoning, setShowReasoning] = useState(false);
+
+  const eligible = isAncestor || isDeceased || !!deathYear || (!!birthYear && (new Date().getFullYear() - (birthYear ?? 9999)) > 80);
+  const { data, isLoading } = useQuery<TribalAffiliationResult>({
+    queryKey: ["tribal-affiliation", memberId],
+    queryFn: async () => {
+      const res = await fetch(`/api/ancestors/${memberId}/affiliation-public`);
+      if (!res.ok) throw new Error("Not available");
+      return res.json() as Promise<TribalAffiliationResult>;
+    },
+    enabled: eligible,
+    retry: false,
+  });
+
+  if (!eligible) return null;
+  if (!isLoading && !data) return null;
+  if (!isLoading && data && data.affiliations.length === 0 && !data.detectedState) return null;
+
+  const topConf = data?.confidence ?? "inferred";
+  const confStyle = CONF_STYLES[topConf] ?? CONF_STYLES.inferred;
+
+  return (
+    <Card className="overflow-hidden">
+      <button onClick={() => setExpanded(x => !x)} className="w-full text-left">
+        <CardHeader className="bg-teal-50 dark:bg-teal-950/20 border-b border-teal-200 dark:border-teal-800/30 pb-3 pt-4 px-5">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Landmark className="h-4 w-4 text-teal-600 dark:text-teal-400" />
+              <CardTitle className="text-sm font-semibold text-teal-800 dark:text-teal-300">Territory-Based Tribal Affiliation</CardTitle>
+              {isLoading && <span className="text-xs text-muted-foreground">Analyzing…</span>}
+              {!isLoading && data && data.affiliations.length > 0 && (
+                <span className="text-[10px] font-semibold bg-teal-100 dark:bg-teal-900/40 text-teal-700 dark:text-teal-300 border border-teal-300 dark:border-teal-700 px-1.5 py-0.5 rounded-full">
+                  {data.affiliations.length} nation{data.affiliations.length !== 1 ? "s" : ""}
+                </span>
+              )}
+              {!isLoading && data && (
+                <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded-full border ${confStyle.bg} ${confStyle.border} ${confStyle.text}`}>
+                  <span className={`w-1.5 h-1.5 rounded-full ${confStyle.dot}`} />
+                  {confStyle.label}
+                </span>
+              )}
+            </div>
+            {expanded ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+          </div>
+          {!expanded && (
+            <p className="text-xs text-muted-foreground mt-1">
+              Geo-temporal inference: which tribal nations historically occupied this ancestor's documented territory during their lifetime.
+            </p>
+          )}
+        </CardHeader>
+      </button>
+
+      {expanded && (
+        <CardContent className="p-4 space-y-4">
+          {isLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-16 w-full" />
+              <Skeleton className="h-16 w-full" />
+            </div>
+          )}
+
+          {!isLoading && data && (
+            <>
+              {/* Location + Era Summary */}
+              {(data.detectedState || data.era) && (
+                <div className="flex flex-wrap gap-2 text-xs">
+                  {data.detectedState && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border text-foreground/80">
+                      <MapPin className="w-3 h-3 text-teal-500" />
+                      {data.detectedState.replace(/\b\w/g, c => c.toUpperCase())}
+                    </span>
+                  )}
+                  {data.era && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-muted/50 border border-border text-foreground/80">
+                      <Calendar className="w-3 h-3 text-teal-500" />
+                      {data.era}
+                    </span>
+                  )}
+                  {data.dataSignals.some(s => s.toLowerCase().includes("descendant")) && (
+                    <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-violet-50 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-700 text-violet-700 dark:text-violet-300">
+                      <TreePine className="w-3 h-3" />
+                      Descendant lineage confirmed
+                    </span>
+                  )}
+                </div>
+              )}
+
+              {/* Logic Summary */}
+              {data.logicSummary && (
+                <p className="text-xs text-foreground/80 leading-relaxed bg-muted/30 border border-border rounded-lg px-3 py-2">
+                  {data.logicSummary}
+                </p>
+              )}
+
+              {/* Affiliations */}
+              {data.affiliations.length > 0 && (
+                <div className="space-y-2">
+                  {data.affiliations.map((aff, i) => {
+                    const cs = CONF_STYLES[aff.confidence] ?? CONF_STYLES.inferred;
+                    return (
+                      <div key={i} className={`rounded-lg border p-3 ${cs.bg} ${cs.border}`}>
+                        <div className="flex items-start justify-between gap-2 flex-wrap">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            <Shield className={`h-3.5 w-3.5 shrink-0 ${cs.text}`} />
+                            <span className={`text-xs font-semibold ${cs.text}`}>{aff.tribalNation}</span>
+                            <span className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border ${cs.bg} ${cs.border}`}>
+                              <span className={`w-1.5 h-1.5 rounded-full ${cs.dot}`} />
+                              <span className="text-muted-foreground capitalize">{aff.confidence}</span>
+                            </span>
+                          </div>
+                          <span className="text-[10px] text-muted-foreground shrink-0">{aff.activeEra}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1.5 leading-relaxed">{aff.basis}</p>
+                        {aff.treaties.length > 0 && (
+                          <div className="mt-1.5 flex flex-wrap gap-1">
+                            {aff.treaties.map((t, ti) => (
+                              <span key={ti} className="inline-flex items-center gap-1 text-[9px] px-1.5 py-0.5 rounded bg-background/60 border border-border/60 text-muted-foreground">
+                                <ScrollText className="w-2.5 h-2.5" /> {t}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                        {aff.survivingCommunity && (
+                          <p className="text-[10px] text-teal-700 dark:text-teal-400 mt-1.5 font-medium">
+                            Today: {aff.survivingCommunity}
+                          </p>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Removal context */}
+              {data.removalContext.length > 0 && (
+                <div className="space-y-1.5">
+                  <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground">Federal Removal History (overlapping this lifespan)</p>
+                  {data.removalContext.slice(0, 3).map((rc, i) => (
+                    <div key={i} className="rounded-md border border-red-200 dark:border-red-800/40 bg-red-50 dark:bg-red-950/20 px-3 py-2">
+                      <p className="text-xs font-semibold text-red-700 dark:text-red-300">{rc.event} <span className="font-normal text-muted-foreground">({rc.year})</span></p>
+                      <p className="text-[10px] text-muted-foreground mt-0.5 leading-relaxed line-clamp-3">{rc.impact}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* Collapsible reasoning */}
+              {data.reasoning.length > 0 && (
+                <div>
+                  <button
+                    onClick={() => setShowReasoning(x => !x)}
+                    className="text-xs text-muted-foreground hover:text-foreground flex items-center gap-1 transition-colors"
+                  >
+                    {showReasoning ? <ChevronUp className="w-3 h-3" /> : <ChevronDown className="w-3 h-3" />}
+                    {showReasoning ? "Hide" : "Show"} analysis reasoning
+                  </button>
+                  {showReasoning && (
+                    <ol className="mt-2 space-y-1.5 list-decimal list-inside">
+                      {data.reasoning.map((r, i) => (
+                        <li key={i} className="text-[10px] text-muted-foreground leading-relaxed">{r}</li>
+                      ))}
+                    </ol>
+                  )}
+                </div>
+              )}
+
+              {/* Data signals */}
+              {data.dataSignals.length > 0 && (
+                <div className="border-t border-border pt-2 flex flex-wrap gap-1">
+                  {data.dataSignals.map((sig, i) => (
+                    <span key={i} className="text-[9px] bg-muted/40 border border-border px-1.5 py-0.5 rounded text-muted-foreground/70">{sig}</span>
+                  ))}
+                </div>
+              )}
+
+              <p className="text-[10px] text-muted-foreground/60 pt-1">
+                Territorial affiliation is determined by geographic and temporal overlap with documented tribal territories and treaty records. This is a research tool — consult BIA records, Dawes Rolls, and census archives for confirmation.
+              </p>
+            </>
+          )}
+        </CardContent>
+      )}
+    </Card>
+  );
+}
+
+// ─── Historical Exposure Panel ─────────────────────────────────────────────────
 
 const EXP_CAT: Record<string, { color: string; bg: string; border: string; icon: React.ComponentType<{ className?: string }> }> = {
   federal_law:          { color: "text-indigo-600 dark:text-indigo-300", bg: "bg-indigo-50 dark:bg-indigo-950/50", border: "border-indigo-200 dark:border-indigo-700/40", icon: BookOpen },
@@ -1149,6 +1383,17 @@ export default function MemberDetail() {
           )}
         </div>
       </div>
+
+      {/* Territory-Based Tribal Affiliation — shown for ancestors / deceased members */}
+      {(member.isAncestor || member.isDeceased || member.deathYear || (member.birthYear && (new Date().getFullYear() - (member.birthYear ?? 9999)) > 80)) && (
+        <TribalAffiliationPanel
+          memberId={id}
+          isAncestor={member.isAncestor}
+          isDeceased={member.isDeceased}
+          birthYear={member.birthYear}
+          deathYear={member.deathYear}
+        />
+      )}
 
       {/* Historical Exposure Analysis — shown for ancestors and deceased members with known years */}
       {(member.isAncestor || member.isDeceased || member.deathYear) && (

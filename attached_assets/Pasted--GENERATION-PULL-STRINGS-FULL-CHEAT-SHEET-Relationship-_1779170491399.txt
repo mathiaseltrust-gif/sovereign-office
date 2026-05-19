@@ -1,0 +1,109 @@
+🧬 GENERATION PULL STRINGS (FULL CHEAT SHEET)
+
+Relationship‑Based Pulls
+
+• CHIL → BIRT.PLAC — Child’s birth location
+• FAMC → HUSB → BIRT.PLAC — Father’s birth location
+• FAMC → WIFE → BIRT.PLAC — Mother’s birth location
+• FAMS → CHIL → BIRT.PLAC — Children’s birth locations
+• FAMC → PARENTS → BIRT.PLAC — Parent birth locations
+• FAMC → PARENTS → FAMC → PARENTS → BIRT.PLAC — Grandparents’ birth locations
+• Recursive FAMC chain — All ancestors by generation
+
+
+---
+
+🧬 GENERATION LOGIC (ENGINE COMPUTED)
+
+• Generation 0 → the person
+• Generation 1 → parents
+• Generation 2 → grandparents
+• Generation 3 → great‑grandparents
+• Continue recursively → etc.
+
+
+Your engine determines generation depth by counting the number of FAMC hops.
+
+---
+
+🖼️ PROFILE PHOTO TAGS (GEDCOM MEDIA REFS)
+
+Ancestry does not export actual image files, only references.
+These are the only valid GEDCOM tags for photos:
+
+• OBJE — Media object container
+• FILE — Path or filename
+• FORM — File type (jpg, png, etc.)
+• TITL — Title/caption
+
+
+Example Snippet
+
+1 OBJE
+2 FILE media/123456789.jpg
+2 FORM jpg
+2 TITL Profile Photo
+
+
+What your engine must do
+
+• Store the reference (FILE)
+• Store the type (FORM)
+• Store the caption (TITL)
+• Allow user to upload or link the actual photo later
+
+
+---
+
+🧱 RECOMMENDED DATABASE MAPPING (SOVEREIGN LINEAGE ENGINE)
+
+Ancestor Table
+
+• birth_place → BIRT.PLAC
+• death_place → DEAT.PLAC
+• residence → RESI.PLAC
+• burial_place → BURI.PLAC
+• profile_photo_ref → OBJE.FILE
+
+
+Relationship Table
+
+• parent_id → from FAMC
+• spouse_id → from FAMS
+• child_id → from CHIL
+
+
+Ancestral Records Table
+
+• event_type → BIRT / DEAT / RESI / MARR
+• event_place → PLAC
+• event_date → DATE
+
+
+---
+
+🧬 QUICK‑USE DEVELOPER CHEAT SHEET (COPY/PASTE)
+
+Location Pull Strings
+
+• BIRT.PLAC — Birthplace
+• DEAT.PLAC — Death place
+• RESI.PLAC — Residence
+• MARR.PLAC — Marriage place
+• BURI.PLAC — Burial place
+
+
+Ancestor Generation Pulls
+
+• FAMC — Family where person is a child
+• FAMS — Family where person is a spouse
+• CHIL — Children
+• HUSB — Father
+• WIFE — Mother
+
+
+Photo Pull Strings
+
+• OBJE.FILE — Photo filename
+• OBJE.FORM — File type
+• OBJE.TITL — Caption/title
