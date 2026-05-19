@@ -284,10 +284,17 @@ jobs:
           TRUST_URL:     ${{ env.TRUST_URL }}
           COMMUNITY_URL: ${{ env.COMMUNITY_URL }}
           ATLAS_URL:     ${{ env.ATLAS_URL }}
+          # Override via the GitHub Actions repository variable HEALTH_CHECK_RETRY_DELAY (seconds).
+          # Defaults to 10 s — long enough to outlast a transient network hiccup.
+          HEALTH_CHECK_RETRY_DELAY: ${{ vars.HEALTH_CHECK_RETRY_DELAY || '10' }}
         run: |
           set -euo pipefail
           FAIL=0
           FAILED_SERVICES=""
+
+          # Seconds to wait before the single automatic retry; sourced from the
+          # HEALTH_CHECK_RETRY_DELAY workflow variable (default 10).
+          RETRY_DELAY="${HEALTH_CHECK_RETRY_DELAY:-10}"
 
           check_url() {
             local label="$1"
@@ -303,9 +310,16 @@ jobs:
             if [ "$code" = "200" ]; then
               echo "  ✓ $label — HTTP $code"
             else
-              echo "  ✗ $label — HTTP $code  ($url)"
-              FAILED_SERVICES="${FAILED_SERVICES}${label} (HTTP ${code}), "
-              FAIL=1
+              echo "  ↻ $label — HTTP $code, retrying in ${RETRY_DELAY}s…"
+              sleep "$RETRY_DELAY"
+              code=$(curl -sf --max-time 15 -o /dev/null -w "%{http_code}" "$url" 2>/dev/null || echo "000")
+              if [ "$code" = "200" ]; then
+                echo "  ✓ $label — HTTP $code (on retry)"
+              else
+                echo "  ✗ $label — HTTP $code  ($url)"
+                FAILED_SERVICES="${FAILED_SERVICES}${label} (HTTP ${code}), "
+                FAIL=1
+              fi
             fi
           }
 
