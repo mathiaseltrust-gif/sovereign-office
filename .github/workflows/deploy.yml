@@ -21,6 +21,16 @@
 #   DEPLOY_USER       SSH login user on the VM   e.g. azureuser
 #   DEPLOY_SSH_KEY    Full PEM-encoded private key matching an authorised_key on the VM
 #   DEPLOY_PATH       Absolute path on the VM    e.g. /opt/sovereign-office
+#
+# Optional secrets for health-check failure alerts (add at least one):
+#
+#   SLACK_WEBHOOK_URL  Incoming Webhook URL from your Slack app
+#                      e.g. https://hooks.slack.com/services/T.../B.../xxx
+#   NOTIFY_EMAIL       Recipient address for failure emails e.g. ops@sovereignoffice.org
+#   SMTP_HOST          SMTP server hostname          e.g. smtp.sendgrid.net
+#   SMTP_PORT          SMTP server port              e.g. 587
+#   SMTP_USERNAME      SMTP auth username            e.g. apikey
+#   SMTP_PASSWORD      SMTP auth password / API key
 # ============================================================================
 
 name: Build & Deploy
@@ -247,6 +257,7 @@ jobs:
       # All URLs come from the top-level `env:` block — see "SINGLE SOURCE OF
       # TRUTH" comment at the top of this file to update domains.
       - name: HTTPS health check — all five public endpoints
+        id: healthcheck
         if: vars.VITE_API_URL != '' && startsWith(vars.VITE_API_URL, 'https://')
         env:
           API_URL:       ${{ env.VITE_API_URL }}
@@ -257,12 +268,14 @@ jobs:
         run: |
           set -euo pipefail
           FAIL=0
+          FAILED_SERVICES=""
 
           check_url() {
             local label="$1"
             local url="$2"
             if [ -z "$url" ]; then
               echo "  ✗ $label — URL variable is not set (check GitHub Actions variables)"
+              FAILED_SERVICES="${FAILED_SERVICES}${label}, "
               FAIL=1
               return
             fi
@@ -272,6 +285,7 @@ jobs:
               echo "  ✓ $label — HTTP $code"
             else
               echo "  ✗ $label — HTTP $code  ($url)"
+              FAILED_SERVICES="${FAILED_SERVICES}${label} (HTTP ${code}), "
               FAIL=1
             fi
           }
@@ -283,9 +297,83 @@ jobs:
           check_url "community"      "${COMMUNITY_URL}"
           check_url "atlas"          "${ATLAS_URL}"
 
+          # Trim trailing ", " and export for notification steps
+          FAILED_SERVICES="${FAILED_SERVICES%, }"
+          echo "failed_services=${FAILED_SERVICES}" >> "$GITHUB_OUTPUT"
+
           if [ "$FAIL" -ne 0 ]; then
             echo ""
             echo "One or more HTTPS health checks failed — deployment aborted."
             exit 1
           fi
           echo "==> All five HTTPS endpoints returned 200."
+
+      # ── 4. Alert on health-check failure ─────────────────────────────────────
+      # Both steps below are skipped on success (if: failure()) and each
+      # silently no-ops when its corresponding secret is not configured, so
+      # you can enable just Slack, just email, or both.
+      #
+      # Slack  — set repository secret SLACK_WEBHOOK_URL
+      # Email  — set repository secrets NOTIFY_EMAIL + SMTP_HOST + SMTP_PORT
+      #          + SMTP_USERNAME + SMTP_PASSWORD
+
+      - name: Notify Slack — health check failed
+        if: steps.healthcheck.outcome == 'failure'
+        env:
+          SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
+          FAILED_SERVICES:   ${{ steps.healthcheck.outputs.failed_services }}
+          COMMIT_SHA:        ${{ github.sha }}
+          RUN_URL:           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$SLACK_WEBHOOK_URL" ]; then
+            echo "SLACK_WEBHOOK_URL not configured — skipping Slack notification"
+            exit 0
+          fi
+          SHORT_SHA="${COMMIT_SHA::8}"
+          PAYLOAD=$(printf '{
+            "text": ":rotating_light: *Deployment health check FAILED*",
+            "blocks": [
+              {
+                "type": "section",
+                "text": {
+                  "type": "mrkdwn",
+                  "text": ":rotating_light: *Deployment health check FAILED*\n*Commit:* `%s`\n*Failed services:* %s\n<%s|View workflow run \u2192>"
+                }
+              }
+            ]
+          }' "$SHORT_SHA" "${FAILED_SERVICES:-unknown}" "$RUN_URL")
+          curl -sf -X POST "$SLACK_WEBHOOK_URL" \
+            -H 'Content-Type: application/json' \
+            -d "$PAYLOAD"
+          echo "Slack notification sent."
+
+      - name: Notify email — health check failed
+        if: steps.healthcheck.outcome == 'failure'
+        env:
+          NOTIFY_EMAIL:    ${{ secrets.NOTIFY_EMAIL }}
+          SMTP_HOST:       ${{ secrets.SMTP_HOST }}
+          SMTP_PORT:       ${{ secrets.SMTP_PORT }}
+          SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
+          SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
+          FAILED_SERVICES: ${{ steps.healthcheck.outputs.failed_services }}
+          COMMIT_SHA:      ${{ github.sha }}
+          RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          if [ -z "$NOTIFY_EMAIL" ] || [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USERNAME" ] || [ -z "$SMTP_PASSWORD" ]; then
+            echo "Email secrets not fully configured (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD required) — skipping email notification"
+            exit 0
+          fi
+          SHORT_SHA="${COMMIT_SHA::8}"
+          PORT="${SMTP_PORT:-587}"
+          SUBJECT="[Sovereign Office] Deployment health check FAILED — ${SHORT_SHA}"
+          BODY="One or more HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services: ${FAILED_SERVICES:-unknown}\n\nPlease review the workflow run for details:\n${RUN_URL}"
+          printf '%b' "$BODY" | curl -sf \
+            --url "smtp://${SMTP_HOST}:${PORT}" \
+            --ssl-reqd \
+            --user "${SMTP_USERNAME}:${SMTP_PASSWORD}" \
+            --mail-from "${SMTP_USERNAME}" \
+            --mail-rcpt "${NOTIFY_EMAIL}" \
+            --upload-file - \
+            --header "Subject: ${SUBJECT}" \
+            --header "Content-Type: text/plain"
+          echo "Email notification sent to ${NOTIFY_EMAIL}."
