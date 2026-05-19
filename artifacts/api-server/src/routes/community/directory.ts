@@ -258,6 +258,45 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
+router.patch("/:id", requireAuth, async (req, res, next) => {
+  try {
+    const id = parseInt(req.params.id as string, 10);
+    if (isNaN(id)) {
+      res.status(400).json({ error: "Invalid ID" });
+      return;
+    }
+    const { birthPlace, birthDate, locationAddress, photoUrl, notes } = req.body as Record<string, unknown>;
+
+    const updates: Partial<typeof familyLineageTable.$inferInsert> & { updatedAt: Date } = { updatedAt: new Date() };
+    if (birthPlace      !== undefined) updates.birthPlace      = (birthPlace      as string) || null;
+    if (birthDate       !== undefined) updates.birthDate       = (birthDate       as string) || null;
+    if (locationAddress !== undefined) updates.locationAddress = (locationAddress as string) || null;
+    if (photoUrl        !== undefined) updates.photoUrl        = (photoUrl        as string) || null;
+    if (notes           !== undefined) updates.notes           = (notes           as string) || null;
+
+    const [updated] = await db.update(familyLineageTable)
+      .set(updates)
+      .where(eq(familyLineageTable.id, id))
+      .returning();
+
+    if (!updated) {
+      res.status(404).json({ error: "Member not found" });
+      return;
+    }
+
+    res.json({
+      id: updated.id,
+      birthPlace: updated.birthPlace,
+      birthDate: updated.birthDate,
+      locationAddress: updated.locationAddress,
+      photoUrl: updated.photoUrl,
+      notes: updated.notes,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.delete("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = parseInt(req.params.id as string, 10);

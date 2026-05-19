@@ -31,11 +31,15 @@ import {
   CheckCircle2,
   X,
   Pencil,
+  Save,
+  Camera,
   Landmark,
   TreePine,
   ScrollText,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Textarea } from "@/components/ui/textarea";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -969,6 +973,11 @@ export default function MemberDetail() {
   const [locationLng, setLocationLng] = useState<number | null>(null);
   const [locationAddress, setLocationAddress] = useState<string | null>(null);
   const [locationInitialized, setLocationInitialized] = useState(false);
+  const [editOpen, setEditOpen] = useState(false);
+  const [editSaving, setEditSaving] = useState(false);
+  const [editForm, setEditForm] = useState({ birthPlace: "", locationAddress: "", photoUrl: "", notes: "" });
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
   const { data: member, isLoading, error } = useGetCommunityMember(id, {
     query: {
@@ -991,6 +1000,51 @@ export default function MemberDetail() {
       setLocationInitialized(true);
     }
   }, [member, locationInitialized]);
+
+  // Sync edit form when member data loads
+  React.useEffect(() => {
+    if (member) {
+      const m = member as typeof member & { birthPlace?: string | null; locationAddress?: string | null; photoUrl?: string | null; notes?: string | null };
+      setEditForm({
+        birthPlace: m.birthPlace ?? "",
+        locationAddress: m.locationAddress ?? "",
+        photoUrl: m.photoUrl ?? "",
+        notes: m.notes ?? "",
+      });
+    }
+  }, [member?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleSaveProfile = async () => {
+    const token = getCommunityToken();
+    if (!token) {
+      toast({ title: "Not authenticated", description: "Sign in as an officer to update profiles.", variant: "destructive" });
+      return;
+    }
+    setEditSaving(true);
+    try {
+      const r = await fetch(`/api/community/directory/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify({
+          birthPlace: editForm.birthPlace || null,
+          locationAddress: editForm.locationAddress || null,
+          photoUrl: editForm.photoUrl || null,
+          notes: editForm.notes || null,
+        }),
+      });
+      if (!r.ok) {
+        const err = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(err.error ?? "Failed to save profile");
+      }
+      queryClient.invalidateQueries({ queryKey: getGetCommunityMemberQueryKey(id) });
+      setEditOpen(false);
+      toast({ title: "Profile updated", description: "Biographical details saved successfully." });
+    } catch (e) {
+      toast({ title: "Save failed", description: (e as Error).message, variant: "destructive" });
+    } finally {
+      setEditSaving(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -1118,6 +1172,88 @@ export default function MemberDetail() {
                 </Badge>
               )}
             </div>
+
+            {/* ── Edit Profile Details (officer panel) ─────────────────── */}
+            {getSovereignSession() && (
+              <div className="mt-4">
+                {!editOpen ? (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-2 text-xs border-primary/30 text-primary hover:bg-primary/5"
+                    onClick={() => setEditOpen(true)}
+                  >
+                    <Pencil className="h-3.5 w-3.5" /> Edit Profile Details
+                  </Button>
+                ) : (
+                  <div className="border border-primary/20 rounded-lg p-4 space-y-3 bg-muted/30">
+                    <div className="flex items-center justify-between mb-1">
+                      <p className="text-sm font-semibold flex items-center gap-2 text-primary">
+                        <Pencil className="h-4 w-4" /> Edit Biographical Details
+                      </p>
+                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={() => setEditOpen(false)}>
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Birth Place</label>
+                        <Input
+                          placeholder="e.g. Orange, California"
+                          value={editForm.birthPlace}
+                          onChange={(e) => setEditForm({ ...editForm, birthPlace: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Current Address / Location</label>
+                        <Input
+                          placeholder="e.g. Bakersfield, California"
+                          value={editForm.locationAddress}
+                          onChange={(e) => setEditForm({ ...editForm, locationAddress: e.target.value })}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block flex items-center gap-1.5">
+                          <Camera className="h-3.5 w-3.5" /> Photo URL
+                        </label>
+                        <Input
+                          placeholder="https://... paste a direct image link"
+                          value={editForm.photoUrl}
+                          onChange={(e) => setEditForm({ ...editForm, photoUrl: e.target.value })}
+                        />
+                        {editForm.photoUrl && (
+                          <div className="mt-2 flex items-center gap-3">
+                            <img
+                              src={editForm.photoUrl}
+                              alt="Preview"
+                              className="h-14 w-14 rounded-full object-cover border-2 border-primary/30"
+                              onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
+                            />
+                            <p className="text-xs text-muted-foreground">Photo preview</p>
+                          </div>
+                        )}
+                      </div>
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
+                        <Textarea
+                          placeholder="Biographical notes..."
+                          rows={3}
+                          value={editForm.notes}
+                          onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
+                        />
+                      </div>
+                    </div>
+                    <div className="flex gap-2 pt-1">
+                      <Button size="sm" className="gap-2" onClick={handleSaveProfile} disabled={editSaving}>
+                        <Save className="h-3.5 w-3.5" />
+                        {editSaving ? "Saving…" : "Save Changes"}
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setEditOpen(false)}>Cancel</Button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
 
             {member.notes && (
               <div className="mt-8 space-y-3">

@@ -83,6 +83,7 @@ export default function Admin() {
   const [newMember, setNewMember] = useState({
     fullName: "", firstName: "", lastName: "", birthYear: "",
     tribalNation: "Mathias El Tribe", tribalEnrollmentNumber: "",
+    birthPlace: "", locationAddress: "", photoUrl: "",
     isAncestor: false, icwaEligible: false, trustBeneficiary: false,
     pendingReview: false, notes: "",
   });
@@ -156,7 +157,7 @@ export default function Admin() {
         }),
       });
       toast({ title: "Member added", description: `${newMember.fullName} has been added to the directory.` });
-      setNewMember({ fullName: "", firstName: "", lastName: "", birthYear: "", tribalNation: "Mathias El Tribe", tribalEnrollmentNumber: "", isAncestor: false, icwaEligible: false, trustBeneficiary: false, pendingReview: false, notes: "" });
+      setNewMember({ fullName: "", firstName: "", lastName: "", birthYear: "", tribalNation: "Mathias El Tribe", tribalEnrollmentNumber: "", birthPlace: "", locationAddress: "", photoUrl: "", isAncestor: false, icwaEligible: false, trustBeneficiary: false, pendingReview: false, notes: "" });
       loadMembers();
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Unknown error";
@@ -354,6 +355,18 @@ export default function Admin() {
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Enrollment Number</label>
                   <Input placeholder="Optional" value={newMember.tribalEnrollmentNumber} onChange={(e) => setNewMember({ ...newMember, tribalEnrollmentNumber: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Birth Place</label>
+                  <Input placeholder="e.g. Orange, California" value={newMember.birthPlace} onChange={(e) => setNewMember({ ...newMember, birthPlace: e.target.value })} />
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Current Address / Location</label>
+                  <Input placeholder="e.g. Bakersfield, California" value={newMember.locationAddress} onChange={(e) => setNewMember({ ...newMember, locationAddress: e.target.value })} />
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="text-xs font-medium text-muted-foreground mb-1 block">Photo URL</label>
+                  <Input placeholder="https://... or leave blank" value={newMember.photoUrl} onChange={(e) => setNewMember({ ...newMember, photoUrl: e.target.value })} />
                 </div>
                 <div className="sm:col-span-2">
                   <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
