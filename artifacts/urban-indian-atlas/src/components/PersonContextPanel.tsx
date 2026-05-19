@@ -319,6 +319,16 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose }: Person
 
             {/* ── Person Profile ── */}
             <div>
+              {ancestor.photoUrl && (
+                <div className="mb-3">
+                  <img
+                    src={ancestor.photoUrl}
+                    alt={ancestor.fullName}
+                    className="w-20 h-20 rounded-full object-cover border-2 border-border shadow-md"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+                  />
+                </div>
+              )}
               <h2 className="font-serif text-2xl font-bold text-foreground mb-1 leading-tight">{ancestor.fullName}</h2>
               <div className="flex flex-wrap gap-1.5 mb-3">
                 <div className="flex items-center gap-1.5 text-xs text-muted-foreground">

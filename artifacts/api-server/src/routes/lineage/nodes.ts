@@ -766,10 +766,16 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
     const allowed = ["fullName", "firstName", "lastName", "birthYear", "deathYear", "gender",
       "tribalNation", "tribalEnrollmentNumber", "notes", "generationalPosition",
       "icwaEligible", "welfareEligible", "trustBeneficiary", "protectionLevel",
-      "nameVariants", "parentIds", "membershipStatus", "isDeceased", "isAncestor"];
+      "nameVariants", "parentIds", "membershipStatus", "isDeceased", "isAncestor", "photoUrl"];
 
     for (const field of allowed) {
-      if (body[field] !== undefined) updates[field] = body[field];
+      if (body[field] !== undefined) {
+        // Never overwrite the photo of the requesting user's own linked node
+        if (field === "photoUrl" && existing.linkedProfileUserId != null && existing.linkedProfileUserId === req.user?.dbId) {
+          continue;
+        }
+        updates[field] = body[field];
+      }
     }
 
     const [updated] = await db.update(familyLineageTable).set(updates).where(eq(familyLineageTable.id, id)).returning();
