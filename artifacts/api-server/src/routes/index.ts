@@ -86,6 +86,7 @@ import unsubscribeRouter from "./unsubscribe";
 import atlasRouter from "./atlas/index";
 import authorityRouter from "./authority/index";
 import caseFilesRouter from "./case-files/index";
+import geocodeRouter from "./geocode";
 
 const router: IRouter = Router();
 
@@ -145,6 +146,7 @@ router.use("/lineage/nodes", lineageEnrollRouter);
 router.use("/lineage/match", lineageMatchRouter);
 router.use("/lineage", lineageFamilyUnitsRouter);
 router.use("/delegations", delegationsRouter);
+router.use("/geocode", geocodeRouter);
 router.use("/community/directory", communityDirectoryRouter);
 router.use("/community/law", communityLawRouter);
 router.use("/community/forum", communityForumRouter);

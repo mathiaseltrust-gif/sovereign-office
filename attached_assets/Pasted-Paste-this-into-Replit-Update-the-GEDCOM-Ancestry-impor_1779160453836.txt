@@ -1,0 +1,207 @@
+Paste this into Replit:
+
+⸻
+
+Update the GEDCOM / Ancestry import logic so ancestor photos and appropriate ancestor information can be retrieved, stored, and used where appropriate, including in Atlas Mode.
+
+Core purpose
+
+The lineage engine should not only import names and relationships. It should also extract:
+
+* ancestor life events;
+* known locations;
+* historical movement locations;
+* media/photo references;
+* captions or titles;
+* dates;
+* relationship chains;
+* generation levels.
+
+This information should support the Ancestor Record, Family / Ancestors / Locations, and Atlas Map views.
+
+⸻
+
+1. GEDCOM location extraction
+
+Parse all standard GEDCOM location events using PLAC.
+
+Use these mappings:
+
+BIRT.PLAC → birth_place
+CHR.PLAC → christening_place
+RESI.PLAC → residence_place
+MARR.PLAC → marriage_place
+DEAT.PLAC → death_place
+BURI.PLAC → burial_place
+
+Also capture dates when available:
+
+BIRT.DATE
+CHR.DATE
+RESI.DATE
+MARR.DATE
+DEAT.DATE
+BURI.DATE
+
+Each event should be stored as an Ancestral Record, not just a single field.
+
+⸻
+
+2. Ancestor event table mapping
+
+Create or update an ancestral_records table with:
+
+person_id
+event_type
+event_date
+event_place
+event_place_confidence
+event_source
+event_note
+atlas_visible
+
+Supported event_type values:
+
+birth
+christening
+residence
+marriage
+death
+burial
+census
+migration
+removal
+classification
+other
+
+⸻
+
+3. Photo / media extraction
+
+GEDCOM does not usually export the actual Ancestry photo file, but it may export media references.
+
+Parse:
+
+OBJE.FILE → media_file_ref
+OBJE.FORM → media_type
+OBJE.TITL → media_title
+
+Store these in a media table:
+
+ancestor_media
+- person_id
+- media_file_ref
+- media_type
+- media_title
+- media_caption
+- is_profile_photo
+- uploaded_file_url
+- source_system
+
+If OBJE.TITL includes words like:
+
+Profile Photo
+Portrait
+Headshot
+Ancestor Photo
+
+then mark:
+
+is_profile_photo = true
+
+If the actual image file is missing, keep the reference and allow the user to upload or link the image later.
+
+⸻
+
+4. Atlas use rules
+
+Atlas Mode should use ancestor locations in this order:
+
+1. residence_place
+2. census_place
+3. birth_place
+4. marriage_place
+5. death_place
+6. burial_place
+7. likely ancestral / lineage location
+8. unknown
+
+Do not default ancestors to the current logged-in user’s location.
+
+Only the logged-in user’s immediate household should appear at that user’s current location unless separately updated.
+
+⸻
+
+5. Relationship and generation logic
+
+GEDCOM does not store generation numbers. The system must compute them.
+
+Use:
+
+FAMC → family where person is a child
+FAMS → family where person is a spouse
+CHIL → children
+HUSB → father / husband field
+WIFE → mother / wife field
+
+Generation logic:
+
+Generation 0 = logged-in user / selected root person
+Generation 1 = parents
+Generation 2 = grandparents
+Generation 3 = great-grandparents
+Generation 4+ = continuing ancestor chain
+
+The engine should recursively follow FAMC → parents → FAMC → parents to build ancestor generations.
+
+⸻
+
+6. Display language correction
+
+Replace hard labels like:
+
+Tribal Nation Homeland
+
+with softer, historically accurate labels:
+
+Likely Ancestral Location
+Likely Lineage Affiliation
+Likely Family Location
+Known Ancestry Location
+
+Use “likely” when the location is inferred.
+
+This protects accuracy because physical presence in a territory does not automatically determine political jurisdiction, tribal citizenship, or governing authority.
+
+⸻
+
+7. Ancestor / protected member status
+
+Use this display logic:
+
+Living immediate household → Protected Member
+Living family outside household → Eligible Family / Protected Lineage
+Deceased family or ancestors → Ancestor
+Unknown living status → Review Needed
+
+This does not change membership eligibility rules. It only controls how people appear in the system and on the Atlas map.
+
+⸻
+
+8. Historical impact purpose
+
+Atlas Mode is not just a member map.
+
+It should show:
+
+ancestral movement
+family location history
+migration
+removal-era displacement
+classification changes
+Congressional acts affecting Indigenous identity
+government-recorded relocation patterns
+
+So ancestry-derived records should remain attached to the ancestor’s own timeline and map path, not reassigned to the current user’s location.
+
+⸻

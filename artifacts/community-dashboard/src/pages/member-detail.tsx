@@ -497,6 +497,9 @@ function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: b
   );
 }
 
+// Base URL prefix for the community dashboard (e.g. "/community-dashboard")
+const APP_BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
 // Node dimensions and spacing
 const MT_NW = 88, MT_NH = 64, MT_HGAP = 14, MT_VGAP = 54, MT_PAD = 20;
 
@@ -613,7 +616,7 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
           const nx = cx + parentCx[i] - MT_NW / 2;
           const ny = parentRowY;
           return (
-            <g key={`p-${p.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${p.id}`; }}>
+            <g key={`p-${p.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `${APP_BASE}/directory/${p.id}`; }}>
               {nodeRect(nx, ny, false, true)}
               {nodeLabel(nx, ny, p, false)}
             </g>
@@ -637,7 +640,7 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
           const nx = cx + spouseCx[i] - MT_NW / 2;
           const ny = memberRowY;
           return (
-            <g key={`s-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${s.id}`; }}>
+            <g key={`s-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `${APP_BASE}/directory/${s.id}`; }}>
               {nodeRect(nx, ny, false, false)}
               {nodeLabel(nx, ny, s, false)}
             </g>
@@ -649,7 +652,7 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
           const nx = cx + siblingCx[i] - MT_NW / 2;
           const ny = memberRowY;
           return (
-            <g key={`sib-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${s.id}`; }}>
+            <g key={`sib-${s.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `${APP_BASE}/directory/${s.id}`; }}>
               <rect x={nx} y={ny} width={MT_NW} height={MT_NH} rx={8} fill="rgb(250 245 255 / 0.8)" stroke="#a855f7" strokeWidth={1.5} />
               {nodeLabel(nx, ny, s, false)}
             </g>
@@ -661,7 +664,7 @@ function FamilyMiniTree({ member }: { member: FamilyPerson & { parents?: FamilyP
           const nx = cx + childCx[i] - MT_NW / 2;
           const ny = childRowY;
           return (
-            <g key={`c-${c.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `/directory/${c.id}`; }}>
+            <g key={`c-${c.id}`} style={{ cursor: "pointer" }} onClick={() => { window.location.href = `${APP_BASE}/directory/${c.id}`; }}>
               {nodeRect(nx, ny, false, false)}
               {nodeLabel(nx, ny, c, false)}
             </g>

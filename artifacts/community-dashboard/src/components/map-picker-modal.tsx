@@ -118,8 +118,8 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, initial
 
   const reverseGeocode = useCallback(async (lat: number, lng: number): Promise<string> => {
     try {
-      const url = `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}&addressdetails=1`;
-      const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+      const url = `/api/geocode/reverse?lat=${lat}&lng=${lng}`;
+      const res = await fetch(url);
       if (!res.ok) return "";
       const data = (await res.json()) as ReverseGeoResult;
       return buildShortAddress(data.address, data.display_name);
@@ -148,8 +148,8 @@ export function MapPickerModal({ initialLat, initialLng, initialAddress, initial
     setSearching(true);
     setSearchError(null);
     try {
-      const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}&addressdetails=1`;
-      const res = await fetch(url, { headers: { "Accept-Language": "en" } });
+      const url = `/api/geocode/search?q=${encodeURIComponent(q)}`;
+      const res = await fetch(url);
       if (!res.ok) throw new Error("Search request failed");
       const data = (await res.json()) as GeoSearchResult[];
       if (!data.length) {
