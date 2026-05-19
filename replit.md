@@ -280,6 +280,22 @@ When the Escalation & Enforcement Intelligence Database identifies a required no
 
 ---
 
+## Deployment Protocol — Standing Instruction
+
+**Dev = Replit Preview.** Changes happen here instantly. Nothing touches the outside world unless explicitly deployed.
+
+**Production = Azure Container Apps.** This is what members, officers, trustees, and the public see. Nothing goes live unless Mathias says so.
+
+When any deployment-type instruction is given — "deploy," "push to production," "roll this out," "update live," "send it to Azure," or anything in that family — follow this exact pathway, no deviation:
+
+1. Go to **portal.azure.com**
+2. Open **Cloud Shell** (`>_` button at top)
+3. Upload: `deploy-package/azure/deploy-container-apps.sh`
+4. Run: `bash deploy-container-apps.sh`
+5. Wait 5–10 minutes — Cloud Shell prints all 5 live URLs at the end
+
+No alternate routes. No rebuilds. No improvisation. Same script every time.
+
 ## User Preferences
 
 - Documents must be associated with the generating member — reference numbers encode member ID
