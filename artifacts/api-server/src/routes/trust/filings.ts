@@ -31,7 +31,7 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/", async (_req, res, next) => {
+router.get("/", requireAuth, async (_req, res, next) => {
   try {
     const filings = await db
       .select()
@@ -43,7 +43,7 @@ router.get("/", async (_req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db
