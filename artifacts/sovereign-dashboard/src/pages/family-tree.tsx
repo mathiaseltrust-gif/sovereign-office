@@ -12,6 +12,8 @@ import { useToast } from "@/hooks/use-toast";
 import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
+  BookOpen, Clock, ChevronDown, ChevronRight, AlertTriangle, Shield, Scroll,
+  Flame, Star, Info,
 } from "lucide-react";
 import { MapPickerModal } from "@/components/map-picker-modal";
 
@@ -128,6 +130,38 @@ interface LineageData {
   }>;
 }
 
+interface HistoricalEvent {
+  eventId: string;
+  title: string;
+  year: number;
+  era: string;
+  eventType: string | null;
+  policyArea: string | null;
+  severityLevel: string;
+  affectedRegions: string | null;
+  identityImpact: string | null;
+  reclassificationImpact: string | null;
+  ancestorRelevanceNote: string | null;
+  plainLanguageSummary: string | null;
+  coordinateLat: number | null;
+  coordinateLng: number | null;
+  relationshipType: string;
+  confidenceLevel: string;
+  locationMatch: boolean;
+}
+
+interface AncestorContext {
+  ancestorId: number;
+  fullName: string;
+  birthYear: number | null;
+  deathYear: number | null;
+  tribalNation: string | null;
+  birthPlace: string | null;
+  deathPlace: string | null;
+  locationAddress: string | null;
+  events: HistoricalEvent[];
+}
+
 interface KnowledgeOfSelf {
   narratives: LineageData["narratives"];
   linkedAncestors: LineageRecord[];
@@ -142,6 +176,7 @@ interface KnowledgeOfSelf {
     welfareRelevant?: boolean;
     createdAt?: string;
   }>;
+  ancestorContext: AncestorContext[];
 }
 
 const TAB_LABELS: Record<Tab, string> = {
@@ -3895,9 +3930,283 @@ const KOS_RESOURCES = [
   },
 ];
 
+// ─── Who You Are ────────────────────────────────────────────────────────────
+
+const SEV_COLORS: Record<string, { border: string; dot: string; bg: string }> = {
+  critical:    { border: "border-red-700/50",    dot: "bg-red-600",     bg: "bg-red-950/20" },
+  high:        { border: "border-amber-600/50",  dot: "bg-amber-500",   bg: "bg-amber-950/20" },
+  moderate:    { border: "border-emerald-700/50",dot: "bg-emerald-600", bg: "bg-emerald-950/20" },
+  beneficial:  { border: "border-sky-700/50",    dot: "bg-sky-500",     bg: "bg-sky-950/20" },
+};
+function sevStyle(s: string) { return SEV_COLORS[s] ?? { border: "border-border/40", dot: "bg-muted-foreground", bg: "" }; }
+
+function HistEventCard({ ev, lifeStart }: { ev: HistoricalEvent; lifeStart: number | null }) {
+  const [open, setOpen] = useState(false);
+  const sev = sevStyle(ev.severityLevel);
+  const age = lifeStart && ev.year >= lifeStart ? ev.year - lifeStart : null;
+  return (
+    <div className={`rounded-md border ${sev.border} ${sev.bg} overflow-hidden`}>
+      <button
+        className="w-full flex items-start gap-2.5 px-3 py-2.5 text-left hover:bg-white/5 transition-colors"
+        onClick={() => setOpen(o => !o)}
+      >
+        <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${sev.dot}`} />
+        <div className="flex-1 min-w-0">
+          <p className="text-sm font-semibold leading-snug">{ev.title}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {ev.year}
+            {age !== null ? ` · Age ${age}` : ""}
+            {" · "}<span className="capitalize">{ev.era?.replace(/-/g, " ")}</span>
+            {ev.locationMatch && <span className="text-primary ml-1">· region match</span>}
+          </p>
+        </div>
+        {open ? <ChevronDown className="w-4 h-4 mt-0.5 shrink-0 opacity-50" /> : <ChevronRight className="w-4 h-4 mt-0.5 shrink-0 opacity-40" />}
+      </button>
+      {open && (
+        <div className="px-3 pb-3 space-y-2 border-t border-white/10 pt-2">
+          {ev.plainLanguageSummary && (
+            <p className="text-sm text-foreground/80 leading-relaxed">{ev.plainLanguageSummary}</p>
+          )}
+          {ev.ancestorRelevanceNote && (
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded p-2">
+              <p className="text-xs font-semibold text-amber-700 dark:text-amber-400 mb-0.5">How this may have affected this ancestor</p>
+              <p className="text-xs text-foreground/75 italic leading-relaxed">{ev.ancestorRelevanceNote}</p>
+            </div>
+          )}
+          {ev.identityImpact && (
+            <div className="flex items-start gap-2">
+              <Shield className="w-3.5 h-3.5 text-primary/60 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">{ev.identityImpact}</p>
+            </div>
+          )}
+          {ev.reclassificationImpact && (
+            <div className="flex items-start gap-2">
+              <AlertTriangle className="w-3.5 h-3.5 text-amber-500/70 mt-0.5 shrink-0" />
+              <p className="text-xs text-muted-foreground leading-relaxed">{ev.reclassificationImpact}</p>
+            </div>
+          )}
+          <div className="flex gap-1.5 flex-wrap pt-0.5">
+            <Badge variant="outline" className="text-[10px] capitalize">{ev.severityLevel}</Badge>
+            <Badge variant="outline" className="text-[10px] capitalize">{ev.confidenceLevel} confidence</Badge>
+            {ev.policyArea && <Badge variant="outline" className="text-[10px] capitalize">{ev.policyArea.replace(/_/g," ")}</Badge>}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function WhoYouAreTab({ ancestorContext }: { ancestorContext: AncestorContext[] }) {
+  const [expandedAncestorId, setExpandedAncestorId] = useState<number | null>(null);
+
+  if (ancestorContext.length === 0) {
+    return (
+      <div className="py-12 text-center px-6 space-y-3">
+        <BookOpen className="w-10 h-10 mx-auto text-muted-foreground opacity-30" />
+        <p className="font-semibold text-sm">Your story is waiting to be told</p>
+        <p className="text-sm text-muted-foreground max-w-sm mx-auto">
+          Add ancestors to your family tree with birth and death years, then link them to your
+          identity profile. This view will show you the historical acts and policies that shaped
+          their lives — and shaped who you are.
+        </p>
+      </div>
+    );
+  }
+
+  // Collect all unique events across all ancestors for the "shaped by history" summary
+  const allEventMap = new Map<string, HistoricalEvent & { ancestorNames: string[] }>();
+  for (const ancestor of ancestorContext) {
+    for (const ev of ancestor.events) {
+      if (!allEventMap.has(ev.eventId)) {
+        allEventMap.set(ev.eventId, { ...ev, ancestorNames: [ancestor.fullName] });
+      } else {
+        allEventMap.get(ev.eventId)!.ancestorNames.push(ancestor.fullName);
+      }
+    }
+  }
+  const topEvents = [...allEventMap.values()]
+    .sort((a, b) => {
+      const sevOrd: Record<string, number> = { critical: 0, high: 1, moderate: 2, beneficial: 3 };
+      return (sevOrd[a.severityLevel] ?? 2) - (sevOrd[b.severityLevel] ?? 2) || a.year - b.year;
+    })
+    .slice(0, 8);
+
+  const tribalNations = [...new Set(ancestorContext.flatMap(a => a.tribalNation ? [a.tribalNation] : []))];
+  const totalEvents = allEventMap.size;
+  const critCount = [...allEventMap.values()].filter(e => e.severityLevel === "critical").length;
+
+  return (
+    <div className="space-y-6">
+      {/* Identity statement */}
+      <Card className="border-amber-400/30 bg-amber-50 dark:bg-amber-950/20">
+        <CardContent className="pt-5 pb-4 space-y-3">
+          <div className="flex items-center gap-2">
+            <Scroll className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+            <p className="font-bold text-base text-amber-900 dark:text-amber-300 font-serif">
+              Who You Are
+            </p>
+          </div>
+          <p className="text-sm text-amber-800 dark:text-amber-300/90 leading-relaxed">
+            You descend from{" "}
+            <strong>{ancestorContext.length} documented ancestor{ancestorContext.length !== 1 ? "s" : ""}</strong>
+            {tribalNations.length > 0 && (
+              <> of the <strong>{tribalNations.join(", ")}</strong> nation{tribalNations.length !== 1 ? "s" : ""}</>
+            )}.
+            {" "}Across their lifetimes, your people faced{" "}
+            <strong>{totalEvents} recorded federal acts, policies, and events</strong>
+            {critCount > 0 && <> — including {critCount} of critical severity</>}.{" "}
+            These were not abstractions. They shaped where your family lived, how they were classified,
+            whether they were counted, and whether their children were taken.
+            This is your history. This is who you are.
+          </p>
+          {tribalNations.length > 0 && (
+            <div className="flex flex-wrap gap-1.5">
+              {tribalNations.map(n => (
+                <Badge key={n} className="bg-amber-700/20 text-amber-800 dark:text-amber-300 border-amber-600/30 text-xs">
+                  {n}
+                </Badge>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Shaped by history — top events across all ancestors */}
+      {topEvents.length > 0 && (
+        <div>
+          <div className="flex items-center gap-2 mb-3">
+            <Flame className="w-4 h-4 text-red-600/70" />
+            <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
+              Acts That Shaped Your People ({totalEvents} total)
+            </p>
+          </div>
+          <div className="space-y-2">
+            {topEvents.map(ev => (
+              <div key={ev.eventId} className={`rounded-md border ${sevStyle(ev.severityLevel).border} ${sevStyle(ev.severityLevel).bg} px-3 py-2.5`}>
+                <div className="flex items-start gap-2.5">
+                  <div className={`w-2 h-2 rounded-full mt-1.5 shrink-0 ${sevStyle(ev.severityLevel).dot}`} />
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-semibold leading-snug">{ev.title} <span className="font-normal text-muted-foreground">({ev.year})</span></p>
+                    {ev.plainLanguageSummary && (
+                      <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">{ev.plainLanguageSummary}</p>
+                    )}
+                    <p className="text-[10px] text-muted-foreground/60 mt-1">
+                      Affected: {ev.ancestorNames.slice(0, 3).join(", ")}{ev.ancestorNames.length > 3 ? ` +${ev.ancestorNames.length - 3} more` : ""}
+                    </p>
+                  </div>
+                  <Badge variant="outline" className="text-[10px] shrink-0 capitalize">{ev.severityLevel}</Badge>
+                </div>
+              </div>
+            ))}
+          </div>
+          {totalEvents > 8 && (
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              {totalEvents - 8} more events shown per ancestor below
+            </p>
+          )}
+        </div>
+      )}
+
+      {/* Per-ancestor sections */}
+      <div>
+        <div className="flex items-center gap-2 mb-3">
+          <Users className="w-4 h-4 text-muted-foreground/60" />
+          <p className="text-sm font-semibold text-muted-foreground uppercase tracking-widest">
+            Your Ancestors — Life by Life
+          </p>
+        </div>
+        <div className="space-y-3">
+          {ancestorContext.map(ancestor => {
+            const isOpen = expandedAncestorId === ancestor.ancestorId;
+            const lifespan = [ancestor.birthYear, ancestor.deathYear].filter(Boolean).join(" – ") || "Dates unknown";
+            const critAncCount = ancestor.events.filter(e => e.severityLevel === "critical").length;
+            const sortedEvts = [...ancestor.events].sort((a, b) => a.year - b.year);
+
+            return (
+              <Card key={ancestor.ancestorId} className="overflow-hidden">
+                <button
+                  className="w-full text-left"
+                  onClick={() => setExpandedAncestorId(isOpen ? null : ancestor.ancestorId)}
+                >
+                  <CardHeader className="py-3 px-4">
+                    <div className="flex items-center gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <CardTitle className="text-base font-serif">{ancestor.fullName}</CardTitle>
+                          {ancestor.tribalNation && (
+                            <Badge variant="outline" className="text-[10px]">{ancestor.tribalNation}</Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {lifespan}
+                          {ancestor.birthPlace ? ` · ${ancestor.birthPlace}` : ancestor.locationAddress ? ` · ${ancestor.locationAddress}` : ""}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <div className="text-right">
+                          <p className="text-xs font-medium">{ancestor.events.length} events</p>
+                          {critAncCount > 0 && <p className="text-[10px] text-red-600">{critAncCount} critical</p>}
+                        </div>
+                        {isOpen ? <ChevronDown className="w-4 h-4 opacity-50" /> : <ChevronRight className="w-4 h-4 opacity-40" />}
+                      </div>
+                    </div>
+                  </CardHeader>
+                </button>
+
+                {isOpen && (
+                  <CardContent className="pt-0 pb-4 px-4">
+                    {ancestor.events.length === 0 ? (
+                      <p className="text-sm text-muted-foreground italic">No matched historical events for this ancestor's recorded lifespan.</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {/* Mini life summary */}
+                        <div className="bg-muted/30 rounded p-2.5 mb-3 flex gap-4 flex-wrap">
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Clock className="w-3 h-3" />
+                            <span>{lifespan}</span>
+                          </div>
+                          {(ancestor.birthPlace || ancestor.locationAddress) && (
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <MapPin className="w-3 h-3" />
+                              <span>{ancestor.birthPlace ?? ancestor.locationAddress}</span>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Star className="w-3 h-3" />
+                            <span>
+                              {sortedEvts.filter(e => e.relationshipType === "alive_during").length} lived through ·{" "}
+                              {sortedEvts.filter(e => e.severityLevel === "critical").length} critical
+                            </span>
+                          </div>
+                        </div>
+                        {/* Events sorted chronologically */}
+                        {sortedEvts.map(ev => (
+                          <HistEventCard key={ev.eventId} ev={ev} lifeStart={ancestor.birthYear} />
+                        ))}
+                      </div>
+                    )}
+                    <div className="mt-3 bg-amber-50 dark:bg-amber-950/20 border border-amber-300/30 rounded p-2.5">
+                      <div className="flex gap-2">
+                        <Info className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 mt-0.5 shrink-0" />
+                        <p className="text-[10px] text-amber-700 dark:text-amber-400/80 leading-relaxed">
+                          These connections are derived from recorded dates, tribal nation, and affected regions. They are potentially relevant — not confirmed facts. Each connection requires source review.
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                )}
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosData?: KnowledgeOfSelf; lineageData?: LineageData; isLoading: boolean; onLink: () => void }) {
   const [selectedLineageId, setSelectedLineageId] = useState<number | "">("");
-  const [kosTab, setKosTab] = useState<"profile" | "learn">("profile");
+  const [kosTab, setKosTab] = useState<"profile" | "learn" | "who-you-are">("who-you-are");
 
   const linkMutation = useMutation({
     mutationFn: async (lineageId: number) => {
@@ -3922,7 +4231,13 @@ function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosDa
   return (
     <div className="space-y-6">
       {/* Sub-tab switcher */}
-      <div className="flex gap-2 border-b pb-2">
+      <div className="flex gap-2 border-b pb-2 flex-wrap">
+        <button
+          onClick={() => setKosTab("who-you-are")}
+          className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors flex items-center gap-1.5 ${kosTab === "who-you-are" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
+        >
+          <Scroll className="w-3.5 h-3.5" /> Who You Are
+        </button>
         <button
           onClick={() => setKosTab("profile")}
           className={`px-4 py-1.5 text-sm rounded-md font-medium transition-colors ${kosTab === "profile" ? "bg-primary text-primary-foreground" : "text-muted-foreground hover:text-foreground"}`}
@@ -3936,6 +4251,10 @@ function KnowledgeOfSelfTab({ kosData, lineageData, isLoading, onLink }: { kosDa
           Learn & Resources
         </button>
       </div>
+
+      {kosTab === "who-you-are" && (
+        <WhoYouAreTab ancestorContext={kosData?.ancestorContext ?? []} />
+      )}
 
       {kosTab === "profile" && (
         <div className="space-y-6">

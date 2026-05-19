@@ -15,8 +15,158 @@ import {
 } from "../sovereign/family-tree-engine";
 import { db } from "@workspace/db";
 import { familyLineageTable, identityNarrativesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "../lib/logger";
+
+async function getAncestorHistoricalContext(userId: number) {
+  const result = await db.execute(sql`
+    SELECT
+      fl.id                AS ancestor_id,
+      fl.full_name,
+      fl.birth_year,
+      fl.death_year,
+      fl.tribal_nation,
+      fl.birth_place,
+      fl.death_place,
+      fl.location_address,
+      ae.event_id,
+      ae.title,
+      ae.year,
+      ae.era,
+      ae.event_type,
+      ae.policy_area,
+      ae.severity_level,
+      ae.affected_regions,
+      ae.identity_impact,
+      ae.reclassification_impact,
+      ae.ancestor_relevance_note,
+      ae.plain_language_summary,
+      ae.coordinate_lat,
+      ae.coordinate_lng,
+      CASE
+        WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NOT NULL
+          AND fl.birth_year <= ae.year AND fl.death_year >= ae.year
+          THEN 'alive_during'
+        WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NULL
+          AND fl.birth_year <= ae.year
+          THEN 'alive_during'
+        WHEN fl.birth_year IS NOT NULL AND fl.birth_year <= ae.year + 20
+          AND (fl.death_year IS NULL OR fl.death_year >= ae.year - 20)
+          THEN 'near_contemporary'
+        WHEN fl.birth_year IS NOT NULL AND fl.birth_year < ae.year
+          THEN 'born_before'
+        ELSE 'era_overlap'
+      END AS relationship_type,
+      CASE
+        WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NOT NULL
+          AND fl.birth_year <= ae.year AND fl.death_year >= ae.year
+          THEN 'high'
+        WHEN fl.birth_year IS NOT NULL AND fl.death_year IS NULL
+          AND fl.birth_year <= ae.year
+          THEN 'moderate'
+        WHEN fl.birth_year IS NOT NULL
+          AND ABS(fl.birth_year - ae.year) <= 20
+          THEN 'moderate'
+        ELSE 'low'
+      END AS confidence_level,
+      CASE
+        WHEN fl.tribal_nation IS NULL THEN false
+        WHEN ae.affected_regions::text ILIKE '%' || SPLIT_PART(fl.tribal_nation, ' ', 1) || '%'
+          THEN true
+        WHEN (
+          fl.tribal_nation ILIKE ANY(ARRAY['%cherokee%','%choctaw%','%chickasaw%','%creek%','%muscogee%','%seminole%','%osage%'])
+          AND 'OK' = ANY(ae.states_affected)
+        ) THEN true
+        WHEN (
+          fl.tribal_nation ILIKE ANY(ARRAY['%navajo%','%diné%','%apache%','%pueblo%','%hopi%','%zuni%'])
+          AND ('AZ' = ANY(ae.states_affected) OR 'NM' = ANY(ae.states_affected))
+        ) THEN true
+        WHEN (
+          fl.tribal_nation ILIKE ANY(ARRAY['%lakota%','%sioux%','%cheyenne%','%blackfeet%','%crow%'])
+          AND ('SD' = ANY(ae.states_affected) OR 'ND' = ANY(ae.states_affected) OR 'MT' = ANY(ae.states_affected))
+        ) THEN true
+        WHEN (
+          fl.tribal_nation ILIKE ANY(ARRAY['%lumbee%','%catawba%','%eastern band%','%coharie%','%tuscarora%'])
+          AND ('NC' = ANY(ae.states_affected) OR 'SC' = ANY(ae.states_affected))
+        ) THEN true
+        WHEN (
+          fl.tribal_nation ILIKE ANY(ARRAY['%ojibwe%','%chippewa%','%menominee%','%potawatomi%','%oneida%'])
+          AND ('MN' = ANY(ae.states_affected) OR 'WI' = ANY(ae.states_affected) OR 'MI' = ANY(ae.states_affected))
+        ) THEN true
+        ELSE false
+      END AS location_match
+    FROM family_lineage fl
+    CROSS JOIN atlas_events ae
+    WHERE
+      (fl.linked_profile_user_id = ${userId} OR fl.added_by_member_id = ${userId})
+      AND (fl.birth_year IS NOT NULL OR fl.death_year IS NOT NULL)
+      AND (
+        (fl.birth_year IS NULL OR fl.birth_year <= ae.year + 30)
+        AND (fl.death_year IS NULL OR fl.death_year >= ae.year - 30)
+      )
+    ORDER BY
+      fl.full_name,
+      CASE ae.severity_level WHEN 'critical' THEN 0 WHEN 'high' THEN 1 ELSE 2 END,
+      ae.year
+  `);
+
+  type Row = {
+    ancestor_id: number; full_name: string; birth_year: number | null;
+    death_year: number | null; tribal_nation: string | null;
+    birth_place: string | null; death_place: string | null; location_address: string | null;
+    event_id: string; title: string; year: number; era: string;
+    event_type: string | null; policy_area: string | null; severity_level: string;
+    affected_regions: string | null; identity_impact: string | null;
+    reclassification_impact: string | null; ancestor_relevance_note: string | null;
+    plain_language_summary: string | null; coordinate_lat: number | null;
+    coordinate_lng: number | null; relationship_type: string;
+    confidence_level: string; location_match: boolean;
+  };
+
+  const byAncestor = new Map<number, {
+    ancestorId: number; fullName: string; birthYear: number | null;
+    deathYear: number | null; tribalNation: string | null;
+    birthPlace: string | null; deathPlace: string | null; locationAddress: string | null;
+    events: object[];
+  }>();
+
+  for (const r of result.rows as Row[]) {
+    if (!byAncestor.has(r.ancestor_id)) {
+      byAncestor.set(r.ancestor_id, {
+        ancestorId: r.ancestor_id,
+        fullName: r.full_name,
+        birthYear: r.birth_year,
+        deathYear: r.death_year,
+        tribalNation: r.tribal_nation,
+        birthPlace: r.birth_place,
+        deathPlace: r.death_place,
+        locationAddress: r.location_address,
+        events: [],
+      });
+    }
+    byAncestor.get(r.ancestor_id)!.events.push({
+      eventId: r.event_id,
+      title: r.title,
+      year: r.year,
+      era: r.era,
+      eventType: r.event_type,
+      policyArea: r.policy_area,
+      severityLevel: r.severity_level,
+      affectedRegions: r.affected_regions,
+      identityImpact: r.identity_impact,
+      reclassificationImpact: r.reclassification_impact,
+      ancestorRelevanceNote: r.ancestor_relevance_note,
+      plainLanguageSummary: r.plain_language_summary,
+      coordinateLat: r.coordinate_lat,
+      coordinateLng: r.coordinate_lng,
+      relationshipType: r.relationship_type,
+      confidenceLevel: r.confidence_level,
+      locationMatch: r.location_match,
+    });
+  }
+
+  return Array.from(byAncestor.values());
+}
 
 const router = Router();
 
@@ -100,11 +250,14 @@ router.get("/knowledge-of-self", requireAuth, async (req, res, next) => {
   try {
     const dbId = req.user!.dbId;
     if (!dbId) {
-      res.json({ narratives: [], linkedAncestors: [], records: [] });
+      res.json({ narratives: [], linkedAncestors: [], records: [], ancestorContext: [] });
       return;
     }
-    const links = await getKnowledgeOfSelfLinks(dbId);
-    res.json(links);
+    const [links, ancestorContext] = await Promise.all([
+      getKnowledgeOfSelfLinks(dbId),
+      getAncestorHistoricalContext(dbId),
+    ]);
+    res.json({ ...links, ancestorContext });
   } catch (err) {
     next(err);
   }
