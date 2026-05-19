@@ -86,7 +86,7 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
           tags: |
             ${{ env.REGISTRY }}/sovereign-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/sovereign-dashboard:latest
@@ -102,7 +102,7 @@ jobs:
           push: true
           build-args: |
             BASE_PATH=/
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
           tags: |
             ${{ env.REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/trust-dashboard:latest
@@ -117,7 +117,7 @@ jobs:
           file: artifacts/community-dashboard/Dockerfile
           push: true
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
           tags: |
             ${{ env.REGISTRY }}/community-dashboard:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/community-dashboard:latest
@@ -132,7 +132,7 @@ jobs:
           file: artifacts/urban-indian-atlas/Dockerfile
           push: true
           build-args: |
-            VITE_API_URL=${{ vars.VITE_API_URL || 'http://20.83.210.26:8080' }}
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api.sovereignoffice.org' }}
           tags: |
             ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/urban-indian-atlas:latest

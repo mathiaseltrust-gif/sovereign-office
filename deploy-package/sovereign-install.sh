@@ -58,11 +58,11 @@ POSTGRES_PASSWORD=TribalSecurePass2026
 SESSION_SECRET=f4c0e3b9c2d7a1f8e6b4c9d2a7f1e3b8c4d2a9f7b1e6c3d8f2a7b9c4e1d6f8a3c7b2d9e4f1a6c8b3d7e2f9a4c1b6d8e3f7a2c9
 SERVICE_KEY=241f3ea0fb713150b614e4b9f004521795f10cb30661b1aabecc4924046cb4fb
 
-APP_URL=http://20.83.210.26:8080
-SOVEREIGN_DASHBOARD_URL=http://20.83.210.26:3001
-TRUST_DASHBOARD_URL=http://20.83.210.26:3002
-COMMUNITY_DASHBOARD_URL=http://20.83.210.26:3003
-ATLAS_DASHBOARD_URL=http://20.83.210.26:3004
+APP_URL=https://api.sovereignoffice.org
+SOVEREIGN_DASHBOARD_URL=https://sovereign.sovereignoffice.org
+TRUST_DASHBOARD_URL=https://trust.sovereignoffice.org
+COMMUNITY_DASHBOARD_URL=https://community.sovereignoffice.org
+ATLAS_DASHBOARD_URL=https://atlas.sovereignoffice.org
 
 AZURE_ENTRA_TENANT_ID=3b71074d-80fb-46a1-a481-3aed69152480
 AZURE_ENTRA_CLIENT_ID=9d408980-8fbf-4384-a712-436e70480eb9
@@ -144,12 +144,18 @@ echo "✓ docker-compose.prod.yml written"
 
 # ── Step 6: Open firewall ports ───────────────────────────────────────────────
 echo ""
-echo "▶ Opening firewall ports..."
+echo "▶ Opening firewall ports (80 and 443 for nginx; internal service ports stay"
+echo "  closed to external traffic once nginx is configured — see DEPLOY.md §9)..."
+sudo ufw allow 80/tcp  2>/dev/null || true
+sudo ufw allow 443/tcp 2>/dev/null || true
+# Also open service ports temporarily for initial smoke-testing before nginx is
+# in place; remove these NSG rules after confirming HTTPS URLs work (DEPLOY.md §9e).
 for port in 8080 3001 3002 3003 3004; do
   sudo ufw allow "$port/tcp" 2>/dev/null || true
 done
 sudo ufw reload 2>/dev/null || true
-echo "✓ Ports 8080, 3001, 3002, 3003, 3004 open"
+echo "✓ Ports 80, 443, 8080, 3001-3004 open"
+echo "  (Close 8080/3001-3004 in the Azure NSG after nginx+TLS are live — see DEPLOY.md §9e)"
 
 # ── Step 7: Log in to ACR ─────────────────────────────────────────────────────
 echo ""
@@ -270,12 +276,14 @@ echo "╚═══════════════════════�
 echo ""
 docker compose -f docker-compose.prod.yml ps
 echo ""
-PUBLIC_IP=$(curl -sf --max-time 5 ifconfig.me 2>/dev/null || echo "20.83.210.26")
-echo "  API Server:          http://$PUBLIC_IP:8080"
-echo "  Sovereign Dashboard: http://$PUBLIC_IP:3001"
-echo "  Trust Dashboard:     http://$PUBLIC_IP:3002"
-echo "  Community Dashboard: http://$PUBLIC_IP:3003"
-echo "  Urban Indian Atlas:  http://$PUBLIC_IP:3004"
+echo "  API Server:          https://api.sovereignoffice.org"
+echo "  Sovereign Dashboard: https://sovereign.sovereignoffice.org"
+echo "  Trust Dashboard:     https://trust.sovereignoffice.org"
+echo "  Community Dashboard: https://community.sovereignoffice.org"
+echo "  Urban Indian Atlas:  https://atlas.sovereignoffice.org"
+echo ""
+echo "  NOTE: These HTTPS URLs require nginx + Certbot to be configured."
+echo "  See DEPLOY.md Section 9 or run: sudo nginx -t && sudo systemctl reload nginx"
 echo ""
 echo "  Useful commands:"
 echo "    Logs:    docker compose -f $DEPLOY_DIR/docker-compose.prod.yml logs -f"

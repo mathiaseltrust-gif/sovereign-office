@@ -16,7 +16,7 @@ containerised and wired together with Docker Compose.
 6. [Run with Docker Compose](#6-run-with-docker-compose)
 7. [Verify every service is reachable](#7-verify-every-service-is-reachable)
 8. [Apply database schema (fresh install)](#8-apply-database-schema-fresh-install)
-9. [Reverse proxy & TLS (recommended)](#9-reverse-proxy--tls-recommended)
+9. [Reverse proxy & TLS](#9-reverse-proxy--tls)
 10. [Updating the application](#10-updating-the-application)
 11. [CI/CD — automated deployments via GitHub Actions](#11-cicd--automated-deployments-via-github-actions)
 12. [Automated database backups](#12-automated-database-backups)
@@ -107,18 +107,23 @@ When pointing to an external database, edit `docker-compose.yml` to:
 ## 4. Set up Azure App Registration redirect URIs
 
 In the **Azure Portal → Azure Active Directory → App Registrations → your app →
-Authentication**, add the following redirect URIs for your production domain:
+Authentication**, add the following redirect URIs for your production domain
+(replace `sovereignoffice.org` with your actual registered domain):
 
 | Type | URI |
 |---|---|
-| Web (SSO login callback) | `https://api.yourdomain.com/api/auth/microsoft/callback` |
-| SPA (front-channel logout) | `https://sovereign.yourdomain.com` |
-| SPA (front-channel logout) | `https://trust.yourdomain.com` |
+| Web (SSO login callback) | `https://api.sovereignoffice.org/api/auth/microsoft/callback` |
+| SPA (front-channel logout) | `https://sovereign.sovereignoffice.org` |
+| SPA (front-channel logout) | `https://trust.sovereignoffice.org` |
+| SPA (front-channel logout) | `https://community.sovereignoffice.org` |
+| SPA (front-channel logout) | `https://atlas.sovereignoffice.org` |
 
-Replace `yourdomain.com` with your actual domain (or public IP and port).
-
-Also add `https://api.yourdomain.com` to the **CORS allowed origins** section if
+Also add `https://api.sovereignoffice.org` to the **CORS allowed origins** section if
 your Azure AD app exposes an API.
+
+> **Important:** These URIs must exactly match the domain used in your `.env`
+> `APP_URL` and `SOVEREIGN_DASHBOARD_URL` variables, and in the nginx config from
+> Section 9.
 
 ---
 
@@ -253,50 +258,196 @@ You should see tables including `users`, `family_lineage`, `trust_instruments`,
 
 ---
 
-## 9. Reverse proxy & TLS (recommended)
+## 9. Reverse proxy & TLS
 
-For production, place **nginx** or **Azure Application Gateway** in front of the
-three services. A minimal nginx reverse proxy config:
+For production, nginx sits in front of all five services and terminates TLS.
+A ready-to-use config is included at `deploy-package/nginx-sovereign.conf`.
+
+### 9a. DNS — point your subdomains at the VM
+
+In your DNS registrar's control panel, create five **A records** pointing at the
+VM's public IP (`20.83.210.26` — update this if the IP changes):
+
+| Subdomain | Record type | Value |
+|---|---|---|
+| `api.sovereignoffice.org` | A | `20.83.210.26` |
+| `sovereign.sovereignoffice.org` | A | `20.83.210.26` |
+| `trust.sovereignoffice.org` | A | `20.83.210.26` |
+| `community.sovereignoffice.org` | A | `20.83.210.26` |
+| `atlas.sovereignoffice.org` | A | `20.83.210.26` |
+
+> DNS propagation usually completes in 5–30 minutes. Verify with:
+> `dig +short api.sovereignoffice.org`
+
+### 9b. Install nginx and Certbot
+
+```bash
+sudo apt-get update
+sudo apt-get install -y nginx certbot python3-certbot-nginx
+sudo systemctl enable --now nginx
+```
+
+### 9c. Deploy the nginx config (HTTP-only bootstrap)
+
+The config file ships as HTTP-only so that `nginx -t` passes before any
+certificates exist. Certbot will patch it to add the HTTPS server blocks in the
+next step.
+
+```bash
+sudo cp deploy-package/nginx-sovereign.conf /etc/nginx/sites-available/sovereign-office
+sudo ln -sf /etc/nginx/sites-available/sovereign-office \
+            /etc/nginx/sites-enabled/sovereign-office
+# Remove the default placeholder site if present
+sudo rm -f /etc/nginx/sites-enabled/default
+sudo nginx -t          # must pass before continuing
+sudo systemctl reload nginx
+```
+
+Verify nginx is serving on port 80 for each subdomain (DNS must resolve first):
+
+```bash
+curl -sf -o /dev/null -w "%{http_code}" http://api.sovereignoffice.org/api/healthz
+# → 200
+```
+
+### 9d. Issue free TLS certificates with Certbot
+
+```bash
+sudo certbot --nginx \
+  -d api.sovereignoffice.org \
+  -d sovereign.sovereignoffice.org \
+  -d trust.sovereignoffice.org \
+  -d community.sovereignoffice.org \
+  -d atlas.sovereignoffice.org
+```
+
+Certbot automatically:
+1. Completes the ACME HTTP-01 challenge over port 80.
+2. Rewrites `/etc/nginx/sites-available/sovereign-office` to add `listen 443 ssl`
+   server blocks and HTTP→HTTPS redirect rules.
+3. Reloads nginx.
+4. Registers an auto-renewal systemd timer.
+
+Verify auto-renewal is configured:
+
+```bash
+sudo systemctl status certbot.timer
+sudo certbot renew --dry-run
+```
+
+### 9e. Open ports 80 and 443 in the Azure NSG and UFW
+
+```bash
+# UFW (on the VM)
+sudo ufw allow 80/tcp
+sudo ufw allow 443/tcp
+sudo ufw reload
+
+# Azure Network Security Group (from your local machine or Azure Portal)
+az network nsg rule create \
+  --resource-group <your-rg> \
+  --nsg-name <your-nsg-name> \
+  --name Allow-HTTP \
+  --priority 100 \
+  --protocol Tcp \
+  --destination-port-ranges 80
+az network nsg rule create \
+  --resource-group <your-rg> \
+  --nsg-name <your-nsg-name> \
+  --name Allow-HTTPS \
+  --priority 110 \
+  --protocol Tcp \
+  --destination-port-ranges 443
+```
+
+> The individual service ports (8080, 3001–3004) should now be **closed** in the
+> NSG — all traffic must flow through nginx on 443.
+
+### 9f. nginx config reference (bootstrap — HTTP only)
+
+`deploy-package/nginx-sovereign.conf` ships as HTTP-only so `nginx -t` passes
+on a fresh VM before any certificates exist. Certbot rewrites it in place during
+step 9d to add the `listen 443 ssl` server blocks.
 
 ```nginx
-# /etc/nginx/sites-available/sovereign-office
+# deploy-package/nginx-sovereign.conf (bootstrap — HTTP only)
+# Replace sovereignoffice.org with your actual registered domain.
 
 server {
-    listen 443 ssl;
-    server_name api.yourdomain.com;
+    listen 80;
+    server_name api.sovereignoffice.org;
 
-    ssl_certificate     /etc/letsencrypt/live/yourdomain.com/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/yourdomain.com/privkey.pem;
+    location /.well-known/acme-challenge/ { root /var/www/html; }
 
     location / {
-        proxy_pass http://127.0.0.1:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_pass         http://127.0.0.1:8080;
+        proxy_set_header   Host              $host;
+        proxy_set_header   X-Real-IP         $remote_addr;
+        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header   X-Forwarded-Proto $scheme;
+        proxy_read_timeout 120s;
+    }
+}
+
+server {
+    listen 80;
+    server_name sovereign.sovereignoffice.org;
+
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    location / {
+        proxy_pass       http://127.0.0.1:3001;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
     }
 }
 
 server {
-    listen 443 ssl;
-    server_name sovereign.yourdomain.com;
-    # ... ssl certs ...
-    location / { proxy_pass http://127.0.0.1:3001; }
+    listen 80;
+    server_name trust.sovereignoffice.org;
+
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    location / {
+        proxy_pass       http://127.0.0.1:3002;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
 
 server {
-    listen 443 ssl;
-    server_name trust.yourdomain.com;
-    # ... ssl certs ...
-    location / { proxy_pass http://127.0.0.1:3002; }
+    listen 80;
+    server_name community.sovereignoffice.org;
+
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    location / {
+        proxy_pass       http://127.0.0.1:3003;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
 }
-```
 
-Get free TLS certificates with Certbot:
+server {
+    listen 80;
+    server_name atlas.sovereignoffice.org;
 
-```bash
-sudo apt-get install -y certbot python3-certbot-nginx
-sudo certbot --nginx -d api.yourdomain.com -d sovereign.yourdomain.com -d trust.yourdomain.com
+    location /.well-known/acme-challenge/ { root /var/www/html; }
+
+    location / {
+        proxy_pass       http://127.0.0.1:3004;
+        proxy_set_header Host              $host;
+        proxy_set_header X-Real-IP         $remote_addr;
+        proxy_set_header X-Forwarded-For   $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
 ```
 
 ---
