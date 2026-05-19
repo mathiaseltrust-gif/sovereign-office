@@ -145,6 +145,7 @@ interface AtlasMapProps {
   onSelectPerson: (id: number) => void;
   activeLayers: ActiveLayers;
   yearRange: [number, number];
+  hasActiveQuery?: boolean;
 }
 
 const severityColors = {
@@ -464,7 +465,7 @@ function MapCenterController({ center, zoom }: { center: [number, number] | null
 export function AtlasMap({
   events, filteredEvents, selectedEventId, onSelectEvent,
   urbanLocations, atlasMode, ancestors, selectedPersonId, onSelectPerson,
-  activeLayers, yearRange,
+  activeLayers, yearRange, hasActiveQuery = false,
 }: AtlasMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
@@ -587,26 +588,45 @@ export function AtlasMap({
         ))}
 
         {/* ── Relocation Cities ── */}
-        {activeLayers.urbanization && urbanLocations.relocationCities?.map((city: any, i: number) => (
+        {/* Only show cities that existed during the queried year range.
+            All BIA relocation program cities opened 1952+.
+            If an AI query is active with a pre-1952 yearRange, these are hidden. */}
+        {activeLayers.urbanization && urbanLocations.relocationCities?.filter((city: any) => {
+          const founded = city.foundingYear ?? 1952;
+          return yearRange[1] >= founded;
+        }).map((city: any, i: number) => (
           <CircleMarker
             key={`city-${i}`}
             center={city.coordinates}
             pathOptions={{ color: "#3f4650", weight: 2, fill: false, opacity: 0.7 }}
             radius={14}
           >
-            <Tooltip>{city.city}, {city.state} — Relocation City</Tooltip>
+            <Tooltip>
+              <strong>{city.city}, {city.state}</strong> — BIA Relocation City (est. {city.foundingYear ?? 1952})<br />
+              {city.note}
+            </Tooltip>
           </CircleMarker>
         ))}
 
         {/* ── Urban Indian Health Orgs ── */}
-        {activeLayers.healthAccess && urbanLocations.urbanIndianHealthOrgs?.map((org: any, i: number) => (
+        {/* Only show health orgs that were founded by the end of the queried year range.
+            IHS (1955) is the earliest — pre-1955 queries should show no health orgs.
+            Each org has a foundingYear; modern orgs are hidden for historical era queries. */}
+        {activeLayers.healthAccess && urbanLocations.urbanIndianHealthOrgs?.filter((org: any) => {
+          const founded = org.foundingYear ?? 1970;
+          return yearRange[1] >= founded;
+        }).map((org: any, i: number) => (
           <CircleMarker
             key={`org-${i}`}
             center={org.coordinates}
             pathOptions={{ color: "#5c744c", weight: 1, fillColor: "#5c744c", fillOpacity: 0.8 }}
             radius={4}
           >
-            <Tooltip>{org.name}</Tooltip>
+            <Tooltip>
+              <strong>{org.name}</strong><br />
+              {org.city}, {org.state} · Est. {org.foundingYear ?? "unknown"}<br />
+              {org.note}
+            </Tooltip>
           </CircleMarker>
         ))}
 
@@ -658,6 +678,11 @@ export function AtlasMap({
 
           if (!visible) return null;
 
+          // When a people-first AI query is active, dim unselected events so
+          // ancestors (rendered on top) are the clear visual focus.
+          const eventOpacity = isFilteredOut ? 0.2 : (hasActiveQuery && !isSelected) ? 0.35 : 1;
+          const eventFillOpacity = isFilteredOut ? 0.2 : (hasActiveQuery && !isSelected) ? 0.35 : 0.9;
+
           return (
             <CircleMarker
               key={evt.id}
@@ -667,8 +692,8 @@ export function AtlasMap({
                 color: isSelected ? "#000" : "white",
                 weight: isSelected ? 3 : 1.5,
                 fillColor: severityColors[evt.severity_level] || "#000",
-                fillOpacity: isFilteredOut ? 0.2 : 0.9,
-                opacity: isFilteredOut ? 0.2 : 1,
+                fillOpacity: eventFillOpacity,
+                opacity: eventOpacity,
               }}
               eventHandlers={{ click: () => onSelectEvent(evt.id) }}
             >
@@ -858,16 +883,24 @@ export function AtlasMap({
             const isSelected = ancestor.id === selectedPersonId;
             const color = getAncestorColor(ancestor.lastName);
             const initials = getInitials(ancestor.firstName, ancestor.lastName, ancestor.fullName);
-            const size = isSelected ? 42 : 34;
+            // People-first: when an AI query is active, ancestors are the primary subject —
+            // render them larger with a golden identity ring so they dominate the map.
+            const baseSize = hasActiveQuery ? 40 : 34;
+            const size = isSelected ? baseSize + 8 : baseSize;
             const fontSize = initials.length > 2 ? 10 : 12;
             // Selected: outer glow ring + larger badge
+            // People-first (AI query active): golden ring even when not selected
             const outerRing = isSelected
-              ? `box-shadow:0 0 0 3px rgba(255,255,255,0.25),0 0 14px rgba(255,255,255,0.18),0 2px 8px rgba(0,0,0,0.55);`
-              : `box-shadow:0 2px 6px rgba(0,0,0,0.45);`;
+              ? `box-shadow:0 0 0 3px rgba(255,255,255,0.35),0 0 16px rgba(255,220,120,0.35),0 2px 10px rgba(0,0,0,0.6);`
+              : hasActiveQuery
+                ? `box-shadow:0 0 0 2.5px rgba(201,169,110,0.75),0 0 10px rgba(201,169,110,0.25),0 2px 7px rgba(0,0,0,0.5);`
+                : `box-shadow:0 2px 6px rgba(0,0,0,0.45);`;
             // Inferred location: slightly desaturated with dashed border
             const borderStyle = source === "tribal_nation"
               ? `border:2px dashed rgba(255,255,255,0.55);`
-              : `border:2.5px solid rgba(255,255,255,0.9);`;
+              : hasActiveQuery
+                ? `border:2.5px solid rgba(255,220,120,0.9);`
+                : `border:2.5px solid rgba(255,255,255,0.9);`;
             const hasPhoto = !!ancestor.photoUrl;
             const bgStyle = hasPhoto
               ? `background-image:url(${ancestor.photoUrl});background-size:cover;background-position:center;background-color:${color};`
@@ -936,10 +969,12 @@ export function AtlasMap({
           const sz = hasSelected ? 46 : count >= 10 ? 40 : 36;
           const cFontSize = count >= 100 ? 11 : count >= 10 ? 13 : 15;
 
-          // Outer ring — lighter translucent version of the same color for depth
+          // Outer ring — golden when AI people-first query is active, white otherwise
           const ringStyle = hasSelected
-            ? `box-shadow:0 0 0 4px rgba(255,255,255,0.15),0 0 16px rgba(255,255,255,0.12),0 2px 10px rgba(0,0,0,0.5);`
-            : `box-shadow:0 0 0 3px rgba(255,255,255,0.12),0 2px 7px rgba(0,0,0,0.45);`;
+            ? `box-shadow:0 0 0 4px rgba(255,255,255,0.15),0 0 16px rgba(255,220,120,0.25),0 2px 10px rgba(0,0,0,0.5);`
+            : hasActiveQuery
+              ? `box-shadow:0 0 0 3px rgba(201,169,110,0.65),0 0 8px rgba(201,169,110,0.2),0 2px 7px rgba(0,0,0,0.45);`
+              : `box-shadow:0 0 0 3px rgba(255,255,255,0.12),0 2px 7px rgba(0,0,0,0.45);`;
 
           // Show first-letter initials of all unique surnames as a sub-label
           const uniqueSurnames = [...new Set(cluster.members.map(m => m.ancestor.lastName).filter(Boolean))];

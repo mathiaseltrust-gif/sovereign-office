@@ -464,13 +464,31 @@ export default function Atlas() {
     setAIQueryMessage(result.message);
     if (result.exposureFilters.length > 0) setActiveExposureFilters(result.exposureFilters);
     if (result.activeEras.length > 0) setActiveEras(result.activeEras);
-    if (result.yearRange) setYearRange(result.yearRange);
+    if (result.yearRange) {
+      setYearRange(result.yearRange);
+      const [lo, hi] = result.yearRange;
+      setActiveLayers(prev => ({
+        ...prev,
+        // Show tribal territories whenever ancestors are being queried by era
+        tribalTerritories: true,
+        // Ancestors layer always on in Atlas Mode — keep it
+        ancestorLocations: true,
+        // Relocation cities (BIA program 1952+): only relevant if yearRange reaches that era
+        urbanization: hi >= 1952,
+        // IHS / urban health orgs (earliest 1955): only relevant if yearRange reaches that era
+        healthAccess: hi >= 1955,
+        // Removal routes: relevant for removal era queries (pre-1900) or if explicitly in filters
+        migrationPaths: lo <= 1900 || result.exposureFilters.includes("land_displacement") || result.activeEras.includes("removal"),
+      }));
+    }
   };
 
   const clearAIFilters = () => {
     setAIQueryMessage(null);
     setActiveExposureFilters([]);
     setActiveEras([]);
+    setYearRange([1790, new Date().getFullYear()]);
+    setActiveLayers(DEFAULT_LAYERS);
   };
 
   // Read URL params on mount:
@@ -702,6 +720,7 @@ export default function Atlas() {
             onSelectPerson={handleSelectPerson}
             activeLayers={activeLayers}
             yearRange={yearRange}
+            hasActiveQuery={!!aiQueryMessage && activeExposureFilters.length > 0}
           />
 
           <AtlasTimeline

@@ -1,24 +1,24 @@
 {
   "relocationCities": [
-    { "city": "Los Angeles", "state": "CA", "coordinates": [34.0522, -118.2437], "type": "relocation", "note": "Largest urban Indian population in the U.S. Primary destination of 1956 Relocation Act." },
-    { "city": "Chicago", "state": "IL", "coordinates": [41.8781, -87.6298], "type": "relocation", "note": "Major relocation destination. American Indian Center founded 1953." },
-    { "city": "Minneapolis", "state": "MN", "coordinates": [44.9778, -93.2650], "type": "relocation", "note": "Major relocation city. American Indian Movement (AIM) founded here 1968." },
-    { "city": "San Francisco", "state": "CA", "coordinates": [37.7749, -122.4194], "type": "relocation", "note": "Bay Area relocation hub. Occupation of Alcatraz 1969–1971." },
-    { "city": "Denver", "state": "CO", "coordinates": [39.7392, -104.9903], "type": "relocation", "note": "Major relocation destination for Plains nations." },
-    { "city": "Dallas", "state": "TX", "coordinates": [32.7767, -96.7970], "type": "relocation", "note": "Southern relocation destination." },
-    { "city": "Seattle", "state": "WA", "coordinates": [47.6062, -122.3321], "type": "relocation", "note": "Northwest relocation city. Strong urban Indian community." },
-    { "city": "Cleveland", "state": "OH", "coordinates": [41.4993, -81.6944], "type": "relocation", "note": "Great Lakes relocation city." }
+    { "city": "Los Angeles",   "state": "CA", "coordinates": [34.0522, -118.2437], "type": "relocation", "foundingYear": 1952, "note": "Largest urban Indian population in the U.S. Primary destination of 1956 Relocation Act." },
+    { "city": "Chicago",       "state": "IL", "coordinates": [41.8781,  -87.6298], "type": "relocation", "foundingYear": 1952, "note": "Major relocation destination. American Indian Center founded 1953." },
+    { "city": "Minneapolis",   "state": "MN", "coordinates": [44.9778,  -93.2650], "type": "relocation", "foundingYear": 1952, "note": "Major relocation city. American Indian Movement (AIM) founded here 1968." },
+    { "city": "San Francisco", "state": "CA", "coordinates": [37.7749, -122.4194], "type": "relocation", "foundingYear": 1952, "note": "Bay Area relocation hub. Occupation of Alcatraz 1969–1971." },
+    { "city": "Denver",        "state": "CO", "coordinates": [39.7392, -104.9903], "type": "relocation", "foundingYear": 1952, "note": "Major relocation destination for Plains nations." },
+    { "city": "Dallas",        "state": "TX", "coordinates": [32.7767,  -96.7970], "type": "relocation", "foundingYear": 1957, "note": "Southern relocation destination. BIA relocation office opened 1957." },
+    { "city": "Seattle",       "state": "WA", "coordinates": [47.6062, -122.3321], "type": "relocation", "foundingYear": 1952, "note": "Northwest relocation city. Strong urban Indian community." },
+    { "city": "Cleveland",     "state": "OH", "coordinates": [41.4993,  -81.6944], "type": "relocation", "foundingYear": 1952, "note": "Great Lakes relocation city." }
   ],
   "urbanIndianHealthOrgs": [
-    { "name": "United American Indian Involvement", "city": "Los Angeles", "state": "CA", "coordinates": [34.0195, -118.4912], "type": "health-org" },
-    { "name": "American Indian Health & Family Services", "city": "Detroit", "state": "MI", "coordinates": [42.3314, -83.0458], "type": "health-org" },
-    { "name": "Indian Health Board of Minneapolis", "city": "Minneapolis", "state": "MN", "coordinates": [44.9772, -93.2639], "type": "health-org" },
-    { "name": "Native American Health Center", "city": "Oakland", "state": "CA", "coordinates": [37.8044, -122.2712], "type": "health-org" },
-    { "name": "Chicago American Indian Community Health Center", "city": "Chicago", "state": "IL", "coordinates": [41.8827, -87.6233], "type": "health-org" },
-    { "name": "Denver Indian Health & Family Services", "city": "Denver", "state": "CO", "coordinates": [39.7558, -104.9872], "type": "health-org" },
-    { "name": "Seattle Indian Health Board", "city": "Seattle", "state": "WA", "coordinates": [47.6018, -122.3348], "type": "health-org" },
-    { "name": "Native American Rehabilitation Association", "city": "Portland", "state": "OR", "coordinates": [45.5051, -122.6750], "type": "health-org" },
-    { "name": "Indian Health Service HQ", "city": "Rockville", "state": "MD", "coordinates": [39.0840, -77.1528], "type": "health-org" }
+    { "name": "Indian Health Service (IHS)",                        "city": "Rockville",   "state": "MD", "coordinates": [39.0840,  -77.1528], "type": "health-org", "foundingYear": 1955, "note": "Federal agency established 1955 when responsibility transferred from Bureau of Indian Affairs to HEW." },
+    { "name": "American Indian Health & Family Services",           "city": "Detroit",     "state": "MI", "coordinates": [42.3314,  -83.0458], "type": "health-org", "foundingYear": 1969, "note": "Founded 1969; one of the first urban Indian health organizations in the Midwest." },
+    { "name": "Seattle Indian Health Board",                        "city": "Seattle",     "state": "WA", "coordinates": [47.6018, -122.3348], "type": "health-org", "foundingYear": 1970, "note": "Founded 1970; one of the earliest urban Indian health organizations in the U.S." },
+    { "name": "Native American Rehabilitation Association",         "city": "Portland",    "state": "OR", "coordinates": [45.5051, -122.6750], "type": "health-org", "foundingYear": 1970, "note": "Founded 1970 to address substance abuse and mental health among urban Indians." },
+    { "name": "Indian Health Board of Minneapolis",                 "city": "Minneapolis", "state": "MN", "coordinates": [44.9772,  -93.2639], "type": "health-org", "foundingYear": 1971, "note": "Founded 1971 as community response to health disparities among urban Indians." },
+    { "name": "Native American Health Center",                      "city": "Oakland",     "state": "CA", "coordinates": [37.8044, -122.2712], "type": "health-org", "foundingYear": 1972, "note": "Founded 1972 to serve Bay Area Indian community post-relocation." },
+    { "name": "Chicago American Indian Community Health Center",    "city": "Chicago",     "state": "IL", "coordinates": [41.8827,  -87.6233], "type": "health-org", "foundingYear": 1974, "note": "Founded 1974 serving Chicago's large relocated Indian population." },
+    { "name": "Denver Indian Health & Family Services",             "city": "Denver",      "state": "CO", "coordinates": [39.7558, -104.9872], "type": "health-org", "foundingYear": 1974, "note": "Founded 1974 serving Denver's urban Indian community." },
+    { "name": "United American Indian Involvement",                 "city": "Los Angeles", "state": "CA", "coordinates": [34.0195, -118.4912], "type": "health-org", "foundingYear": 1974, "note": "Founded 1974 in Los Angeles, the largest urban Indian population center." }
   ],
   "keyRemovalRoutes": [
     {
@@ -41,18 +41,32 @@
       "to": "Indian Territory (Oklahoma)",
       "coordinates": [[32.8, -86.8], [34.7, -90.0], [35.5, -95.0]],
       "nation": "Creek (Muscogee)"
+    },
+    {
+      "name": "Potawatomi Trail of Death (1838)",
+      "from": "Indiana",
+      "to": "Kansas",
+      "coordinates": [[41.0, -86.5], [39.8, -88.0], [38.7, -94.6]],
+      "nation": "Potawatomi"
+    },
+    {
+      "name": "Chickasaw Removal (1837–1850)",
+      "from": "Mississippi/Tennessee",
+      "to": "Indian Territory (Oklahoma)",
+      "coordinates": [[34.0, -88.5], [34.5, -91.0], [34.8, -95.5]],
+      "nation": "Chickasaw"
     }
   ],
   "significantCounties": [
-    { "name": "Kern County", "state": "CA", "coordinates": [35.3433, -118.7298], "note": "Southern California urban Indian community. Bakersfield." },
+    { "name": "Kern County",        "state": "CA", "coordinates": [35.3433, -118.7298], "note": "Southern California urban Indian community. Bakersfield." },
     { "name": "Los Angeles County", "state": "CA", "coordinates": [34.0522, -118.2437], "note": "Largest urban Indian population in U.S." },
-    { "name": "Hennepin County", "state": "MN", "coordinates": [44.9778, -93.2650], "note": "Minneapolis — AIM founding location." },
-    { "name": "Cook County", "state": "IL", "coordinates": [41.8781, -87.6298], "note": "Chicago urban Indian community." },
-    { "name": "King County", "state": "WA", "coordinates": [47.6062, -122.3321], "note": "Seattle urban Indian community." },
-    { "name": "Alameda County", "state": "CA", "coordinates": [37.6017, -121.7195], "note": "Bay Area urban Indian community. Oakland." },
-    { "name": "Tulsa County", "state": "OK", "coordinates": [36.1539, -95.9928], "note": "Major Indian Territory descendant community." },
-    { "name": "Robeson County", "state": "NC", "coordinates": [34.6354, -79.1089], "note": "Lumbee Nation. Largest off-reservation Indian community in Southeast." },
-    { "name": "Jackson County", "state": "MS", "coordinates": [30.4759, -88.5389], "note": "Mississippi Band of Choctaw Indians area." },
-    { "name": "Maricopa County", "state": "AZ", "coordinates": [33.4484, -112.0740], "note": "Phoenix urban Indian community. Large Navajo, Apache, Tohono O'odham population." }
+    { "name": "Hennepin County",    "state": "MN", "coordinates": [44.9778,  -93.2650], "note": "Minneapolis — AIM founding location." },
+    { "name": "Cook County",        "state": "IL", "coordinates": [41.8781,  -87.6298], "note": "Chicago urban Indian community." },
+    { "name": "King County",        "state": "WA", "coordinates": [47.6062, -122.3321], "note": "Seattle urban Indian community." },
+    { "name": "Alameda County",     "state": "CA", "coordinates": [37.6017, -121.7195], "note": "Bay Area urban Indian community. Oakland." },
+    { "name": "Tulsa County",       "state": "OK", "coordinates": [36.1539,  -95.9928], "note": "Major Indian Territory descendant community." },
+    { "name": "Robeson County",     "state": "NC", "coordinates": [34.6354,  -79.1089], "note": "Lumbee Nation. Largest off-reservation Indian community in Southeast." },
+    { "name": "Jackson County",     "state": "MS", "coordinates": [30.4759,  -88.5389], "note": "Mississippi Band of Choctaw Indians area." },
+    { "name": "Maricopa County",    "state": "AZ", "coordinates": [33.4484, -112.0740], "note": "Phoenix urban Indian community. Large Navajo, Apache, Tohono O'odham population." }
   ]
 }
