@@ -844,10 +844,6 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
 
     for (const field of allowed) {
       if (body[field] !== undefined) {
-        // Never overwrite the photo of the requesting user's own linked node
-        if (field === "photoUrl" && existing.linkedProfileUserId != null && existing.linkedProfileUserId === req.user?.dbId) {
-          continue;
-        }
         updates[field] = body[field];
       }
     }

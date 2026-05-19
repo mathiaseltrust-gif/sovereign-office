@@ -3180,7 +3180,7 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
         protectionLevel: form.protectionLevel,
         membershipStatus: form.membershipStatus,
         parentIds: form.selectedParentIds,
-        ...(!isOwnNode && { photoUrl: form.photoUrl || null }),
+        photoUrl: form.photoUrl || null,
         birthPlace: form.birthPlace || null,
         birthDate: form.birthDate || null,
         deathPlace: form.deathPlace || null,
@@ -3322,62 +3322,60 @@ function AddPersonModal({ allNodes, editingNode, onClose, onSuccess }: {
             <Textarea className="mt-1" value={form.notes} onChange={f("notes")} rows={2} placeholder="Role, relationships, historical context…" />
           </div>
 
-          {!isOwnNode && (
-            <div>
-              <Label>Profile Photo</Label>
-              <div className="mt-1 flex gap-2 items-start">
-                {form.photoUrl && (
-                  <div className="relative shrink-0">
-                    <img
-                      src={form.photoUrl}
-                      alt="Profile preview"
-                      className="w-14 h-14 rounded-full object-cover border border-border"
-                      onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
-                    />
-                    <button
-                      type="button"
-                      className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-white text-xs flex items-center justify-center leading-none"
-                      onClick={() => setForm((p) => ({ ...p, photoUrl: "" }))}
-                      title="Remove photo"
-                    >✕</button>
-                  </div>
-                )}
-                <div className="flex-1 space-y-1.5">
-                  <Input
-                    className="h-8 text-sm"
-                    value={form.photoUrl}
-                    onChange={f("photoUrl")}
-                    placeholder="Paste photo URL (e.g. from Ancestry)…"
+          <div>
+            <Label>Profile Photo</Label>
+            <div className="mt-1 flex gap-2 items-start">
+              {form.photoUrl && (
+                <div className="relative shrink-0">
+                  <img
+                    src={form.photoUrl}
+                    alt="Profile preview"
+                    className="w-14 h-14 rounded-full object-cover border border-border"
+                    onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                   />
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs text-muted-foreground">or</span>
-                    <input
-                      ref={photoFileRef}
-                      type="file"
-                      accept="image/*"
-                      className="hidden"
-                      onChange={(e) => {
-                        const file = e.target.files?.[0];
-                        if (!file) return;
-                        const reader = new FileReader();
-                        reader.onload = (ev) => {
-                          setForm((p) => ({ ...p, photoUrl: (ev.target?.result as string) ?? "" }));
-                        };
-                        reader.readAsDataURL(file);
-                      }}
-                    />
-                    <button
-                      type="button"
-                      className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
-                      onClick={() => photoFileRef.current?.click()}
-                    >
-                      <Upload className="w-3 h-3" /> Upload from device
-                    </button>
-                  </div>
+                  <button
+                    type="button"
+                    className="absolute -top-1 -right-1 w-4 h-4 rounded-full bg-destructive text-white text-xs flex items-center justify-center leading-none"
+                    onClick={() => setForm((p) => ({ ...p, photoUrl: "" }))}
+                    title="Remove photo"
+                  >✕</button>
+                </div>
+              )}
+              <div className="flex-1 space-y-1.5">
+                <Input
+                  className="h-8 text-sm"
+                  value={form.photoUrl}
+                  onChange={f("photoUrl")}
+                  placeholder="Paste photo URL (e.g. from Ancestry)…"
+                />
+                <div className="flex items-center gap-2">
+                  <span className="text-xs text-muted-foreground">or</span>
+                  <input
+                    ref={photoFileRef}
+                    type="file"
+                    accept="image/*"
+                    className="hidden"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (!file) return;
+                      const reader = new FileReader();
+                      reader.onload = (ev) => {
+                        setForm((p) => ({ ...p, photoUrl: (ev.target?.result as string) ?? "" }));
+                      };
+                      reader.readAsDataURL(file);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="inline-flex items-center gap-1 text-xs text-primary hover:underline"
+                    onClick={() => photoFileRef.current?.click()}
+                  >
+                    <Upload className="w-3 h-3" /> Upload from device
+                  </button>
                 </div>
               </div>
             </div>
-          )}
+          </div>
 
           <div>
             <Label>Parent (search by name)</Label>
