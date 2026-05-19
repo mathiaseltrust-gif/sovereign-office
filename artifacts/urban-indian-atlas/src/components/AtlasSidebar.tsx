@@ -33,6 +33,8 @@ interface AtlasSidebarProps {
   onApplyAIFilters: (result: AIQueryResult) => void;
   aiQueryMessage: string | null;
   onClearAIFilters: () => void;
+  ancestorSummary?: import("@/components/AtlasAIQuery").AncestorSummaryItem[];
+  bearerToken?: string | null;
 }
 
 const ERA_LABELS: Record<string, string> = {
@@ -214,6 +216,8 @@ export function AtlasSidebar({
   onApplyAIFilters,
   aiQueryMessage,
   onClearAIFilters,
+  ancestorSummary,
+  bearerToken,
 }: AtlasSidebarProps) {
   const [collapsed, setCollapsed] = useState(false);
 
@@ -307,6 +311,8 @@ export function AtlasSidebar({
                 activeMessage={aiQueryMessage}
                 isAuthenticated={isAuthenticated}
                 ancestorCount={ancestorCount}
+                ancestorSummary={ancestorSummary}
+                bearerToken={bearerToken}
               />
 
               <Separator className="opacity-20" />

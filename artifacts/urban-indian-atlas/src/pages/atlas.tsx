@@ -677,6 +677,16 @@ export default function Atlas() {
           onApplyAIFilters={applyAIFilters}
           aiQueryMessage={aiQueryMessage}
           onClearAIFilters={clearAIFilters}
+          ancestorSummary={authenticated && ancestors.length > 0
+            ? ancestors.map(a => ({
+                name: a.fullName,
+                birthYear: a.birthYear ?? null,
+                deathYear: a.deathYear ?? null,
+                tribalNation: a.tribalNation ?? null,
+                location: a.locationAddress ?? a.locationText ?? null,
+              }))
+            : undefined}
+          bearerToken={authenticated ? getAtlasBearerToken() : null}
         />
 
         <div className="flex-1 flex flex-col relative h-full">
