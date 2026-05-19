@@ -69,6 +69,8 @@ function detectMatterType(text: string): string {
   if (/trust\s+declaration|irrevocable\s+trust|declaration\s+of\s+trust/.test(t)) return "trust_declaration";
   if (/agency.*denied|denial.*benefit|denied.*application|benefit.*denial/.test(t)) return "agency_denial";
   if (/code\s+enforcement|violation\s+notice|inspection.*notice|unsafe.*structure/.test(t)) return "code_enforcement";
+  if (/tribal\s+(?:recognition|status|eligibility|classification)|recognition.*denied|federal\s+acknowledgment|bia.*list|administrative.*recognition/.test(t)) return "tribal_status";
+  if (/tucker\s+act|court\s+of\s+federal\s+claims|identifiable\s+group|tribal\s+(?:claim|standing|injury)|trust\s+breach|treaty\s+violation.*federal/.test(t)) return "tribal_standing";
   return "general";
 }
 
@@ -113,7 +115,7 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
   "detectedAddress": "property or mailing address or null",
   "detectedDeadline": "response deadline or action-required date or null",
   "detectedAccountOrReferenceNumber": "account, case, file, customer, or reference number or null",
-  "detectedMatterType": "one of: icwa_violation | utility_shutoff | tax_lien | tax_assessment | foreclosure | court_order | recorder_refusal | zoning | jurisdictional_overreach | health_plan_denial | deed | identity_verification | trust_declaration | agency_denial | code_enforcement | general",
+  "detectedMatterType": "one of: icwa_violation | utility_shutoff | tax_lien | tax_assessment | foreclosure | court_order | recorder_refusal | zoning | jurisdictional_overreach | health_plan_denial | deed | identity_verification | trust_declaration | agency_denial | code_enforcement | tribal_status | tribal_standing | general",
   "detectedActionType": "one of: demand | shutoff_notice | notice | complaint | petition | order | informational",
   "detectedState": "2-letter state code or null",
   "detectedCounty": "county name without the word County or null",
@@ -166,24 +168,38 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
       .from(authorityLegalMapTable)
       .where(ilike(authorityLegalMapTable.issueType, `%${matterType}%`));
 
-    // Supplemental: always pull agency_denial (Loper Bright, APA review) when any
-    // federal review flag is set or any Indian law flag is set, and the primary
-    // matter type isn't already agency_denial (to avoid duplicates).
-    let supplementalAuthorities: (typeof authorityLegalMapTable.$inferSelect)[] = [];
+    // Supplemental authority layers — pulled when flags are set, deduplicated against primary
     const indianLawFlag = extracted.indianLawFlag as boolean | null;
     const federalReviewFlag = extracted.federalReviewFlag as boolean | null;
+
+    // Layer 1: agency_denial (Loper Bright, APA, Morton v. Ruiz, Passamaquoddy)
+    //   → always when indianLawFlag or federalReviewFlag, and not already agency_denial primary
+    let agencyDenialSupplemental: (typeof authorityLegalMapTable.$inferSelect)[] = [];
     if (matterType !== "agency_denial" && (indianLawFlag || federalReviewFlag)) {
-      supplementalAuthorities = await db
+      agencyDenialSupplemental = await db
         .select()
         .from(authorityLegalMapTable)
         .where(ilike(authorityLegalMapTable.issueType, "%agency_denial%"));
     }
 
-    // Merge, dedup by id — primary first, supplemental appended
+    // Layer 2: tribal_status (ISDEAA, Montoya, Passamaquoddy, Williams)
+    //   → always when indianLawFlag is set and not already tribal_status primary
+    let tribalStatusSupplemental: (typeof authorityLegalMapTable.$inferSelect)[] = [];
+    if (matterType !== "tribal_status" && indianLawFlag) {
+      tribalStatusSupplemental = await db
+        .select()
+        .from(authorityLegalMapTable)
+        .where(ilike(authorityLegalMapTable.issueType, "%tribal_status%"));
+    }
+
+    // Merge, dedup by id — primary first, supplemental layers appended
     const seenIds = new Set(primaryAuthorities.map(a => a.id));
+    const addSupplemental = (rows: typeof primaryAuthorities) =>
+      rows.filter(a => !seenIds.has(a.id) && (seenIds.add(a.id), true));
     const legalAuthorities = [
       ...primaryAuthorities,
-      ...supplementalAuthorities.filter(a => !seenIds.has(a.id)),
+      ...addSupplemental(agencyDenialSupplemental),
+      ...addSupplemental(tribalStatusSupplemental),
     ];
 
     // ── Fuzzy agency lookup ───────────────────────────────────────────────────
