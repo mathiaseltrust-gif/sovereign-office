@@ -36,6 +36,7 @@ const ERA_LABELS: Record<string, string> = {
   "post-civil-war": "Post-Civil War",
   "allotment": "Allotment Era",
   "jim-crow": "Jim Crow Era",
+  "new-deal": "Allotment / New Deal Era",
   "termination": "Termination Era",
   "wwii-migration": "WWII & Migration",
   "self-determination": "Self-Determination Era",
@@ -142,6 +143,12 @@ const HISTORICAL_LAYER_GROUPS: { group: string; items: { key: keyof ActiveLayers
       { key: "reclassification", label: "Reclassification Events", defaultOn: true },
       { key: "censusIdentity", label: "Census Identity Markers", defaultOn: true },
       { key: "federalActs", label: "Federal Acts (Tribal Status)", defaultOn: true },
+    ],
+  },
+  {
+    group: "Legal Decisions",
+    items: [
+      { key: "courtDecisions", label: "Court Cases & Decisions", defaultOn: true },
     ],
   },
   {

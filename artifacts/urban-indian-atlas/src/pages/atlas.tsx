@@ -121,6 +121,7 @@ export interface ActiveLayers {
   landJurisdiction: boolean;    // Land allotment / jurisdiction boundary events
   federalActs: boolean;         // Acts of Congress affecting tribal status
   treaties: boolean;            // Treaty events — shown as distinct diamond markers
+  courtDecisions: boolean;      // Landmark court cases — shown as distinct scale markers
 }
 
 const DEFAULT_LAYERS: ActiveLayers = {
@@ -137,6 +138,7 @@ const DEFAULT_LAYERS: ActiveLayers = {
   landJurisdiction: true, // land allotment / jurisdiction events  — on by default
   federalActs: true,
   treaties: true,         // treaties — on by default (foundational to continuity proof)
+  courtDecisions: true,   // court cases & decisions — on by default
 };
 
 interface DbAtlasEvent {

@@ -562,6 +562,10 @@ export function AtlasMap({
           // Treaty events: rendered as special diamond markers (handled in separate pass below)
           if (isTreaty) return null;
 
+          // Court decision events: rendered as special scale markers (handled in separate pass below)
+          const isCourtDecision = et === "court decision";
+          if (isCourtDecision) return null;
+
           // Layer visibility check — first-match wins for thematic layers
           const visible =
             (isReclassification && activeLayers.reclassification) ||
@@ -640,6 +644,51 @@ export function AtlasMap({
                 <Tooltip direction="top" offset={[0, -8]} opacity={1}>
                   <div className="font-serif font-semibold" style={{ color: "#4a3080" }}>⬦ {evt.title}</div>
                   <div className="text-xs text-muted-foreground">{evt.year} · Treaty</div>
+                </Tooltip>
+              </Marker>
+            );
+          })
+        }
+
+        {/* ── Court Cases & Decisions — rendered as distinct octagon/scale icons ──
+            Court decisions use a dark teal octagon with "⚖" glyph so they are
+            visually distinct from both treaty diamonds and the generic circles.
+        ── */}
+        {activeLayers.courtDecisions && events
+          .filter(evt => (evt.event_type ?? "").toLowerCase() === "court decision")
+          .map(evt => {
+            const isFilteredOut = isEventFilteredOut(evt.id);
+            const isSelected = evt.id === selectedEventId;
+            const size = isSelected ? 22 : 16;
+            const color = "#1a5c5a";
+            const borderColor = isSelected ? "#000" : "#fff";
+            const borderWidth = isSelected ? 3 : 1.5;
+            const opacity = isFilteredOut ? 0.25 : 1;
+            const icon = L.divIcon({
+              className: "",
+              html: `<div style="opacity:${opacity};filter:drop-shadow(0 1px 3px rgba(26,92,90,0.75))">
+                <svg width="${size}" height="${size}" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg">
+                  <polygon points="6,1 14,1 19,6 19,14 14,19 6,19 1,14 1,6"
+                    fill="${color}"
+                    stroke="${borderColor}"
+                    stroke-width="${borderWidth}"
+                  />
+                  <text x="10" y="14.5" text-anchor="middle" font-size="9" fill="white" font-family="serif" font-weight="bold">C</text>
+                </svg>
+              </div>`,
+              iconSize: [size, size],
+              iconAnchor: [size / 2, size / 2],
+            });
+            return (
+              <Marker
+                key={evt.id}
+                position={evt.coordinates}
+                icon={icon}
+                eventHandlers={{ click: () => onSelectEvent(evt.id) }}
+              >
+                <Tooltip direction="top" offset={[0, -8]} opacity={1}>
+                  <div className="font-serif font-semibold" style={{ color: "#1a5c5a" }}>⚖ {evt.title}</div>
+                  <div className="text-xs text-muted-foreground">{evt.year} · Court Decision</div>
                 </Tooltip>
               </Marker>
             );
