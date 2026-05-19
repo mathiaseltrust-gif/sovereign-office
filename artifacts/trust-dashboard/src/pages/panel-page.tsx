@@ -70,17 +70,9 @@ export default function PanelPage({ panel }: PanelPageProps) {
         </div>
 
         <div className="bg-sidebar rounded-xl px-6 py-5 border border-sidebar-border flex gap-4 items-start">
-          {panel === "charitable-trust" ? (
-            <img
-              src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
-              alt="Mathias El Tribe Trust"
-              className="w-12 h-12 object-contain shrink-0 drop-shadow-sm"
-            />
-          ) : (
-            <div className="w-10 h-10 rounded-lg bg-sidebar-primary/20 flex items-center justify-center flex-shrink-0">
-              <Icon className="w-5 h-5 text-sidebar-primary" />
-            </div>
-          )}
+          <div className="w-10 h-10 rounded-lg bg-sidebar-primary/20 flex items-center justify-center flex-shrink-0">
+            <Icon className="w-5 h-5 text-sidebar-primary" />
+          </div>
           <p className="text-xs text-sidebar-foreground/80 leading-relaxed pt-1">{cfg.description}</p>
         </div>
 

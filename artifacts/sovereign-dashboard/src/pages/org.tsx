@@ -68,7 +68,7 @@ function orgLogo(file: string): string {
 
 const ORG_LOGOS: Partial<Record<string, string>> = {
   supreme_court:    orgLogo("supreme-court-seal-color.png"),
-  charitable_trust: orgLogo("mathias-el-tribe-trust-logo.png"),
+  charitable_trust: orgLogo("charitable-trust-logo.png"),
   niac:             orgLogo("niac-logo.png"),
   tribal_trust:     orgLogo("mathias-el-tribe-trust-logo.png"),
   // medical_center: orgLogo("medical-center-logo.png"),  ← add file to public/ when available
