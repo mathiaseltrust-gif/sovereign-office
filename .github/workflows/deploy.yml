@@ -330,6 +330,8 @@ jobs:
             exit 0
           fi
           SHORT_SHA="${COMMIT_SHA::8}"
+          # Convert comma-separated service names into a Slack mrkdwn bulleted list
+          BULLET_LIST=$(printf '%s' "${FAILED_SERVICES:-unknown}" | awk -F', ' '{for(i=1;i<=NF;i++) printf "• %s\\n", $i}')
           PAYLOAD=$(printf '{
             "text": ":rotating_light: *Deployment health check FAILED*",
             "blocks": [
@@ -337,11 +339,11 @@ jobs:
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ":rotating_light: *Deployment health check FAILED*\n*Commit:* `%s`\n*Failed services:* %s\n<%s|View workflow run \u2192>"
+                  "text": ":rotating_light: *Deployment health check FAILED*\n*Commit:* `%s`\n*Failed services:*\n%s\n<%s|View workflow run \u2192>"
                 }
               }
             ]
-          }' "$SHORT_SHA" "${FAILED_SERVICES:-unknown}" "$RUN_URL")
+          }' "$SHORT_SHA" "$BULLET_LIST" "$RUN_URL")
           curl -sf -X POST "$SLACK_WEBHOOK_URL" \
             -H 'Content-Type: application/json' \
             -d "$PAYLOAD"
@@ -366,7 +368,9 @@ jobs:
           SHORT_SHA="${COMMIT_SHA::8}"
           PORT="${SMTP_PORT:-587}"
           SUBJECT="[Sovereign Office] Deployment health check FAILED — ${SHORT_SHA}"
-          BODY="One or more HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services: ${FAILED_SERVICES:-unknown}\n\nPlease review the workflow run for details:\n${RUN_URL}"
+          # Convert comma-separated service names into a plain-text bulleted list
+          BULLET_LIST=$(printf '%s' "${FAILED_SERVICES:-unknown}" | awk -F', ' '{for(i=1;i<=NF;i++) printf "  • %s\n", $i}')
+          BODY="One or more HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services:\n${BULLET_LIST}\n\nPlease review the workflow run for details:\n${RUN_URL}"
           printf '%b' "$BODY" | curl -sf \
             --url "smtp://${SMTP_HOST}:${PORT}" \
             --ssl-reqd \
