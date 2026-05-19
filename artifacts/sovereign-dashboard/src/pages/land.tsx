@@ -3387,13 +3387,15 @@ export default function LandPage() {
     <div className="max-w-6xl mx-auto space-y-5 p-6">
       <div className="border-b border-amber-700/30 pb-4">
         <div className="flex items-start gap-3">
-          <div className="w-9 h-9 rounded-lg bg-amber-600/20 border border-amber-600/40 flex items-center justify-center shrink-0">
-            <Landmark className="w-5 h-5 text-amber-400" />
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
+            alt="Mathias El Tribe Trust"
+            className="w-12 h-12 object-contain drop-shadow-sm shrink-0"
+          />
           <div className="flex-1">
             <h1 className="text-xl font-bold text-foreground">Land & Asset Management</h1>
             <p className="text-xs text-muted-foreground mt-0.5">
-              Mathias El Tribe — Indigenous Governance & Stewardship Infrastructure · <span className="text-amber-500">METC Title 4 Authority</span>
+              Mathias El Tribe Trust · Indigenous Governance & Stewardship Infrastructure · <span className="text-amber-500">METC Title 4 Authority</span>
             </p>
           </div>
           {loading && <Loader2 className="w-4 h-4 animate-spin text-muted-foreground mt-1" />}

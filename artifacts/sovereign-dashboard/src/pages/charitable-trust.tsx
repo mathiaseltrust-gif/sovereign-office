@@ -477,10 +477,17 @@ export default function CharitableTrustPage() {
     <div data-testid="page-charitable-trust">
       <div className="mb-6">
         <div className="flex items-start justify-between flex-wrap gap-4">
-          <div>
-            <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">501(c)(3) Non-Profit Organization</p>
-            <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Charitable Trust</h1>
-            <p className="text-muted-foreground mt-1">Tax-Exempt Charitable Organization — Donations are tax-deductible</p>
+          <div className="flex items-center gap-4">
+            <img
+              src={`${import.meta.env.BASE_URL}mathias-el-tribe-trust-logo.png`}
+              alt="Mathias El Tribe Trust"
+              className="w-20 h-20 object-contain drop-shadow-md shrink-0"
+            />
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">501(c)(3) Non-Profit Organization</p>
+              <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Charitable Trust</h1>
+              <p className="text-muted-foreground mt-1">Tax-Exempt Charitable Organization — Donations are tax-deductible</p>
+            </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <Badge className="bg-green-700 text-white">501(c)(3) Certified</Badge>
