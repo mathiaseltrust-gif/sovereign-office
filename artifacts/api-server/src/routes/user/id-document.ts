@@ -46,12 +46,13 @@ router.post(
       const dbId = req.user!.dbId!;
       const files = req.files as Record<string, Express.Multer.File[]> | undefined;
       const docType = (req.body.docType as "auto" | "dl" | "passport" | "tribal") ?? "auto";
+      const barcodeTextInput = (req.body.barcodeText as string | undefined)?.trim();
 
       const frontFile = files?.["front"]?.[0];
       const backFile = files?.["back"]?.[0];
 
-      if (!frontFile && !backFile) {
-        res.status(400).json({ error: "Upload at least one side of the ID (front or back)." });
+      if (!frontFile && !backFile && !barcodeTextInput) {
+        res.status(400).json({ error: "Upload at least one side of the ID (front or back) or provide barcode text." });
         return;
       }
 
@@ -59,6 +60,39 @@ router.post(
       let extractionMethod: ExtractedIdFields["extractionMethod"] = "none";
       let confidenceScore = 0;
       let rawBarcodeData: string | undefined;
+
+      if (barcodeTextInput) {
+        const aamva = parseAamvaString(barcodeTextInput);
+        if (aamva) {
+          extractionMethod = "barcode";
+          confidenceScore = 0.97;
+          rawBarcodeData = barcodeTextInput;
+          fields = { ...aamva, extractionMethod, confidenceScore, rawBarcodeData };
+          logger.info({ dbId, jurisdiction: aamva.issuingJurisdictionCode }, "AAMVA barcode submitted as text (camera scan)");
+        } else {
+          res.status(422).json({ error: "Could not parse the scanned barcode as a valid AAMVA driver's license." });
+          return;
+        }
+
+        const [profile] = await db
+          .select({ preferredJurisdiction: profilesTable.preferredJurisdiction, jurisdictionTags: profilesTable.jurisdictionTags })
+          .from(profilesTable)
+          .where(eq(profilesTable.userId, dbId))
+          .limit(1);
+
+        const jurisdictionAdvisory = buildJurisdictionAdvisory(
+          fields.issuingJurisdictionCode,
+          profile?.preferredJurisdiction ?? null,
+          profile?.jurisdictionTags,
+        );
+
+        const sessionId = randomUUID();
+        createIdScanSession(sessionId, dbId, null, null);
+
+        logger.info({ dbId, docType: fields.documentType, jurisdiction: fields.issuingJurisdictionCode, advisoryLevel: jurisdictionAdvisory.level }, "ID document extracted via camera barcode");
+        res.json({ fields, jurisdictionAdvisory, extractionMethod, confidenceScore, scanSessionId: sessionId });
+        return;
+      }
 
       const backIsPdf = backFile?.mimetype === "application/pdf";
       const frontIsPdf = frontFile?.mimetype === "application/pdf";
@@ -164,8 +198,8 @@ router.post(
       }
 
       const session = claimIdScanSession(scanSessionId, dbId);
-      if (!session || (!session.frontObjectPath && !session.backObjectPath)) {
-        res.status(400).json({ error: "Scan session not found, expired, or no ID images were stored. Please re-upload your ID." });
+      if (!session) {
+        res.status(400).json({ error: "Scan session not found or expired. Please re-upload your ID." });
         return;
       }
 

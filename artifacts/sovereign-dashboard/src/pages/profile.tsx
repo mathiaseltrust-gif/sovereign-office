@@ -1,4 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
+import { BrowserMultiFormatReader } from "@zxing/browser";
+import { NotFoundException } from "@zxing/library";
 import { removeBackground } from "@imgly/background-removal";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
@@ -235,6 +237,118 @@ function LandRecordPanel() {
   );
 }
 
+/* ── Barcode Scanner Overlay ── */
+function BarcodeScannerOverlay({
+  onSuccess,
+  onCancel,
+}: {
+  onSuccess: (text: string) => void;
+  onCancel: () => void;
+}) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [cameraError, setCameraError] = useState<string | null>(null);
+  const [detected, setDetected] = useState(false);
+  const controlsRef = useRef<{ stop: () => void } | null>(null);
+  const detectedRef = useRef(false);
+
+  useEffect(() => {
+    const reader = new BrowserMultiFormatReader();
+
+    reader
+      .decodeFromConstraints(
+        { video: { facingMode: { ideal: "environment" }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        videoRef.current!,
+        (result, err) => {
+          if (result && !detectedRef.current) {
+            detectedRef.current = true;
+            setDetected(true);
+            controlsRef.current?.stop();
+            onSuccess(result.getText());
+          }
+          if (err && !(err instanceof NotFoundException)) {
+            console.warn("[BarcodeScanner]", err);
+          }
+        },
+      )
+      .then((controls) => {
+        controlsRef.current = controls;
+      })
+      .catch((e: Error) => {
+        const msg = e?.message ?? "";
+        if (msg.toLowerCase().includes("permission") || msg.toLowerCase().includes("denied")) {
+          setCameraError("Camera permission was denied. Please allow camera access and try again.");
+        } else {
+          setCameraError(msg || "Unable to start camera.");
+        }
+      });
+
+    return () => {
+      try { controlsRef.current?.stop(); } catch { /* ignore */ }
+    };
+  }, []);
+
+  if (cameraError) {
+    return (
+      <div className="space-y-4">
+        <div className="flex items-start gap-2.5 p-3 rounded-lg border border-destructive/40 bg-destructive/5">
+          <AlertTriangle className="h-4 w-4 text-destructive shrink-0 mt-0.5" />
+          <div>
+            <p className="text-xs font-semibold text-destructive">Camera unavailable</p>
+            <p className="text-[10px] text-muted-foreground mt-0.5">{cameraError}</p>
+          </div>
+        </div>
+        <Button size="sm" variant="outline" className="h-8 text-xs gap-1.5" onClick={onCancel}>
+          <Upload className="h-3.5 w-3.5" /> Upload a photo instead
+        </Button>
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-xs font-semibold text-foreground">Aim at the barcode on the back of your ID</p>
+        <button onClick={onCancel} className="text-[10px] text-muted-foreground hover:text-foreground underline underline-offset-2 transition-colors">
+          Use file upload instead
+        </button>
+      </div>
+
+      <div className="relative w-full overflow-hidden rounded-xl border border-border bg-black" style={{ aspectRatio: "4/3" }}>
+        <video
+          ref={videoRef}
+          className="absolute inset-0 w-full h-full object-cover"
+          autoPlay
+          muted
+          playsInline
+        />
+        <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
+          <div className="relative w-[85%]" style={{ aspectRatio: "3.375" }}>
+            <div className="absolute inset-0 border-2 border-white/70 rounded-md" />
+            <div className="absolute top-0 left-0 w-5 h-5 border-t-2 border-l-2 border-primary rounded-tl-sm" />
+            <div className="absolute top-0 right-0 w-5 h-5 border-t-2 border-r-2 border-primary rounded-tr-sm" />
+            <div className="absolute bottom-0 left-0 w-5 h-5 border-b-2 border-l-2 border-primary rounded-bl-sm" />
+            <div className="absolute bottom-0 right-0 w-5 h-5 border-b-2 border-r-2 border-primary rounded-br-sm" />
+            <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-px bg-primary/60 animate-pulse" />
+          </div>
+        </div>
+        <div className="absolute bottom-3 inset-x-0 flex justify-center pointer-events-none">
+          <span className="text-[10px] text-white/80 bg-black/50 px-2.5 py-1 rounded-full">
+            {detected ? "Barcode detected…" : "Hold steady — scanning PDF417 barcode"}
+          </span>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-muted-foreground">
+        The barcode is on the back of most driver's licenses. Hold your camera 6–12 inches away in good lighting.
+      </p>
+
+      <Button size="sm" variant="ghost" className="h-8 text-xs w-full" onClick={onCancel}>
+        Cancel
+      </Button>
+    </div>
+  );
+}
+
 /* ── ID Document Panel ── */
 interface ExtractedIdFields {
   documentType: string;
@@ -288,7 +402,7 @@ const DOC_TYPE_LABELS: Record<string, string> = {
 
 function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean; idDocumentType?: string | null; idDocumentUploadedAt?: string | null; idJurisdictionCode?: string | null } }) {
   const { toast } = useToast();
-  const [step, setStep] = useState<"idle" | "upload" | "review" | "done">(vaultData?.hasIdDocument ? "done" : "idle");
+  const [step, setStep] = useState<"idle" | "upload" | "scan" | "review" | "done">(vaultData?.hasIdDocument ? "done" : "idle");
   const [docType, setDocType] = useState<"auto" | "dl" | "passport" | "tribal">("auto");
   const [frontFile, setFrontFile] = useState<File | null>(null);
   const [backFile, setBackFile] = useState<File | null>(null);
@@ -339,6 +453,36 @@ function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean;
       setStep("review");
     } catch (err) {
       toast({ title: "Could not extract ID data", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setExtracting(false);
+    }
+  };
+
+  const handleBarcodeScanned = async (barcodeText: string) => {
+    setExtracting(true);
+    try {
+      const fd = new FormData();
+      fd.append("docType", "dl");
+      fd.append("barcodeText", barcodeText);
+
+      const resp = await fetch(`${API}/api/user/id-document`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+        body: fd,
+      });
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as { error?: string }).error ?? "Extraction failed");
+      }
+      const data: IdExtractionResult & { scanSessionId?: string } = await resp.json();
+      setResult(data);
+      setEditedFields(data.fields);
+      setUpdateAddress(null);
+      setScanSessionId(data.scanSessionId ?? null);
+      setStep("review");
+    } catch (err) {
+      toast({ title: "Could not process barcode", description: (err as Error).message, variant: "destructive" });
+      setStep("upload");
     } finally {
       setExtracting(false);
     }
@@ -519,9 +663,51 @@ function IdDocumentPanel({ vaultData }: { vaultData?: { hasIdDocument?: boolean;
           <Button size="sm" variant="ghost" className="h-8 text-xs" onClick={() => setStep("idle")}>Cancel</Button>
         </div>
 
-        <p className="text-[10px] text-muted-foreground">
+        <div className="sm:hidden">
+          <div className="flex items-center gap-2 my-1">
+            <div className="flex-1 h-px bg-border" />
+            <span className="text-[10px] text-muted-foreground uppercase tracking-widest">or</span>
+            <div className="flex-1 h-px bg-border" />
+          </div>
+          <Button
+            size="sm"
+            variant="outline"
+            className="h-8 text-xs gap-1.5 w-full border-primary/40 text-primary hover:bg-primary/5"
+            onClick={() => setStep("scan")}
+            disabled={extracting}
+          >
+            <Camera className="h-3.5 w-3.5" /> Scan with Camera
+          </Button>
+          <p className="text-[10px] text-muted-foreground mt-1.5">
+            Point your camera at the barcode on the back of a driver's license for 97% accuracy extraction.
+          </p>
+        </div>
+
+        <p className="text-[10px] text-muted-foreground hidden sm:block">
           For driver's licenses, uploading the back enables high-accuracy barcode extraction. Images are stored encrypted and only accessible to Trustees.
         </p>
+      </div>
+    );
+  }
+
+  if (step === "scan") {
+    return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2">
+          <ScanLine className="h-4 w-4 text-primary shrink-0" />
+          <p className="text-xs font-semibold text-foreground">Scan ID Barcode</p>
+        </div>
+        {extracting ? (
+          <div className="flex flex-col items-center justify-center gap-3 py-10">
+            <Loader2 className="h-6 w-6 animate-spin text-primary" />
+            <p className="text-xs text-muted-foreground">Processing barcode…</p>
+          </div>
+        ) : (
+          <BarcodeScannerOverlay
+            onSuccess={handleBarcodeScanned}
+            onCancel={() => setStep("upload")}
+          />
+        )}
       </div>
     );
   }
