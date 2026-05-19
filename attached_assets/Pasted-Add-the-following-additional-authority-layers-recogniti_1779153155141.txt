@@ -1,0 +1,386 @@
+Add the following additional authority layers, recognition logic, jurisdictional triggers, and definitional protections into the Authority Directory & Oversight Route Engine.
+
+These provisions should function as supplemental ecosystem-aware logic layers and should integrate with existing statutes, CFRs, workflow chains, tribal enforcement logic, escalation systems, intake routing, and document-generation infrastructure already active within the platform.
+
+The following provisions should be categorized and cross-linked by:
+- Issue type
+- Jurisdiction type
+- Trigger condition
+- Agency involvement
+- Tribal implications
+- Enforcement compatibility
+- Oversight escalation
+- Recognition and classification logic
+- Trust responsibility implications
+- Procedural protections
+- Federal supremacy implications
+
+──────────────────────────────
+TRIBAL STATUS / DEFINITIONS
+──────────────────────────────
+
+Issue Type:
+tribal status / recognition / classification
+
+Authority Name:
+ISDEAA Tribal Definition
+
+USC:
+25 U.S.C. § 5304(e)
+
+Logic:
+Defines “Indian tribe” for federal self-determination purposes as any Indian tribe, band, nation, or other organized group or community, including Alaska Native villages, recognized as eligible for the special programs and services provided by the United States to Indians because of their status as Indians.
+
+Applies When:
+Agency attempts narrow BIA-list-only interpretation of tribal existence or eligibility.
+
+Warning / Logic:
+Recognition is confirmatory, not creative. Eligibility and trust responsibility logic may extend beyond administrative publication systems.
+
+──────────────────────────────
+
+Issue Type:
+tribal eligibility / healthcare / federal duty
+
+Authority Name:
+IHCIA Indian Definition
+
+USC:
+25 U.S.C. § 1603
+
+Logic:
+Defines Indian, Indian Tribe, Urban Indian, and Indian Health Program eligibility structures within the Indian Health Care Improvement Act.
+
+Applies When:
+Healthcare denial, eligibility dispute, classification conflict, or agency refusal involving Indian status.
+
+Warning / Logic:
+Healthcare obligations attach to federally protected Indian classifications and federally funded Indian health obligations.
+
+──────────────────────────────
+
+Issue Type:
+tribal standing / federal claims
+
+Authority Name:
+Indian Tucker Act Tribal Standing
+
+USC:
+28 U.S.C. § 1505
+
+Logic:
+Recognizes claims brought by tribes, bands, or other identifiable groups of American Indians.
+
+Applies When:
+Federal standing, tribal injury, trust breach, treaty violation, or identifiable-group analysis is implicated.
+
+Warning / Logic:
+“Identifiable group of American Indians” operates independently from narrow administrative recognition systems.
+
+──────────────────────────────
+
+Issue Type:
+tribal continuity / political identity
+
+Authority Name:
+Montoya Tribal Community Standard
+
+Case Law:
+Montoya v. United States, 180 U.S. 261 (1901)
+
+Logic:
+Defines a tribe as a body of Indians of the same or similar race united in a community under one leadership or government and inhabiting a particular though sometimes ill-defined territory.
+
+Applies When:
+Political continuity, community continuity, tribal identity, or jurisdictional legitimacy is challenged.
+
+Warning / Logic:
+Community continuity and organized governance are key factors independent of modern administrative labels.
+
+──────────────────────────────
+
+Issue Type:
+federal trust duty / unrecognized tribes / identifiable groups
+
+Authority Name:
+Passamaquoddy Federal Trust Responsibility
+
+Case Law:
+Joint Tribal Council of the Passamaquoddy Tribe v. Morton, 528 F.2d 370 (1st Cir. 1975)
+
+Logic:
+Federal trust obligations can apply to tribes not formally acknowledged through administrative recognition systems.
+
+Applies When:
+Agency claims no duty exists because tribe is not on administrative recognition list.
+
+Warning / Logic:
+Federal trust obligations arise from the relationship between the United States and Indian peoples, not solely administrative listing mechanisms.
+
+──────────────────────────────
+FEDERAL TRUST RESPONSIBILITY
+──────────────────────────────
+
+Issue Type:
+federal trust responsibility
+
+Authority Name:
+Snyder Act General Duty
+
+USC:
+25 U.S.C. § 13
+
+Logic:
+Federal appropriations and obligations for the benefit, care, and assistance of Indians throughout the United States.
+
+Applies When:
+Agency denial, healthcare refusal, benefit refusal, or administrative neglect impacts Indians.
+
+Warning / Logic:
+Administrative convenience cannot override federally imposed trust obligations.
+
+──────────────────────────────
+
+Issue Type:
+federal administrative overreach
+
+Authority Name:
+Morton v. Ruiz Publication Requirement
+
+Case Law:
+Morton v. Ruiz, 415 U.S. 199 (1974)
+
+Logic:
+Agencies administering Indian programs must follow publicly known standards and cannot deny rights using unpublished internal rules.
+
+Applies When:
+Agency uses hidden policy, unpublished eligibility criteria, or inconsistent interpretation.
+
+Warning / Logic:
+Indian benefit restrictions require lawful publication and consistent application.
+
+──────────────────────────────
+
+Issue Type:
+agency interpretation abuse
+
+Authority Name:
+Loper Bright Judicial Review
+
+Case Law:
+Loper Bright Enterprises v. Raimondo, 603 U.S. ___ (2024)
+
+Logic:
+Courts must independently interpret statutes and cannot automatically defer to agency interpretation.
+
+Applies When:
+Agency expands authority beyond statute or attempts restrictive reinterpretation of Indian law.
+
+Warning / Logic:
+Agency interpretation is not controlling where statutory language and federal Indian law protections apply.
+
+──────────────────────────────
+TRIBAL JURISDICTION
+──────────────────────────────
+
+Issue Type:
+tribal jurisdiction / state overreach
+
+Authority Name:
+Worcester Federal Exclusivity
+
+Case Law:
+Worcester v. Georgia, 31 U.S. 515 (1832)
+
+Logic:
+State law has no force in Indian country where federal and tribal jurisdiction govern.
+
+Applies When:
+State or county attempts to regulate tribal affairs, tribal lands, or tribal governance.
+
+Warning / Logic:
+Federal and tribal jurisdiction remain primary within Indian affairs.
+
+──────────────────────────────
+
+Issue Type:
+tribal civil authority
+
+Authority Name:
+Williams Tribal Self-Government Protection
+
+Case Law:
+Williams v. Lee, 358 U.S. 217 (1959)
+
+Logic:
+State action cannot infringe upon the right of reservation Indians to make their own laws and be governed by them.
+
+Applies When:
+State proceedings interfere with tribal governance or tribal adjudication.
+
+Warning / Logic:
+State jurisdiction is limited where tribal self-government is impaired.
+
+──────────────────────────────
+
+Issue Type:
+tribal court authority
+
+Authority Name:
+Santa Clara Tribal Sovereign Authority
+
+Case Law:
+Santa Clara Pueblo v. Martinez, 436 U.S. 49 (1978)
+
+Logic:
+Tribal governments retain inherent authority over internal matters and membership-related governance.
+
+Applies When:
+External interference attempts to invalidate tribal governmental authority.
+
+Warning / Logic:
+Tribal powers are inherent and retained, not delegated by states.
+
+──────────────────────────────
+
+Issue Type:
+tribal court enforcement
+
+Authority Name:
+Full Faith and Credit for Tribal Protection Orders
+
+USC:
+18 U.S.C. § 2265
+
+Logic:
+Qualifying tribal protection orders must receive full faith and credit and be enforced by participating jurisdictions.
+
+Applies When:
+State or local agency refuses recognition of qualifying tribal court protective orders.
+
+Warning / Logic:
+Refusal to honor qualifying tribal protection orders may trigger federal enforcement implications.
+
+──────────────────────────────
+LAND / TRUST / TAXATION
+──────────────────────────────
+
+Issue Type:
+restricted land protection
+
+Authority Name:
+Indian Nonintercourse Act
+
+USC:
+25 U.S.C. § 177
+
+Logic:
+Conveyances, encumbrances, or transfers involving Indian lands require federal authorization.
+
+Applies When:
+Foreclosure, lien, taxation, conveyance, utility encumbrance, or administrative interference impacts protected Indian lands.
+
+Warning / Logic:
+Unauthorized encumbrances may be void ab initio.
+
+──────────────────────────────
+
+Issue Type:
+Indian country definition
+
+Authority Name:
+Indian Country Definition
+
+USC:
+18 U.S.C. § 1151
+
+Logic:
+Defines Indian country to include reservations, dependent Indian communities, and allotments.
+
+Applies When:
+Jurisdictional boundaries or state authority claims are disputed.
+
+Warning / Logic:
+Jurisdiction analysis must evaluate Indian country status before state enforcement proceeds.
+
+──────────────────────────────
+
+Issue Type:
+tribal taxation immunity
+
+Authority Name:
+Bryan County Tax Immunity Logic
+
+Case Law:
+Bryan v. Itasca County, 426 U.S. 373 (1976)
+
+Logic:
+States lack general taxing authority over Indians absent clear congressional authorization.
+
+Applies When:
+County taxation, property tax, ad valorem tax, or state tax enforcement is asserted.
+
+Warning / Logic:
+Tax authority over Indian interests requires clear congressional authorization.
+
+──────────────────────────────
+
+Issue Type:
+tribal preemption
+
+Authority Name:
+McClanahan Tribal Tax Protection
+
+Case Law:
+McClanahan v. Arizona State Tax Commission, 411 U.S. 164 (1973)
+
+Logic:
+State taxation is preempted where federal Indian law protections and tribal interests dominate.
+
+Applies When:
+State taxation targets Indian persons, Indian activities, or Indian lands.
+
+Warning / Logic:
+Federal Indian law preemption overrides conflicting state taxation schemes.
+
+──────────────────────────────
+CHILD / FAMILY / ICWA
+──────────────────────────────
+
+Issue Type:
+ICWA jurisdiction
+
+Authority Name:
+Indian Child Welfare Act
+
+USC:
+25 U.S.C. §§ 1911–1922
+
+Logic:
+Protects tribal interests and tribal jurisdiction in child custody proceedings involving Indian children.
+
+Applies When:
+Child custody, foster care, guardianship, termination, or adoption proceedings involve Indian children.
+
+Warning / Logic:
+Failure to comply with ICWA may invalidate proceedings.
+
+──────────────────────────────
+
+Issue Type:
+ICWA constitutional confirmation
+
+Authority Name:
+Brackeen ICWA Confirmation
+
+Case Law:
+Haaland v. Brackeen, 599 U.S. 255 (2023)
+
+Logic:
+Confirms constitutionality and enforceability of ICWA protections.
+
+Applies When:
+ICWA authority or tribal child welfare jurisdiction is challenged.
+
+Warning / Logic:
+ICWA remains binding federal law.
