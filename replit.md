@@ -280,6 +280,18 @@ When the Escalation & Enforcement Intelligence Database identifies a required no
 
 ---
 
+## Deployment Non-Interference Rule
+
+Deployment is handled externally by Mathias. Replit does not interfere with it.
+
+- Do not enforce Azure-only rules
+- Do not block or redirect deployment commands
+- Do not auto-deploy
+- Do not modify deployment scripts
+- Do not attempt to manage or control staging or production pipelines
+- Do not prevent charges or force nonprofit-only behavior
+- Stay neutral — let external deployment happen without interference
+
 ## Deployment Protocol — Standing Instruction
 
 **Dev = Replit Preview.** Changes happen here instantly. Nothing touches the outside world unless explicitly deployed.
