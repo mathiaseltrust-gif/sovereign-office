@@ -276,6 +276,12 @@ async function mergeIntoExisting(staged: StagedRow, ancestorId: number): Promise
   if (!existing.gender    && staged.gender)     updates.gender    = staged.gender;
   if (!existing.isDeceased && (staged.deathYear || staged.deathDate)) updates.isDeceased = true;
 
+  // Write location_address from GEDCOM place data if the record has none.
+  // Birth place is preferred (most historically stable); death place is the fallback.
+  if (!existing.locationAddress && (staged.birthPlace || staged.deathPlace)) {
+    updates.locationAddress = staged.birthPlace ?? staged.deathPlace;
+  }
+
   // Merge notes — append GEDCOM details without overwriting
   const gedcomNote = [
     staged.birthPlace  ? `Birth place: ${staged.birthPlace}`  : null,
@@ -389,15 +395,16 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
       ].filter(Boolean).join("\n\n") || undefined;
 
       const [created] = await db.insert(familyLineageTable).values({
-        firstName: staged.givenName ?? undefined,
-        lastName:  staged.surname   ?? undefined,
-        fullName:  staged.fullName,
-        birthYear: staged.birthYear ?? undefined,
-        deathYear: staged.deathYear ?? undefined,
-        gender:    staged.gender    ?? undefined,
-        notes:     noteText,
-        lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
-        sourceType:  "gedcom",
+        firstName:       staged.givenName ?? undefined,
+        lastName:        staged.surname   ?? undefined,
+        fullName:        staged.fullName,
+        birthYear:       staged.birthYear ?? undefined,
+        deathYear:       staged.deathYear ?? undefined,
+        gender:          staged.gender    ?? undefined,
+        notes:           noteText,
+        locationAddress: staged.birthPlace ?? staged.deathPlace ?? undefined,
+        lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
+        sourceType:      "gedcom",
         isDeceased,
         isAncestor:    true,
         pendingReview: staged.matchType !== "new",
@@ -552,15 +559,16 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
           ].filter(Boolean).join("\n\n") || undefined;
 
           const [bulkCreated] = await db.insert(familyLineageTable).values({
-            firstName:   staged.givenName ?? undefined,
-            lastName:    staged.surname   ?? undefined,
-            fullName:    staged.fullName,
-            birthYear:   staged.birthYear ?? undefined,
-            deathYear:   staged.deathYear ?? undefined,
-            gender:      staged.gender    ?? undefined,
-            notes:       noteText,
-            lineageTags: [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
-            sourceType:  "gedcom",
+            firstName:       staged.givenName ?? undefined,
+            lastName:        staged.surname   ?? undefined,
+            fullName:        staged.fullName,
+            birthYear:       staged.birthYear ?? undefined,
+            deathYear:       staged.deathYear ?? undefined,
+            gender:          staged.gender    ?? undefined,
+            notes:           noteText,
+            locationAddress: staged.birthPlace ?? staged.deathPlace ?? undefined,
+            lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
+            sourceType:      "gedcom",
             isDeceased,
             isAncestor:    true,
             pendingReview: false,

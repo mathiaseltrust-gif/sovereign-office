@@ -222,6 +222,35 @@ const REGION_COORD_MAP: Record<string, [number, number]> = {
   minnesota: [46.5, -94.0],
   wisconsin: [44.5, -90.0],
   michigan: [44.0, -85.0],
+  // City / county entries — populated from GEDCOM birth/death place strings
+  detroit:            [42.33,  -83.05],
+  wayne:              [42.33,  -83.05],  // Wayne County, MI (Detroit metro)
+  birmingham:         [33.52,  -86.80],
+  birmanham:          [33.52,  -86.80],  // common GEDCOM misspelling
+  "bullock county":   [32.10,  -85.72],
+  bullock:            [32.10,  -85.72],
+  "tallapoosa county":[32.87,  -85.80],
+  tallapoosa:         [32.87,  -85.80],
+  dadeville:          [32.84,  -85.76],
+  "sumter county":    [32.60,  -88.22],
+  "sumpter county":   [32.60,  -88.22],  // alternate spelling in records
+  "elmore county":    [32.59,  -86.49],
+  eclectic:           [32.63,  -86.03],
+  "talladega county": [33.13,  -86.22],
+  sylacauga:          [33.17,  -86.25],
+  "alexander city":   [32.94,  -85.95],
+  "eagle creek":      [32.87,  -85.80],  // Tallapoosa County area
+  lagrange:           [33.04,  -85.03],
+  "la grange":        [33.04,  -85.03],
+  "troup county":     [33.04,  -85.03],
+  baytown:            [29.74,  -94.98],
+  austin:             [30.27,  -97.74],
+  "travis county":    [30.27,  -97.74],
+  shellman:           [31.76,  -84.62],
+  "shellman ran":     [31.76,  -84.62],
+  "san salvador":     [13.69,  -89.19],
+  "el salvador":      [13.83,  -88.92],
+  "san miguel":       [13.48,  -88.18],
 };
 
 function geocodeText(text: string): [number, number] | null {
@@ -238,19 +267,21 @@ function geocodeText(text: string): [number, number] | null {
 // Location hierarchy (per system policy):
 //   1. Verified lat/lng stored directly on family_lineage (documentary-quality)
 //   2. location_text from ancestral_timeline_events (recorded place from lineage records)
-//   3. tribalNation keyword geocoded to a historically-grounded centroid
+//   3. location_address stored on family_lineage — e.g. backfilled from GEDCOM
+//      birth_place / death_place strings like "Bullock County, Alabama, USA"
+//   4. tribalNation keyword geocoded to a historically-grounded centroid
 //      NOTE: Self-identified modern affiliation labels (e.g. "Mathias El Tribe") are
 //      NOT used for geocoding — presence in an affiliation does not establish a
 //      historical geographic location. Only recognised historical nation territories
 //      with entries in REGION_COORD_MAP produce a tribal coord.
-//   4. null → record shown as "Location unknown", NOT pinned to user's current address.
+//   5. null → record shown as "Location unknown", NOT pinned to user's current address.
 //
 // Household members (record_status = "household_member") follow the same hierarchy.
 // If no coord resolves, they are listed as "Location unknown" rather than defaulting
 // to the user's geolocation.
 function resolveAncestorCoord(ancestor: AncestorRecord): {
   coord: [number, number];
-  source: "verified_coords" | "timeline_record" | "tribal_nation";
+  source: "verified_coords" | "timeline_record" | "location_address" | "tribal_nation";
   homeCoord: [number, number] | null;
 } | null {
   // Priority 1: verified lat/lng stored directly on the family_lineage record
@@ -267,15 +298,21 @@ function resolveAncestorCoord(ancestor: AncestorRecord): {
   if (ancestor.locationText) {
     const coord = geocodeText(ancestor.locationText);
     if (coord) {
-      return {
-        coord,
-        source: "timeline_record",
-        homeCoord: null,
-      };
+      return { coord, source: "timeline_record", homeCoord: null };
     }
   }
 
-  // Priority 3: tribal nation keyword geocoded to a historically-grounded centroid.
+  // Priority 3: location_address stored on family_lineage — typically a birth place
+  // or death place string backfilled from approved GEDCOM staging records.
+  // Examples: "Bullock County, Alabama, USA", "Detroit, Michigan, USA"
+  if (ancestor.locationAddress) {
+    const coord = geocodeText(ancestor.locationAddress);
+    if (coord) {
+      return { coord, source: "location_address", homeCoord: null };
+    }
+  }
+
+  // Priority 4: tribal nation keyword geocoded to a historically-grounded centroid.
   // Only recognised historical nations in REGION_COORD_MAP produce a coordinate.
   // Modern self-identified affiliation labels that lack a historical territory entry
   // intentionally produce no coordinate — do not fall back to user's current location.
@@ -297,7 +334,7 @@ const CLUSTER_THRESHOLD_DEG = 0.5;
 interface AncestorPlot {
   ancestor: AncestorRecord;
   coord: [number, number];
-  source: "verified_coords" | "timeline_record" | "tribal_nation";
+  source: "verified_coords" | "timeline_record" | "location_address" | "tribal_nation";
   homeCoord: [number, number] | null;
 }
 
@@ -308,7 +345,7 @@ interface AncestorCluster {
 }
 
 function isVerifiedSource(source: AncestorPlot["source"]): boolean {
-  return source === "verified_coords" || source === "timeline_record";
+  return source === "verified_coords" || source === "timeline_record" || source === "location_address";
 }
 
 function clusterAncestors(plots: AncestorPlot[]): AncestorCluster[] {
