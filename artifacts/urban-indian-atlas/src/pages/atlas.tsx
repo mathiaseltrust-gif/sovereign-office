@@ -479,6 +479,8 @@ export default function Atlas() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [rightPanelHidden, setRightPanelHidden] = useState(false);
   const [aiStateFilter, setAIStateFilter] = useState<string[]>([]);
+  // Generation depth: 1 = parents only … 8 = 6× great-grandparents (mirrors family tree)
+  const [maxGeneration, setMaxGeneration] = useState(8);
 
   const applyAIFilters = (result: AIQueryResult) => {
     setAIQueryMessage(result.message);
@@ -592,10 +594,12 @@ export default function Atlas() {
         );
         if (!matchesState) return false;
       }
+      // Generation depth — hide ancestors deeper than the selected tier
+      if (ancestor.generationalPosition !== null && ancestor.generationalPosition > maxGeneration) return false;
       // Exposure filters
       return ancestorMatchesExposureFilters(ancestor, contextMatches, activeExposureFilters);
     });
-  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter]);
+  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter, maxGeneration]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
 
@@ -739,6 +743,8 @@ export default function Atlas() {
               }))
             : undefined}
           bearerToken={authenticated ? getAtlasBearerToken() : null}
+          maxGeneration={maxGeneration}
+          setMaxGeneration={setMaxGeneration}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed(c => !c)}
         />

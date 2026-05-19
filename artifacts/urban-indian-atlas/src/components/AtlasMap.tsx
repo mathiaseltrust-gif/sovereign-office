@@ -129,8 +129,15 @@ function generationLabel(pos: number | null): string {
   if (pos === 1) return "Parent";
   if (pos === 2) return "Grandparent";
   if (pos === 3) return "Great-Grandparent";
-  const suffix = pos === 4 ? "2nd" : pos === 5 ? "3rd" : `${pos - 2}th`;
-  return `${suffix} Great-Grandparent`;
+  return `${pos - 2}× Great-Grandparent`;
+}
+
+// Marker base size scales down with generational distance so closer
+// ancestors appear larger and more prominent on the map.
+function generationMarkerSize(pos: number | null, aiQueryActive: boolean): number {
+  const base = aiQueryActive ? 42 : 38;
+  if (pos === null) return base - 4;
+  return Math.max(22, base - (pos - 1) * 2);
 }
 
 interface AtlasMapProps {
@@ -926,7 +933,7 @@ export function AtlasMap({
             const initials = getInitials(ancestor.firstName, ancestor.lastName, ancestor.fullName);
             // People-first: when an AI query is active, ancestors are the primary subject —
             // render them larger with a golden identity ring so they dominate the map.
-            const baseSize = hasActiveQuery ? 40 : 34;
+            const baseSize = generationMarkerSize(ancestor.generationalPosition, hasActiveQuery);
             const size = isSelected ? baseSize + 8 : baseSize;
             const fontSize = initials.length > 2 ? 10 : 12;
             // Selected: outer glow ring + larger badge

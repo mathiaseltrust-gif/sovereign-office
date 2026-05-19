@@ -35,6 +35,8 @@ interface AtlasSidebarProps {
   onClearAIFilters: () => void;
   ancestorSummary?: import("@/components/AtlasAIQuery").AncestorSummaryItem[];
   bearerToken?: string | null;
+  maxGeneration: number;
+  setMaxGeneration: (v: number) => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
 }
@@ -210,6 +212,8 @@ export function AtlasSidebar({
   onClearAIFilters,
   ancestorSummary,
   bearerToken,
+  maxGeneration,
+  setMaxGeneration,
   collapsed: propCollapsed,
   onToggleCollapsed: propToggle,
 }: AtlasSidebarProps) {
@@ -335,6 +339,57 @@ export function AtlasSidebar({
                       </p>
                     )}
                   </div>
+
+                  {/* ── Generation Depth Selector ─────────────────────────── */}
+                  {isAuthenticated && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                          Generation Depth
+                        </p>
+                        <span className="text-[10px] text-amber-400/80 font-medium">
+                          {["Parent","Grandparent","Great-GP","2× GGP","3× GGP","4× GGP","5× GGP","6× GGP"][maxGeneration - 1]}
+                        </span>
+                      </div>
+                      <div className="flex gap-0.5">
+                        {([1,2,3,4,5,6,7,8] as const).map(g => {
+                          const labels = ["P","GP","GGP","2×","3×","4×","5×","6×"];
+                          const fullLabels = ["Parent","Grandparent","Great-Grandparent","2× Great-GP","3× Great-GP","4× Great-GP","5× Great-GP","6× Great-GP"];
+                          const active = g <= maxGeneration;
+                          const isMax = g === maxGeneration;
+                          return (
+                            <button
+                              key={g}
+                              title={`Show up to ${fullLabels[g - 1]} (Gen ${g})`}
+                              onClick={() => setMaxGeneration(g)}
+                              style={{
+                                flex: 1,
+                                height: 28,
+                                borderRadius: 4,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                border: isMax ? "1px solid rgba(201,169,110,0.6)" : "1px solid transparent",
+                                background: active
+                                  ? isMax
+                                    ? "rgba(201,169,110,0.25)"
+                                    : "rgba(201,169,110,0.10)"
+                                  : "rgba(255,255,255,0.04)",
+                                color: active ? "#c9a96e" : "rgba(255,255,255,0.2)",
+                                transition: "all 0.12s",
+                              }}
+                            >
+                              {labels[g - 1]}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/40 leading-snug">
+                        Showing {maxGeneration === 1 ? "parents only" : `${maxGeneration} generations`}
+                        {" · tap a tier to hide deeper ancestors"}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="space-y-2">
                     {ATLAS_PEOPLE_LAYERS.map(item => (
