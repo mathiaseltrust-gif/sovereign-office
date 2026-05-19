@@ -160,10 +160,31 @@ Respond ONLY with valid JSON. Use null for fields not found. Shape:
     }
 
     // ── Legal authorities ─────────────────────────────────────────────────────
-    const legalAuthorities = await db
+    // Primary: match by detected matter type
+    const primaryAuthorities = await db
       .select()
       .from(authorityLegalMapTable)
       .where(ilike(authorityLegalMapTable.issueType, `%${matterType}%`));
+
+    // Supplemental: always pull agency_denial (Loper Bright, APA review) when any
+    // federal review flag is set or any Indian law flag is set, and the primary
+    // matter type isn't already agency_denial (to avoid duplicates).
+    let supplementalAuthorities: (typeof authorityLegalMapTable.$inferSelect)[] = [];
+    const indianLawFlag = extracted.indianLawFlag as boolean | null;
+    const federalReviewFlag = extracted.federalReviewFlag as boolean | null;
+    if (matterType !== "agency_denial" && (indianLawFlag || federalReviewFlag)) {
+      supplementalAuthorities = await db
+        .select()
+        .from(authorityLegalMapTable)
+        .where(ilike(authorityLegalMapTable.issueType, "%agency_denial%"));
+    }
+
+    // Merge, dedup by id — primary first, supplemental appended
+    const seenIds = new Set(primaryAuthorities.map(a => a.id));
+    const legalAuthorities = [
+      ...primaryAuthorities,
+      ...supplementalAuthorities.filter(a => !seenIds.has(a.id)),
+    ];
 
     // ── Fuzzy agency lookup ───────────────────────────────────────────────────
     let matchedAgencies: (typeof authorityAgenciesTable.$inferSelect)[] = [];
