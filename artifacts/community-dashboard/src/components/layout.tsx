@@ -18,6 +18,7 @@ import {
   ExternalLink,
   TreePine,
   FolderOpen,
+  Camera,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
@@ -32,6 +33,7 @@ const navigation: { name: string; href: string; icon: React.ElementType; externa
   { name: "SDU University", href: "/university", icon: GraduationCap },
   { name: "My Profile", href: "/profile", icon: UserCircle },
   { name: "Admin", href: "/admin", icon: Shield },
+  { name: "Photo Manager", href: "/photos", icon: Camera },
   {
     name: "Tribal Heritage",
     href: "#heritage",
