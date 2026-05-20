@@ -77,6 +77,22 @@ function Router() {
   );
 }
 
+const OFFICE_LOGIN = "https://office.mathiaseltribe.org/login";
+
+function AuthGuard({ children }: { children: React.ReactNode }) {
+  const session = getSovereignSession();
+  if (!session) {
+    const next = encodeURIComponent(window.location.href);
+    window.location.replace(`${OFFICE_LOGIN}?next=${next}`);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground text-sm">Redirecting to Sovereign Office sign in…</p>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 function App() {
   const session = getSovereignSession();
   const currentUserId = session?.id ? parseInt(session.id, 10) : null;
@@ -87,9 +103,11 @@ function App() {
       <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
         <TooltipProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
-            <ChatManagerProvider currentUserId={currentUserId} token={token}>
-              <Router />
-            </ChatManagerProvider>
+            <AuthGuard>
+              <ChatManagerProvider currentUserId={currentUserId} token={token}>
+                <Router />
+              </ChatManagerProvider>
+            </AuthGuard>
           </WouterRouter>
           <Toaster />
         </TooltipProvider>

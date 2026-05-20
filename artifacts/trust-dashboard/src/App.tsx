@@ -27,11 +27,19 @@ const queryClient = new QueryClient({
   },
 });
 
+const OFFICE_LOGIN = "https://office.mathiaseltribe.org/login";
+
 function AuthenticatedRouter() {
   const { user } = useAuth();
 
   if (!user) {
-    return <Login />;
+    const next = encodeURIComponent(window.location.href);
+    window.location.replace(`${OFFICE_LOGIN}?next=${next}`);
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <p className="text-muted-foreground text-sm">Redirecting to Sovereign Office sign in…</p>
+      </div>
+    );
   }
 
   if (user.roles.includes("visitor_media")) {

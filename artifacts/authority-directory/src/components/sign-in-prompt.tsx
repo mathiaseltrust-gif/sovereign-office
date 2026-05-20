@@ -12,10 +12,10 @@ export function SignInPrompt() {
           This dashboard requires a valid Sovereign Office session. Please sign in via the Sovereign Dashboard to continue.
         </p>
         <a
-          href="/sovereign-dashboard/"
+          href={`https://office.mathiaseltribe.org/login?next=${encodeURIComponent(window.location.href)}`}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium border border-primary-border hover-elevate active-elevate-2 transition-colors"
         >
-          Sign In via Sovereign Dashboard
+          Sign In via Sovereign Office
         </a>
       </div>
     </div>

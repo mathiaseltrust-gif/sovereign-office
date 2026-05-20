@@ -58,10 +58,10 @@ function SessionExpiredPage() {
           Your Sovereign Office session has expired or is no longer valid. Please sign in again to continue.
         </p>
         <a
-          href="/sovereign-dashboard/"
+          href={`https://office.mathiaseltribe.org/login?next=${encodeURIComponent(window.location.href)}`}
           className="inline-block rounded-md bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 transition-colors"
         >
-          Sign in via Sovereign Dashboard
+          Sign in via Sovereign Office
         </a>
       </div>
     </div>
