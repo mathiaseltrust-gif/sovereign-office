@@ -1,0 +1,44 @@
+name: VM Diagnostics
+
+on:
+  workflow_dispatch:
+
+jobs:
+  diagnose:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check VM state via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 3m
+          script: |
+            echo "=== CONTAINER STATUS ==="
+            docker ps -a --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            echo ""
+            echo "=== API LOGS (last 40 lines) ==="
+            docker logs sovereign-office-api-1 --tail 40 2>&1 || echo "(no api container)"
+
+            echo ""
+            echo "=== API HEALTH CHECK ==="
+            curl -sf --max-time 5 http://localhost:8080/api/healthz && echo "  -> HEALTHY" || echo "  -> NOT RESPONDING"
+
+            echo ""
+            echo "=== GATEWAY STATUS ==="
+            curl -sfk --max-time 5 https://localhost:3001/ -o /dev/null -w "  3001: HTTP %{http_code}\n" || echo "  3001: failed"
+            curl -sfk --max-time 5 https://localhost:3002/ -o /dev/null -w "  3002: HTTP %{http_code}\n" || echo "  3002: failed"
+            curl -sfk --max-time 5 https://localhost:3003/ -o /dev/null -w "  3003: HTTP %{http_code}\n" || echo "  3003: failed"
+            curl -sfk --max-time 5 https://localhost:3004/ -o /dev/null -w "  3004: HTTP %{http_code}\n" || echo "  3004: failed"
+
+            echo ""
+            echo "=== DATABASE URL (masked) ==="
+            grep DATABASE_URL /opt/sovereign-office/.env | sed 's|://[^@]*@|://***:***@|g'
+
+            echo ""
+            echo "=== DISK & MEMORY ==="
+            df -h / && free -m
