@@ -28,8 +28,10 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS builder
 
 ARG VITE_API_URL=http://localhost:8080
+ARG BASE_PATH=/
 
 ENV VITE_API_URL=${VITE_API_URL}
+ENV BASE_PATH=${BASE_PATH}
 ENV NODE_ENV=production
 ENV PORT=5173
 ENV REPL_ID=""
