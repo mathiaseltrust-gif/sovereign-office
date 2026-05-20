@@ -1,0 +1,80 @@
+name: Fix Microsoft Auth URI & Redeploy
+
+on:
+  workflow_dispatch:
+
+jobs:
+  fix-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Set MICROSOFT_REDIRECT_URI, force latest image, restart API
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 10m
+          script: |
+            set -euo pipefail
+            ENV_FILE=/opt/sovereign-office/.env
+            COMPOSE=/opt/sovereign-office/docker-compose.prod.yml
+            cd /opt/sovereign-office
+
+            echo "=== 1. Set MICROSOFT_REDIRECT_URI in .env ==="
+            sed -i '/^MICROSOFT_REDIRECT_URI=/d' "$ENV_FILE"
+            echo 'MICROSOFT_REDIRECT_URI=https://20.83.210.26:3001/microsoft/callback' >> "$ENV_FILE"
+            grep 'MICROSOFT_REDIRECT_URI' "$ENV_FILE"
+
+            echo "=== 2. Force IMAGE_TAG=latest in .env (prevents stale SHA tag) ==="
+            sed -i '/^IMAGE_TAG=/d' "$ENV_FILE"
+            echo 'IMAGE_TAG=latest' >> "$ENV_FILE"
+            grep 'IMAGE_TAG' "$ENV_FILE"
+
+            echo "=== 3. Patch compose file to pass MICROSOFT_REDIRECT_URI to API container ==="
+            if ! grep -q 'MICROSOFT_REDIRECT_URI' "$COMPOSE"; then
+              sed -i '/SOVEREIGN_DASHBOARD_URL:/a\      MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-https://20.83.210.26:3001/microsoft/callback}' "$COMPOSE"
+              echo "Patched compose file."
+            else
+              echo "MICROSOFT_REDIRECT_URI already in compose — skipping patch."
+            fi
+            grep 'MICROSOFT_REDIRECT_URI\|SOVEREIGN_DASHBOARD' "$COMPOSE"
+
+            echo "=== 4. Login to ACR and pull latest API image ==="
+            source "$ENV_FILE"
+            echo "${{ secrets.ACR_PASSWORD }}" | \
+              docker login "$ACR_REGISTRY" --username "${{ secrets.ACR_USERNAME }}" --password-stdin
+            docker pull "${ACR_REGISTRY}/sovereign-api:latest"
+            docker tag "${ACR_REGISTRY}/sovereign-api:latest" "${ACR_REGISTRY}/sovereign-api:latest"
+
+            echo "=== 5. Confirm image has atlas route code ==="
+            docker run --rm --entrypoint sh "${ACR_REGISTRY}/sovereign-api:latest" \
+              -c "grep -l 'atlasEventsTable\|atlas.*Router\|/atlas' /app/dist/*.mjs 2>/dev/null || echo 'NOT FOUND'"
+
+            echo "=== 6. Restart API container with latest image ==="
+            docker compose -f docker-compose.prod.yml rm -sf api
+            IMAGE_TAG=latest docker compose -f docker-compose.prod.yml up -d api
+
+            echo "=== 7. Waiting 45s for API to initialise ==="
+            sleep 45
+
+            echo "=== Container status ==="
+            docker ps --filter "name=api" --format "table {{.Names}}\t{{.Status}}\t{{.Ports}}"
+
+            echo "=== API health ==="
+            curl -sf --max-time 10 http://localhost:8080/api/healthz \
+              && echo " HEALTHY" || echo " NOT YET HEALTHY"
+
+            echo "=== Microsoft auth config (redirectUri must be :3001) ==="
+            curl -sf --max-time 10 http://localhost:8080/api/auth/microsoft/config \
+              || echo "FAILED"
+
+            echo "=== Atlas events (must return [] or events, not 404) ==="
+            HTTP_CODE=$(curl -s -o /tmp/atlas_resp.json -w "%{http_code}" --max-time 10 \
+              http://localhost:8080/api/atlas/events || echo "000")
+            echo "HTTP $HTTP_CODE"
+            cat /tmp/atlas_resp.json 2>/dev/null || true
+
+            echo "=== API recent logs ==="
+            docker logs sovereign-office-api-1 --tail 15 2>&1
