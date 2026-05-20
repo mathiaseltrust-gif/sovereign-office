@@ -1,0 +1,160 @@
+name: Fix — Patch Gateway API Proxy (hot-reload nginx)
+on:
+  workflow_dispatch:
+
+jobs:
+  patch-gateway:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Copy new nginx.conf to VM and hot-reload gateway
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          command_timeout: 3m
+          script: |
+            set -euo pipefail
+            DEPLOY=/opt/sovereign-office
+
+            # Write the patched nginx.conf directly on the VM
+            cat > /tmp/nginx-patched.conf << 'NGINX_EOF'
+            worker_processes auto;
+            error_log /var/log/nginx/error.log warn;
+            pid /tmp/nginx.pid;
+
+            events {
+                worker_connections 1024;
+            }
+
+            http {
+                include       /etc/nginx/mime.types;
+                default_type  application/octet-stream;
+                sendfile      on;
+                keepalive_timeout 65;
+
+                ssl_certificate     /etc/nginx/ssl/selfsigned.crt;
+                ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+                ssl_protocols       TLSv1.2 TLSv1.3;
+                ssl_ciphers         HIGH:!aNULL:!MD5;
+                ssl_session_cache   shared:SSL:10m;
+
+                server {
+                    listen 3001 ssl;
+                    server_name _;
+                    location /api/ {
+                        proxy_pass         http://api:8080/api/;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 120s;
+                    }
+                    location / {
+                        proxy_pass         http://sovereign:80;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 60s;
+                    }
+                }
+
+                server {
+                    listen 3002 ssl;
+                    server_name _;
+                    location /api/ {
+                        proxy_pass         http://api:8080/api/;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 120s;
+                    }
+                    location / {
+                        proxy_pass         http://trust:80;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 60s;
+                    }
+                }
+
+                server {
+                    listen 3003 ssl;
+                    server_name _;
+                    location /api/ {
+                        proxy_pass         http://api:8080/api/;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 120s;
+                    }
+                    location / {
+                        proxy_pass         http://community:80;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 60s;
+                    }
+                }
+
+                server {
+                    listen 3004 ssl;
+                    server_name _;
+                    location /api/ {
+                        proxy_pass         http://api:8080/api/;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 120s;
+                    }
+                    location / {
+                        proxy_pass         http://atlas:80;
+                        proxy_http_version 1.1;
+                        proxy_set_header   Host              $host;
+                        proxy_set_header   X-Real-IP         $remote_addr;
+                        proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+                        proxy_set_header   X-Forwarded-Proto https;
+                        proxy_read_timeout 60s;
+                    }
+                }
+            }
+            NGINX_EOF
+
+            # Find the running gateway container
+            GW=$(docker ps --filter "name=gateway" --format "{{.Names}}" | head -1)
+            echo "Gateway container: $GW"
+
+            # Copy the patched config in
+            docker cp /tmp/nginx-patched.conf "$GW":/etc/nginx/nginx.conf
+
+            # Test config
+            docker exec "$GW" nginx -t
+
+            # Hot-reload (no downtime)
+            docker exec "$GW" nginx -s reload
+
+            echo "=== Gateway reload complete — verifying API proxy ==="
+            sleep 2
+
+            # Quick smoke test: does /api/healthz respond through the gateway?
+            CODE=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost:3001/api/healthz || echo "ERR")
+            echo "https://localhost:3001/api/healthz => $CODE"
+
+            CODE2=$(curl -sk -o /dev/null -w "%{http_code}" https://localhost:3001/api/healthz -H "Origin: https://20.83.210.26:3001" || echo "ERR")
+            echo "with Origin header => $CODE2"

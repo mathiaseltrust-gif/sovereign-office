@@ -1,0 +1,44 @@
+name: Database Audit
+on:
+  workflow_dispatch:
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          command_timeout: 4m
+          script: |
+            set -euo pipefail
+            source /opt/sovereign-office/.env
+            DB="$DATABASE_URL"
+
+            psql() {
+              docker run --rm postgres:16-alpine psql "$DB" "$@"
+            }
+
+            echo "=== USERS ==="
+            psql -c "SELECT id, email, name,
+              CASE WHEN microsoft_id IS NOT NULL AND microsoft_id!='' THEN 'microsoft'
+                   ELSE 'email/password' END as auth_type,
+              created_at
+              FROM users ORDER BY created_at;" 2>&1 || echo "(users table missing or error)"
+
+            echo ""
+            echo "=== TABLE ROW COUNTS ==="
+            psql -c "SELECT schemaname, relname AS table_name, n_live_tup AS rows
+              FROM pg_stat_user_tables ORDER BY n_live_tup DESC;" 2>&1
+
+            echo ""
+            echo "=== FAMILY MEMBERS SAMPLE ==="
+            psql -c "SELECT id, user_id, name, relationship, created_at
+              FROM family_members ORDER BY created_at LIMIT 10;" 2>&1 || echo "(no family_members table)"
+
+            echo ""
+            echo "=== DOCUMENTS SAMPLE ==="
+            psql -c "SELECT id, user_id, title, type, created_at
+              FROM documents ORDER BY created_at LIMIT 10;" 2>&1 || echo "(no documents table)"
