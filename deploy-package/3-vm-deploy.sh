@@ -67,7 +67,7 @@ echo "Step 5 — Starting all services..."
 # Start with local postgres if USE_AZURE_DB is not true
 if [ "${USE_AZURE_DB:-false}" = "true" ]; then
   echo "  Using Azure Database for PostgreSQL (skipping local postgres container)"
-  docker compose -f docker-compose.prod.yml up -d api sovereign trust community atlas
+  docker compose -f docker-compose.prod.yml up -d api sovereign trust community atlas authority gateway
 else
   docker compose -f docker-compose.prod.yml --profile local-db up -d
 fi

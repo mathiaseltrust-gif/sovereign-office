@@ -92,6 +92,14 @@ build_and_push "urban-indian-atlas" \
   "artifacts/urban-indian-atlas/Dockerfile" \
   "--build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
 
+echo "Step 7/8 — Authority Directory & Oversight Routing..."
+build_and_push "authority-directory" \
+  "artifacts/authority-directory/Dockerfile" \
+  "--build-arg BASE_PATH=/ --build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
+
+echo "Step 8/8 — SSL Gateway..."
+echo "(gateway is rebuilt separately via deploy-package/gateway/Dockerfile)"
+
 echo "Done!"
 echo ""
 echo "============================================================"

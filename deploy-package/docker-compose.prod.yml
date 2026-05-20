@@ -114,9 +114,20 @@ services:
         condition: service_started
 
   # ---------------------------------------------------------------------------
-  # SSL Gateway — nginx that terminates HTTPS on ports 3001-3004
+  # Authority Directory & Oversight Routing — internal routing engine UI
+  # Internal only — HTTPS access via gateway on port 3005
+  # ---------------------------------------------------------------------------
+  authority:
+    image: ${ACR_REGISTRY}/authority-directory:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
+  # SSL Gateway — nginx that terminates HTTPS on ports 3001-3005
   # Generates a self-signed certificate on first start.
-  # Accessible at: https://YOUR-SERVER:3001 through :3004
+  # Accessible at: https://YOUR-SERVER:3001 through :3005
   # ---------------------------------------------------------------------------
   gateway:
     image: ${ACR_REGISTRY}/sovereign-gateway:${IMAGE_TAG:-latest}
@@ -126,6 +137,7 @@ services:
       - "3002:3002"
       - "3003:3003"
       - "3004:3004"
+      - "3005:3005"
     environment:
       SERVER_IP: ${SERVER_IP:-20.83.210.26}
     depends_on:
@@ -133,6 +145,7 @@ services:
       - trust
       - community
       - atlas
+      - authority
 
 volumes:
   db_data:
