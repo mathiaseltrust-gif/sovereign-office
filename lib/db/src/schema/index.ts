@@ -52,3 +52,5 @@ export * from "./authority-intake-extractions";
 export * from "./case-files";
 export * from "./case-number-history";
 export * from "./ancestor-life-events";
+export * from "./land-records";
+export * from "./historical-exposure";
