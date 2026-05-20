@@ -45,27 +45,49 @@ FROM node:22-slim AS runtime
 WORKDIR /app
 ENV NODE_ENV=production
 
-# Copy the bundled output (esbuild writes dist/index.mjs + dist/migrate.mjs + pino worker files)
-COPY --from=builder /workspace/artifacts/api-server/dist ./dist
+# ── Step A: npm-install externalized packages FIRST, before any pnpm COPY ──
+#
+# esbuild externalises @google-cloud/* (and others) — see build.mjs external[].
+# pnpm stores packages as a virtual symlink store: artifact-level symlinks
+# use relative paths that break after Docker COPY (wrong directory depth).
+# Root-workspace symlinks resolve correctly, but @google-cloud/storage is only
+# installed at the artifact level, not hoisted.
+#
+# By running npm install here — in a completely empty /app with no node_modules
+# yet — npm succeeds without the "Cannot read properties of null" arborist error
+# that occurs when it encounters an existing pnpm-format node_modules tree.
+# The installed packages land as real directories (not symlinks), so Node.js
+# ESM resolution finds them reliably.
+#
+# The subsequent cp -rn steps skip these entries (destination already exists).
+RUN echo '{"name":"sovereign-api","version":"1.0.0","private":true}' \
+      > /app/package.json \
+ && npm install --save \
+      @google-cloud/storage@^7.19.0 \
+      google-auth-library@^10.6.2 \
+ && rm /app/package.json
 
-# Copy SQL migrations so drizzle migrator can apply them at startup
+# ── Step B: bundled output + migrations ─────────────────────────────────────
+COPY --from=builder /workspace/artifacts/api-server/dist ./dist
 COPY --from=builder /workspace/lib/db/migrations ./migrations
 
-# Copy node_modules: esbuild externalises pdfkit and its text-rendering deps
-# (fontkit, linebreak, unicode-*) so they must be present at runtime.
-COPY --from=builder /workspace/node_modules                 ./node_modules
+# ── Step C: pnpm root node_modules (pdfkit, fontkit, linebreak, etc.) ───────
+# Root-workspace pnpm symlinks resolve correctly after COPY because the
+# relative symlink ".pnpm/pkg@ver/..." has the same depth in both locations.
+# Artifact-level symlinks (broken depth) are silently tolerated with || true;
+# the packages we actually need are already in place from Step A.
+COPY --from=builder /workspace/node_modules                 ./node_modules_ws
 COPY --from=builder /workspace/artifacts/api-server/node_modules \
-                    ./node_modules_local
+                    ./node_modules_art
 
-# Merge artifact-level node_modules if pnpm placed anything there
-RUN if [ -d ./node_modules_local ] && [ "$(ls -A ./node_modules_local 2>/dev/null)" ]; then \
-      cp -rn ./node_modules_local/. ./node_modules/ ; \
-    fi && rm -rf ./node_modules_local
+RUN if [ -d ./node_modules_ws ] && [ "$(ls -A ./node_modules_ws 2>/dev/null)" ]; then \
+      cp -rn ./node_modules_ws/. ./node_modules/ 2>/dev/null || true ; \
+    fi && rm -rf ./node_modules_ws \
+ && if [ -d ./node_modules_art ] && [ "$(ls -A ./node_modules_art 2>/dev/null)" ]; then \
+      cp -rn ./node_modules_art/. ./node_modules/ 2>/dev/null || true ; \
+    fi && rm -rf ./node_modules_art
 
-# Note: @google-cloud/storage and google-auth-library are available via the pnpm
-# node_modules/.pnpm directory copied above — no extra install step needed.
-
-# Entrypoint: run migrations then start the server
+# ── Step D: entrypoint ───────────────────────────────────────────────────────
 COPY artifacts/api-server/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
