@@ -62,11 +62,8 @@ RUN if [ -d ./node_modules_local ] && [ "$(ls -A ./node_modules_local 2>/dev/nul
       cp -rn ./node_modules_local/. ./node_modules/ ; \
     fi && rm -rf ./node_modules_local
 
-# Install packages that esbuild externalises (cannot inline due to .proto / native file loading).
-# These must be present as real npm packages at runtime — not pnpm symlinks.
-RUN npm install --no-save \
-      @google-cloud/storage \
-      google-auth-library
+# Note: @google-cloud/storage and google-auth-library are available via the pnpm
+# node_modules/.pnpm directory copied above — no extra install step needed.
 
 # Entrypoint: run migrations then start the server
 COPY artifacts/api-server/docker-entrypoint.sh /docker-entrypoint.sh
