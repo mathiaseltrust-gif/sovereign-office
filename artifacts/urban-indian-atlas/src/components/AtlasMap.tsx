@@ -422,6 +422,74 @@ function resolveCoordForEventType(
   }
 }
 
+// Source-confidence helpers for migration path color coding.
+// Colors mirror the existing pin visual language:
+//   verified_coords / timeline_record → blue  (solid-border pin style)
+//   location_address                  → amber (approximate, geocoded from place string)
+//   tribal_nation                     → brown (inferred, dashed-border pin style)
+const SOURCE_PATH_COLORS: Record<AncestorPlot["source"], string> = {
+  verified_coords:  "#5b9bdc",  // verified blue — matches the "Verified" note color in tooltips
+  timeline_record:  "#5b9bdc",  // from records — same confidence tier
+  location_address: "#c29b40",  // approximate / geocoded place string — amber
+  tribal_nation:    "#8a7050",  // inferred / tribal affiliation — warm brown
+};
+
+const SOURCE_CONFIDENCE_RANK: Record<AncestorPlot["source"], number> = {
+  verified_coords:  3,
+  timeline_record:  2,
+  location_address: 1,
+  tribal_nation:    0,
+};
+
+// Returns both the coordinate and source confidence for a life event type.
+// Used when building migration path segments so each segment can be colored
+// by the weaker (less certain) of its two endpoint sources.
+function resolveCoordAndSourceForEventType(
+  ancestor: AncestorRecord,
+  eventType: string,
+): { coord: [number, number]; source: AncestorPlot["source"] } | null {
+  switch (eventType) {
+    case "birth":
+      if (ancestor.birthPlace) {
+        const coord = geocodeText(ancestor.birthPlace);
+        if (coord) return { coord, source: "location_address" };
+      }
+      return null;
+    case "death":
+      if (ancestor.deathPlace) {
+        const coord = geocodeText(ancestor.deathPlace);
+        if (coord) return { coord, source: "location_address" };
+      }
+      return null;
+    case "burial":
+      if (ancestor.burialPlace) {
+        const coord = geocodeText(ancestor.burialPlace);
+        if (coord) return { coord, source: "location_address" };
+      }
+      return null;
+    case "lived_in": {
+      if (ancestor.locationLat != null && ancestor.locationLng != null) {
+        return { coord: [ancestor.locationLat, ancestor.locationLng], source: "verified_coords" };
+      }
+      if (ancestor.locationText) {
+        const coord = geocodeText(ancestor.locationText);
+        if (coord) return { coord, source: "timeline_record" };
+      }
+      if (ancestor.locationAddress) {
+        const coord = geocodeText(ancestor.locationAddress);
+        if (coord) return { coord, source: "location_address" };
+      }
+      if (ancestor.tribalNation) {
+        const coord = geocodeText(ancestor.tribalNation);
+        if (coord) return { coord, source: "tribal_nation" };
+      }
+      return null;
+    }
+    default:
+      return null;
+  }
+}
+
 // Resolves an ancestor's map coordinate with a source label and optional
 // "home" coordinate (tribal nation centroid) for migration arc rendering.
 //
@@ -650,6 +718,51 @@ export function AtlasMap({
   // Alias for legacy usages (map centering)
   const ancestorsWithCoords = ancestorPlots;
 
+  // ── Migration path for selected ancestor ────────────────────────────────────
+  // When a single ancestor is selected, compute their life-event coordinates in
+  // chronological order (birth → lived_in → death → burial) and build polyline
+  // segments connecting consecutive distinct locations.
+  // Each segment is colored by the weaker source-confidence of its two endpoints,
+  // matching the existing pin color coding: verified → blue, approximate → amber,
+  // tribal/inferred → brown.
+  const migrationPath = useMemo(() => {
+    if (!selectedPersonId || !atlasMode) return null;
+    const ancestor = ancestors.find(a => a.id === selectedPersonId);
+    if (!ancestor) return null;
+
+    const EVENT_ORDER = ["birth", "lived_in", "death", "burial"] as const;
+    const points: { coord: [number, number]; eventType: string; source: AncestorPlot["source"] }[] = [];
+
+    for (const et of EVENT_ORDER) {
+      const result = resolveCoordAndSourceForEventType(ancestor, et);
+      if (!result) continue;
+      // Deduplicate: skip if essentially the same location as the previous point
+      const prev = points[points.length - 1];
+      if (prev && Math.abs(prev.coord[0] - result.coord[0]) < 0.05 && Math.abs(prev.coord[1] - result.coord[1]) < 0.05) continue;
+      points.push({ coord: result.coord, eventType: et, source: result.source });
+    }
+
+    if (points.length < 2) return null;
+
+    const segments: {
+      from: { coord: [number, number]; eventType: string; source: AncestorPlot["source"] };
+      to: { coord: [number, number]; eventType: string; source: AncestorPlot["source"] };
+      color: string;
+    }[] = [];
+    for (let i = 0; i < points.length - 1; i++) {
+      const f = points[i];
+      const t = points[i + 1];
+      // Use the weaker endpoint's source color so the path conveys the
+      // least-certain data quality along that stretch.
+      const weakerSource = SOURCE_CONFIDENCE_RANK[f.source] <= SOURCE_CONFIDENCE_RANK[t.source]
+        ? f.source
+        : t.source;
+      segments.push({ from: f, to: t, color: SOURCE_PATH_COLORS[weakerSource] });
+    }
+
+    return { ancestor, segments };
+  }, [selectedPersonId, ancestors, atlasMode]);
+
   // Center map on selected person
   useEffect(() => {
     if (selectedPersonId) {
@@ -662,6 +775,14 @@ export function AtlasMap({
 
   return (
     <div className="flex-1 w-full bg-[#1a1612] relative" data-testid="map-container" style={{ height: "100%", zIndex: 0 }}>
+      <style>{`
+        @keyframes migrationDash {
+          to { stroke-dashoffset: -28; }
+        }
+        .migration-path-animated {
+          animation: migrationDash 1.6s linear infinite;
+        }
+      `}</style>
       <MapContainer
         center={[39.5, -98.35]}
         zoom={4}
@@ -1012,6 +1133,46 @@ export function AtlasMap({
               positions={[homeCoord, coord]}
               pathOptions={{ color: "#8a7050", weight: 1.5, opacity: 0.45, dashArray: "4 6" }}
             />
+          );
+        })}
+
+        {/* ── Selected ancestor migration path (animated polylines) ─────────────
+            When a single ancestor is selected, draw animated dashed polylines
+            connecting their life events (birth → lived_in → death/burial) in
+            chronological order. Color follows the ancestor's pin color coding.
+            Each segment is filtered by activeLifeEventTypes when set — a
+            segment only shows if both its endpoint event types are active
+            (or if no filter is active).
+        ── */}
+        {migrationPath && migrationPath.segments.map(({ from, to, color }, i) => {
+          // When a life event type filter is active, only show segments where
+          // both endpoint types are currently visible.
+          if (activeLifeEventTypes.length > 0) {
+            const fromVisible = activeLifeEventTypes.includes(from.eventType);
+            const toVisible = activeLifeEventTypes.includes(to.eventType);
+            if (!fromVisible || !toVisible) return null;
+          }
+          return (
+            <Polyline
+              key={`migration-${selectedPersonId}-${i}`}
+              positions={[from.coord, to.coord]}
+              pathOptions={{
+                color,
+                weight: 2.5,
+                opacity: 0.88,
+                dashArray: "10 8",
+                className: "migration-path-animated",
+              }}
+            >
+              <Tooltip sticky opacity={0.95}>
+                <div style={{ fontSize: 11, fontWeight: 600 }}>
+                  {migrationPath.ancestor.fullName}
+                </div>
+                <div style={{ fontSize: 10, color: "#aaa", marginTop: 1 }}>
+                  {from.eventType.replace("_", " ")} → {to.eventType.replace("_", " ")}
+                </div>
+              </Tooltip>
+            </Polyline>
           );
         })}
 
@@ -1414,6 +1575,18 @@ export function AtlasMap({
             <div className="flex items-center gap-2">
               <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "1.5px dashed #8a7050", opacity: 0.55 }} />
               <span className="text-muted-foreground leading-tight">Migration arc</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "2px dashed #5b9bdc", opacity: 0.88 }} />
+              <span className="text-muted-foreground leading-tight">Ancestor path · verified</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "2px dashed #c29b40", opacity: 0.88 }} />
+              <span className="text-muted-foreground leading-tight">Ancestor path · approx.</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-4 h-0.5 flex-shrink-0" style={{ borderTop: "2px dashed #8a7050", opacity: 0.88 }} />
+              <span className="text-muted-foreground leading-tight">Ancestor path · tribal</span>
             </div>
           </div>
         )}
