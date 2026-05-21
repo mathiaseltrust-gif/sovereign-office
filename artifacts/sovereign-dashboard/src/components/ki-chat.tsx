@@ -1361,8 +1361,8 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                             <p className="text-[9px] font-semibold uppercase tracking-widest text-white/35 mb-0.5">Search Results</p>
                             {lastSearchResults.map((result, ri) => {
                               const RESULT_PATHS: Record<string, (id: string) => string> = {
-                                case: (id) => `/cases/${id}`,
-                                intake: () => `/intake`,
+                                case: () => `/investigations`,
+                                intake: () => `/sovereign-pipeline`,
                                 member: () => `/membership`,
                                 profile: () => `/membership`,
                                 nfr: () => `/nfr`,
@@ -1371,7 +1371,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                                 calendar_event: () => `/calendar`,
                                 classification: () => `/classify`,
                                 document: () => `/documents`,
-                                trust_instrument: () => `/trust-dashboard/`,
+                                trust_instrument: () => `/instruments`,
                               };
                               const viewPath = RESULT_PATHS[result.entityType]?.(result.entityId) ?? `/search`;
                               const typeLabel = result.entityType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());

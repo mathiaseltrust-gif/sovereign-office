@@ -1085,8 +1085,8 @@ export function ChatWidget() {
                     </div>
                     {msg.searchResults.map((result, i) => {
                       const RESULT_PATHS: Record<string, (id: string) => string> = {
-                        case: (id) => `/cases/${id}`,
-                        intake: () => `/intake`,
+                        case: () => `/investigations`,
+                        intake: () => `/sovereign-pipeline`,
                         member: () => `/membership`,
                         profile: () => `/membership`,
                         nfr: () => `/nfr`,
@@ -1095,7 +1095,7 @@ export function ChatWidget() {
                         calendar_event: () => `/calendar`,
                         classification: () => `/classify`,
                         document: () => `/documents`,
-                        trust_instrument: () => `/trust-dashboard/`,
+                        trust_instrument: () => `/instruments`,
                       };
                       const viewPath = RESULT_PATHS[result.entityType]?.(result.entityId) ?? `/search`;
                       const typeLabel = result.entityType.replace(/_/g, " ").replace(/\b\w/g, (l: string) => l.toUpperCase());

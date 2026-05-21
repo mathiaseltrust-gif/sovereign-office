@@ -79,14 +79,13 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     keywords: ["files", "repository", "storage", "records"],
   },
   {
-    path: "/case-registry",
+    path: "/investigations",
     label: "Case File Registry",
     section: "Governance",
     description: "Open and closed case files, case tracking and management",
     icon: Scale,
     roles: OFFICER_ROLES,
     keywords: ["case", "registry", "files", "tracking", "SOV", "case number"],
-    external: true,
   },
   {
     path: "/filings",

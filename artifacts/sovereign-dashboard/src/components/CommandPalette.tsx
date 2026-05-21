@@ -49,11 +49,11 @@ const ENTITY_PATHS: Record<string, (id: string) => string> = {
   calendar_event: () => `/calendar`,
   profile: () => `/membership`,
   classification: () => `/classify`,
-  case: (id) => `/cases/${id}`,
-  intake: () => `/intake`,
+  case: () => `/investigations`,
+  intake: () => `/sovereign-pipeline`,
   member: () => `/membership`,
   document: () => `/documents`,
-  trust_instrument: () => `/trust-dashboard/`,
+  trust_instrument: () => `/instruments`,
   filing: () => `/filings`,
 };
 
@@ -206,12 +206,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-start justify-center pt-[10vh]"
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose();
-      }}
     >
-      {/* Backdrop */}
-      <div className="absolute inset-0 bg-black/55 backdrop-blur-sm" />
+      {/* Backdrop — click closes the palette */}
+      <div
+        className="absolute inset-0 bg-black/55 backdrop-blur-sm"
+        onMouseDown={() => onClose()}
+      />
 
       {/* Palette */}
       <div
