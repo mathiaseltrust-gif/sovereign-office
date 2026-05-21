@@ -20,21 +20,59 @@ const ENTITY_LABELS: Record<string, string> = {
   calendar_event: "Calendar",
   member: "Member",
   profile: "Member",
+  case: "Case",
+  intake: "Intake",
+  document: "Document",
+  trust_instrument: "Trust",
+  filing: "Filing",
+};
+
+const ENTITY_LANE_LABELS: Record<string, string> = {
+  member: "Members",
+  profile: "Members",
+  case: "Cases",
+  intake: "Intakes",
+  document: "Documents",
+  task: "Tasks",
+  calendar_event: "Calendar",
+  complaint: "Complaints",
+  nfr: "NFR Documents",
+  classification: "Classifications",
+  trust_instrument: "Trust Instruments",
+  filing: "Filings",
 };
 
 const ENTITY_PATHS: Record<string, (id: string) => string> = {
-  nfr: (id) => `/nfr`,
-  task: (id) => `/tasks`,
-  complaint: (id) => `/complaints`,
-  calendar_event: (id) => `/calendar`,
-  profile: (id) => `/membership`,
-  classification: (id) => `/classify`,
+  nfr: () => `/nfr`,
+  task: () => `/tasks`,
+  complaint: () => `/complaints`,
+  calendar_event: () => `/calendar`,
+  profile: () => `/membership`,
+  classification: () => `/classify`,
+  case: (id) => `/cases/${id}`,
+  intake: () => `/intake`,
+  member: () => `/membership`,
+  document: () => `/documents`,
+  trust_instrument: () => `/trust-dashboard/`,
+  filing: () => `/filings`,
 };
 
 function recordPath(r: SearchRecord): string {
   const fn = ENTITY_PATHS[r.entityType];
   return fn ? fn(r.entityId) : `/search`;
 }
+
+function recordDate(r: SearchRecord): string | null {
+  const m = r.metadata as Record<string, unknown> | null;
+  if (!m) return null;
+  const raw = m.date ?? m.createdAt ?? m.updatedAt;
+  if (!raw) return null;
+  try {
+    return new Date(raw as string).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  } catch { return null; }
+}
+
+const LANE_ORDER = ["member", "profile", "case", "intake", "document", "task", "calendar_event", "complaint", "nfr", "classification", "trust_instrument", "filing"];
 
 interface CommandPaletteProps {
   open: boolean;
@@ -278,41 +316,56 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             </>
           )}
 
-          {/* Live record results */}
-          {records.length > 0 && (
-            <>
-              <p className="px-4 pt-2 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
-                Records
-              </p>
-              {records.slice(0, 6).map((r) => {
-                const offset = allItems.findIndex(
-                  (it) => it.kind === "record" && it.record.entityId === r.entityId && it.record.entityType === r.entityType,
-                );
-                const isActive = activeIdx === offset;
-                const typeLabel = ENTITY_LABELS[r.entityType] ?? r.entityType;
-                return (
-                  <button
-                    key={`rec-${r.entityType}-${r.entityId}`}
-                    className={[
-                      "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
-                      isActive ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/60",
-                    ].join(" ")}
-                    onMouseEnter={() => setActiveIdx(offset)}
-                    onClick={() => handleSelect({ kind: "record", record: r })}
-                  >
-                    <span
-                      className="shrink-0 text-[9px] font-bold uppercase px-1.5 py-0.5 rounded"
-                      style={{ background: "hsl(var(--muted))", color: "hsl(var(--muted-foreground))" }}
-                    >
-                      {typeLabel}
-                    </span>
-                    <span className="flex-1 truncate text-sm">{r.content.substring(0, 80)}</span>
-                    <ArrowRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
-                  </button>
-                );
-              })}
-            </>
-          )}
+          {/* Live record results — grouped by entity type (lane grouping) */}
+          {records.length > 0 && (() => {
+            const grouped = new Map<string, SearchRecord[]>();
+            for (const r of records.slice(0, 20)) {
+              const k = r.entityType;
+              if (!grouped.has(k)) grouped.set(k, []);
+              grouped.get(k)!.push(r);
+            }
+            const orderedTypes = [
+              ...LANE_ORDER.filter(t => grouped.has(t)),
+              ...[...grouped.keys()].filter(t => !LANE_ORDER.includes(t)),
+            ];
+            return orderedTypes.map(entityType => {
+              const laneRecords = (grouped.get(entityType) ?? []).slice(0, 3);
+              const laneLabel = ENTITY_LANE_LABELS[entityType] ?? entityType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+              return (
+                <div key={`lane-${entityType}`}>
+                  <p className="px-4 pt-2 pb-0.5 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
+                    {laneLabel}
+                  </p>
+                  {laneRecords.map((r) => {
+                    const offset = allItems.findIndex(
+                      (it) => it.kind === "record" && it.record.entityId === r.entityId && it.record.entityType === r.entityType,
+                    );
+                    const isActive = activeIdx === offset;
+                    const date = recordDate(r);
+                    return (
+                      <button
+                        key={`rec-${r.entityType}-${r.entityId}`}
+                        className={[
+                          "w-full flex items-center gap-3 px-4 py-1.5 text-sm text-left transition-colors",
+                          isActive ? "bg-accent text-accent-foreground" : "text-foreground hover:bg-accent/60",
+                        ].join(" ")}
+                        onMouseEnter={() => setActiveIdx(offset)}
+                        onClick={() => handleSelect({ kind: "record", record: r })}
+                      >
+                        <div className="flex-1 min-w-0">
+                          <span className="truncate text-sm block">{r.content.substring(0, 80)}</span>
+                          {date && (
+                            <span className="text-[10px] text-muted-foreground">{date}</span>
+                          )}
+                        </div>
+                        <ArrowRight className="w-3 h-3 text-muted-foreground/40 shrink-0" />
+                      </button>
+                    );
+                  })}
+                </div>
+              );
+            });
+          })()}
         </div>
 
         {/* Footer hint */}

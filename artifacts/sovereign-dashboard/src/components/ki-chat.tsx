@@ -868,6 +868,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const [pendingSaveMessage, setPendingSaveMessage] = useState<{ id: number; content: string } | null>(null);
   const [alignmentWarning, setAlignmentWarning] = useState<AlignmentWarning | null>(null);
   const [lastNavigateCards, setLastNavigateCards] = useState<NavigateCard[] | null>(null);
+  const [lastSearchResults, setLastSearchResults] = useState<Array<{ entityType: string; entityId: string; content: string }> | null>(null);
   const [alignmentExpanded, setAlignmentExpanded] = useState(false);
 
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
@@ -927,7 +928,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
         const e = await r.json().catch(() => ({}));
         throw new Error((e as any).error ?? "COMPANION is unavailable right now");
       }
-      return r.json() as Promise<{ reply: string; alignmentWarning?: AlignmentWarning; navigateCards?: NavigateCard[] }>;
+      return r.json() as Promise<{ reply: string; alignmentWarning?: AlignmentWarning; navigateCards?: NavigateCard[]; searchResults?: Array<{ entityType: string; entityId: string; content: string }> }>;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] });
@@ -939,6 +940,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
         setAlignmentWarning(null);
       }
       setLastNavigateCards(data.navigateCards?.length ? data.navigateCards : null);
+      setLastSearchResults(data.searchResults?.length ? data.searchResults : null);
     },
     onError: (e) => toast({ title: "COMPANION error", description: (e as Error).message, variant: "destructive" }),
   });
@@ -1010,6 +1012,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     if (!text) return;
     setInput("");
     setLastNavigateCards(null);
+    setLastSearchResults(null);
     if (inputMode === "journal") {
       diaryMutation.mutate({ content: text, mood: selectedMood ?? undefined });
       setSelectedMood(null);
@@ -1349,6 +1352,47 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                               style={{ color: "rgba(255,200,100,0.45)" }}
                               title="Ask COMPANION to draft a formal document from this response"
                             >draft doc ↗</button>
+                          </div>
+                        )}
+
+                        {/* ── Search Result Cards (last COMPANION message only) ── */}
+                        {msg.role === "assistant" && isLastMsg && lastSearchResults && lastSearchResults.length > 0 && (
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            <p className="text-[9px] font-semibold uppercase tracking-widest text-white/35 mb-0.5">Search Results</p>
+                            {lastSearchResults.map((result, ri) => {
+                              const RESULT_PATHS: Record<string, (id: string) => string> = {
+                                case: (id) => `/cases/${id}`,
+                                intake: () => `/intake`,
+                                member: () => `/membership`,
+                                profile: () => `/membership`,
+                                nfr: () => `/nfr`,
+                                task: () => `/tasks`,
+                                complaint: () => `/complaints`,
+                                calendar_event: () => `/calendar`,
+                                classification: () => `/classify`,
+                                document: () => `/documents`,
+                                trust_instrument: () => `/trust-dashboard/`,
+                              };
+                              const viewPath = RESULT_PATHS[result.entityType]?.(result.entityId) ?? `/search`;
+                              const typeLabel = result.entityType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+                              return (
+                                <button
+                                  key={ri}
+                                  onClick={() => (window as any).__kayaNavigate?.(viewPath)}
+                                  className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-all hover:brightness-110 active:scale-[0.98]"
+                                  style={{
+                                    background: "rgba(30,80,160,0.18)",
+                                    border: "1px solid rgba(60,120,220,0.25)",
+                                  }}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-blue-300/60 mb-0.5">{typeLabel}</p>
+                                    <p className="text-[11px] text-white/80 truncate leading-tight">{result.content.substring(0, 100)}</p>
+                                  </div>
+                                  <span className="shrink-0 text-[10px] font-semibold text-blue-300/70 mt-0.5">→ View</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 
