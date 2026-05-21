@@ -450,11 +450,35 @@ function FullReport({ report }: { report: IntakeAgentReport }) {
 function ExtractedFieldsCard({ fields, loading }: { fields: ExtractedFields | null; loading: boolean }) {
   const [, navigate] = useLocation();
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
 
   function copyValue(key: string, value: string) {
     navigator.clipboard.writeText(value).catch(() => {});
     setCopiedKey(key);
     setTimeout(() => setCopiedKey(null), 1500);
+  }
+
+  async function saveLandToProfile() {
+    if (!fields) return;
+    const payload: Record<string, string> = {};
+    if (fields.propertyNumber) payload.apn = fields.propertyNumber;
+    if (fields.propertyAddress) payload.mailingAddress = fields.propertyAddress;
+    if (!Object.keys(payload).length) return;
+    setSaveState("saving");
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch("/api/user/profile", {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+      if (!r.ok) throw new Error("save failed");
+      setSaveState("saved");
+      setTimeout(() => setSaveState("idle"), 3000);
+    } catch {
+      setSaveState("error");
+      setTimeout(() => setSaveState("idle"), 3000);
+    }
   }
 
   function useInDraft() {
@@ -514,13 +538,26 @@ function ExtractedFieldsCard({ fields, loading }: { fields: ExtractedFields | nu
 
   return (
     <div className="rounded-lg border border-blue-200 bg-blue-50/50 p-3 space-y-3 mt-2">
-      <div className="flex items-center justify-between gap-2">
+      <div className="flex items-center justify-between gap-2 flex-wrap">
         <p className="text-[11px] font-semibold uppercase tracking-widest text-blue-700">
           Document References {fields.source === "ai" ? "· AI Extracted" : "· Pattern Matched"}
         </p>
-        <Button size="sm" variant="outline" className="text-xs h-6 px-2 shrink-0" onClick={useInDraft}>
-          Use in Draft →
-        </Button>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {(fields.propertyNumber || fields.propertyAddress) && (
+            <Button
+              size="sm"
+              variant={saveState === "saved" ? "default" : "outline"}
+              className={`text-xs h-6 px-2 shrink-0 ${saveState === "saved" ? "bg-green-600 hover:bg-green-600 text-white border-green-600" : saveState === "error" ? "border-red-400 text-red-600" : ""}`}
+              onClick={saveLandToProfile}
+              disabled={saveState === "saving" || saveState === "saved"}
+            >
+              {saveState === "saving" ? "Saving…" : saveState === "saved" ? "✓ Saved to Profile" : saveState === "error" ? "Save Failed" : "Save Land Data to Profile"}
+            </Button>
+          )}
+          <Button size="sm" variant="outline" className="text-xs h-6 px-2 shrink-0" onClick={useInDraft}>
+            Use in Draft →
+          </Button>
+        </div>
       </div>
 
       {visibleScalars.length > 0 && (
