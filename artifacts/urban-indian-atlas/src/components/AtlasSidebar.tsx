@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { motion } from "framer-motion";
 import {
   ChevronLeft, ChevronRight, FilterX, Layers, Users,
   MapPin, ChevronDown, ChevronRight as ChevronRightSm,
+  Search, X as XIcon, Calendar,
 } from "lucide-react";
-import { AtlasEvent, ActiveLayers } from "@/pages/atlas";
+import { AtlasEvent, ActiveLayers, AncestorRecord } from "@/pages/atlas";
 import { AtlasAIQuery, AIQueryResult } from "@/components/AtlasAIQuery";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -39,6 +40,17 @@ interface AtlasSidebarProps {
   setMaxGeneration: (v: number) => void;
   collapsed?: boolean;
   onToggleCollapsed?: () => void;
+  // New: ancestor name search
+  ancestorNameSearch: string;
+  setAncestorNameSearch: (v: string) => void;
+  allAncestors?: AncestorRecord[];
+  onSelectAncestor?: (id: number) => void;
+  // New: paternal / maternal line filter
+  lineageFilter: "all" | "paternal" | "maternal";
+  setLineageFilter: (v: "all" | "paternal" | "maternal") => void;
+  // New: life event type filter
+  activeLifeEventTypes: string[];
+  setActiveLifeEventTypes: (v: string[]) => void;
 }
 
 const ERA_LABELS: Record<string, string> = {
@@ -196,6 +208,14 @@ function AccordionSection({
   );
 }
 
+const LIFE_EVENT_TYPES = [
+  { id: "birth",    label: "Birth" },
+  { id: "death",    label: "Death" },
+  { id: "marriage", label: "Marriage" },
+  { id: "burial",   label: "Burial" },
+  { id: "lived_in", label: "Lived In" },
+] as const;
+
 export function AtlasSidebar({
   events,
   activeEras, setActiveEras,
@@ -216,8 +236,18 @@ export function AtlasSidebar({
   setMaxGeneration,
   collapsed: propCollapsed,
   onToggleCollapsed: propToggle,
+  ancestorNameSearch,
+  setAncestorNameSearch,
+  allAncestors = [],
+  onSelectAncestor,
+  lineageFilter,
+  setLineageFilter,
+  activeLifeEventTypes,
+  setActiveLifeEventTypes,
 }: AtlasSidebarProps) {
   const [localCollapsed, setLocalCollapsed] = useState(false);
+  const [searchFocused, setSearchFocused] = useState(false);
+  const searchRef = useRef<HTMLInputElement>(null);
   const collapsed = propCollapsed !== undefined ? propCollapsed : localCollapsed;
   const handleToggle = propToggle ?? (() => setLocalCollapsed(c => !c));
 
@@ -242,12 +272,26 @@ export function AtlasSidebar({
     setActiveSeverities([]);
     setActivePolicies([]);
     setActiveExposureFilters([]);
+    setAncestorNameSearch("");
+    setLineageFilter("all");
+    setActiveLifeEventTypes([]);
     onClearAIFilters();
   };
 
+  // Name search: compute matching ancestors from allAncestors
+  const searchResults = ancestorNameSearch.trim().length >= 2
+    ? allAncestors.filter(a =>
+        a.fullName.toLowerCase().includes(ancestorNameSearch.toLowerCase()) ||
+        (a.firstName ?? "").toLowerCase().includes(ancestorNameSearch.toLowerCase()) ||
+        (a.lastName ?? "").toLowerCase().includes(ancestorNameSearch.toLowerCase())
+      ).slice(0, 8)
+    : [];
+
   const manualFilterCount =
     activeEras.length + activeTypes.length + activeSeverities.length +
-    activePolicies.length + activeExposureFilters.length;
+    activePolicies.length + activeExposureFilters.length +
+    activeLifeEventTypes.length + (lineageFilter !== "all" ? 1 : 0) +
+    (ancestorNameSearch ? 1 : 0);
   const activeCount = manualFilterCount + (aiQueryMessage ? 1 : 0);
 
   return (
@@ -340,6 +384,67 @@ export function AtlasSidebar({
                     )}
                   </div>
 
+                  {/* ── Ancestor Name Search ──────────────────────────────── */}
+                  {isAuthenticated && allAncestors.length > 0 && (
+                    <div className="space-y-1">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                        Search Ancestor
+                      </p>
+                      <div className="relative">
+                        <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-muted-foreground/50 pointer-events-none" />
+                        <input
+                          ref={searchRef}
+                          type="text"
+                          placeholder="Type a name…"
+                          value={ancestorNameSearch}
+                          onChange={e => setAncestorNameSearch(e.target.value)}
+                          onFocus={() => setSearchFocused(true)}
+                          onBlur={() => setTimeout(() => setSearchFocused(false), 150)}
+                          className="w-full pl-7 pr-7 py-1.5 text-xs bg-background/60 border border-border/50 rounded-md focus:outline-none focus:ring-1 focus:ring-primary/40 text-foreground placeholder:text-muted-foreground/40"
+                          data-testid="ancestor-name-search"
+                        />
+                        {ancestorNameSearch && (
+                          <button
+                            onClick={() => setAncestorNameSearch("")}
+                            className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground/50 hover:text-foreground"
+                          >
+                            <XIcon className="w-3 h-3" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Search results dropdown */}
+                      {(searchFocused || ancestorNameSearch) && searchResults.length > 0 && (
+                        <div className="border border-border/60 rounded-md overflow-hidden bg-background/95 shadow-lg">
+                          {searchResults.map(a => (
+                            <button
+                              key={a.id}
+                              onMouseDown={() => {
+                                onSelectAncestor?.(a.id);
+                                setAncestorNameSearch(a.fullName);
+                                setSearchFocused(false);
+                              }}
+                              className="w-full flex items-center gap-2 px-2.5 py-2 text-left hover:bg-muted/40 transition-colors border-b border-border/30 last:border-0"
+                              data-testid={`ancestor-search-result-${a.id}`}
+                            >
+                              <MapPin className="w-3 h-3 text-primary/60 flex-shrink-0" />
+                              <div className="flex-1 min-w-0">
+                                <p className="text-xs font-medium text-foreground truncate">{a.fullName}</p>
+                                <p className="text-[9px] text-muted-foreground/60">
+                                  {[a.birthYear, a.deathYear].filter(Boolean).join(" – ")}
+                                  {a.tribalNation ? ` · ${a.tribalNation}` : ""}
+                                </p>
+                              </div>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                      {ancestorNameSearch.trim().length >= 2 && searchResults.length === 0 && (
+                        <p className="text-[10px] text-muted-foreground/50 px-1">No matching ancestors found.</p>
+                      )}
+                    </div>
+                  )}
+
                   {/* ── Generation Depth Selector ─────────────────────────── */}
                   {isAuthenticated && (
                     <div className="space-y-1.5">
@@ -387,6 +492,95 @@ export function AtlasSidebar({
                       <p className="text-[9px] text-muted-foreground/40 leading-snug">
                         Showing {maxGeneration === 1 ? "parents only" : `${maxGeneration} generations`}
                         {" · tap a tier to hide deeper ancestors"}
+                      </p>
+                    </div>
+                  )}
+
+                  {/* ── Paternal / Maternal Line Filter ──────────────────── */}
+                  {isAuthenticated && (
+                    <div className="space-y-1.5">
+                      <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                        Family Line
+                      </p>
+                      <div className="flex gap-1">
+                        {(["all", "paternal", "maternal"] as const).map(opt => (
+                          <button
+                            key={opt}
+                            onClick={() => setLineageFilter(opt)}
+                            data-testid={`lineage-filter-${opt}`}
+                            style={{
+                              flex: 1,
+                              height: 26,
+                              borderRadius: 4,
+                              fontSize: 9,
+                              fontWeight: 700,
+                              cursor: "pointer",
+                              border: lineageFilter === opt ? "1px solid rgba(201,169,110,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                              background: lineageFilter === opt ? "rgba(201,169,110,0.22)" : "rgba(255,255,255,0.04)",
+                              color: lineageFilter === opt ? "#c9a96e" : "rgba(255,255,255,0.3)",
+                              transition: "all 0.12s",
+                              textTransform: "uppercase",
+                              letterSpacing: "0.04em",
+                            }}
+                          >
+                            {opt === "all" ? "All Lines" : opt === "paternal" ? "Paternal" : "Maternal"}
+                          </button>
+                        ))}
+                      </div>
+                      {lineageFilter !== "all" && (
+                        <p className="text-[9px] text-amber-400/60 leading-snug px-0.5">
+                          Showing {lineageFilter} line ancestors · based on lineage tags
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* ── Life Event Type Filter ────────────────────────────── */}
+                  {isAuthenticated && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[9px] font-bold uppercase tracking-widest text-muted-foreground/50">
+                          Pin by Life Event
+                        </p>
+                        <Calendar className="w-3 h-3 text-muted-foreground/30" />
+                      </div>
+                      <div className="flex flex-wrap gap-1">
+                        {LIFE_EVENT_TYPES.map(({ id, label }) => {
+                          const active = activeLifeEventTypes.includes(id);
+                          return (
+                            <button
+                              key={id}
+                              onClick={() => {
+                                setActiveLifeEventTypes(
+                                  active
+                                    ? activeLifeEventTypes.filter(t => t !== id)
+                                    : [...activeLifeEventTypes, id]
+                                );
+                              }}
+                              data-testid={`life-event-type-${id}`}
+                              style={{
+                                padding: "2px 8px",
+                                borderRadius: 12,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                cursor: "pointer",
+                                border: active ? "1px solid rgba(201,169,110,0.6)" : "1px solid rgba(255,255,255,0.1)",
+                                background: active ? "rgba(201,169,110,0.20)" : "rgba(255,255,255,0.04)",
+                                color: active ? "#c9a96e" : "rgba(255,255,255,0.3)",
+                                transition: "all 0.12s",
+                                textTransform: "uppercase",
+                                letterSpacing: "0.04em",
+                              }}
+                            >
+                              {label}
+                            </button>
+                          );
+                        })}
+                      </div>
+                      <p className="text-[9px] text-muted-foreground/40 leading-snug">
+                        {activeLifeEventTypes.length === 0
+                          ? "Default: uses best available location for each ancestor"
+                          : `Pinning by ${activeLifeEventTypes.join(", ")} location · ancestors with no matching record are hidden`}
                       </p>
                     </div>
                   )}

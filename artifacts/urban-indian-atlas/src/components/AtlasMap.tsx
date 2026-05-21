@@ -1,5 +1,5 @@
 import { useEffect, useState, useMemo, useCallback } from "react";
-import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON as GeoJSONLayer, Polyline, Tooltip, useMap } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, CircleMarker, GeoJSON as GeoJSONLayer, Polyline, Tooltip, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
 import markerIcon from "leaflet/dist/images/marker-icon.png";
@@ -158,6 +158,8 @@ interface AtlasMapProps {
   onToggleRightPanel?: () => void;
   rightPanelOpen?: boolean;
   flyToCoords?: [number, number] | null;
+  onClusterClick?: (members: AncestorPlot[], centroid: [number, number]) => void;
+  activeLifeEventTypes?: string[];
 }
 
 // Grabs the Leaflet map instance and passes it up via callback.
@@ -167,6 +169,32 @@ function MapInstanceGrabber({ onReady }: { onReady: (m: L.Map) => void }) {
   useEffect(() => { onReady(map); }, [map, onReady]);
   return null;
 }
+
+// Tracks zoom level changes and reports them to parent.
+function ZoomTracker({ onZoomChange }: { onZoomChange: (z: number) => void }) {
+  const map = useMapEvents({
+    zoom: () => { onZoomChange(map.getZoom()); },
+    zoomend: () => { onZoomChange(map.getZoom()); },
+  });
+  useEffect(() => { onZoomChange(map.getZoom()); }, [map, onZoomChange]);
+  return null;
+}
+
+// Returns the spatial clustering threshold (degrees) for the given zoom level.
+// Lower zoom = larger threshold = more ancestors merge into a single circle.
+function zoomClusterThreshold(zoom: number): number {
+  if (zoom <= 4) return 4.0;
+  if (zoom <= 5) return 2.5;
+  if (zoom <= 6) return 1.2;
+  if (zoom <= 7) return 0.6;
+  if (zoom <= 8) return 0.3;
+  if (zoom <= 10) return 0.15;
+  return 0; // zoom > 10 — show every individual pin
+}
+
+// MAX_CLUSTER_ZOOM: at this zoom and above, clicking a cluster opens the
+// results panel instead of zooming in further.
+const MAX_CLUSTER_ZOOM = 10;
 
 const severityColors = {
   critical: "#a64115",
@@ -362,6 +390,38 @@ function geocodeText(text: string): [number, number] | null {
   return null;
 }
 
+// Resolves an ancestor's coordinate for a specific life event type.
+// Returns null if no data for that event type exists.
+function resolveCoordForEventType(
+  ancestor: AncestorRecord,
+  eventType: string,
+): [number, number] | null {
+  switch (eventType) {
+    case "birth":
+      if (ancestor.birthPlace) return geocodeText(ancestor.birthPlace);
+      return null;
+    case "death":
+      if (ancestor.deathPlace) return geocodeText(ancestor.deathPlace);
+      return null;
+    case "burial":
+      if (ancestor.burialPlace) return geocodeText(ancestor.burialPlace);
+      return null;
+    case "lived_in": {
+      if (ancestor.locationLat != null && ancestor.locationLng != null) {
+        return [ancestor.locationLat, ancestor.locationLng];
+      }
+      if (ancestor.locationText) return geocodeText(ancestor.locationText);
+      if (ancestor.locationAddress) return geocodeText(ancestor.locationAddress);
+      if (ancestor.tribalNation) return geocodeText(ancestor.tribalNation);
+      return null;
+    }
+    case "marriage":
+      return null; // no marriage location in current schema
+    default:
+      return null;
+  }
+}
+
 // Resolves an ancestor's map coordinate with a source label and optional
 // "home" coordinate (tribal nation centroid) for migration arc rendering.
 //
@@ -432,11 +492,12 @@ function resolveAncestorCoord(ancestor: AncestorRecord): {
 // a single cluster circle. Single-member groups render as individual markers.
 const CLUSTER_THRESHOLD_DEG = 0.5;
 
-interface AncestorPlot {
+export interface AncestorPlot {
   ancestor: AncestorRecord;
   coord: [number, number];
   source: "verified_coords" | "timeline_record" | "location_address" | "tribal_nation";
   homeCoord: [number, number] | null;
+  lifeEventType?: string;
 }
 
 interface AncestorCluster {
@@ -449,12 +510,12 @@ function isVerifiedSource(source: AncestorPlot["source"]): boolean {
   return source === "verified_coords" || source === "timeline_record" || source === "location_address";
 }
 
-function clusterAncestors(plots: AncestorPlot[]): AncestorCluster[] {
+function clusterAncestors(plots: AncestorPlot[], threshold = CLUSTER_THRESHOLD_DEG): AncestorCluster[] {
   const clusters: AncestorCluster[] = [];
   for (const plot of plots) {
     const nearby = clusters.find(c =>
-      Math.abs(c.centroid[0] - plot.coord[0]) < CLUSTER_THRESHOLD_DEG &&
-      Math.abs(c.centroid[1] - plot.coord[1]) < CLUSTER_THRESHOLD_DEG
+      Math.abs(c.centroid[0] - plot.coord[0]) < threshold &&
+      Math.abs(c.centroid[1] - plot.coord[1]) < threshold
     );
     if (nearby) {
       nearby.members.push(plot);
@@ -489,11 +550,15 @@ export function AtlasMap({
   onToggleLeftPanel, leftPanelOpen = true,
   onToggleRightPanel, rightPanelOpen = false,
   flyToCoords,
+  onClusterClick,
+  activeLifeEventTypes = [],
 }: AtlasMapProps) {
   const [mounted, setMounted] = useState(false);
   const [mapCenter, setMapCenter] = useState<[number, number] | null>(null);
   const [leafletMap, setLeafletMap] = useState<L.Map | null>(null);
-  const handleMapReady = useCallback((m: L.Map) => setLeafletMap(m), []);
+  const [currentZoom, setCurrentZoom] = useState(4);
+  const handleMapReady = useCallback((m: L.Map) => { setLeafletMap(m); setCurrentZoom(m.getZoom()); }, []);
+  const handleZoomChange = useCallback((z: number) => setCurrentZoom(z), []);
 
   // Helper to generate consistent inline styles for D-pad / zoom nav buttons
   const navBtnStyle = (overrides: React.CSSProperties = {}): React.CSSProperties => ({
@@ -533,20 +598,54 @@ export function AtlasMap({
 
   // Resolve all ancestor coordinates, then cluster nearby ones.
   // ancestorPlots: one entry per ancestor with coord + migration homeCoord.
-  // ancestorClusters: spatial groups for cluster-circle rendering.
+  //   When activeLifeEventTypes is non-empty, each ancestor may produce multiple
+  //   plots (one per matching event type that resolves a coord). When empty,
+  //   the existing location-hierarchy resolver is used (same as "lived_in").
+  // ancestorClusters: spatial groups rendered as numbered cluster circles.
+  //   Threshold is zoom-aware: lower zoom → larger spatial merge radius.
   const { ancestorPlots, ancestorClusters } = useMemo(() => {
     if (!atlasMode || !activeLayers.ancestorLocations) {
       return { ancestorPlots: [] as AncestorPlot[], ancestorClusters: [] as AncestorCluster[] };
     }
-    const plots: AncestorPlot[] = ancestors
-      .map(a => {
+
+    const plots: AncestorPlot[] = [];
+
+    for (const a of ancestors) {
+      if (activeLifeEventTypes.length > 0) {
+        // For each selected life event type, try to resolve a coord.
+        // One ancestor can appear at multiple locations (birth + death, etc.)
+        // but we deduplicate by coord so overlapping pins don't stack.
+        const seen = new Set<string>();
+        for (const et of activeLifeEventTypes) {
+          const coord = resolveCoordForEventType(a, et);
+          if (!coord) continue;
+          const key = `${coord[0].toFixed(3)},${coord[1].toFixed(3)}`;
+          if (seen.has(key)) continue;
+          seen.add(key);
+          plots.push({
+            ancestor: a,
+            coord,
+            source: et === "lived_in" ? (a.locationLat != null ? "verified_coords" : a.hasTimelineLocation ? "timeline_record" : "tribal_nation") : "location_address",
+            homeCoord: null,
+            lifeEventType: et,
+          } as AncestorPlot & { lifeEventType: string });
+        }
+      } else {
         const result = resolveAncestorCoord(a);
-        if (!result) return null;
-        return { ancestor: a, coord: result.coord, source: result.source, homeCoord: result.homeCoord };
-      })
-      .filter(Boolean) as AncestorPlot[];
-    return { ancestorPlots: plots, ancestorClusters: clusterAncestors(plots) };
-  }, [ancestors, atlasMode, activeLayers.ancestorLocations]);
+        if (!result) continue;
+        plots.push({ ancestor: a, coord: result.coord, source: result.source, homeCoord: result.homeCoord });
+      }
+    }
+
+    const threshold = zoomClusterThreshold(currentZoom);
+    const clusters = threshold > 0 ? clusterAncestors(plots, threshold) : plots.map(p => ({
+      centroid: p.coord,
+      members: [p],
+      hasVerified: isVerifiedSource(p.source),
+    }));
+
+    return { ancestorPlots: plots, ancestorClusters: clusters };
+  }, [ancestors, atlasMode, activeLayers.ancestorLocations, activeLifeEventTypes, currentZoom]);
 
   // Alias for legacy usages (map centering)
   const ancestorsWithCoords = ancestorPlots;
@@ -577,6 +676,7 @@ export function AtlasMap({
         />
 
         <MapInstanceGrabber onReady={handleMapReady} />
+        <ZoomTracker onZoomChange={handleZoomChange} />
         {flyToCoords
           ? <MapCenterController center={flyToCoords} zoom={7} />
           : mapCenter && <MapCenterController center={mapCenter} />
@@ -1055,7 +1155,19 @@ export function AtlasMap({
               key={`cluster-${ci}`}
               position={cluster.centroid}
               icon={clusterIcon}
-              eventHandlers={{ click: () => onSelectPerson(cluster.members[0].ancestor.id) }}
+              eventHandlers={{
+                click: () => {
+                  if (currentZoom >= MAX_CLUSTER_ZOOM || count <= 1) {
+                    if (count === 1) {
+                      onSelectPerson(cluster.members[0].ancestor.id);
+                    } else {
+                      onClusterClick?.(cluster.members, cluster.centroid);
+                    }
+                  } else {
+                    leafletMap?.flyTo(cluster.centroid, currentZoom + 2, { duration: 0.8 });
+                  }
+                },
+              }}
             >
               <Tooltip direction="top" offset={[0, -(sz / 2 + 4)]} opacity={1}>
                 <div style={{ minWidth: 180 }}>

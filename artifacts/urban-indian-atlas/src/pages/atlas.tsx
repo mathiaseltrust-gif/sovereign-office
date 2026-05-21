@@ -3,7 +3,9 @@ import { useQuery } from "@tanstack/react-query";
 import urbanLocationsData from "@/data/urban-locations.json";
 import sourcesData from "@/data/sources.json";
 import { AtlasMap } from "@/components/AtlasMap";
+import type { AncestorPlot } from "@/components/AtlasMap";
 import { AtlasSidebar } from "@/components/AtlasSidebar";
+import { ClusterResultsPanel } from "@/components/ClusterResultsPanel";
 import { POLICY_ERA_RANGES } from "@/data/policyEraRanges";
 import { AtlasTimeline } from "@/components/AtlasTimeline";
 import { AtlasDetailPanel } from "@/components/AtlasDetailPanel";
@@ -481,6 +483,14 @@ export default function Atlas() {
   const [aiStateFilter, setAIStateFilter] = useState<string[]>([]);
   // Generation depth: 1 = parents only … 8 = 6× great-grandparents (mirrors family tree)
   const [maxGeneration, setMaxGeneration] = useState(8);
+  // Ancestor name search — filters visible map pins and flies to match
+  const [ancestorNameSearch, setAncestorNameSearch] = useState("");
+  // Paternal / maternal line filter — "all" shows everyone
+  const [lineageFilter, setLineageFilter] = useState<"all" | "paternal" | "maternal">("all");
+  // Life event type filter — empty = use existing location hierarchy
+  const [activeLifeEventTypes, setActiveLifeEventTypes] = useState<string[]>([]);
+  // Cluster results panel — set when user clicks a multi-ancestor cluster
+  const [clusterResultsMembers, setClusterResultsMembers] = useState<AncestorPlot[] | null>(null);
 
   const applyAIFilters = (result: AIQueryResult) => {
     setAIQueryMessage(result.message);
@@ -513,6 +523,9 @@ export default function Atlas() {
     setAIStateFilter([]);
     setYearRange([1790, new Date().getFullYear()]);
     setActiveLayers(DEFAULT_LAYERS);
+    setAncestorNameSearch("");
+    setLineageFilter("all");
+    setActiveLifeEventTypes([]);
   };
 
   // Read URL params on mount:
@@ -571,6 +584,20 @@ export default function Atlas() {
     });
   }, [events, yearRange, activeEras, activeTypes, activeSeverities, activePolicies]);
 
+  // Helper: does this ancestor's lineageTags match the selected line filter?
+  function ancestorMatchesLineageFilter(
+    ancestor: AncestorRecord,
+    filter: "all" | "paternal" | "maternal",
+  ): boolean {
+    if (filter === "all") return true;
+    const tags = ancestor.lineageTags;
+    if (!tags) return false;
+    const tagStr = JSON.stringify(tags).toLowerCase();
+    if (filter === "paternal") return tagStr.includes("paternal") || tagStr.includes("father");
+    if (filter === "maternal") return tagStr.includes("maternal") || tagStr.includes("mother");
+    return true;
+  }
+
   // Filter ancestors by timeline year range AND all active exposure filters.
   // Timeline-aware: only ancestors whose lifespan window overlaps the active
   // year range (with a ±30-year buffer for near-contemporary relevance) appear
@@ -596,10 +623,21 @@ export default function Atlas() {
       }
       // Generation depth — hide ancestors deeper than the selected tier
       if (ancestor.generationalPosition !== null && ancestor.generationalPosition > maxGeneration) return false;
+      // Paternal / maternal line filter
+      if (!ancestorMatchesLineageFilter(ancestor, lineageFilter)) return false;
+      // Name search — filter to matching ancestors when a search term is active
+      if (ancestorNameSearch.trim().length >= 2) {
+        const q = ancestorNameSearch.toLowerCase();
+        const nameMatch =
+          ancestor.fullName.toLowerCase().includes(q) ||
+          (ancestor.firstName ?? "").toLowerCase().includes(q) ||
+          (ancestor.lastName ?? "").toLowerCase().includes(q);
+        if (!nameMatch) return false;
+      }
       // Exposure filters
       return ancestorMatchesExposureFilters(ancestor, contextMatches, activeExposureFilters);
     });
-  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter, maxGeneration]);
+  }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter, maxGeneration, lineageFilter, ancestorNameSearch]);
 
   const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
 
@@ -614,6 +652,13 @@ export default function Atlas() {
   const handleSelectPerson = (id: number) => {
     setSelectedPersonId(id);
     setSelectedEventId(null);
+    setClusterResultsMembers(null);
+  };
+
+  const handleClusterClick = (members: AncestorPlot[], _centroid: [number, number]) => {
+    setClusterResultsMembers(members);
+    setSelectedEventId(null);
+    setSelectedPersonId(null);
   };
 
   const handleSelectEvent = (id: string) => {
@@ -747,6 +792,14 @@ export default function Atlas() {
           setMaxGeneration={setMaxGeneration}
           collapsed={sidebarCollapsed}
           onToggleCollapsed={() => setSidebarCollapsed(c => !c)}
+          ancestorNameSearch={ancestorNameSearch}
+          setAncestorNameSearch={setAncestorNameSearch}
+          lineageFilter={lineageFilter}
+          setLineageFilter={setLineageFilter}
+          activeLifeEventTypes={activeLifeEventTypes}
+          setActiveLifeEventTypes={setActiveLifeEventTypes}
+          allAncestors={authenticated ? ancestors : []}
+          onSelectAncestor={handleSelectPerson}
         />
 
         <div className="flex-1 flex flex-col relative h-full">
@@ -768,6 +821,8 @@ export default function Atlas() {
             onToggleRightPanel={() => setRightPanelHidden(h => !h)}
             rightPanelOpen={!rightPanelHidden && !!(selectedEventId || (selectedPersonId && atlasMode))}
             flyToCoords={focusedEventCoords}
+            onClusterClick={handleClusterClick}
+            activeLifeEventTypes={activeLifeEventTypes}
           />
 
           <AtlasTimeline
@@ -778,6 +833,15 @@ export default function Atlas() {
             selectedEventId={selectedEventId}
             onSelectEvent={handleSelectEvent}
           />
+
+          {/* Cluster Results Panel — absolutely positioned overlay, slides up from bottom of map */}
+          {clusterResultsMembers && clusterResultsMembers.length > 0 && (
+            <ClusterResultsPanel
+              members={clusterResultsMembers}
+              onClose={() => setClusterResultsMembers(null)}
+              onSelectPerson={handleSelectPerson}
+            />
+          )}
         </div>
 
         {/* Event Detail Panel */}
