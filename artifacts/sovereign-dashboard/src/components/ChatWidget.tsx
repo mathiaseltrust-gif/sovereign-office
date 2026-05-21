@@ -713,8 +713,8 @@ export function ChatWidget() {
               }}
             >
               <img
-                src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-                alt="Seal"
+                src={`${import.meta.env.BASE_URL}companion-logo.png`}
+                alt="Companion"
                 style={{ width: 24, height: 24, objectFit: "contain", flexShrink: 0 }}
               />
               <div style={{ flex: 1 }}>
@@ -747,8 +747,8 @@ export function ChatWidget() {
             {messages.length === 0 && !loading && (
               <div style={{ textAlign: "center", color: "#6b7280", padding: "20px 0" }}>
                 <img
-                  src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-                  alt="Sovereign Office"
+                  src={`${import.meta.env.BASE_URL}companion-logo.png`}
+                  alt="Companion"
                   style={{ width: 56, height: 56, objectFit: "contain", marginBottom: 8 }}
                 />
                 {isNewMember ? (
@@ -1061,8 +1061,8 @@ export function ChatWidget() {
                   }}
                 >
                   <img
-                    src={`${import.meta.env.BASE_URL}tribal-seal.png`}
-                    alt="Seal"
+                    src={`${import.meta.env.BASE_URL}companion-logo.png`}
+                    alt="Companion"
                     style={{ width: 24, height: 24, objectFit: "contain" }}
                   />
                 </div>
@@ -1350,9 +1350,9 @@ export function ChatWidget() {
           }}
         >
           <img
-            src={`${import.meta.env.BASE_URL}tribal-seal.png`}
+            src={`${import.meta.env.BASE_URL}companion-logo.png`}
             alt="Companion"
-            style={{ width: 22, height: 22, objectFit: "contain", borderRadius: "50%", flexShrink: 0 }}
+            style={{ width: 22, height: 22, objectFit: "contain", flexShrink: 0 }}
           />
           <span style={{ flex: 1, textAlign: "left", fontWeight: 600, fontSize: 13, letterSpacing: 0.2, fontFamily: "'Georgia', serif", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
             Sovereign Office Companion
