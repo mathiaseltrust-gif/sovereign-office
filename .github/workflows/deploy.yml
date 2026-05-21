@@ -343,6 +343,17 @@ jobs:
             echo "==> Pulling new images (all seven services)"
             docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
 
+            # ── Run database schema migrations BEFORE starting the api ────────────
+            # Runs migrate.mjs (compiled from artifacts/api-server/src/migrate.ts)
+            # in a one-off container so no HTTP traffic is served until every
+            # ALTER TABLE / CREATE TABLE IF NOT EXISTS has been applied.
+            # Fails fast and aborts the deploy if any migration returns a real error
+            # (non-idempotency failures are treated as fatal inside migrate.mjs).
+            echo "==> Running database schema migrations..."
+            docker compose -f docker-compose.prod.yml run --rm --no-deps \
+              api node /app/dist/migrate.mjs
+            echo "==> Migrations complete."
+
             echo "==> Starting / restarting all services"
             docker compose -f docker-compose.prod.yml up -d --no-build
 

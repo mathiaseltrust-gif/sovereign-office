@@ -38,17 +38,66 @@
       "breakpoints": true
     },
     {
-      "idx": 9,
+      "idx": 5,
       "version": "7",
       "when": 1747521000000,
+      "tag": "0005_add_profile_vault",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1747607400000,
+      "tag": "0006_add_ki_conversations",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1747693800000,
+      "tag": "0007_add_gedcom_staging",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1747780200000,
+      "tag": "0008_add_family_units",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1747866600000,
       "tag": "0009_add_direct_messages",
       "breakpoints": true
     },
     {
       "idx": 10,
       "version": "7",
-      "when": 1747607400000,
+      "when": 1747953000000,
       "tag": "0010_add_email_digest_queue",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1748039400000,
+      "tag": "0011_add_ancestor_location",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1748125800000,
+      "tag": "0012_add_atlas_events",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1748212200000,
+      "tag": "0013_add_kinship_to_tribe",
       "breakpoints": true
     }
   ]
