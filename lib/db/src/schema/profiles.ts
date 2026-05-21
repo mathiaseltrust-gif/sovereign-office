@@ -34,6 +34,7 @@ export const profilesTable = pgTable("profiles", {
   landClassification: text("land_classification"),
   selfExecuting: boolean("self_executing").notNull().default(false),
   signatureConsent: boolean("signature_consent").notNull().default(false),
+  kinshipToTribe: text("kinship_to_tribe"),
   chiefStatement: text("chief_statement"),
   chiefStatementRef: text("chief_statement_ref"),
   createdAt: timestamp("created_at").defaultNow().notNull(),

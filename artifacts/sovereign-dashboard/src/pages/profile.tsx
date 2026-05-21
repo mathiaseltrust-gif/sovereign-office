@@ -1539,6 +1539,117 @@ function VoiceMicBtn({ onTranscript }: { onTranscript: (t: string) => void }) {
 }
 
 /* ── ai-guided intake field ── */
+/* ── Family Group helpers ── */
+const KNOWN_CLANS = ["McCaster-Watson", "Morant-Ruff"] as const;
+const SIDES = ["Father's side", "Mother's side", "Both sides"] as const;
+
+function parseFamilyGroup(value: string): { clan: string; side: string; other: string } {
+  if (!value) return { clan: "", side: "", other: "" };
+  const sideMatch = value.match(/\((Father's side|Mother's side|Both sides)\)$/);
+  const side = sideMatch ? sideMatch[1] : "";
+  const clanPart = sideMatch ? value.slice(0, sideMatch.index).trim() : value.trim();
+  if ((KNOWN_CLANS as readonly string[]).includes(clanPart)) {
+    return { clan: clanPart, side, other: "" };
+  }
+  return { clan: "Other", side, other: clanPart };
+}
+
+function buildFamilyGroupValue(clan: string, side: string, other: string): string {
+  const clanName = clan === "Other" ? other.trim() : clan;
+  if (!clanName && !side) return "";
+  if (!side) return clanName;
+  if (!clanName) return `(${side})`;
+  return `${clanName} (${side})`;
+}
+
+interface FamilyGroupControlProps {
+  clan: string;
+  side: string;
+  other: string;
+  kinship: string;
+  onClanChange: (v: string) => void;
+  onSideChange: (v: string) => void;
+  onOtherChange: (v: string) => void;
+  onKinshipChange: (v: string) => void;
+}
+
+function FamilyGroupControl({ clan, side, other, kinship, onClanChange, onSideChange, onOtherChange, onKinshipChange }: FamilyGroupControlProps) {
+  return (
+    <div className="space-y-4 md:col-span-2">
+      {/* Part A — Primary Family / Clan */}
+      <div className="space-y-1.5">
+        <div className="flex items-start gap-1.5 text-[11px] text-primary/70 italic leading-snug">
+          <Bot className="h-3 w-3 mt-0.5 shrink-0 text-primary/50" />
+          <span>What family or clan group are you part of within the Mathias El Tribe?</span>
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Primary Family / Clan Line</Label>
+            <Select value={clan || "__none__"} onValueChange={v => onClanChange(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="text-sm h-9">
+                <SelectValue placeholder="Select family / clan…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select…</SelectItem>
+                {KNOWN_CLANS.map(c => (
+                  <SelectItem key={c} value={c}>{c}</SelectItem>
+                ))}
+                <SelectItem value="Other">Other</SelectItem>
+              </SelectContent>
+            </Select>
+            {clan === "Other" && (
+              <Input
+                className="text-sm h-9 mt-1"
+                value={other}
+                onChange={e => onOtherChange(e.target.value)}
+                placeholder="Enter your family / clan name"
+              />
+            )}
+          </div>
+          <div className="space-y-1">
+            <Label className="text-xs text-muted-foreground">Side of the Family</Label>
+            <Select value={side || "__none__"} onValueChange={v => onSideChange(v === "__none__" ? "" : v)}>
+              <SelectTrigger className="text-sm h-9">
+                <SelectValue placeholder="Select side…" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__none__">Select…</SelectItem>
+                {SIDES.map(s => (
+                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+        {(clan && clan !== "__none__" && side) && (
+          <p className="text-[10px] text-muted-foreground">
+            Will be saved as: <span className="font-medium text-foreground">{buildFamilyGroupValue(clan, side, other)}</span>
+          </p>
+        )}
+      </div>
+
+      {/* Part B — Kinship to the Tribe */}
+      <div className="space-y-1.5">
+        <div className="flex items-start gap-1.5 text-[11px] text-primary/70 italic leading-snug">
+          <Bot className="h-3 w-3 mt-0.5 shrink-0 text-primary/50" />
+          <span>How are you connected to the Mathias El Tribe?</span>
+        </div>
+        <Label className="sr-only">Kinship to the Tribe</Label>
+        <p className="text-[10px] text-muted-foreground leading-relaxed">
+          This can include any meaningful family or relational connection — not just direct lineage.
+          Examples: White family, Dalton family, community elder, adopted kin.
+        </p>
+        <Textarea
+          className="text-sm min-h-[72px] resize-none"
+          value={kinship}
+          onChange={e => onKinshipChange(e.target.value)}
+          placeholder="Describe your connection to the tribe…"
+        />
+      </div>
+    </div>
+  );
+}
+
 interface IntakeFieldProps {
   question: string;
   label: string;
@@ -1715,6 +1826,7 @@ const INTAKE_QUESTIONS = [
     label: "Family / Clan Group",
     question: "What family or clan group are you part of within the Mathias El Tribe?",
     placeholder: "Family or clan group",
+    custom: true,
   },
   {
     key: "preferredJurisdiction",
@@ -1845,6 +1957,11 @@ export default function ProfilePage() {
   const [isSavingVault, setIsSavingVault] = useState(false);
   const [vaultRevealFields, setVaultRevealFields] = useState({ dateOfBirth: false, address: false, contactEmail: false, ssn: false });
 
+  /* family-group selector state */
+  const [fgClan, setFgClan] = useState("");
+  const [fgSide, setFgSide] = useState("");
+  const [fgOther, setFgOther] = useState("");
+
   /* field state */
   const [fields, setFields] = useState({
     legalName: "",
@@ -1853,6 +1970,7 @@ export default function ProfilePage() {
     nickname: "",
     title: "",
     familyGroup: "",
+    kinshipToTribe: "",
     mailingAddress: "",
     apn: "",
     legalDescription: "",
@@ -1900,6 +2018,7 @@ export default function ProfilePage() {
             nickname: p.nickname ?? "",
             title: p.title ?? (ident.title as string) ?? "",
             familyGroup: p.familyGroup ?? "",
+            kinshipToTribe: p.kinshipToTribe ?? "",
             mailingAddress: p.mailingAddress ?? "",
             apn: p.apn ?? "",
             legalDescription: p.legalDescription ?? "",
@@ -1908,6 +2027,10 @@ export default function ProfilePage() {
             chiefStatementRef: p.chiefStatementRef ?? "",
             preferredJurisdiction: p.preferredJurisdiction ?? "",
           });
+          const parsedFg = parseFamilyGroup(p.familyGroup ?? "");
+          setFgClan(parsedFg.clan);
+          setFgSide(parsedFg.side);
+          setFgOther(parsedFg.other);
           setLandStatus(p.landStatus ?? "");
           setHasRecordedInstrument(p.hasRecordedInstrument ?? false);
           if (p.signatureUrl) setSignatureUrl(p.signatureUrl);
@@ -3087,18 +3210,35 @@ export default function ProfilePage() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-5">
-            {INTAKE_QUESTIONS.map((q) => (
-              <div key={q.key} className={q.multiline ? "md:col-span-2" : ""}>
-                <IntakeField
-                  question={q.question}
-                  label={q.label}
-                  value={fields[q.key as keyof typeof fields]}
-                  onChange={setField(q.key as keyof typeof fields)}
-                  placeholder={q.placeholder}
-                  multiline={q.multiline}
-                />
-              </div>
-            ))}
+            {INTAKE_QUESTIONS.map((q) => {
+              if ((q as { custom?: boolean }).custom) {
+                return (
+                  <FamilyGroupControl
+                    key={q.key}
+                    clan={fgClan}
+                    side={fgSide}
+                    other={fgOther}
+                    kinship={fields.kinshipToTribe}
+                    onClanChange={(v) => { setFgClan(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(v, fgSide, fgOther) })); }}
+                    onSideChange={(v) => { setFgSide(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(fgClan, v, fgOther) })); }}
+                    onOtherChange={(v) => { setFgOther(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(fgClan, fgSide, v) })); }}
+                    onKinshipChange={(v) => setFields(f => ({ ...f, kinshipToTribe: v }))}
+                  />
+                );
+              }
+              return (
+                <div key={q.key} className={q.multiline ? "md:col-span-2" : ""}>
+                  <IntakeField
+                    question={q.question}
+                    label={q.label}
+                    value={fields[q.key as keyof typeof fields]}
+                    onChange={setField(q.key as keyof typeof fields)}
+                    placeholder={q.placeholder}
+                    multiline={q.multiline}
+                  />
+                </div>
+              );
+            })}
           </div>
         </CardContent>
       </Card>

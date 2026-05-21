@@ -123,6 +123,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       hasRecordedInstrument,
       chiefStatement,
       chiefStatementRef,
+      kinshipToTribe,
     } = req.body as {
       bio?: string;
       preferredJurisdiction?: string;
@@ -143,6 +144,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       hasRecordedInstrument?: boolean;
       chiefStatement?: string;
       chiefStatementRef?: string;
+      kinshipToTribe?: string;
     };
 
     const existing = await db.select().from(profilesTable).where(eq(profilesTable.userId, dbId)).limit(1);
@@ -167,6 +169,7 @@ router.put("/", requireAuth, async (req, res, next) => {
       hasRecordedInstrument: hasRecordedInstrument ?? existing[0]?.hasRecordedInstrument ?? false,
       chiefStatement: chiefStatement !== undefined ? chiefStatement : existing[0]?.chiefStatement,
       chiefStatementRef: chiefStatementRef !== undefined ? chiefStatementRef : existing[0]?.chiefStatementRef,
+      kinshipToTribe: kinshipToTribe !== undefined ? kinshipToTribe : existing[0]?.kinshipToTribe,
       updatedAt: new Date(),
     };
 

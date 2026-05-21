@@ -38,6 +38,7 @@ export interface SovereignIdentityGatewayPayload {
     tribalName: string;
     title: string;
     familyGroup: string;
+    kinshipToTribe: string;
     displayName: string;
     courtCaption: string;
     role: string;
@@ -200,7 +201,7 @@ export async function resolveSovereignIdentityGateway(
       identity: {
         userId: 0, email: tokenUser.email, name: tokenUser.name,
         legalName: tokenUser.name, preferredName: tokenUser.name,
-        tribalName: "", title: "", familyGroup: "",
+        tribalName: "", title: "", familyGroup: "", kinshipToTribe: "",
         displayName: tokenUser.name, courtCaption: tokenUser.name,
         role, identityTags: [],
         tribalEnrollmentNumber: null, tribalIdNumber: null,
@@ -239,6 +240,7 @@ export async function resolveSovereignIdentityGateway(
     const tribalName = profile?.tribalName ?? "";
     const title = profile?.title ?? "";
     const familyGroup = profile?.familyGroup ?? narrative?.familyGroup ?? "";
+    const kinshipToTribe = profile?.kinshipToTribe ?? "";
     const displayName = tribalName || preferredName || legalName;
     const courtCaption = title ? `${title} ${legalName}` : legalName;
 
@@ -290,7 +292,7 @@ export async function resolveSovereignIdentityGateway(
     return {
       identity: {
         userId: dbId, email: user?.email ?? tokenUser.email, name: user?.name ?? tokenUser.name,
-        legalName, preferredName, tribalName, title, familyGroup,
+        legalName, preferredName, tribalName, title, familyGroup, kinshipToTribe,
         displayName, courtCaption, role: dbRole, identityTags,
         tribalEnrollmentNumber: linkedNode?.tribalEnrollmentNumber ?? null,
         tribalIdNumber: linkedNode?.tribalIdNumber ?? null,
@@ -319,7 +321,7 @@ export async function resolveSovereignIdentityGateway(
     const authorities = computeDelegatedAuthorities(role, { hasLineage: false, hasChildren: false, icwaEligible: false, lineageVerified: false, membershipVerified: false });
     const { isElder, elderStatus, elderAuthorities } = resolveElderStatus([], 0);
     return {
-      identity: { userId: dbId, email: tokenUser.email, name: tokenUser.name, legalName: tokenUser.name, preferredName: tokenUser.name, tribalName: "", title: "", familyGroup: "", displayName: tokenUser.name, courtCaption: tokenUser.name, role, identityTags: [], tribalEnrollmentNumber: null, tribalIdNumber: null },
+      identity: { userId: dbId, email: tokenUser.email, name: tokenUser.name, legalName: tokenUser.name, preferredName: tokenUser.name, tribalName: "", title: "", familyGroup: "", kinshipToTribe: "", displayName: tokenUser.name, courtCaption: tokenUser.name, role, identityTags: [], tribalEnrollmentNumber: null, tribalIdNumber: null },
       lineageSummary: "Identity gateway error — contact system administrator.",
       ancestorChain: [], tribalNations: [], membershipVerified: false, entraVerified: false, lineageVerified: false,
       delegatedAuthorities: authorities, protectionLevel: "standard",
