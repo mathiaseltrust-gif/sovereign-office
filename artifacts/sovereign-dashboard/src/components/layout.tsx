@@ -12,7 +12,9 @@ import {
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
   GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map,
 } from "lucide-react";
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
+import { CommandPalette } from "./CommandPalette";
+import { useCommandPalette } from "@/hooks/useCommandPalette";
 
 const POSITION_TITLES: Partial<Record<Role, string>> = {
   trustee:          "Chief Justice & Trustee",
@@ -337,6 +339,7 @@ function CollapsibleSection({
 export function Layout({ children }: { children: React.ReactNode }) {
   const { activeRole, switchRole, mode, user, logout } = useAuth();
   const [location] = useLocation();
+  const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
 
   const sections = getNavSections(activeRole);
   const showOrgs = activeRole !== "visitor_media" && activeRole !== "medical_provider";
@@ -344,6 +347,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
+      {/* ── Command Palette ── */}
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
+
       {/* ── Sidebar ── */}
       <aside className="w-60 border-r bg-card flex flex-col shrink-0">
 
@@ -370,6 +376,18 @@ export function Layout({ children }: { children: React.ReactNode }) {
               {POSITION_TITLES[activeRole]}
             </p>
           )}
+
+          {/* ⌘K search trigger */}
+          <button
+            onClick={openPalette}
+            className="mt-2.5 w-full flex items-center gap-2 rounded-md border px-2.5 py-1.5 text-left text-[11px] text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
+            style={{ borderColor: "hsl(var(--border))" }}
+            title="Search or navigate (⌘K)"
+          >
+            <Search className="h-3 w-3 shrink-0" />
+            <span className="flex-1">Search…</span>
+            <kbd className="hidden sm:inline-flex items-center text-[9px] font-mono opacity-50">⌘K</kbd>
+          </button>
         </div>
 
         {/* Navigation */}

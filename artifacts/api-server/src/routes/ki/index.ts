@@ -9,6 +9,7 @@ import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorS
 import { accumulateIntelligence, getCompanionIntelContext } from "../../engines/intelligence-accumulator";
 import { getOpenInvestigationsForKaya } from "../../engines/nfr-review-engine";
 import { logger } from "../../lib/logger";
+import { FUNCTION_REGISTRY_PROMPT, NAVIGATE_INSTRUCTION } from "../../lib/function-registry";
 
 const router = Router();
 
@@ -593,7 +594,11 @@ Do NOT list generic help categories. Speak to this specific person by their role
 
 • For a member (especially a new one): Welcome them warmly as someone learning to walk in their authority. Do NOT treat them as a passive recipient of services. Affirm their identity first — who they are, what the trust responsibility means, what they are owed. Then invite them to explore: their rights, their family tree, their documents, their status as a beneficiary. The goal is self-determination, not dependency. They are not here to be rescued — they are here to govern themselves.
 
-• For any role on a first or early session: Skip the bullet list of services. Lead with recognition, warmth, and a direct invitation to go deeper — one question, one door opened, not a menu of options.`;
+• For any role on a first or early session: Skip the bullet list of services. Lead with recognition, warmth, and a direct invitation to go deeper — one question, one door opened, not a menu of options.
+
+${FUNCTION_REGISTRY_PROMPT}
+
+${NAVIGATE_INSTRUCTION}`;
 }
 
 /* ── Public Heritage Guide (no auth, stateless) ── */
@@ -791,8 +796,26 @@ router.post("/chat", requireAuth, async (req, res, next) => {
         }
       : undefined;
 
-    logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya chat response stored");
-    res.json({ reply: result.content, tokens: result.usage?.totalTokens, alignmentWarning });
+    // Parse and strip [[NAVIGATE:{...}]] cards from the reply
+    const navigateCards: Array<{ label: string; path: string; description: string }> = [];
+    const cleanReply = result.content.replace(
+      /\[\[NAVIGATE:(\{[^}]+\})\]\]/g,
+      (_match, json) => {
+        try {
+          const card = JSON.parse(json);
+          if (card.label && card.path) navigateCards.push(card);
+        } catch { /* ignore malformed */ }
+        return "";
+      },
+    ).replace(/\n{3,}/g, "\n\n").trim();
+
+    logger.info({ userId, tokens: result.usage?.totalTokens, navigateCards: navigateCards.length }, "Kaya chat response stored");
+    res.json({
+      reply: cleanReply,
+      tokens: result.usage?.totalTokens,
+      alignmentWarning,
+      navigateCards: navigateCards.length > 0 ? navigateCards : undefined,
+    });
 
     // Fire-and-forget: update the intelligence picture from this message
     accumulateIntelligence(userId, trimmed).catch(() => {});
