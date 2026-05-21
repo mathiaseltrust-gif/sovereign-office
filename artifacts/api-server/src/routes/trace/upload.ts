@@ -7,33 +7,76 @@ import { logger } from "../../lib/logger";
 
 const router = Router();
 
+const ALLOWED_MIME_TYPES = [
+  "application/pdf",
+  "text/plain",
+  "text/markdown",
+  "text/csv",
+  "application/msword",
+  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+  "image/jpeg",
+  "image/jpg",
+  "image/png",
+  "image/tiff",
+  "image/bmp",
+  "image/webp",
+];
+
+const ALLOWED_EXTENSIONS = /\.(txt|md|csv|pdf|doc|docx|jpg|jpeg|png|tiff|tif|bmp|webp)$/i;
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
   fileFilter: (_req, file, cb) => {
-    const allowed = [
-      "application/pdf",
-      "text/plain",
-      "text/markdown",
-      "text/csv",
-      "application/msword",
-      "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-    ];
-    if (allowed.includes(file.mimetype) || file.originalname.match(/\.(txt|md|csv|pdf)$/i)) {
+    if (ALLOWED_MIME_TYPES.includes(file.mimetype) || ALLOWED_EXTENSIONS.test(file.originalname)) {
       cb(null, true);
     } else {
-      cb(new Error("Unsupported file type. Upload PDF, TXT, or MD files."));
+      cb(new Error("Unsupported file type. Upload PDF, DOCX, TXT, or image files (JPG, PNG, TIFF)."));
     }
   },
 });
 
 async function extractText(file: Express.Multer.File): Promise<string> {
-  const isPdf = file.mimetype === "application/pdf" || file.originalname.toLowerCase().endsWith(".pdf");
+  const name = file.originalname.toLowerCase();
+  const mime = file.mimetype;
+
+  const isPdf = mime === "application/pdf" || name.endsWith(".pdf");
   if (isPdf) {
     const { default: pdfParse } = await import("pdf-parse");
     const result = await pdfParse(file.buffer);
     return result.text?.trim() ?? "";
   }
+
+  const isDocx =
+    mime === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" ||
+    name.endsWith(".docx");
+  if (isDocx) {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    return result.value?.trim() ?? "";
+  }
+
+  const isDoc = mime === "application/msword" || name.endsWith(".doc");
+  if (isDoc) {
+    const mammoth = await import("mammoth");
+    const result = await mammoth.extractRawText({ buffer: file.buffer });
+    return result.value?.trim() ?? "";
+  }
+
+  const isImage =
+    mime.startsWith("image/") ||
+    /\.(jpg|jpeg|png|tiff|tif|bmp|webp)$/i.test(name);
+  if (isImage) {
+    const { createWorker } = await import("tesseract.js");
+    const worker = await createWorker("eng");
+    try {
+      const { data } = await worker.recognize(file.buffer);
+      return data.text?.trim() ?? "";
+    } finally {
+      await worker.terminate();
+    }
+  }
+
   return file.buffer.toString("utf-8").trim();
 }
 

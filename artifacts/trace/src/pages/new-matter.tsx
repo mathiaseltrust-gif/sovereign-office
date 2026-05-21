@@ -105,17 +105,23 @@ export default function NewMatterPage() {
   function handleFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setUploadFile(file);
     setUploadError("");
+
     const isText = file.type.startsWith("text/") || file.name.match(/\.(txt|md|csv)$/i);
+    const isPdf = file.type === "application/pdf" || file.name.match(/\.pdf$/i);
+    const isDocx = file.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || file.name.match(/\.docx?$/i);
+    const isImage = file.type.startsWith("image/") || file.name.match(/\.(jpg|jpeg|png|tiff|tif|bmp|webp)$/i);
+
     if (isText) {
+      setUploadFile(file);
       const reader = new FileReader();
       reader.onload = (ev) => setUploadText(ev.target?.result as string ?? "");
       reader.readAsText(file);
-    } else if (file.type === "application/pdf") {
+    } else if (isPdf || isDocx || isImage) {
+      setUploadFile(file);
       setUploadText("");
     } else {
-      setUploadError("Unsupported file type. Use PDF, TXT, or MD.");
+      setUploadError("Unsupported file type. Use PDF, DOCX, TXT, or an image (JPG, PNG, TIFF).");
       setUploadFile(null);
     }
   }
@@ -202,16 +208,21 @@ export default function NewMatterPage() {
                   <p className="text-sm font-medium text-foreground">{uploadFile.name}</p>
                   <p className="text-xs text-muted-foreground">
                     {(uploadFile.size / 1024).toFixed(1)} KB
-                    {uploadFile.type === "application/pdf" && " — PDF text will be extracted server-side"}
+                    {uploadFile.type === "application/pdf" && " — text will be extracted server-side"}
+                    {(uploadFile.type === "application/vnd.openxmlformats-officedocument.wordprocessingml.document" || uploadFile.name.match(/\.docx?$/i)) && " — DOCX text will be extracted server-side"}
+                    {uploadFile.type.startsWith("image/") && " — text will be extracted via OCR"}
                   </p>
                 </div>
               ) : (
                 <>
                   <p className="text-xs text-muted-foreground mb-1">
-                    Click to upload PDF, TXT, or MD files (max 20 MB)
+                    Click to upload a document or scanned letter (max 20 MB)
                   </p>
                   <p className="text-xs text-muted-foreground/60">
-                    PDF text is extracted server-side; text files are read directly
+                    Supported: PDF · DOCX · TXT · JPG · PNG · TIFF · BMP · WebP
+                  </p>
+                  <p className="text-xs text-muted-foreground/50 mt-0.5">
+                    Text is extracted server-side; scanned images are processed via OCR
                   </p>
                 </>
               )}
@@ -219,7 +230,7 @@ export default function NewMatterPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".txt,.md,.csv,.pdf,text/plain,text/markdown,application/pdf"
+              accept=".txt,.md,.csv,.pdf,.doc,.docx,.jpg,.jpeg,.png,.tiff,.tif,.bmp,.webp,text/plain,text/markdown,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/*"
               className="hidden"
               onChange={handleFileChange}
             />

@@ -42,6 +42,7 @@
     "pino-http": "10.4.0",
     "qrcode": "1.5.4",
     "resend": "6.0.0",
+    "tesseract.js": "5.1.1",
     "ws": "8.18.2",
     "zod": "catalog:"
   },
