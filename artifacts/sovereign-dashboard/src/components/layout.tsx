@@ -15,6 +15,7 @@ import {
 import { useState, useEffect, useCallback } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { useCommandPalette } from "@/hooks/useCommandPalette";
+import { recordPageVisit } from "@/hooks/useRecentPages";
 
 const POSITION_TITLES: Partial<Record<Role, string>> = {
   trustee:          "Chief Justice & Trustee",
@@ -340,6 +341,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { activeRole, switchRole, mode, user, logout } = useAuth();
   const [location] = useLocation();
   const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+
+  useEffect(() => { recordPageVisit(location); }, [location]);
 
   const sections = getNavSections(activeRole);
   const showOrgs = activeRole !== "visitor_media" && activeRole !== "medical_provider";

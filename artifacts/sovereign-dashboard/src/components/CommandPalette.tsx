@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { Search, X, ArrowRight, Clock, ExternalLink, Loader2 } from "lucide-react";
 import { useAuth, getCurrentBearerToken } from "@/components/auth-provider";
 import { searchFunctions, type SiteFunction } from "@/lib/site-functions";
+import { getRecentPages } from "@/hooks/useRecentPages";
 
 interface SearchRecord {
   entityType: string;
@@ -84,7 +85,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const [activeIdx, setActiveIdx] = useState(0);
   const [records, setRecords] = useState<SearchRecord[]>([]);
   const [recordsLoading, setRecordsLoading] = useState(false);
-  const [recentSearches, setRecentSearches] = useState<string[]>([]);
+  const [recentPages, setRecentPages] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { activeRole } = useAuth();
@@ -95,12 +96,12 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const allItems: Array<
     | { kind: "fn"; fn: SiteFunction }
     | { kind: "record"; record: SearchRecord }
-    | { kind: "recent"; term: string }
+    | { kind: "recent"; path: string }
   > = [];
 
   if (!query.trim()) {
-    recentSearches.slice(0, 5).forEach((term) =>
-      allItems.push({ kind: "recent", term }),
+    recentPages.slice(0, 5).forEach((path) =>
+      allItems.push({ kind: "recent", path }),
     );
   }
   functions.forEach((fn) => allItems.push({ kind: "fn", fn }));
@@ -112,26 +113,9 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       setRecords([]);
       setActiveIdx(0);
       setTimeout(() => inputRef.current?.focus(), 30);
-      loadRecentSearches();
+      setRecentPages(getRecentPages());
     }
   }, [open]);
-
-  async function loadRecentSearches() {
-    try {
-      const token = await getCurrentBearerToken();
-      const res = await fetch(`/api/user/profile`, {
-        headers: token ? { Authorization: `Bearer ${token}` } : {},
-        credentials: "include",
-      });
-      if (res.ok) {
-        const data = await res.json();
-        const history = data?.profile?.searchHistory;
-        if (Array.isArray(history)) setRecentSearches(history.slice(0, 8));
-      }
-    } catch {
-      // non-fatal
-    }
-  }
 
   useEffect(() => {
     if (!open) return;
@@ -183,8 +167,17 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
       navigate(recordPath(item.record));
       onClose();
     } else if (item.kind === "recent") {
-      setQuery(item.term);
+      navigate(item.path);
+      onClose();
     }
+  }
+
+  function pageLabelFor(path: string): string {
+    // Check site functions for a label match
+    const allFns = searchFunctions("", activeRole);
+    const match = allFns.find(f => f.path === path);
+    if (match) return match.label;
+    return path.replace(/^\//, "").replace(/-/g, " ").replace(/\b\w/g, l => l.toUpperCase()) || "Home";
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -251,8 +244,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             </div>
           )}
 
-          {/* Recent searches section */}
-          {!query.trim() && recentSearches.length > 0 && (
+          {/* Recent pages section */}
+          {!query.trim() && recentPages.length > 0 && (
             <>
               <p className="px-4 pt-1.5 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">
                 Recent
@@ -264,7 +257,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                   const isActive = activeIdx === idx;
                   return (
                     <button
-                      key={`recent-${item.term}`}
+                      key={`recent-${item.path}`}
                       className={[
                         "w-full flex items-center gap-3 px-4 py-2 text-sm text-left transition-colors",
                         isActive ? "bg-accent text-accent-foreground" : "text-muted-foreground hover:bg-accent/60",
@@ -273,7 +266,8 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
                       onClick={() => handleSelect(item)}
                     >
                       <Clock className="w-3.5 h-3.5 shrink-0 opacity-60" />
-                      <span>{item.term}</span>
+                      <span className="flex-1">{pageLabelFor(item.path)}</span>
+                      <span className="text-[10px] opacity-50 font-mono shrink-0">{item.path}</span>
                     </button>
                   );
                 })}

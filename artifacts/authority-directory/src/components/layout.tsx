@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { Link, useRoute } from "wouter";
+import { useState, useEffect } from "react";
+import { Link, useRoute, useLocation } from "wouter";
 import {
   Building2,
   FileSearch,
@@ -13,6 +13,19 @@ import {
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { getAuthState } from "@/lib/auth";
+import { CommandPalette } from "./CommandPalette";
+import { useCommandPalette } from "@/hooks/useCommandPalette";
+
+const LS_RECENT_KEY = "sovereign_recent_pages_v1";
+const LS_PREFIX = "authority-directory:";
+function recordDirPage(path: string) {
+  if (!path) return;
+  try {
+    const existing: string[] = JSON.parse(localStorage.getItem(LS_RECENT_KEY) ?? "[]");
+    const key = LS_PREFIX + path;
+    localStorage.setItem(LS_RECENT_KEY, JSON.stringify([key, ...existing.filter(p => p !== key)].slice(0, 10)));
+  } catch { /* non-fatal */ }
+}
 
 const navItems = [
   {
@@ -79,9 +92,14 @@ interface LayoutProps {
 export function Layout({ children }: LayoutProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const auth = getAuthState();
+  const [location] = useLocation();
+  const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+
+  useEffect(() => { recordDirPage(location); }, [location]);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
       {/* Mobile overlay */}
       {mobileOpen && (
         <div
@@ -168,7 +186,7 @@ export function Layout({ children }: LayoutProps) {
           >
             <Menu className="h-5 w-5" />
           </button>
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <div className="text-sm font-semibold text-foreground leading-tight">
               Authority Directory &amp; Oversight Routing Engine
             </div>
@@ -176,6 +194,14 @@ export function Layout({ children }: LayoutProps) {
               Mathias El Tribe — Internal Routing System
             </div>
           </div>
+          <button
+            onClick={openPalette}
+            className="hidden lg:flex items-center gap-1.5 px-2 py-1 rounded-md border border-border text-xs text-muted-foreground hover:text-foreground hover:border-foreground/30 transition-colors shrink-0"
+            title="Open search (⌘K)"
+          >
+            <span>Search</span>
+            <kbd className="font-mono text-[10px]">⌘K</kbd>
+          </button>
         </header>
 
         {/* Page content */}
