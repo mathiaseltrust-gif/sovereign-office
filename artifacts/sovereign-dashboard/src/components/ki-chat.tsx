@@ -1077,7 +1077,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           {/* COMPANION logo — clean, no background circle */}
           <div className="w-9 h-9 flex-shrink-0 flex items-center justify-center">
             <img
-              src="/sovereign-dashboard/companion-logo.png"
+              src={`${import.meta.env.BASE_URL}companion-logo.png`}
               alt="COMPANION"
               className="w-full h-full object-contain"
               style={{ filter: "drop-shadow(0 0 6px rgba(220,140,50,0.55))" }}

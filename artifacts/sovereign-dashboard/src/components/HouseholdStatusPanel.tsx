@@ -27,7 +27,9 @@ interface HouseholdStatus {
   hasLinkedNode: boolean;
   headName?: string;
   headTribalNation?: string | null;
+  apn?: string | null;
   address: string | null;
+  mailingAddress?: string | null;
   landStatus: string | null;
   tribalLandCode: string | null;
   landClassification?: string | null;

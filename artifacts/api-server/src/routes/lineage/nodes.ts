@@ -291,6 +291,7 @@ router.get("/household/status", requireAuth, async (req, res, next) => {
 
     const [profile] = await db
       .select({
+        apn:               profilesTable.apn,
         mailingAddress:    profilesTable.mailingAddress,
         landStatus:        profilesTable.landStatus,
         tribalLandCode:    profilesTable.tribalLandCode,
@@ -312,8 +313,10 @@ router.get("/household/status", requireAuth, async (req, res, next) => {
       .where(eq(familyLineageTable.linkedProfileUserId, currentUserId))
       .limit(1);
 
-    const address     = profile?.mailingAddress ?? null;
-    const landStatus  = profile?.landStatus ?? null;
+    const apn            = profile?.apn ?? null;
+    const address        = profile?.mailingAddress ?? null;
+    const mailingAddress = profile?.mailingAddress ?? null;
+    const landStatus     = profile?.landStatus ?? null;
     const tribalLandCode = profile?.tribalLandCode ?? null;
 
     const INDIAN_COUNTRY_STATUSES = new Set([
@@ -329,7 +332,7 @@ router.get("/household/status", requireAuth, async (req, res, next) => {
     if (!headNode) {
       res.json({
         hasLinkedNode: false,
-        address, landStatus, tribalLandCode, isIndianCountry,
+        apn, address, mailingAddress, landStatus, tribalLandCode, isIndianCountry,
         ihsEligible, urbanIndianEligible,
         members: [], memberCount: 0,
       });
@@ -398,7 +401,7 @@ router.get("/household/status", requireAuth, async (req, res, next) => {
       hasLinkedNode: true,
       headName: headNode.fullName,
       headTribalNation,
-      address, landStatus, tribalLandCode,
+      apn, address, mailingAddress, landStatus, tribalLandCode,
       isIndianCountry, ihsEligible, urbanIndianEligible,
       members, memberCount: members.length,
     });
