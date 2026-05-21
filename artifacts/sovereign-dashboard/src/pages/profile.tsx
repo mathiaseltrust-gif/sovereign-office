@@ -1793,7 +1793,7 @@ function IntakeStatusIndicator() {
 export default function ProfilePage() {
   const { user, activeRole } = useAuth();
   const { toast } = useToast();
-  const isChief = activeRole === "trustee";
+  const isChief = activeRole === "trustee" || activeRole === "sovereign_admin";
   const isOfficeHolder = ["trustee", "officer", "sovereign_admin"].includes(activeRole);
 
   // ── UI accordion state ──
