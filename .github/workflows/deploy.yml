@@ -329,6 +329,17 @@ jobs:
             echo "==> Pinning IMAGE_TAG to ${{ needs.build-and-push.outputs.image_tag }}"
             export IMAGE_TAG="${{ needs.build-and-push.outputs.image_tag }}"
 
+            # ── Save previous tag as rollback target before we pull anything ─────
+            # Written BEFORE the pull so that the rollback job always has a valid
+            # reference to the last known-good images, independent of whether the
+            # new deploy succeeds or fails.
+            PREV_TAG=$(cat .last_good_tag 2>/dev/null || echo "")
+            if [ -n "$PREV_TAG" ]; then
+              echo "==> Last known-good tag: ${PREV_TAG} (saved for rollback)"
+            else
+              echo "==> No previous tag found — first deploy, rollback will not be available"
+            fi
+
             echo "==> Pulling new images (all seven services)"
             docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
 
@@ -355,14 +366,20 @@ jobs:
             echo "==> Pruning unused images (keeps disk clean)"
             docker image prune -f
 
-            echo "==> Smoke-test results (informational — will not fail deploy):"
-            # API health check (plain HTTP)
+            # ── On-VM smoke test — all six services must respond 2xx ─────────────
+            # This is the first gate: it checks the raw container ports directly on
+            # the VM (before the external smoke-test job verifies the public URLs).
+            # A failure here aborts the SSH step and fails the deploy job immediately.
+            echo "==> On-VM smoke test — all six services..."
+            SMOKE_FAIL=0
+            # API health check (plain HTTP, port 8080)
             if curl -sf --max-time 15 http://localhost:8080/api/healthz > /dev/null; then
-              echo "  ✓ api (8080)"
+              echo "  ✓ api (http :8080)"
             else
-              echo "  ✗ api (8080) — not yet responding (may still be starting)"
+              echo "  ✗ api (http :8080) — health check FAILED"
+              SMOKE_FAIL=1
             fi
-            # Dashboard HTTPS checks via gateway (self-signed cert — skip verify)
+            # Dashboard checks via SSL gateway (self-signed cert — skip verify)
             for PORT_NAME in "3001:sovereign" "3002:trust" "3003:community" "3004:atlas" "3005:authority"; do
               PORT="${PORT_NAME%%:*}"
               NAME="${PORT_NAME##*:}"
@@ -370,24 +387,56 @@ jobs:
               if [ "$CODE" = "200" ]; then
                 echo "  ✓ $NAME (https :$PORT)"
               else
-                echo "  ✗ $NAME (https :$PORT) — HTTP $CODE (may still be starting)"
+                echo "  ✗ $NAME (https :$PORT) — HTTP $CODE"
+                SMOKE_FAIL=1
               fi
             done
+            if [ "$SMOKE_FAIL" -ne 0 ]; then
+              echo "ERROR: One or more services failed the on-VM smoke test — deploy aborted." >&2
+              echo "--- docker ps ---"
+              docker compose -f docker-compose.prod.yml ps
+              echo "--- api logs (last 30 lines) ---"
+              docker compose -f docker-compose.prod.yml logs --tail=30 api || true
+              exit 1
+            fi
+
+            # ── Write last-known-good tag (only after all containers are healthy) ─
+            echo "${{ needs.build-and-push.outputs.image_tag }}" > .last_good_tag
+            echo "==> Saved last-good-tag: ${{ needs.build-and-push.outputs.image_tag }}"
 
             echo "==> Deploy complete. Running containers:"
             docker compose -f docker-compose.prod.yml ps
 
-      # ── 3. External HTTPS health check (only when TLS is live) ───────────────
-      # Runs from the GitHub Actions runner so it validates the real public URLs,
-      # not just localhost.  Skipped when VITE_API_URL is still an http:// address
-      # (e.g. local / staging without TLS).
-      #
-      # All URLs come from the top-level `env:` block — see "SINGLE SOURCE OF
-      # TRUTH" comment at the top of this file to update domains.
-      - name: HTTPS health check — all public endpoints
-        id: healthcheck
-        continue-on-error: true
-        if: vars.VITE_API_URL != '' && startsWith(vars.VITE_API_URL, 'https://')
+  # ── 3. Smoke test — all six production endpoints (external, from GHA runner) ──
+  #
+  # Runs as a SEPARATE JOB after the `deploy` job so that:
+  #   • It appears as its own named check in the GitHub Actions UI
+  #   • A failure marks the entire workflow run as failed (no continue-on-error)
+  #   • The `rollback` job can key off its failure via `needs: [smoke-test]`
+  #
+  # Only runs when VITE_API_URL is an https:// address (i.e. TLS is live).
+  # When that variable is unset or http://, this job is skipped and the
+  # on-VM smoke test inside the `deploy` SSH script is the only gate.
+  #
+  # Configure retry delay via the HEALTH_CHECK_RETRY_DELAY Actions variable
+  # (default 10 s).  Set alert secrets to receive failure notifications:
+  #   Slack  → SLACK_WEBHOOK_URL
+  #   Email  → NOTIFY_EMAIL + SMTP_HOST + SMTP_PORT + SMTP_USERNAME + SMTP_PASSWORD
+  smoke-test:
+    name: "[prod] Smoke test — all six public endpoints"
+    runs-on: ubuntu-latest
+    needs: deploy
+    if: >-
+      github.ref == 'refs/heads/main' &&
+      vars.VITE_API_URL != '' &&
+      startsWith(vars.VITE_API_URL, 'https://')
+
+    outputs:
+      failed_services: ${{ steps.check.outputs.failed_services }}
+
+    steps:
+      - name: Curl all six public endpoints
+        id: check
         env:
           API_URL:       ${{ env.VITE_API_URL }}
           SOVEREIGN_URL: ${{ env.SOVEREIGN_URL }}
@@ -395,16 +444,11 @@ jobs:
           COMMUNITY_URL: ${{ env.COMMUNITY_URL }}
           ATLAS_URL:     ${{ env.ATLAS_URL }}
           AUTHORITY_URL: ${{ env.AUTHORITY_URL }}
-          # Override via the GitHub Actions repository variable HEALTH_CHECK_RETRY_DELAY (seconds).
-          # Defaults to 10 s — long enough to outlast a transient network hiccup.
           HEALTH_CHECK_RETRY_DELAY: ${{ vars.HEALTH_CHECK_RETRY_DELAY || '10' }}
         run: |
           set -euo pipefail
           FAIL=0
           FAILED_SERVICES=""
-
-          # Seconds to wait before the single automatic retry; sourced from the
-          # HEALTH_CHECK_RETRY_DELAY workflow variable (default 10).
           RETRY_DELAY="${HEALTH_CHECK_RETRY_DELAY:-10}"
 
           check_url() {
@@ -434,7 +478,7 @@ jobs:
             fi
           }
 
-          echo "==> Checking public HTTPS endpoints..."
+          echo "==> Smoke-testing all six production endpoints..."
           check_url "api (healthz)"  "${API_URL%/}/healthz"
           check_url "sovereign"      "${SOVEREIGN_URL}"
           check_url "trust"          "${TRUST_URL}"
@@ -442,31 +486,22 @@ jobs:
           check_url "atlas"          "${ATLAS_URL}"
           check_url "authority"      "${AUTHORITY_URL}"
 
-          # Trim trailing ", " and export for notification steps
           FAILED_SERVICES="${FAILED_SERVICES%, }"
           echo "failed_services=${FAILED_SERVICES}" >> "$GITHUB_OUTPUT"
 
           if [ "$FAIL" -ne 0 ]; then
             echo ""
-            echo "One or more HTTPS health checks failed — deployment aborted."
+            echo "Smoke test FAILED — non-2xx response from: ${FAILED_SERVICES}"
+            echo "The rollback job will now attempt to revert to the last known-good images."
             exit 1
           fi
-          echo "==> All six HTTPS endpoints returned 200."
+          echo "==> All six endpoints returned 200 — release is healthy."
 
-      # ── 4. Alert on health-check failure ─────────────────────────────────────
-      # Both steps below are skipped on success (if: failure()) and each
-      # silently no-ops when its corresponding secret is not configured, so
-      # you can enable just Slack, just email, or both.
-      #
-      # Slack  — set repository secret SLACK_WEBHOOK_URL
-      # Email  — set repository secrets NOTIFY_EMAIL + SMTP_HOST + SMTP_PORT
-      #          + SMTP_USERNAME + SMTP_PASSWORD
-
-      - name: Notify Slack — health check failed
-        if: steps.healthcheck.outcome == 'failure'
+      - name: Notify Slack — smoke test failed
+        if: failure()
         env:
           SLACK_WEBHOOK_URL: ${{ secrets.SLACK_WEBHOOK_URL }}
-          FAILED_SERVICES:   ${{ steps.healthcheck.outputs.failed_services }}
+          FAILED_SERVICES:   ${{ steps.check.outputs.failed_services }}
           COMMIT_SHA:        ${{ github.sha }}
           RUN_URL:           ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
@@ -475,16 +510,15 @@ jobs:
             exit 0
           fi
           SHORT_SHA="${COMMIT_SHA::8}"
-          # Convert comma-separated service names into a Slack mrkdwn bulleted list
           BULLET_LIST=$(printf '%s' "${FAILED_SERVICES:-unknown}" | awk -F', ' '{for(i=1;i<=NF;i++) printf "• %s\\n", $i}')
           PAYLOAD=$(printf '{
-            "text": ":rotating_light: *Deployment health check FAILED*",
+            "text": ":rotating_light: *Production smoke test FAILED — rollback triggered*",
             "blocks": [
               {
                 "type": "section",
                 "text": {
                   "type": "mrkdwn",
-                  "text": ":rotating_light: *Deployment health check FAILED*\n*Commit:* `%s`\n*Failed services:*\n%s\n<%s|View workflow run \u2192>"
+                  "text": ":rotating_light: *Production smoke test FAILED*\n*Commit:* `%s`\n*Failed services:*\n%s\nRolling back automatically. <%s|View workflow run \u2192>"
                 }
               }
             ]
@@ -494,28 +528,27 @@ jobs:
             -d "$PAYLOAD"
           echo "Slack notification sent."
 
-      - name: Notify email — health check failed
-        if: steps.healthcheck.outcome == 'failure'
+      - name: Notify email — smoke test failed
+        if: failure()
         env:
           NOTIFY_EMAIL:    ${{ secrets.NOTIFY_EMAIL }}
           SMTP_HOST:       ${{ secrets.SMTP_HOST }}
           SMTP_PORT:       ${{ secrets.SMTP_PORT }}
           SMTP_USERNAME:   ${{ secrets.SMTP_USERNAME }}
           SMTP_PASSWORD:   ${{ secrets.SMTP_PASSWORD }}
-          FAILED_SERVICES: ${{ steps.healthcheck.outputs.failed_services }}
+          FAILED_SERVICES: ${{ steps.check.outputs.failed_services }}
           COMMIT_SHA:      ${{ github.sha }}
           RUN_URL:         ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           if [ -z "$NOTIFY_EMAIL" ] || [ -z "$SMTP_HOST" ] || [ -z "$SMTP_USERNAME" ] || [ -z "$SMTP_PASSWORD" ]; then
-            echo "Email secrets not fully configured (NOTIFY_EMAIL, SMTP_HOST, SMTP_USERNAME, SMTP_PASSWORD required) — skipping email notification"
+            echo "Email secrets not fully configured — skipping email notification"
             exit 0
           fi
           SHORT_SHA="${COMMIT_SHA::8}"
           PORT="${SMTP_PORT:-587}"
-          SUBJECT="[Sovereign Office] Deployment health check FAILED — ${SHORT_SHA}"
-          # Convert comma-separated service names into a plain-text bulleted list
+          SUBJECT="[Sovereign Office] Production smoke test FAILED — ${SHORT_SHA}"
           BULLET_LIST=$(printf '%s' "${FAILED_SERVICES:-unknown}" | awk -F', ' '{for(i=1;i<=NF;i++) printf "  • %s\n", $i}')
-          BODY="One or more HTTPS health checks failed after deploying commit ${SHORT_SHA}.\n\nFailed services:\n${BULLET_LIST}\n\nPlease review the workflow run for details:\n${RUN_URL}"
+          BODY="Production smoke test failed after deploying commit ${SHORT_SHA}.\n\nFailed services:\n${BULLET_LIST}\n\nAn automatic rollback to the last known-good images has been triggered.\n\nPlease review the workflow run for details:\n${RUN_URL}"
           printf '%b' "$BODY" | curl -sf \
             --url "smtp://${SMTP_HOST}:${PORT}" \
             --ssl-reqd \
@@ -526,6 +559,67 @@ jobs:
             --header "Subject: ${SUBJECT}" \
             --header "Content-Type: text/plain"
           echo "Email notification sent to ${NOTIFY_EMAIL}."
+
+  # ── 4. Rollback — revert to last known-good images on smoke-test failure ──
+  #
+  # Triggered automatically when the `smoke-test` job fails.
+  # Reads the image tag written to `.last_good_tag` by the PREVIOUS successful
+  # deploy (the file is only written after all on-VM checks pass), then pulls
+  # those images from ACR and restarts all services.
+  #
+  # If `.last_good_tag` does not exist (first-ever deploy), the job exits 1
+  # with a clear message so the operator knows manual intervention is needed.
+  rollback:
+    name: "[prod] Rollback — revert to last known-good images"
+    runs-on: ubuntu-latest
+    needs: smoke-test
+    if: failure() && github.ref == 'refs/heads/main'
+    environment: production
+
+    steps:
+      - name: Rollback via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: 22
+          timeout: 60s
+          command_timeout: 5m
+          script: |
+            set -euo pipefail
+            cd "${{ secrets.DEPLOY_PATH }}"
+
+            ROLLBACK_TAG=$(cat .last_good_tag 2>/dev/null | tr -d '[:space:]' || echo "")
+            if [ -z "$ROLLBACK_TAG" ]; then
+              echo "ERROR: .last_good_tag not found — no previous release to roll back to." >&2
+              echo "This is likely the first deploy. Manual intervention required." >&2
+              exit 1
+            fi
+
+            echo "==> Rolling back all services to image tag: ${ROLLBACK_TAG}"
+            export IMAGE_TAG="$ROLLBACK_TAG"
+
+            echo "==> Pulling rollback images from ACR..."
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
+
+            echo "==> Restarting all services with rollback images..."
+            docker compose -f docker-compose.prod.yml up -d --no-build
+
+            echo "==> Waiting up to 60 s for api to become healthy after rollback..."
+            WAIT=0
+            until docker compose -f docker-compose.prod.yml ps api 2>/dev/null | grep -q "healthy"; do
+              sleep 5
+              WAIT=$((WAIT+5))
+              if [ "$WAIT" -ge 60 ]; then
+                echo "  WARNING: api did not reach healthy state in 60s after rollback"
+                docker compose -f docker-compose.prod.yml logs --tail=20 api || true
+                break
+              fi
+            done
+
+            echo "==> Rollback complete. Running containers:"
+            docker compose -f docker-compose.prod.yml ps
 
   # ════════════════════════════════════════════════════════════════════════════
   # STAGING  (staging branch only)
