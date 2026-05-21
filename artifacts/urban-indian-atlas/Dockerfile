@@ -53,6 +53,7 @@ COPY --from=builder /workspace/artifacts/urban-indian-atlas/dist/public \
 
 ARG API_HOST=api:8080
 ARG API_SCHEME=http
+
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -83,4 +84,6 @@ RUN printf "server {\n\
 }\n" > /etc/nginx/conf.d/urban-indian-atlas.conf
 
 EXPOSE 80
+
 CMD ["nginx", "-g", "daemon off;"]
+``
