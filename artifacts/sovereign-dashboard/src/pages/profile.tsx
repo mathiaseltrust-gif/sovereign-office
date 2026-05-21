@@ -1892,12 +1892,13 @@ export default function ProfilePage() {
           const d: ProfileData = await r.json();
           setData(d);
           const p = d.profile ?? {};
+          const ident = (d.identity ?? {}) as Record<string, unknown>;
           setFields({
-            legalName: p.legalName ?? "",
+            legalName: p.legalName ?? (ident.legalName as string) ?? (ident.displayName as string) ?? "",
             preferredName: p.preferredName ?? "",
-            tribalName: p.tribalName ?? "",
+            tribalName: p.tribalName ?? (ident.tribalName as string) ?? "",
             nickname: p.nickname ?? "",
-            title: p.title ?? "",
+            title: p.title ?? (ident.title as string) ?? "",
             familyGroup: p.familyGroup ?? "",
             mailingAddress: p.mailingAddress ?? "",
             apn: p.apn ?? "",

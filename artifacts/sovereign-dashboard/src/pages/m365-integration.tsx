@@ -160,8 +160,8 @@ export default function M365IntegrationPage() {
       const callbackUrl = `${window.location.origin}${BASE_PATH}/microsoft/callback`.replace(/([^:])\/\/+/g, "$1/");
       const res = await fetch(`${API_BASE}/auth/microsoft/login?redirectUri=${encodeURIComponent(callbackUrl)}`);
       if (!res.ok) throw new Error("unavailable");
-      const { url } = await res.json() as { url: string };
-      const popup = window.open(url, "msauth", "width=520,height=640,left=200,top=100");
+      const { authUrl } = await res.json() as { authUrl: string };
+      const popup = window.open(authUrl, "msauth", "width=520,height=640,left=200,top=100");
 
       const onMsg = (ev: MessageEvent) => {
         if (ev.origin !== window.location.origin) return;
@@ -281,14 +281,15 @@ export default function M365IntegrationPage() {
 
           <div className="flex items-center gap-2">
             <code className={`flex-1 rounded px-3 py-2 text-xs font-mono break-all border ${msConfig.configured ? "bg-green-100 border-green-300 text-green-900" : "bg-amber-100 border-amber-300 text-amber-900"}`}>
-              {msConfig.redirectUri}
+              {`${window.location.origin}${BASE_PATH}/microsoft/callback`.replace(/([^:])\/\/+/g, "$1/")}
             </code>
             <Button
               size="sm"
               variant="outline"
               className="shrink-0 h-8 text-xs"
               onClick={() => {
-                navigator.clipboard.writeText(msConfig.redirectUri).then(() => {
+                const uri = `${window.location.origin}${BASE_PATH}/microsoft/callback`.replace(/([^:])\/\/+/g, "$1/");
+                navigator.clipboard.writeText(uri).then(() => {
                   setUriCopied(true);
                   setTimeout(() => setUriCopied(false), 2000);
                 });
