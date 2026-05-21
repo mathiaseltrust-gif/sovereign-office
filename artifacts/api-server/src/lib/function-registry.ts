@@ -76,13 +76,15 @@ Ecosystem Portals (other dashboards):
 
 /**
  * Navigation action format for Kaya to include in responses.
+ * Uses the [[ACTION:navigate]]...[[/ACTION]] format consistent with the action-queue pattern.
+ *
  * Kaya should output this at the end of a response when navigation intent is detected:
- *   [[NAVIGATE:{"label":"Go to Family Tree","path":"/family-tree","description":"Lineage records and ancestry tree"}]]
+ *   [[ACTION:navigate]]{"label":"Go to Family Tree","path":"/family-tree","description":"Lineage records and ancestry tree"}[[/ACTION]]
  */
 export const NAVIGATE_INSTRUCTION = `
 NAVIGATION CARDS:
-When a member asks where to find something, how to navigate to a feature, or what a feature does — include a navigation card at the END of your response using this exact format:
-[[NAVIGATE:{"label":"Go to [Feature Name]","path":"[path from list above]","description":"[one-sentence description]"}]]
+When a member asks where to find something, how to navigate to a feature, or what a feature does — include a navigation card at the END of your response using this EXACT format:
+[[ACTION:navigate]]{"label":"Go to [Feature Name]","path":"[path from list above]","description":"[one-sentence description]"}[[/ACTION]]
 
 You may include up to 3 navigation cards if multiple destinations are relevant.
 For external portals (TRACE, Trust Dashboard, Community Dashboard, Authority Directory, Atlas), use the full path (e.g. /trace/).

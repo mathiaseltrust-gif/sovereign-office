@@ -23,6 +23,12 @@ interface ChatIntakeReport {
   nfrRecommended: boolean;
 }
 
+interface NavigateCard {
+  label: string;
+  path: string;
+  description?: string;
+}
+
 interface ChatMessage {
   id: string;
   role: "user" | "assistant";
@@ -33,6 +39,7 @@ interface ChatMessage {
   redFlagMessage?: string;
   lawRefs?: ChatLawRef[];
   actions?: ChatAction[];
+  navigateCards?: NavigateCard[];
   intakeReport?: ChatIntakeReport;
   azureTokensUsed?: number;
   isLetter?: boolean;
@@ -437,15 +444,30 @@ export function ChatWidget() {
 
       const data = await res.json();
       if (data.redFlag) setHasRedFlag(true);
+
+      // Parse [[ACTION:navigate]]{"label":"...","path":"..."}[[/ACTION]] from reply
+      const parsedNavigateCards: NavigateCard[] = [];
+      const cleanedReply = (data.reply as string ?? "").replace(
+        /\[\[ACTION:navigate\]\](\{[^}]*\})\[\[\/ACTION\]\]/g,
+        (_match: string, json: string) => {
+          try {
+            const card = JSON.parse(json) as NavigateCard;
+            if (card.label && card.path) parsedNavigateCards.push(card);
+          } catch { /* ignore */ }
+          return "";
+        },
+      ).replace(/\n{3,}/g, "\n\n").trim();
+
       addMessage({
         role: "assistant",
-        content: data.reply,
+        content: cleanedReply,
         tier: data.tier,
         tierLabel: data.tierLabel,
         redFlag: data.redFlag,
         redFlagMessage: data.redFlagMessage,
         lawRefs: data.lawRefs,
         actions: data.actions,
+        navigateCards: parsedNavigateCards.length > 0 ? parsedNavigateCards : undefined,
         intakeReport: data.intakeReport,
         azureTokensUsed: data.azureTokensUsed,
       });
@@ -1038,6 +1060,46 @@ export function ChatWidget() {
                         }}
                       >
                         {action.href ? "→ " : ""}{action.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                {/* Navigate Cards — rendered for both ChatWidget (/api/chat) and Kaya (/api/kaya/chat) */}
+                {msg.role === "assistant" && msg.navigateCards && msg.navigateCards.length > 0 && (
+                  <div style={{ marginTop: 8, marginLeft: 36, display: "flex", flexDirection: "column", gap: 5 }}>
+                    {msg.navigateCards.map((card, i) => (
+                      <button
+                        key={i}
+                        onClick={() => handleNavigate(card.path)}
+                        title={card.description}
+                        style={{
+                          background: "#f0f4ff",
+                          border: "1px solid #c7d5f5",
+                          borderLeft: "3px solid #3b5fc0",
+                          borderRadius: 7,
+                          padding: "7px 13px",
+                          fontSize: 12,
+                          cursor: "pointer",
+                          color: "#1e3a8a",
+                          fontFamily: "'Georgia', serif",
+                          fontWeight: 600,
+                          textAlign: "left",
+                          display: "flex",
+                          alignItems: "center",
+                          gap: 6,
+                          transition: "background 0.15s",
+                        }}
+                        onMouseOver={e => { (e.currentTarget as HTMLButtonElement).style.background = "#dbeafe"; }}
+                        onMouseOut={e => { (e.currentTarget as HTMLButtonElement).style.background = "#f0f4ff"; }}
+                      >
+                        <span style={{ fontSize: 13 }}>→</span>
+                        <span>{card.label}</span>
+                        {card.description && (
+                          <span style={{ fontWeight: 400, color: "#4b6cb7", fontSize: 11, marginLeft: 2 }}>
+                            — {card.description}
+                          </span>
+                        )}
                       </button>
                     ))}
                   </div>

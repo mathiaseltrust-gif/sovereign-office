@@ -81,7 +81,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   async function loadRecentSearches() {
     try {
       const token = await getCurrentBearerToken();
-      const res = await fetch(`${import.meta.env.BASE_URL}api/user/profile`, {
+      const res = await fetch(`/api/user/profile`, {
         headers: token ? { Authorization: `Bearer ${token}` } : {},
         credentials: "include",
       });
@@ -108,7 +108,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
         const token = await getCurrentBearerToken();
         const params = new URLSearchParams({ q: query });
         const res = await fetch(
-          `${import.meta.env.BASE_URL}api/search?${params}`,
+          `/api/search?${params}`,
           {
             headers: token ? { Authorization: `Bearer ${token}` } : {},
             credentials: "include",
