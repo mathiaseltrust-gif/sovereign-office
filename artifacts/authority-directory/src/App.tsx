@@ -45,13 +45,20 @@ export function SessionExpiredBanner() {
   );
 }
 
-function sovereignLoginUrl() {
+function getSovereignLoginUrl() {
   if (typeof window === "undefined") return "/sovereign-dashboard/login";
-  return `${window.location.origin}/sovereign-dashboard/login?next=${encodeURIComponent(window.location.href)}`;
+  const { hostname, origin } = window.location;
+  if (hostname === "localhost" || hostname === "127.0.0.1") return "/sovereign-dashboard/login";
+  return `${origin}/sovereign-dashboard/login`;
 }
 
 // Full-page session-expired notice shown when any API call returns 401
 function SessionExpiredPage() {
+  const loginUrl = getSovereignLoginUrl();
+  function handleSignIn(e: React.MouseEvent) {
+    e.preventDefault();
+    window.open(loginUrl, "_blank", "noopener,noreferrer");
+  }
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="max-w-sm w-full text-center space-y-4">
@@ -62,10 +69,13 @@ function SessionExpiredPage() {
         />
         <h2 className="text-lg font-semibold text-foreground">Session Expired</h2>
         <p className="text-sm text-muted-foreground">
-          Your Sovereign Office session has expired or is no longer valid. Please sign in again to continue.
+          Your Sovereign Office session has expired. Sign in again, then return to this tab and refresh.
         </p>
         <a
-          href={sovereignLoginUrl()}
+          href={loginUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={handleSignIn}
           className="inline-block rounded-md bg-amber-700 px-4 py-2 text-sm font-medium text-white hover:bg-amber-800 transition-colors"
         >
           Sign in via Sovereign Office
