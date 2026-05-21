@@ -64,6 +64,7 @@ router.post("/login", async (req, res) => {
 
     const sessionJwt = signSessionJwt({
       sub: String(dbUser.id),
+      dbId: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
       role: dbUser.role,

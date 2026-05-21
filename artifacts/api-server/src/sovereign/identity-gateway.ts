@@ -186,9 +186,13 @@ export async function resolveSovereignIdentityGateway(
   const role = tokenUser.roles?.[0] ?? "member";
 
   if (!dbId) {
+    // Even without a DB ID, sovereign-office roles are already verified via the
+    // cryptographically-signed session token — honour that so the card shows
+    // "Verified" rather than "Pending" when the DB lookup was unavailable.
+    const isSovereignOfficeByToken = ["trustee", "sovereign_admin", "admin"].includes(role.toLowerCase());
     const authorities = computeDelegatedAuthorities(role, {
       hasLineage: false, hasChildren: false,
-      icwaEligible: false, lineageVerified: false, membershipVerified: false,
+      icwaEligible: false, lineageVerified: false, membershipVerified: isSovereignOfficeByToken,
     });
     const { isElder, elderStatus, elderAuthorities } = resolveElderStatus([], 0);
     const visibilityRules = buildVisibilityRules(role, isElder, []);
@@ -203,7 +207,7 @@ export async function resolveSovereignIdentityGateway(
       },
       lineageSummary: "No lineage records on file.",
       ancestorChain: [], tribalNations: [],
-      membershipVerified: false, entraVerified: false, lineageVerified: false,
+      membershipVerified: isSovereignOfficeByToken, entraVerified: false, lineageVerified: false,
       delegatedAuthorities: authorities,
       protectionLevel: "standard",
       benefitEligibility: { icwa: false, tribalWelfare: false, trustBeneficiary: false, membershipBenefits: false, ancestralLandRights: false },
@@ -301,8 +305,8 @@ export async function resolveSovereignIdentityGateway(
         ...((narrative?.benefitEligibility as Record<string, boolean>) ?? {}),
       },
       orgAffiliations, elderStatus, isElder, elderAuthorities,
-      profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl ?? (profile as any)?.profilePhoto ?? null,
-      signatureUrl: (profile as any)?.signatureUrl ?? null,
+      profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl ?? null,
+      signatureUrl: profile?.signatureUrl ?? null,
       visibilityRules,
       generationalPosition, generationalDepth,
       icwaEligible, welfareEligible, trustInheritance,

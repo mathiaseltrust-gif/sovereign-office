@@ -81,6 +81,8 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
   if (isSessionJwt(token)) {
     const sessionPayload = verifySessionJwt(token);
     if (sessionPayload && sessionPayload.type === "session") {
+      // dbId is explicitly embedded in the JWT; sub is a reliable fallback
+      const tokenDbId = Number(sessionPayload.dbId) || Number(sessionPayload.sub) || 0;
       const dbUser = await resolveDbUser(sessionPayload.email as string);
       if (dbUser) {
         req.user = {
@@ -92,15 +94,22 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
           dbId: dbUser.id,
         };
       } else {
+        // resolveDbUser failed (transient DB error or email mismatch) — fall back
+        // to the cryptographically-verified sub as dbId so the gateway can still
+        // attempt its own DB queries and return the correct identity payload.
         req.user = {
           id: sessionPayload.sub as string,
           email: sessionPayload.email as string,
-          roles: [sessionPayload.role as string ?? "member"],
+          roles: [(sessionPayload.role as string) ?? "member"],
           name: sessionPayload.name as string,
           entraId: sessionPayload.entraId as string | undefined,
+          dbId: tokenDbId || undefined,
         };
+        if (tokenDbId) {
+          logger.warn({ email: sessionPayload.email, tokenDbId }, "resolveDbUser missed — using JWT sub as dbId fallback");
+        }
       }
-      logger.debug({ email: sessionPayload.email }, "Session JWT authenticated");
+      logger.debug({ email: sessionPayload.email, dbId: req.user.dbId }, "Session JWT authenticated");
       return next();
     } else {
       logger.warn("Session JWT present but verification failed");

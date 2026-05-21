@@ -74,6 +74,7 @@ router.post("/refresh", async (req, res) => {
 
     const freshToken = signSessionJwt({
       sub: String(dbUser.id),
+      dbId: dbUser.id,
       email: dbUser.email,
       name: dbUser.name,
       role: dbUser.role,
