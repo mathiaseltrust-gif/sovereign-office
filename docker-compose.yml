@@ -89,6 +89,21 @@ services:
     depends_on:
       - api
 
+  # ── Urban Indian Continuity Atlas ───────────────────────────────────────────
+  atlas:
+    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/urban-indian-atlas:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: artifacts/urban-indian-atlas/Dockerfile
+      args:
+        BASE_PATH: /urban-indian-atlas/
+        VITE_API_URL: ${APP_URL:-http://localhost:8080}
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    depends_on:
+      - api
+
   # ── Trust Instruments Dashboard ─────────────────────────────────────────────
   trust:
     image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/trust-dashboard:${IMAGE_TAG:-latest}
