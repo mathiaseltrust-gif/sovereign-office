@@ -8,7 +8,7 @@ import { claimUpload } from "../../lib/pendingUploads";
 import { ObjectStorageService, ObjectNotFoundError } from "../../lib/objectStorage";
 import { Readable } from "stream";
 import { z } from "zod";
-import { SOVEREIGN_ORGS } from "../../sovereign/organizations";
+import { SOVEREIGN_ORGS } from "../../engines/organizations";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();

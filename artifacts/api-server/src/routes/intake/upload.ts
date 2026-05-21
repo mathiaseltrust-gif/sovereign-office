@@ -3,7 +3,7 @@ import multer from "multer";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { randomUUID } from "crypto";
-import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../sovereign/nfr-review-engine";
+import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 
 const router = Router();
 

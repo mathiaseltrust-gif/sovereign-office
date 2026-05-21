@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { requireAuth } from "../../auth/entra-guard";
-import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
+import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway";
 import { buildTribalIdPdf, buildVerificationLetterPdf } from "../../lib/pdf-builder";
 import { logger } from "../../lib/logger";
 import { db } from "@workspace/db";

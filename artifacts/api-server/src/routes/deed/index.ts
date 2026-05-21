@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../auth/entra-guard";
+import { requireAuth } from "../../auth/entra-guard";
 
 const router = Router();
 

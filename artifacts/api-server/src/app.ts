@@ -10,9 +10,9 @@ import { logger } from "./lib/logger";
 import { entraMiddleware } from "./auth/entra";
 import { requireEntraIfRequired } from "./auth/entra-guard";
 import { serviceKeyMiddleware } from "./auth/service-key";
-import { sovereignOffice } from "./sovereign/office";
+import { sovereignOffice } from "./engines/office";
 import { initBootstrapToken } from "./lib/bootstrap-token";
-import { seedDefaultGovernors } from "./sovereign/role-governor";
+import { seedDefaultGovernors } from "./engines/role-governor";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);

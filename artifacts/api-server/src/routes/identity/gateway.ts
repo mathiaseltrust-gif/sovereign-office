@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
+import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway";
 
 const router = Router();
 

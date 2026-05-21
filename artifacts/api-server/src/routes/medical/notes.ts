@@ -3,8 +3,8 @@ import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { profilesTable, identityNarrativesTable, medicalNotesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
-import { computeDelegatedAuthorities, checkMedicalNoteAuthority, buildWhatNextInstructions } from "../../sovereign/delegated-authority";
-import { getLineageForUser } from "../../sovereign/family-tree-engine";
+import { computeDelegatedAuthorities, checkMedicalNoteAuthority, buildWhatNextInstructions } from "../../engines/delegated-authority";
+import { getLineageForUser } from "../../engines/family-tree-engine";
 import { logger } from "../../lib/logger";
 import {
   MEDICAL_CENTER_NAME,

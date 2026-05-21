@@ -4,8 +4,8 @@ import { db } from "@workspace/db";
 import { familyLineageTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { buildLineageGraph } from "../../sovereign/family-tree-engine";
-import type { ParsedPerson } from "../../sovereign/family-tree-engine";
+import { buildLineageGraph } from "../../engines/family-tree-engine";
+import type { ParsedPerson } from "../../engines/family-tree-engine";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { logger } from "../../lib/logger";
 
@@ -294,13 +294,13 @@ router.post("/", requireAuth, upload.single("file"), async (req, res, next) => {
       if (isGedcom(originalname, text)) {
         sourceType = "gedcom";
         extractionMethod = "parser";
-        const { parseGedcom } = await import("../../sovereign/family-tree-engine");
+        const { parseGedcom } = await import("../../engines/family-tree-engine");
         people = parseGedcom(text);
       } else {
         sourceType = "csv";
         extractionMethod = "ai";
         if (text.trim().toLowerCase().startsWith("name") || text.includes(",")) {
-          const { parseLineageCsv } = await import("../../sovereign/family-tree-engine");
+          const { parseLineageCsv } = await import("../../engines/family-tree-engine");
           try {
             people = parseLineageCsv(text);
             extractionMethod = "parser";

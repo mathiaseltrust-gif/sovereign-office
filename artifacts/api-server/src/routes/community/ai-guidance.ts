@@ -10,13 +10,13 @@ import {
 } from "@workspace/db";
 import { eq, desc, and, isNull, or, gt } from "drizzle-orm";
 import { callAzureOpenAI, getAzureOpenAIClient } from "../../lib/azure-openai";
-import { ensureLawDbSeeded, listAllFederalLaw, listAllTribalLaw, listAllDoctrines } from "../../sovereign/law-db";
+import { ensureLawDbSeeded, listAllFederalLaw, listAllTribalLaw, listAllDoctrines } from "../../engines/law-db";
 import {
   getGovernorByRole,
   getSessionGovernor,
   normalizeRoleKey,
   buildGovernorSystemPromptPrefix,
-} from "../../sovereign/role-governor";
+} from "../../engines/role-governor";
 import type { RoleGovernor } from "@workspace/db";
 import { logger } from "../../lib/logger";
 

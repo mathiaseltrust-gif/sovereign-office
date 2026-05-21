@@ -4,7 +4,7 @@ import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { tribalLawTable, federalIndianLawTable, doctrineSourcesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { ensureLawDbSeeded } from "../../sovereign/law-db";
+import { ensureLawDbSeeded } from "../../engines/law-db";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { logger } from "../../lib/logger";
 

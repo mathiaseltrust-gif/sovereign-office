@@ -1,7 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { Resend } from "resend";
 import { logger } from "../lib/logger";
-import type { NotificationCategory } from "../sovereign/notification-engine";
+import type { NotificationCategory } from "../engines/notification-engine";
 import { generateHtmlEmail } from "./email-templates";
 
 const RESEND_API_KEY = process.env.RESEND_API_KEY;

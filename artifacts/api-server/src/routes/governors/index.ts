@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { roleGovernorsTable, governorActivationLogTable, userGovernorSessionsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { seedDefaultGovernors, setSessionGovernor, getSessionGovernor, getGovernorByRole, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
+import { seedDefaultGovernors, setSessionGovernor, getSessionGovernor, getGovernorByRole, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../engines/role-governor";
 import { logger } from "../../lib/logger";
 import type { Request, Response, NextFunction } from "express";
 

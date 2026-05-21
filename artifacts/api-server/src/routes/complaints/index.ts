@@ -11,10 +11,10 @@ import {
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText } from "../../lib/doctrine";
-import { runIntakeFilter } from "../../sovereign/intake-filter";
-import { notifyComplaintFiled, notifyRedFlag } from "../../sovereign/notification-engine";
+import { runIntakeFilter } from "../../engines/intake-filter";
+import { notifyComplaintFiled, notifyRedFlag } from "../../engines/notification-engine";
 import { nextDocRef } from "../../lib/doc-ref";
-import { triggerReviewEngine, auditLog } from "../../sovereign/nfr-review-engine";
+import { triggerReviewEngine, auditLog } from "../../engines/nfr-review-engine";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });

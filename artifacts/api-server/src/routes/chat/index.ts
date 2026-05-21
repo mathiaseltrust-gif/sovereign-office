@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { routeChat } from "../../sovereign/chat-router";
+import { routeChat } from "../../engines/chat-router";
 import { logger } from "../../lib/logger";
 import {
   getHistory,

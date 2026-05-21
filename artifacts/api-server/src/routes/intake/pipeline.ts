@@ -14,9 +14,9 @@ import { db } from "@workspace/db";
 import { sovereignPipelineTable, usersTable, profilesTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { runIntakeFilter } from "../../sovereign/intake-filter";
+import { runIntakeFilter } from "../../engines/intake-filter";
 import { classifyText, applyDoctrine } from "../../lib/doctrine";
-import { getBuiltInTemplate } from "../../sovereign/template-engine";
+import { getBuiltInTemplate } from "../../engines/template-engine";
 import { logger } from "../../lib/logger";
 import { openCaseFile } from "../../lib/case-file-service";
 

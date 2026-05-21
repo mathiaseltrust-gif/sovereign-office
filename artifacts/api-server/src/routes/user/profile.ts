@@ -8,11 +8,11 @@ import {
   complaintsTable,
   nfrDocumentsTable,
 } from "@workspace/db";
-import { getLineageForUser, getKnowledgeOfSelfLinks } from "../../sovereign/family-tree-engine";
+import { getLineageForUser, getKnowledgeOfSelfLinks } from "../../engines/family-tree-engine";
 import { eq } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
-import { getPreferences, getRecommendations, learnPreference } from "../../sovereign/ai-learning";
-import { resolveIdentity } from "../../sovereign/identity-engine";
+import { getPreferences, getRecommendations, learnPreference } from "../../engines/ai-learning";
+import { resolveIdentity } from "../../engines/identity-engine";
 
 const router = Router();
 

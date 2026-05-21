@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { listBuiltInTemplates, getBuiltInTemplate } from "../../sovereign/template-engine";
-import { listTemplates as listCourtTemplates } from "../../sovereign/court-doc-generator";
+import { listBuiltInTemplates, getBuiltInTemplate } from "../../engines/template-engine";
+import { listTemplates as listCourtTemplates } from "../../engines/court-doc-generator";
 import { db } from "@workspace/db";
 import { templatesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";

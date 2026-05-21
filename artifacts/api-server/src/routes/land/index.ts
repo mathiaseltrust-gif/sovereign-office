@@ -11,8 +11,8 @@ import {
   deriveLocationCode,
   buildLandCode,
   nextSeqForLocation,
-} from "../../sovereign/land-code-service";
-import { triggerReviewEngine, auditLog } from "../../sovereign/nfr-review-engine";
+} from "../../engines/land-code-service";
+import { triggerReviewEngine, auditLog } from "../../engines/nfr-review-engine";
 
 const router = Router();
 

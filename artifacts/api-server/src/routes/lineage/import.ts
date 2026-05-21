@@ -4,7 +4,7 @@ import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable } from "@workspace/db";
 import { eq, and } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { parseLineageCsv, parseGedcom, parseGedcomFamilies, buildLineageGraph } from "../../sovereign/family-tree-engine";
+import { parseLineageCsv, parseGedcom, parseGedcomFamilies, buildLineageGraph } from "../../engines/family-tree-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();

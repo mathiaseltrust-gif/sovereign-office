@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireAuth } from "../auth/entra-guard";
+import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import {
   usersTable,
@@ -8,9 +8,9 @@ import {
   identityNarrativesTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { computeDelegatedAuthorities, buildWhatNextInstructions } from "../sovereign/delegated-authority";
-import { getLineageForUser } from "../sovereign/family-tree-engine";
-import { logger } from "../lib/logger";
+import { computeDelegatedAuthorities, buildWhatNextInstructions } from "../../engines/delegated-authority";
+import { getLineageForUser } from "../../engines/family-tree-engine";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 

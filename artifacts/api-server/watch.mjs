@@ -67,6 +67,7 @@ const EXTERNALS = [
   "workerd", "wrangler", "zeromq", "zeromq-prebuilt",
   "playwright", "puppeteer", "puppeteer-core", "electron",
   "pdfkit", "fontkit", "linebreak", "unicode-properties", "unicode-trie",
+  "@react-email/render",
 ];
 
 const BANNER = {

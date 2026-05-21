@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { processIntake } from "../../sovereign/intake-pipeline";
+import { processIntake } from "../../engines/intake-pipeline";
 import { appendIntakeFact } from "../../lib/redis-memory";
 
 const router = Router();
@@ -126,7 +126,7 @@ router.post("/extract-fields", requireAuth, async (req, res, next) => {
     if (mode === "identity-status") {
       try {
         const { callAzureOpenAI } = await import("../../lib/azure-openai");
-        const { IDENTITY_STATUS_EXTRACTION_SCHEMA } = await import("../../sovereign/rights-engine");
+        const { IDENTITY_STATUS_EXTRACTION_SCHEMA } = await import("../../engines/rights-engine");
         const system = `You are a sovereign tribal legal office identity analyst. Your function is to extract legally significant identity, land status, and rights trigger markers from legal and government documents. These earmarks determine a member's sovereign standing, land protections, and which federal Indian law rights apply to them.
 
 Do NOT extract biographical details (nickname, preferred name, social media handles, etc.). Extract ONLY the legally significant signals.

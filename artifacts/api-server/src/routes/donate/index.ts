@@ -1,6 +1,6 @@
 import { Router, type Request, type Response } from "express";
-import { getUncachableStripeClient, getStripePublishableKey } from "../stripeClient";
-import { logger } from "../lib/logger";
+import { getUncachableStripeClient, getStripePublishableKey } from "../../stripeClient";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 

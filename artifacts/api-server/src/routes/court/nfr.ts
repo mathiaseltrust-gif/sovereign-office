@@ -4,7 +4,7 @@ import { nfrDocumentsTable, classificationsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { buildNfrRecorderPdf } from "../../lib/pdf-builder";
-import { auditLog } from "../../sovereign/nfr-review-engine";
+import { auditLog } from "../../engines/nfr-review-engine";
 
 const router = Router();
 

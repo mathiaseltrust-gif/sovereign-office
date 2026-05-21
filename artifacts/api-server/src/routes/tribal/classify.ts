@@ -12,7 +12,7 @@ import { eq } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText, applyDoctrine } from "../../lib/doctrine";
 import { buildNfrRecorderPdf } from "../../lib/pdf-builder";
-import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../sovereign/nfr-review-engine";
+import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 
 const router = Router();
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 20 * 1024 * 1024 } });

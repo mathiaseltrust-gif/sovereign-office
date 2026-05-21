@@ -1,13 +1,13 @@
 import { Router, type IRouter, type Request, type Response } from "express";
 import { Readable } from "stream";
 import { z } from "zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
-import { logger } from "../lib/logger";
-import { requireAuth } from "../auth/entra-guard";
+import { ObjectStorageService, ObjectNotFoundError } from "../../lib/objectStorage";
+import { logger } from "../../lib/logger";
+import { requireAuth } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { businessDocumentsTable, businessConceptsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { registerUpload } from "../lib/pendingUploads";
+import { registerUpload } from "../../lib/pendingUploads";
 
 const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
 

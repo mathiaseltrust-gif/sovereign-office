@@ -1,7 +1,7 @@
 import { Router, type Request, type Response } from "express";
-import { requireAuth } from "../auth/entra-guard";
-import { getUncachableStripeClient } from "../stripeClient";
-import { logger } from "../lib/logger";
+import { requireAuth } from "../../auth/entra-guard";
+import { getUncachableStripeClient } from "../../stripeClient";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 

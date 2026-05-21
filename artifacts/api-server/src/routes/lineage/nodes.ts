@@ -3,9 +3,9 @@ import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { hasRole, canReviewPendingLineage } from "../../sovereign/authority";
+import { hasRole, canReviewPendingLineage } from "../../engines/authority";
 import { logger } from "../../lib/logger";
-import { createNotification } from "../../sovereign/notification-engine";
+import { createNotification } from "../../engines/notification-engine";
 
 const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer"]);
 

@@ -4,10 +4,10 @@ import { kiConversationsTable, profilesTable, calendarEventsTable, importantDate
 import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
-import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
-import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../sovereign/role-governor";
-import { accumulateIntelligence, getCompanionIntelContext } from "../../sovereign/intelligence-accumulator";
-import { getOpenInvestigationsForKaya } from "../../sovereign/nfr-review-engine";
+import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway";
+import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../engines/role-governor";
+import { accumulateIntelligence, getCompanionIntelContext } from "../../engines/intelligence-accumulator";
+import { getOpenInvestigationsForKaya } from "../../engines/nfr-review-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();
@@ -176,7 +176,7 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     if (governor) governorPrefix = buildGovernorSystemPromptPrefix(governor);
 
     // Compute this member's specific rights profile + inherited lineage rights
-    const { computeMemberRights, computeInheritedRights } = await import("../../sovereign/rights-engine");
+    const { computeMemberRights, computeInheritedRights } = await import("../../engines/rights-engine");
     const profile = profileRows[0] ?? null;
     const [rightsProfile, inheritedResult] = await Promise.all([
       Promise.resolve(computeMemberRights({
@@ -758,7 +758,7 @@ router.post("/chat", requireAuth, async (req, res, next) => {
 
     logger.info({ userId, msgLen: trimmed.length }, "Kaya chat request");
 
-    const { checkAlignment } = await import("../../sovereign/alignment-checker");
+    const { checkAlignment } = await import("../../engines/alignment-checker");
     const alignmentResult = checkAlignment(trimmed);
     if (!alignmentResult.isAligned) {
       logger.info(
@@ -805,7 +805,7 @@ router.get("/intel", requireAuth, async (req, res, next) => {
     const userId = req.user!.dbId;
     if (!userId) { res.status(400).json({ error: "No user session" }); return; }
 
-    const { getIntelligencePicture } = await import("../../sovereign/intelligence-accumulator");
+    const { getIntelligencePicture } = await import("../../engines/intelligence-accumulator");
     const picture = await getIntelligencePicture(userId);
 
     if (!picture) {

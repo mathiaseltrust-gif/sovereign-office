@@ -15,23 +15,23 @@ import {
   validateInstrumentForRecorder,
   DEFAULT_RECORDER_FORMAT,
   type InstrumentOptions,
-} from "../../sovereign/trust-service";
+} from "../../engines/trust-service";
 import {
   buildRecorderPdf,
   buildInstrumentRecorderPdf,
   stampCertifiedCopy,
   type PdfBuildInput,
 } from "../../lib/pdf-builder";
-import { getOrAssignLandCode } from "../../sovereign/land-code-service";
+import { getOrAssignLandCode } from "../../engines/land-code-service";
 import {
   validateRecorderDocument,
   validateMargins,
   DEFAULT_RECORDER_SPEC,
   DOCTRINE_RECORDER_SPEC,
   isDoctrineTemplate,
-} from "../../sovereign/recorder-engine";
-import { getStateIntel, getIndianLandClassification } from "../../sovereign/state-intel";
-import { renderTemplate, getBuiltInTemplate, listBuiltInTemplates } from "../../sovereign/template-engine";
+} from "../../engines/recorder-engine";
+import { getStateIntel, getIndianLandClassification } from "../../engines/state-intel";
+import { renderTemplate, getBuiltInTemplate, listBuiltInTemplates } from "../../engines/template-engine";
 import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();

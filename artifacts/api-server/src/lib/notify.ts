@@ -1,5 +1,5 @@
-import { createNotification as engineCreateNotification } from "../sovereign/notification-engine";
-import type { NotificationCategory } from "../sovereign/notification-engine";
+import { createNotification as engineCreateNotification } from "../engines/notification-engine";
+import type { NotificationCategory } from "../engines/notification-engine";
 import { logger } from "./logger";
 
 export interface NotifyOptions {

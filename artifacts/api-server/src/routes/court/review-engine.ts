@@ -3,7 +3,7 @@ import { db } from "@workspace/db";
 import { nfrInvestigationsTable, nfrReviewSignalsTable, nfrAuditLogTable } from "@workspace/db";
 import { eq, desc, and, inArray } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { triggerReviewEngine, auditLog, type ReviewSignalType, type TriggeringEventType } from "../../sovereign/nfr-review-engine";
+import { triggerReviewEngine, auditLog, type ReviewSignalType, type TriggeringEventType } from "../../engines/nfr-review-engine";
 import { logger } from "../../lib/logger";
 
 const router = Router();

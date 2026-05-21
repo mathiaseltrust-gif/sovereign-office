@@ -4,7 +4,7 @@ import { familyLineageTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, ne, and, inArray, notInArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
-import { createNotification } from "../../sovereign/notification-engine";
+import { createNotification } from "../../engines/notification-engine";
 
 const router = Router();
 

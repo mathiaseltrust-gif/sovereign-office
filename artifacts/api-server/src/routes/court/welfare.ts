@@ -3,16 +3,16 @@ import { db } from "@workspace/db";
 import { welfareInstrumentsTable, welfareActsTable } from "@workspace/db";
 import { eq, desc } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { generateWelfareInstrument, type WelfareInstrumentRequest } from "../../sovereign/welfare-engine";
+import { generateWelfareInstrument, type WelfareInstrumentRequest } from "../../engines/welfare-engine";
 import { buildWelfarePdf } from "../../lib/pdf-builder";
-import { runIntakeFilter } from "../../sovereign/intake-filter";
-import { notifyWelfareGenerated, notifyTroGenerated, notifyRedFlag } from "../../sovereign/notification-engine";
+import { runIntakeFilter } from "../../engines/intake-filter";
+import { notifyWelfareGenerated, notifyTroGenerated, notifyRedFlag } from "../../engines/notification-engine";
 import {
   listWelfareActs,
   getWelfareAct,
   createWelfareAct,
   ensureWelfareActsSeeded,
-} from "../../sovereign/welfare-authority";
+} from "../../engines/welfare-authority";
 import { logger } from "../../lib/logger";
 
 const router = Router();

@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth } from "../auth/entra-guard";
+import { requireAuth } from "../../auth/entra-guard";
 import {
   parseLineageCsv,
   buildLineageGraph,
@@ -12,11 +12,11 @@ import {
   getKnowledgeOfSelfLinks,
   detectEligibility,
   buildLineageSummaryForIntake,
-} from "../sovereign/family-tree-engine";
+} from "../../engines/family-tree-engine";
 import { db } from "@workspace/db";
 import { familyLineageTable, identityNarrativesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
-import { logger } from "../lib/logger";
+import { logger } from "../../lib/logger";
 
 async function getAncestorHistoricalContext(userId: number) {
   const result = await db.execute(sql`

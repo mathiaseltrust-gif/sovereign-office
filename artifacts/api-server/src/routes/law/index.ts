@@ -1,6 +1,6 @@
 import { Router } from "express";
 import type { Request, Response, NextFunction } from "express";
-import { requireAuth } from "../auth/entra-guard";
+import { requireAuth } from "../../auth/entra-guard";
 import {
   listAllFederalLaw,
   listAllTribalLaw,
@@ -11,7 +11,7 @@ import {
   addTribalLaw,
   addDoctrine,
   ensureLawDbSeeded,
-} from "../sovereign/law-db";
+} from "../../engines/law-db";
 
 const router = Router();
 

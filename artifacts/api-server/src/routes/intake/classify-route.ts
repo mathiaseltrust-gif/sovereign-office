@@ -16,7 +16,7 @@ import { db } from "@workspace/db";
 import { courtDocumentsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
-import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../sovereign/nfr-review-engine";
+import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();

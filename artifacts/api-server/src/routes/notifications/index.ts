@@ -2,9 +2,9 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { notificationsTable } from "@workspace/db";
 import { eq, desc, and, isNull } from "drizzle-orm";
-import { requireAuth } from "../auth/entra-guard";
-import { createNotification } from "../sovereign/notification-engine";
-import type { NotificationCategory, NotificationSeverity } from "../sovereign/notification-engine";
+import { requireAuth } from "../../auth/entra-guard";
+import { createNotification } from "../../engines/notification-engine";
+import type { NotificationCategory, NotificationSeverity } from "../../engines/notification-engine";
 
 const VALID_CATEGORIES = new Set<NotificationCategory>([
   "family_governance", "welfare_update", "trust_instrument", "recorder_filing",

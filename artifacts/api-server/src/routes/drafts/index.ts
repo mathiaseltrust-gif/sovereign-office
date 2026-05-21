@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { runAiDraftingEngine, type DocumentKind } from "../../sovereign/ai-drafting-engine";
-import { resolveIdentity, buildIdentityFromToken } from "../../sovereign/identity-engine";
-import { computeDelegatedAuthorities } from "../../sovereign/delegated-authority";
+import { runAiDraftingEngine, type DocumentKind } from "../../engines/ai-drafting-engine";
+import { resolveIdentity, buildIdentityFromToken } from "../../engines/identity-engine";
+import { computeDelegatedAuthorities } from "../../engines/delegated-authority";
 import { logger } from "../../lib/logger";
 
 const router = Router();

@@ -8,7 +8,7 @@ import {
 import { eq, desc, and } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
-import { processIntake } from "../../sovereign/intake-pipeline";
+import { processIntake } from "../../engines/intake-pipeline";
 import { claimUpload } from "../../lib/pendingUploads";
 import { z } from "zod";
 

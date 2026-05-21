@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { resolveSovereignIdentityGateway } from "../../sovereign/identity-gateway";
-import { computeMemberRights, computeInheritedRights } from "../../sovereign/rights-engine";
+import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway";
+import { computeMemberRights, computeInheritedRights } from "../../engines/rights-engine";
 import { db } from "@workspace/db";
 import { profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";

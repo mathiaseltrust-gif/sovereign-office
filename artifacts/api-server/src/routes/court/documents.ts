@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
-import { generateCourtDocument, getCourtDocument, listCourtDocuments, listTemplates } from "../../sovereign/court-doc-generator";
+import { generateCourtDocument, getCourtDocument, listCourtDocuments, listTemplates } from "../../engines/court-doc-generator";
 import { buildCourtDocumentPdf, stampCertifiedCopy } from "../../lib/pdf-builder";
 import { db } from "@workspace/db";
 import { courtDocumentsTable, usersTable } from "@workspace/db";
@@ -50,7 +50,7 @@ router.get("/suggested", requireAuth, async (req, res, next) => {
     const userId = req.user?.dbId;
     if (!userId) { res.json([]); return; }
 
-    const { getIntelligencePicture } = await import("../../sovereign/intelligence-accumulator");
+    const { getIntelligencePicture } = await import("../../engines/intelligence-accumulator");
     const picture = await getIntelligencePicture(userId);
 
     if (!picture || picture.actionQueue.length === 0) { res.json([]); return; }

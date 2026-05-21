@@ -2,8 +2,8 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { profilesTable, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { verifyUnsubscribeToken } from "../services/mailer";
-import { logger } from "../lib/logger";
+import { verifyUnsubscribeToken } from "../../services/mailer";
+import { logger } from "../../lib/logger";
 
 const router = Router();
 

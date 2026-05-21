@@ -110,6 +110,7 @@ async function buildAll() {
       "linebreak",
       "unicode-properties",
       "unicode-trie",
+      "@react-email/render",
     ],
     sourcemap: "linked",
     plugins: [

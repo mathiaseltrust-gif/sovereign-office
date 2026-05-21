@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
-import { SOVEREIGN_ORGS, computeOrgAccess } from "../../sovereign/organizations";
+import { SOVEREIGN_ORGS, computeOrgAccess } from "../../engines/organizations";
 import { db } from "@workspace/db";
 import { profilesTable, familyLineageTable, identityNarrativesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";

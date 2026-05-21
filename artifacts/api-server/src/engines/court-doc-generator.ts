@@ -3,7 +3,7 @@ import { courtDocumentsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { runIntakeFilter } from "./intake-filter";
 import { queryLawDb } from "./law-db";
-import { getTemplate, listTemplates, LEGACY_TEMPLATE_MAP, type LegacyTemplate } from "../legacy/court-docs/templates";
+import { getTemplate, listTemplates, LEGACY_TEMPLATE_MAP, type LegacyTemplate } from "./templates/legacy-templates";
 import { logger } from "../lib/logger";
 import { getGovernorByRole, getActiveGovernor, getSessionGovernor, normalizeRoleKey, logGovernorActivation } from "./role-governor";
 

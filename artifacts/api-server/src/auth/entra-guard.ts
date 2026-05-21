@@ -1,5 +1,5 @@
 import type { Request, Response, NextFunction } from "express";
-import { hasRole, type Role } from "../sovereign/authority";
+import { hasRole, type Role } from "../engines/authority";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
