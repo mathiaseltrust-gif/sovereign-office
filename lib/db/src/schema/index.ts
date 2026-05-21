@@ -54,3 +54,6 @@ export * from "./case-number-history";
 export * from "./ancestor-life-events";
 export * from "./land-records";
 export * from "./historical-exposure";
+export * from "./trace-matters";
+export * from "./trace-analysis";
+export * from "./trace-drafts";

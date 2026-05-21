@@ -37,6 +37,7 @@ export const profilesTable = pgTable("profiles", {
   kinshipToTribe: text("kinship_to_tribe"),
   chiefStatement: text("chief_statement"),
   chiefStatementRef: text("chief_statement_ref"),
+  traceAccess: boolean("trace_access").notNull().default(false),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

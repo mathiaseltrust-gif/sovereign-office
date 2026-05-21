@@ -1,7 +1,7 @@
 import type { Request, Response, NextFunction } from "express";
 import { hasRole, type Role } from "../engines/authority";
 import { db } from "@workspace/db";
-import { usersTable } from "@workspace/db";
+import { usersTable, profilesTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
@@ -64,6 +64,36 @@ export function requireRegisteredUser(req: Request, res: Response, next: NextFun
     return;
   }
   next();
+}
+
+export async function requireTraceAccess(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
+  const sovereignRoles: Role[] = ["sovereign_admin", "admin", "officer"];
+  if (sovereignRoles.some(r => hasRole(req.user!.roles, r))) {
+    next();
+    return;
+  }
+  if (!req.user.dbId) {
+    res.status(403).json({ error: "Access denied. TRACE portal requires explicit access grant." });
+    return;
+  }
+  try {
+    const [profile] = await db
+      .select({ traceAccess: profilesTable.traceAccess })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, req.user.dbId))
+      .limit(1);
+    if (profile?.traceAccess) {
+      next();
+      return;
+    }
+  } catch {
+    // fall through to deny
+  }
+  res.status(403).json({ error: "Access denied. You do not have TRACE portal access." });
 }
 
 export async function requireEntraIfRequired(req: Request, res: Response, next: NextFunction): Promise<void> {
