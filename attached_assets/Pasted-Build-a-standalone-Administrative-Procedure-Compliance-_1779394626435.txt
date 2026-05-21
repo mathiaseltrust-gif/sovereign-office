@@ -1,0 +1,250 @@
+Build a standalone Administrative Procedure & Compliance Intelligence Filter Engine as part of the Indigenous Intelligence ecosystem.
+
+This engine is intended to function as:
+- a procedural intelligence layer,
+- a compliance analysis system,
+- a CFR/APA review processor,
+- an Indigenous rights review pathway,
+- a neutral administrative audit engine,
+- and a long-term procedural monitoring system.
+
+The engine must operate independently with its own dashboard while also integrating into the larger ecosystem, intake process, investigation system, document engine, oversight routing, and Companion AI infrastructure already being developed.
+
+CORE CONCEPT
+
+This is not just a “listener.”
+
+This is an active filter engine that:
+- receives,
+- analyzes,
+- compares,
+- reconstructs,
+- maps,
+- audits,
+- routes,
+- and monitors procedural conduct against governing authority.
+
+The engine should determine:
+- what process was required,
+- what process actually occurred,
+- whether required procedures were followed,
+- whether oversight pathways may be triggered,
+- and whether procedural defects exist.
+
+PRIMARY GOALS
+
+1. Build a standalone APA/CFR procedural review dashboard.
+
+2. Allow procedural review to be toggled onto existing intake records, uploaded documents, notices, matters, and investigations before they are finalized.
+
+3. Create a neutral procedural review system capable of reviewing both:
+- internal tribal matters,
+- and outside Indigenous rights concerns.
+
+4. Build a dedicated NIAC Review pathway associated with:
+National Indigenous American Committee (527 political organization).
+
+5. Funnel designated legal/compliance/review email channels into the engine for automated intake processing and procedural analysis.
+
+EMAIL / CHANNEL PROCESSING
+
+The engine must support dedicated intake email channels such as:
+- legal@
+- review@
+- notices@
+- compliance@
+- niacreview@
+or similar.
+
+The system should:
+- retrieve incoming emails,
+- process attachments,
+- OCR scanned documents,
+- extract procedural information,
+- and automatically funnel matters into the review dashboard.
+
+The system should identify:
+- agencies,
+- companies,
+- courts,
+- municipalities,
+- counties,
+- healthcare entities,
+- servicers,
+- utilities,
+- insurers,
+- state actors,
+- federal actors,
+- Indigenous rights concerns,
+- tribal implications,
+- federal oversight implications,
+- deadlines,
+- and governing authority references.
+
+NIAC REVIEW PATHWAY
+
+The NIAC Review layer is intended to serve as:
+- an Indigenous rights review channel,
+- an administrative review pathway,
+- a procedural compliance review system,
+- and a neutral intake/review mechanism for Indigenous-related concerns.
+
+The engine should distinguish between:
+- informational review,
+- procedural review,
+- oversight review,
+- tribal court-related review,
+- NIAC political review,
+- document assistance,
+- federal review pathways,
+- and formal legal escalation.
+
+Not every review becomes a court matter.
+
+The system should intelligently recommend:
+- routing,
+- oversight,
+- procedural next steps,
+- or informational follow-up based on the facts and procedural posture.
+
+PROCEDURAL ANALYSIS ENGINE
+
+The system must:
+- reconstruct required procedure,
+- identify governing authority,
+- compare required procedure vs actual conduct,
+- identify missing procedural steps,
+- detect due process concerns,
+- detect federal/state conflicts,
+- identify federal supremacy issues,
+- identify oversight triggers,
+- detect arbitrary or inconsistent conduct,
+- identify administrative deficiencies,
+- and map escalation pathways.
+
+AUTHORITY MAPPING
+
+The engine should map:
+- U.S. Constitution
+- treaties
+- federal statutes (USC)
+- CFR provisions
+- federal agency guidance
+- state statutes
+- state administrative codes
+- internal procedures
+- tribal implications
+- due process requirements
+- federal funding obligations
+- civil rights implications
+
+The system must distinguish between:
+- statute,
+- regulation,
+- guidance,
+- policy,
+- internal memo,
+- and informal practice.
+
+OVERSIGHT MAPPING
+
+The system should identify potential oversight pathways involving:
+- DOJ
+- OCR
+- CMS
+- HHS
+- BIA
+- IHS
+- HUD
+- Treasury
+- Inspector General offices
+- state oversight agencies
+- administrative review pathways
+- civil rights review pathways
+- tribal/federal review implications
+
+LONG-TERM CASE MONITORING
+
+The engine should support both:
+- single-document review,
+- and continuous case lifecycle monitoring.
+
+Track:
+- deadlines,
+- missed responses,
+- contradictory statements,
+- procedural drift,
+- escalation opportunities,
+- silence/default situations,
+- changed positions,
+- and ongoing procedural inconsistencies.
+
+TOGGLEABLE REVIEW FILTER
+
+Add a procedural review toggle option to:
+- intakes,
+- uploaded documents,
+- notices,
+- investigations,
+- emails,
+- and matter files.
+
+When activated, the engine should:
+- run procedural analysis,
+- map authority,
+- identify procedural gaps,
+- generate oversight pathways,
+- create audit summaries,
+- and prepare suggested response options before finalization.
+
+TONE NEUTRALIZER
+
+All generated drafts and recommendations must pass through a neutral communication layer.
+
+The engine must remain:
+- factual,
+- procedural,
+- neutral,
+- non-threatening,
+- evidence-based,
+- and professionally administrative.
+
+The engine should never:
+- emotionally escalate,
+- threaten,
+- accuse,
+- or overstate conclusions.
+
+Instead, it should:
+- explain applicable procedure,
+- identify possible concerns,
+- identify procedural inconsistencies,
+- identify review pathways,
+- and suggest appropriate next steps.
+
+Human approval is required before anything is sent externally.
+
+OUTPUTS
+
+The engine should generate:
+- procedural audit reports,
+- oversight maps,
+- authority maps,
+- risk scores,
+- procedural timelines,
+- escalation recommendations,
+- response drafts,
+- document summaries,
+- and investigation support materials.
+
+DESIGN PRINCIPLE
+
+This engine must strengthen and integrate with the larger Indigenous Intelligence ecosystem without replacing or undoing existing governing principles, intake logic, tribal framework, federal review architecture, document systems, or oversight routing already being developed.
+
+The engine should add:
+- procedural intelligence,
+- compliance analysis,
+- authority correlation,
+- oversight mapping,
+- and Indigenous rights review capabilities
+to the ecosystem.
