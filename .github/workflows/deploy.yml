@@ -366,6 +366,35 @@ jobs:
             echo "==> Pruning unused images (keeps disk clean)"
             docker image prune -f
 
+            # ── One-time profile data seed (idempotent) ───────────────────────────
+            # Applies the correct Chief McCaster profile data if the production DB
+            # still has test/placeholder values.  Runs inside the api container so
+            # it uses the same DATABASE_URL the app uses.  Non-fatal — a failure
+            # here prints a warning but does NOT abort the deploy.
+            echo "==> Seeding correct profile data for Chief McCaster (idempotent)..."
+            docker compose -f docker-compose.prod.yml exec -T api node --input-type=module <<'SEED_EOF' || echo "  WARNING: seed step failed — deploy continues"
+import pg from 'pg';
+const { Client } = pg;
+const client = new Client({ connectionString: process.env.DATABASE_URL });
+await client.connect();
+const res = await client.query(`
+  UPDATE profiles SET
+    apn              = '514-364-11-00-1',
+    mailing_address  = '4305 Sun Devils Avenue, Bakersfield, California 93313',
+    land_status      = 'restricted',
+    tribal_land_code = 'MET-TL-BC-001',
+    land_classification = 'Tribal Housing / General Welfare Land',
+    legal_description   = 'LOT 52 OF TRACT NO. 5958 – "PHASE 2," CITY OF BAKERSFIELD, COUNTY OF KERN, STATE OF CALIFORNIA, as per map recorded September 21, 2001, in Book 47, Pages 83-85, Kern County Recorder records.',
+    has_recorded_instrument = true,
+    self_executing          = true,
+    updated_at              = NOW()
+  WHERE user_id = (SELECT id FROM users WHERE email = 'mmccaster@mathiaseltribe.org')
+    AND (apn IS NULL OR apn IN ('TEST-123-456', '', 'test') OR apn NOT LIKE '514-%')
+`);
+console.log('  Profile seed:', res.rowCount, 'row(s) updated');
+await client.end();
+SEED_EOF
+
             # ── On-VM smoke test — all six services must respond 2xx ─────────────
             # This is the first gate: it checks the raw container ports directly on
             # the VM (before the external smoke-test job verifies the public URLs).
