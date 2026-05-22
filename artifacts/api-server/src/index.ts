@@ -3,11 +3,14 @@ import { URL } from "url";
 import app from "./app";
 import { logger } from "./lib/logger";
 import { ensureDocRefColumns } from "./lib/doc-ref";
+import { validateEnvironment } from "./lib/env-validation";
 import { startDigestProcessor } from "./services/digest-processor";
 import { startRedisSubscriber } from "./lib/sse-manager";
 import { handleWsUpgrade } from "./lib/ws-manager";
 import { resolveUserIdFromToken } from "./auth/entra";
 import type { IncomingMessage } from "http";
+
+validateEnvironment();
 
 const rawPort = process.env["PORT"];
 
@@ -31,14 +34,33 @@ ensureDocRefColumns().catch((err) => {
 import("./routes/authority/sync").then(({ default: _syncRouter }) => {
   // Trigger a lightweight startup ingest for federal + CA structural agencies
   import("./lib/authority-startup-ingest").then(({ runStartupIngest }) => {
-    runStartupIngest().catch((err: unknown) => {
-      logger.warn({ err }, "Authority startup ingest failed (non-fatal)");
-    });
+    runStartupIngest()
+      .then(() => {
+        logger.info("Authority directory seeded successfully (non-blocking)");
+      })
+      .catch((err: unknown) => {
+        logger.warn({ err }, "Authority startup ingest failed (non-fatal)");
+      });
   }).catch(() => { /* module not yet available — skip */ });
 }).catch(() => { /* skip */ });
 
-startRedisSubscriber();
-startDigestProcessor();
+try {
+  startRedisSubscriber();
+  if (process.env.REDIS_CONNECTION_STRING) {
+    logger.info("Redis subscriber initialized");
+  } else {
+    logger.debug("Redis not configured — real-time messaging disabled");
+  }
+} catch (err) {
+  logger.warn({ err }, "Redis subscriber failed to initialize (non-fatal)");
+}
+
+try {
+  startDigestProcessor();
+  logger.info("Email digest processor started");
+} catch (err) {
+  logger.warn({ err }, "Email digest processor failed to start (non-fatal)");
+}
 
 async function resolveWsUserId(req: IncomingMessage): Promise<number | null> {
   try {
