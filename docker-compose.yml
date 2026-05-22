@@ -103,6 +103,20 @@ services:
       - "3002:80"
     depends_on:
       - api
-
+      
+# ── Urban Indian Atlas ─────────────────────────────────────────────
+  atlas:
+    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/urban-indian-atlas:${IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: artifacts/urban-indian-atlas/Dockerfile
+      args:
+        VITE_API_URL: ${APP_URL:-http://localhost:8080}
+    restart: unless-stopped
+    ports:
+      - "3003:80"
+    depends_on:
+      - api
+      
 volumes:
   db_data:
