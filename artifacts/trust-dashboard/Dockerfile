@@ -24,6 +24,11 @@ COPY artifacts/trust-dashboard/package.json  artifacts/trust-dashboard/
 RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
     pnpm install --no-frozen-lockfile
 
+# Phase 1 rescue guard: make the tooltip package explicit inside the container.
+# Local builds resolve it, but Docker builds were failing to resolve this Radix module.
+RUN pnpm --filter @workspace/trust-dashboard add @radix-ui/react-tooltip@^1.2.0 --save-dev
+RUN pnpm --filter @workspace/trust-dashboard exec node -e "require.resolve('@radix-ui/react-tooltip'); console.log('tooltip dependency resolved')"
+
 # ── Stage 2: build ───────────────────────────────────────────────────────────
 FROM deps AS builder
 
