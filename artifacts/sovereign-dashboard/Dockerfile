@@ -66,6 +66,7 @@ ARG API_HOST=api:8080
 ARG API_SCHEME=http
 RUN printf "server {\n\
     listen 80;\n\
+    client_max_body_size 50m;\n\
     root /usr/share/nginx/html;\n\
     index index.html;\n\
     gzip on;\n\
@@ -73,6 +74,7 @@ RUN printf "server {\n\
 \n\
     # Proxy all /api/* requests to the API server.\n\
     location /api/ {\n\
+        client_max_body_size 50m;\n\
         proxy_pass         ${API_SCHEME}://${API_HOST}/api/;\n\
         proxy_ssl_verify   off;\n\
         proxy_ssl_server_name on;\n\
