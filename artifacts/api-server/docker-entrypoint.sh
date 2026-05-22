@@ -1,6 +1,10 @@
 #!/bin/sh
 set -e
 
+echo "[entrypoint] Running rescue bootstrap..."
+node /app/dist/rescue-bootstrap.mjs
+echo "[entrypoint] Rescue bootstrap complete."
+
 echo "[entrypoint] Running database migrations..."
 node /app/dist/migrate.mjs
 echo "[entrypoint] Migrations complete."
