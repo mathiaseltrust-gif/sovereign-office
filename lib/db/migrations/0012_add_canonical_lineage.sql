@@ -60,4 +60,3 @@ CREATE INDEX IF NOT EXISTS idx_ancestor_relationships_related_id
 
 CREATE INDEX IF NOT EXISTS idx_ancestor_relationships_type
     ON ancestor_relationships(relationship_type);
-    
