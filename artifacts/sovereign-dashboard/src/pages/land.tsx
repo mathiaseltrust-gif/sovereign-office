@@ -30,6 +30,8 @@ type Parcel = {
   cultural_significance: string; historical_occupancy: string;
   // atlas
   atlas_node_type: string;
+  // coordinate provenance
+  coordinate_source: string;
 };
 
 type Lease = {
@@ -381,7 +383,7 @@ const EMPTY_PARCEL = {
   tribalCodeRef: "", tribalCourtOrderNum: "", protectedStatusBasis: "", restrictionBasis: "",
   enforcementAuthority: "", federalLawCrossRef: "", stewardshipPurpose: "",
   culturalSignificance: "", historicalOccupancy: "",
-  atlasNodeType: "",
+  atlasNodeType: "", coordinateSource: "",
 };
 
 function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: () => void; onSaved: () => void }) {
@@ -405,6 +407,7 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
     stewardshipPurpose: parcel.stewardship_purpose ?? "",
     culturalSignificance: parcel.cultural_significance ?? "", historicalOccupancy: parcel.historical_occupancy ?? "",
     atlasNodeType: parcel.atlas_node_type ?? "",
+    coordinateSource: parcel.coordinate_source ?? "",
   } : { ...EMPTY_PARCEL });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -444,6 +447,18 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
         <Field label="State"><Input value={form.state} onChange={set("state")} placeholder="TX" /></Field>
         <Field label="Latitude"><Input value={form.lat} onChange={set("lat")} placeholder="30.2672" /></Field>
         <Field label="Longitude"><Input value={form.lng} onChange={set("lng")} placeholder="-97.7431" /></Field>
+        <Field label="Coordinate Source" htmlFor="p-coord-source">
+          <Sel id="p-coord-source" value={form.coordinateSource} onChange={v => setForm(f => ({ ...f, coordinateSource: v }))}
+            options={[
+              { value: "",                           label: "— Not set —" },
+              { value: "verified_geocode",           label: "Verified Geocode" },
+              { value: "approximate_address_geocode", label: "Approximate — Address Geocode" },
+              { value: "parcel_centroid",            label: "Parcel Centroid (GIS)" },
+              { value: "manual_entry",               label: "Manual Entry" },
+              { value: "county_gis",                 label: "County GIS" },
+              { value: "unknown",                    label: "Unknown" },
+            ]} placeholder="Select coordinate source" />
+        </Field>
 
         {/* ── METC Title 4 Tribal Code Authority ── */}
         <SectionDivider icon={Scale} label="METC Title 4 — Tribal Code Authority" />
@@ -1818,6 +1833,28 @@ function ParcelDetailDrawer({
                 )}
                 {parcel.plss_description && (
                   <p className="text-xs text-muted-foreground font-mono leading-snug">{parcel.plss_description}</p>
+                )}
+                {parcel.lat && parcel.lng && (
+                  <p className="text-[10px] font-mono text-muted-foreground/50 leading-snug flex items-center gap-1.5 mt-0.5">
+                    <span>{parcel.lat}, {parcel.lng}</span>
+                    {parcel.coordinate_source && (
+                      <span className={`px-1.5 py-0.5 rounded text-[9px] uppercase tracking-wider font-medium ${
+                        parcel.coordinate_source === "verified_geocode"   ? "bg-emerald-900/40 text-emerald-400" :
+                        parcel.coordinate_source === "parcel_centroid"    ? "bg-emerald-900/30 text-emerald-500" :
+                        parcel.coordinate_source === "county_gis"         ? "bg-blue-900/30 text-blue-400" :
+                        parcel.coordinate_source === "manual_entry"       ? "bg-slate-700/40 text-slate-400" :
+                        parcel.coordinate_source === "unknown"            ? "bg-slate-700/30 text-slate-500" :
+                        "bg-amber-900/30 text-amber-500"
+                      }`}>
+                        {parcel.coordinate_source === "approximate_address_geocode" ? "approx" :
+                         parcel.coordinate_source === "verified_geocode"            ? "verified" :
+                         parcel.coordinate_source === "parcel_centroid"             ? "centroid" :
+                         parcel.coordinate_source === "county_gis"                 ? "county GIS" :
+                         parcel.coordinate_source === "manual_entry"               ? "manual" :
+                         parcel.coordinate_source}
+                      </span>
+                    )}
+                  </p>
                 )}
               </div>
             )}
