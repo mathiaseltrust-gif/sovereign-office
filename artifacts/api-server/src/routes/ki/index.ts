@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable, legalProvisionsTable } from "@workspace/db";
-import { eq, desc, and, gte, lte, sql } from "drizzle-orm";
+import { kiConversationsTable, profilesTable, calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable, legalProvisionsTable, searchIndexTable, tasksTable, nfrDocumentsTable } from "@workspace/db";
+import { eq, desc, and, gte, lte, sql, ilike, or } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { callAzureOpenAI } from "../../lib/azure-openai";
 import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway";
@@ -9,6 +9,7 @@ import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorS
 import { accumulateIntelligence, getCompanionIntelContext } from "../../engines/intelligence-accumulator";
 import { getOpenInvestigationsForKaya } from "../../engines/nfr-review-engine";
 import { logger } from "../../lib/logger";
+import { FUNCTION_REGISTRY_PROMPT, NAVIGATE_INSTRUCTION } from "../../lib/function-registry";
 
 const router = Router();
 
@@ -593,7 +594,11 @@ Do NOT list generic help categories. Speak to this specific person by their role
 
 • For a member (especially a new one): Welcome them warmly as someone learning to walk in their authority. Do NOT treat them as a passive recipient of services. Affirm their identity first — who they are, what the trust responsibility means, what they are owed. Then invite them to explore: their rights, their family tree, their documents, their status as a beneficiary. The goal is self-determination, not dependency. They are not here to be rescued — they are here to govern themselves.
 
-• For any role on a first or early session: Skip the bullet list of services. Lead with recognition, warmth, and a direct invitation to go deeper — one question, one door opened, not a menu of options.`;
+• For any role on a first or early session: Skip the bullet list of services. Lead with recognition, warmth, and a direct invitation to go deeper — one question, one door opened, not a menu of options.
+
+${FUNCTION_REGISTRY_PROMPT}
+
+${NAVIGATE_INSTRUCTION}`;
 }
 
 /* ── Public Heritage Guide (no auth, stateless) ── */
@@ -758,6 +763,45 @@ router.post("/chat", requireAuth, async (req, res, next) => {
 
     logger.info({ userId, msgLen: trimmed.length }, "Kaya chat request");
 
+    // ── Search-intent detection ────────────────────────────────────────────────
+    // Detect phrases like "search for X", "find X", "look up X"
+    const SEARCH_INTENT_RE = /(?:search\s+(?:for|records\s+for|case)\s+|find\s+(?:me\s+)?|look\s+up\s+|pull\s+up\s+|show\s+me\s+(?:records\s+for\s+)?)(.{3,80})/i;
+    const searchIntentMatch = SEARCH_INTENT_RE.exec(trimmed);
+    let inlineSearchResults: Array<{ entityType: string; entityId: string; content: string }> = [];
+    let searchResultsContext = "";
+
+    if (searchIntentMatch) {
+      const searchQuery = searchIntentMatch[1].trim().replace(/[?.!]+$/, "").trim();
+      if (searchQuery.length >= 2) {
+        try {
+          const pattern = `%${searchQuery}%`;
+          const [idxResults, taskResults, nfrResults] = await Promise.all([
+            db.select().from(searchIndexTable).where(
+              or(ilike(searchIndexTable.content, pattern), ilike(searchIndexTable.entityType, pattern)),
+            ).limit(5),
+            db.select({ id: tasksTable.id, title: tasksTable.title, status: tasksTable.status }).from(tasksTable).where(
+              or(ilike(tasksTable.title, pattern), ilike(tasksTable.description ?? "", pattern)),
+            ).limit(3),
+            db.select({ id: nfrDocumentsTable.id, content: nfrDocumentsTable.content, status: nfrDocumentsTable.status }).from(nfrDocumentsTable).where(
+              ilike(nfrDocumentsTable.content, pattern),
+            ).limit(3),
+          ]);
+          const combined: Array<{ entityType: string; entityId: string; content: string }> = [
+            ...idxResults.map(r => ({ entityType: r.entityType, entityId: r.entityId, content: r.content.substring(0, 200) })),
+            ...taskResults.map(t => ({ entityType: "task", entityId: String(t.id), content: `Task: ${t.title} [${t.status}]` })),
+            ...nfrResults.map(n => ({ entityType: "nfr", entityId: String(n.id), content: `NFR: ${n.content.substring(0, 150)} [${n.status}]` })),
+          ];
+          inlineSearchResults = combined.slice(0, 5);
+          if (inlineSearchResults.length > 0) {
+            searchResultsContext = `\n\nSEARCH RESULTS for "${searchQuery}" (${inlineSearchResults.length} found):\n` +
+              inlineSearchResults.map((r, i) => `${i + 1}. [${r.entityType.toUpperCase()}] ${r.content}`).join("\n");
+          }
+        } catch {
+          // non-fatal — continue without search results
+        }
+      }
+    }
+
     const { checkAlignment } = await import("../../engines/alignment-checker");
     const alignmentResult = checkAlignment(trimmed);
     if (!alignmentResult.isAligned) {
@@ -767,9 +811,14 @@ router.post("/chat", requireAuth, async (req, res, next) => {
       );
     }
 
+    // Augment the user message with search results context for the AI
+    const augmentedMessage = searchResultsContext
+      ? `${trimmed}\n\n[CONTEXT for your response — these are the live search results matching the query. Summarise the top results clearly and include a "→ View" link path for each record:\n${searchResultsContext}]`
+      : trimmed;
+
     const result = await callAzureOpenAI(
       systemPrompt,
-      trimmed,
+      augmentedMessage,
       { maxTokens: 2000, temperature: 0.72 },
       conversationHistory,
     );
@@ -791,8 +840,27 @@ router.post("/chat", requireAuth, async (req, res, next) => {
         }
       : undefined;
 
-    logger.info({ userId, tokens: result.usage?.totalTokens }, "Kaya chat response stored");
-    res.json({ reply: result.content, tokens: result.usage?.totalTokens, alignmentWarning });
+    // Parse and strip [[ACTION:navigate]]{"label":"...","path":"..."}[[/ACTION]] cards from the reply
+    const navigateCards: Array<{ label: string; path: string; description: string }> = [];
+    const cleanReply = result.content.replace(
+      /\[\[ACTION:navigate\]\](\{[^}]*\})\[\[\/ACTION\]\]/g,
+      (_match, json) => {
+        try {
+          const card = JSON.parse(json);
+          if (card.label && card.path) navigateCards.push(card);
+        } catch { /* ignore malformed */ }
+        return "";
+      },
+    ).replace(/\n{3,}/g, "\n\n").trim();
+
+    logger.info({ userId, tokens: result.usage?.totalTokens, navigateCards: navigateCards.length, searchResults: inlineSearchResults.length }, "Kaya chat response stored");
+    res.json({
+      reply: cleanReply,
+      tokens: result.usage?.totalTokens,
+      alignmentWarning,
+      navigateCards: navigateCards.length > 0 ? navigateCards : undefined,
+      searchResults: inlineSearchResults.length > 0 ? inlineSearchResults : undefined,
+    });
 
     // Fire-and-forget: update the intelligence picture from this message
     accumulateIntelligence(userId, trimmed).catch(() => {});

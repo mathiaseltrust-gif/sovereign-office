@@ -24,6 +24,19 @@ import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import { getSovereignSession } from "@/lib/utils";
 import { useChatManager } from "@/components/ChatManager";
+import { CommandPalette } from "./CommandPalette";
+import { useCommandPalette } from "@/hooks/useCommandPalette";
+
+const LS_RECENT_KEY = "sovereign_recent_pages_v1";
+const LS_PREFIX = "community:";
+function recordCommunityPage(path: string) {
+  if (!path) return;
+  try {
+    const existing: string[] = JSON.parse(localStorage.getItem(LS_RECENT_KEY) ?? "[]");
+    const key = LS_PREFIX + path;
+    localStorage.setItem(LS_RECENT_KEY, JSON.stringify([key, ...existing.filter(p => p !== key)].slice(0, 10)));
+  } catch { /* non-fatal */ }
+}
 
 const navigation: { name: string; href: string; icon: React.ElementType; external?: boolean; externalHref?: string; badge?: string }[] = [
   { name: "Dashboard", href: "/", icon: Home },
@@ -131,6 +144,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [sessionUser, setSessionUser] = useState<{ name: string; email: string } | null>(null);
   const { totalUnread: dmUnread } = useChatManager();
+  const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+
+  useEffect(() => { recordCommunityPage(location); }, [location]);
 
   useEffect(() => {
     const u = getSovereignSession();
@@ -141,6 +157,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col md:flex-row">
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
       {/* Mobile header */}
       <header className="md:hidden flex items-center justify-between px-4 py-3 border-b bg-card sticky top-0 z-30 shadow-sm">
         <Link href="/">

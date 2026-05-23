@@ -156,6 +156,10 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
       tribalCourtOrderNum, protectedStatusBasis, restrictionBasis,
       enforcementAuthority, federalLawCrossRef, stewardshipPurpose,
       culturalSignificance, historicalOccupancy,
+      // atlas
+      atlasNodeType,
+      // coordinate provenance
+      coordinateSource,
     } = req.body as Record<string, unknown>;
 
     const parcelRef = await nextDocRef("land_parcel");
@@ -170,7 +174,7 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
         tribal_court_order_num, protected_status_basis, restriction_basis,
         enforcement_authority, federal_law_cross_ref, stewardship_purpose,
         cultural_significance, historical_occupancy,
-        tribal_ref
+        atlas_node_type, coordinate_source, tribal_ref
       ) VALUES (
         ${str(tractNumber)}, ${str(parcelId)}, ${str(legalDescription)},
         ${num(acreage)}, ${str(classification) ?? "protected_tribal_land"},
@@ -183,7 +187,7 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
         ${str(tribalCourtOrderNum)}, ${str(protectedStatusBasis)}, ${str(restrictionBasis)},
         ${str(enforcementAuthority)}, ${str(federalLawCrossRef)}, ${str(stewardshipPurpose)},
         ${str(culturalSignificance)}, ${str(historicalOccupancy)},
-        ${parcelRef}
+        ${str(atlasNodeType)}, ${str(coordinateSource)}, ${parcelRef}
       )
       RETURNING *
     `);
@@ -223,6 +227,8 @@ router.put("/parcels/:id", requireAuth, requireLandWrite, async (req, res, next)
       tribalCourtOrderNum, protectedStatusBasis, restrictionBasis,
       enforcementAuthority, federalLawCrossRef, stewardshipPurpose,
       culturalSignificance, historicalOccupancy,
+      atlasNodeType,
+      coordinateSource,
     } = req.body as Record<string, unknown>;
     await db.execute(sql`
       UPDATE land_parcels SET
@@ -256,6 +262,8 @@ router.put("/parcels/:id", requireAuth, requireLandWrite, async (req, res, next)
         stewardship_purpose = ${str(stewardshipPurpose)},
         cultural_significance = ${str(culturalSignificance)},
         historical_occupancy = ${str(historicalOccupancy)},
+        atlas_node_type = ${str(atlasNodeType)},
+        coordinate_source = ${str(coordinateSource)},
         updated_at = NOW()
       WHERE id = ${id}
     `);

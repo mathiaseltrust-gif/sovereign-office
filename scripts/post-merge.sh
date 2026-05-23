@@ -12,7 +12,7 @@ echo "n" | pnpm --filter db push 2>&1 || true
 # startup).  Running generate AFTER push means the dev DB is already in sync —
 # generate just captures the diff as a portable SQL file for production.
 echo "Generating migration SQL for production..."
-pnpm --filter db generate 2>&1 || true
+(cd lib/db && pnpm drizzle-kit generate 2>&1) || true
 
 # Required environment secrets for email delivery (set via Replit Secrets):
 #   RESEND_API_KEY    — API key from resend.com dashboard

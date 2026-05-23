@@ -26,7 +26,7 @@ import { profilesTable, usersTable } from "@workspace/db";
 import { eq, and, like, isNotNull } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
-const NATION_PREFIX = "MET-TL";
+const NATION_PREFIX = "MET";
 
 const LOCATION_MAP: Array<[string, string]> = [
   ["kern",          "BC"],
@@ -60,7 +60,7 @@ export function deriveLocationCode(
 }
 
 export function buildLandCode(locCode: string, seq: number): string {
-  return `${NATION_PREFIX}-${locCode}-${String(seq).padStart(3, "0")}`;
+  return `${NATION_PREFIX}-${locCode}-TL-${String(seq).padStart(3, "0")}`;
 }
 
 /**
@@ -68,7 +68,7 @@ export function buildLandCode(locCode: string, seq: number): string {
  * by scanning all existing land codes in the profiles table.
  */
 export async function nextSeqForLocation(locCode: string): Promise<number> {
-  const pattern = `${NATION_PREFIX}-${locCode}-%`;
+  const pattern = `${NATION_PREFIX}-${locCode}-TL-%`;
   const rows = await db
     .select({ tribalLandCode: profilesTable.tribalLandCode })
     .from(profilesTable)
@@ -118,7 +118,7 @@ export async function getOrAssignLandCode(
     .limit(1);
 
   if (prof?.tribalLandCode) {
-    const m = prof.tribalLandCode.match(/-([A-Z]+)-(\d+)$/);
+    const m = prof.tribalLandCode.match(/-([A-Z]+)-TL-(\d+)$/);
     return {
       code: prof.tribalLandCode,
       isNew: false,

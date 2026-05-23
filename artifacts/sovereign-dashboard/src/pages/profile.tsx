@@ -192,7 +192,7 @@ function LandRecordPanel() {
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] uppercase tracking-widest text-muted-foreground font-bold">Tribal Land Code</Label>
-              <Input className="text-xs h-8 font-mono" value={form.tribalLandCode ?? ""} onChange={e => setForm(p => ({ ...p, tribalLandCode: e.target.value }))} placeholder="MET-TL-BC-001" />
+              <Input className="text-xs h-8 font-mono" value={form.tribalLandCode ?? ""} onChange={e => setForm(p => ({ ...p, tribalLandCode: e.target.value }))} placeholder="MET-BC-TL-001" />
             </div>
           </div>
           <div className="space-y-1">

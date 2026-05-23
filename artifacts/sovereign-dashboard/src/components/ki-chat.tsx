@@ -12,7 +12,7 @@ import {
   Brain, Trash2, ChevronDown, ChevronUp, Plus, X,
   ClipboardList, Briefcase, FileText, User, Shield,
   AlertTriangle, CheckCircle2, ArrowRight, ChevronRight,
-  Scale, Zap, Activity, Mic, MicOff,
+  Scale, Zap, Activity, Mic, MicOff, ExternalLink,
 } from "lucide-react";
 
 /* ─── Types ─────────────────────────────────────────────────── */
@@ -63,6 +63,12 @@ interface AlignmentWarning {
   violationCount: number;
   categories: string[];
   governorConflict: boolean;
+}
+
+interface NavigateCard {
+  label: string;
+  path: string;
+  description: string;
 }
 
 type ActionPriority = "IMMEDIATE" | "THIS_WEEK" | "THIS_MONTH";
@@ -835,6 +841,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [, navigate] = useLocation();
   const bottomRef = useRef<HTMLDivElement>(null);
   const [input, setInput] = useState("");
   const [inputMode, setInputMode] = useState<"chat" | "journal" | "memory">("chat");
@@ -860,6 +867,8 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
 
   const [pendingSaveMessage, setPendingSaveMessage] = useState<{ id: number; content: string } | null>(null);
   const [alignmentWarning, setAlignmentWarning] = useState<AlignmentWarning | null>(null);
+  const [lastNavigateCards, setLastNavigateCards] = useState<NavigateCard[] | null>(null);
+  const [lastSearchResults, setLastSearchResults] = useState<Array<{ entityType: string; entityId: string; content: string }> | null>(null);
   const [alignmentExpanded, setAlignmentExpanded] = useState(false);
 
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
@@ -919,7 +928,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
         const e = await r.json().catch(() => ({}));
         throw new Error((e as any).error ?? "COMPANION is unavailable right now");
       }
-      return r.json() as Promise<{ reply: string; alignmentWarning?: AlignmentWarning }>;
+      return r.json() as Promise<{ reply: string; alignmentWarning?: AlignmentWarning; navigateCards?: NavigateCard[]; searchResults?: Array<{ entityType: string; entityId: string; content: string }> }>;
     },
     onSuccess: (data) => {
       qc.invalidateQueries({ queryKey: ["kaya-history", user?.id] });
@@ -930,6 +939,8 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
       } else {
         setAlignmentWarning(null);
       }
+      setLastNavigateCards(data.navigateCards?.length ? data.navigateCards : null);
+      setLastSearchResults(data.searchResults?.length ? data.searchResults : null);
     },
     onError: (e) => toast({ title: "COMPANION error", description: (e as Error).message, variant: "destructive" }),
   });
@@ -990,10 +1001,18 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     }
   }, [historyData?.messages, chatMutation.isPending, tab, collapsed]);
 
+  // Expose wouter navigate globally so COMPANION navigate cards can use it
+  useEffect(() => {
+    (window as any).__kayaNavigate = navigate;
+    return () => { delete (window as any).__kayaNavigate; };
+  }, [navigate]);
+
   function handleSend() {
     const text = input.trim();
     if (!text) return;
     setInput("");
+    setLastNavigateCards(null);
+    setLastSearchResults(null);
     if (inputMode === "journal") {
       diaryMutation.mutate({ content: text, mood: selectedMood ?? undefined });
       setSelectedMood(null);
@@ -1333,6 +1352,88 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                               style={{ color: "rgba(255,200,100,0.45)" }}
                               title="Ask COMPANION to draft a formal document from this response"
                             >draft doc ↗</button>
+                          </div>
+                        )}
+
+                        {/* ── Search Result Cards (last COMPANION message only) ── */}
+                        {msg.role === "assistant" && isLastMsg && lastSearchResults && lastSearchResults.length > 0 && (
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            <p className="text-[9px] font-semibold uppercase tracking-widest text-white/35 mb-0.5">Search Results</p>
+                            {lastSearchResults.map((result, ri) => {
+                              const RESULT_PATHS: Record<string, (id: string) => string> = {
+                                case: () => `/investigations`,
+                                intake: () => `/sovereign-pipeline`,
+                                member: () => `/membership`,
+                                profile: () => `/membership`,
+                                nfr: () => `/nfr`,
+                                task: () => `/tasks`,
+                                complaint: () => `/complaints`,
+                                calendar_event: () => `/calendar`,
+                                classification: () => `/classify`,
+                                document: () => `/documents`,
+                                trust_instrument: () => `/instruments`,
+                              };
+                              const viewPath = RESULT_PATHS[result.entityType]?.(result.entityId) ?? `/search`;
+                              const typeLabel = result.entityType.replace(/_/g, " ").replace(/\b\w/g, l => l.toUpperCase());
+                              return (
+                                <button
+                                  key={ri}
+                                  onClick={() => (window as any).__kayaNavigate?.(viewPath)}
+                                  className="flex items-start gap-2.5 rounded-lg px-3 py-2 text-left transition-all hover:brightness-110 active:scale-[0.98]"
+                                  style={{
+                                    background: "rgba(30,80,160,0.18)",
+                                    border: "1px solid rgba(60,120,220,0.25)",
+                                  }}
+                                >
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[9px] font-bold uppercase tracking-wider text-blue-300/60 mb-0.5">{typeLabel}</p>
+                                    <p className="text-[11px] text-white/80 truncate leading-tight">{result.content.substring(0, 100)}</p>
+                                  </div>
+                                  <span className="shrink-0 text-[10px] font-semibold text-blue-300/70 mt-0.5">→ View</span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
+
+                        {/* ── Navigate Cards (last COMPANION message only) ── */}
+                        {msg.role === "assistant" && isLastMsg && lastNavigateCards && lastNavigateCards.length > 0 && (
+                          <div className="flex flex-col gap-1.5 mt-2">
+                            {lastNavigateCards.map((card, ci) => {
+                              const isExternal = card.path.startsWith("/") && !card.path.startsWith("/profile") && (
+                                card.path.startsWith("/trace") ||
+                                card.path.startsWith("/trust-dashboard") ||
+                                card.path.startsWith("/community-dashboard") ||
+                                card.path.startsWith("/authority-directory") ||
+                                card.path.startsWith("/urban-indian-atlas")
+                              );
+                              return (
+                                <button
+                                  key={ci}
+                                  onClick={() => {
+                                    if (isExternal) {
+                                      window.location.href = card.path;
+                                    } else {
+                                      (window as any).__kayaNavigate?.(card.path);
+                                    }
+                                  }}
+                                  className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-left transition-all hover:brightness-110 active:scale-[0.98]"
+                                  style={{
+                                    background: "rgba(180,110,10,0.12)",
+                                    border: "1px solid rgba(200,140,20,0.25)",
+                                  }}
+                                >
+                                  <ArrowRight className="w-3 h-3 text-amber-400/70 shrink-0" />
+                                  <div className="flex-1 min-w-0">
+                                    <p className="text-[11px] font-semibold text-amber-300/90 truncate">{card.label}</p>
+                                    {card.description && (
+                                      <p className="text-[10px] text-white/40 truncate mt-0.5">{card.description}</p>
+                                    )}
+                                  </div>
+                                  {isExternal && <ExternalLink className="w-3 h-3 text-white/20 shrink-0" />}
+                                </button>
+                              );
+                            })}
                           </div>
                         )}
 

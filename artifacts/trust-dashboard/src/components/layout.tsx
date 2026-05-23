@@ -1,12 +1,27 @@
+import { useEffect } from "react";
 import { Link, useLocation } from "wouter";
 import { useAuth, ELDER_ROLES } from "@/lib/auth";
 import { getRoleConfig } from "@/lib/role-config";
 import { cn } from "@/lib/utils";
 import { LogOut, ChevronRight, Plus } from "lucide-react";
+import { CommandPalette } from "./CommandPalette";
+import { useCommandPalette } from "@/hooks/useCommandPalette";
+
+const LS_RECENT_KEY = "sovereign_recent_pages_v1";
+function recordTrustPage(path: string) {
+  if (!path || path === "/") return;
+  try {
+    const existing: string[] = JSON.parse(localStorage.getItem(LS_RECENT_KEY) ?? "[]");
+    localStorage.setItem(LS_RECENT_KEY, JSON.stringify([path, ...existing.filter(p => p !== path)].slice(0, 10)));
+  } catch { /* non-fatal */ }
+}
 
 export function Layout({ children }: { children: React.ReactNode }) {
   const { user, logout } = useAuth();
   const [location] = useLocation();
+  const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+
+  useEffect(() => { recordTrustPage(location); }, [location]);
 
   const roles = user?.roles ?? [];
   const config = getRoleConfig(roles);
@@ -22,6 +37,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
   return (
     <div className="flex h-screen bg-background overflow-hidden">
+      <CommandPalette open={paletteOpen} onClose={closePalette} />
       <aside className="w-64 flex-shrink-0 bg-sidebar text-sidebar-foreground flex flex-col border-r border-sidebar-border">
         <div className="px-5 py-5 border-b border-sidebar-border">
           <div className="flex flex-col items-center text-center gap-2">
