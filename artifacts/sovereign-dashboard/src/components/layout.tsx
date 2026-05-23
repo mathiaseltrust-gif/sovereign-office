@@ -67,6 +67,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/templates",    label: "Document Templates",       highlight: true, icon: FilePen },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
         { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
+        { href: "/atlas",        label: "Urban Indian Atlas",       highlight: true, icon: Map, externalHref: "/urban-indian-atlas/" },
         { href: "/org",          label: "Organizations",            icon: Building2 },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
       ],
