@@ -28,6 +28,8 @@ type Parcel = {
   protected_status_basis: string; restriction_basis: string; enforcement_authority: string;
   federal_law_cross_ref: string; stewardship_purpose: string;
   cultural_significance: string; historical_occupancy: string;
+  // atlas
+  atlas_node_type: string;
 };
 
 type Lease = {
@@ -379,6 +381,7 @@ const EMPTY_PARCEL = {
   tribalCodeRef: "", tribalCourtOrderNum: "", protectedStatusBasis: "", restrictionBasis: "",
   enforcementAuthority: "", federalLawCrossRef: "", stewardshipPurpose: "",
   culturalSignificance: "", historicalOccupancy: "",
+  atlasNodeType: "",
 };
 
 function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: () => void; onSaved: () => void }) {
@@ -401,6 +404,7 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
     enforcementAuthority: parcel.enforcement_authority ?? "", federalLawCrossRef: parcel.federal_law_cross_ref ?? "",
     stewardshipPurpose: parcel.stewardship_purpose ?? "",
     culturalSignificance: parcel.cultural_significance ?? "", historicalOccupancy: parcel.historical_occupancy ?? "",
+    atlasNodeType: parcel.atlas_node_type ?? "",
   } : { ...EMPTY_PARCEL });
   const [saving, setSaving] = useState(false);
   const [saveErr, setSaveErr] = useState<string | null>(null);
@@ -424,7 +428,7 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
     <Modal title={parcel ? "Edit Parcel" : "Register Land Parcel"} subtitle="Mathias El Tribe — Sovereign Land Registry" onClose={onClose}>
       <div className="grid grid-cols-2 gap-4">
         <SectionDivider icon={Landmark} label="Parcel Identification" />
-        <Field label="Tract Number"><Input value={form.tractNumber} onChange={set("tractNumber")} placeholder="e.g. MET-2024-001" /></Field>
+        <Field label="Tract Number"><Input value={form.tractNumber} onChange={set("tractNumber")} placeholder="e.g. MET-BC-TL-001" /></Field>
         <Field label="Parcel ID"><Input value={form.parcelId} onChange={set("parcelId")} placeholder="County/internal identifier" /></Field>
         <Field label="Status">
           <Sel value={form.status} onChange={v => setForm(f => ({ ...f, status: v }))}
@@ -467,6 +471,16 @@ function ParcelModal({ parcel, onClose, onSaved }: { parcel?: Parcel; onClose: (
         <Field label="Stewardship Purpose" htmlFor="p-stew-purpose">
           <Sel id="p-stew-purpose" value={form.stewardshipPurpose} onChange={v => setForm(f => ({ ...f, stewardshipPurpose: v }))}
             options={BENEFICIARY_TYPES} placeholder="Select purpose" />
+        </Field>
+        <Field label="Atlas Node Type" htmlFor="p-atlas-node">
+          <Sel id="p-atlas-node" value={form.atlasNodeType} onChange={v => setForm(f => ({ ...f, atlasNodeType: v }))}
+            options={[
+              { value: "", label: "— None —" },
+              { value: "government_land_anchor", label: "Government Land Anchor" },
+              { value: "trust_land_node", label: "Trust Land Node" },
+              { value: "sacred_site_node", label: "Sacred Site Node" },
+              { value: "stewardship_node", label: "Stewardship Node" },
+            ]} placeholder="Select atlas node type" />
         </Field>
         <Field label="METC Title 4 Section Reference" htmlFor="p-metc-ref">
           <Sel id="p-metc-ref" value={form.tribalCodeRef} onChange={v => setForm(f => ({ ...f, tribalCodeRef: v }))}
