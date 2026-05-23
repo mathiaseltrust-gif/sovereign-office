@@ -103,6 +103,17 @@ services:
         condition: service_started
 
   # ---------------------------------------------------------------------------
+  # TRACE — APA/CFR Compliance Engine
+  # Proxied through sovereign-dashboard at /trace/ (sovereign nginx → trace:80)
+  # ---------------------------------------------------------------------------
+  trace:
+    image: ${ACR_REGISTRY}/trace:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    depends_on:
+      api:
+        condition: service_started
+
+  # ---------------------------------------------------------------------------
   # Urban Indian Continuity Atlas — mapping and continuity records
   # Internal only — HTTPS access via gateway on port 3004
   # ---------------------------------------------------------------------------
@@ -128,6 +139,8 @@ services:
   # SSL Gateway — nginx that terminates HTTPS on ports 3001-3005
   # Generates a self-signed certificate on first start.
   # Accessible at: https://YOUR-SERVER:3001 through :3005
+  # Note: TRACE is proxied internally through sovereign at /trace/ — no
+  #       separate gateway port needed unless a standalone domain is added.
   # ---------------------------------------------------------------------------
   gateway:
     image: ${ACR_REGISTRY}/sovereign-gateway:${IMAGE_TAG:-latest}
@@ -146,6 +159,7 @@ services:
       - community
       - atlas
       - authority
+      - trace
 
 volumes:
   db_data:
