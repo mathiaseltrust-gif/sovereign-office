@@ -66,6 +66,8 @@ ARG API_HOST=api:8080
 ARG API_SCHEME=http
 # Host:port of the Urban Indian Atlas container (proxied at /urban-indian-atlas/).
 ARG ATLAS_HOST=atlas:80
+# Host:port of the TRACE compliance engine (proxied at /trace/).
+ARG TRACE_HOST=trace:80
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -92,6 +94,18 @@ RUN printf "server {\n\
     # here routes those asset requests to the atlas container correctly.\n\
     location /urban-indian-atlas/ {\n\
         proxy_pass         http://${ATLAS_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # Proxy TRACE — APA/CFR Compliance Engine (separate container).\n\
+    # The app is built with BASE_PATH=/trace/ so assets resolve correctly.\n\
+    location /trace/ {\n\
+        proxy_pass         http://${TRACE_HOST}/;\n\
         proxy_http_version 1.1;\n\
         proxy_set_header   Host \$host;\n\
         proxy_set_header   X-Real-IP \$remote_addr;\n\
