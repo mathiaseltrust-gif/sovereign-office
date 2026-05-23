@@ -96,6 +96,7 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Administration",
       defaultOpen: false,
       items: [
+        { href: "/trace",               label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
         { href: "/law",                 label: "Law Library",          icon: BookOpen },
         { href: "/intake-ai",           label: "AI Intake Review",     icon: Brain },
         { href: "/drafts",              label: "AI Document Drafts",   icon: Bot },
@@ -148,6 +149,7 @@ function getOfficerNav(): NavSectionDef[] {
       label: "Resources",
       defaultOpen: false,
       items: [
+        { href: "/trace-officer", label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
         { href: "/drafts",    label: "AI Document Drafts", icon: Bot },
         { href: "/law",       label: "Law Library",        icon: BookOpen },
         { href: "/intake-ai", label: "AI Intake Review",   icon: Brain },
