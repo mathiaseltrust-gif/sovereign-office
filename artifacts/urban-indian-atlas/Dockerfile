@@ -28,13 +28,15 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS builder
 
 ARG VITE_API_URL=http://localhost:8080
+# BASE_PATH must match the path prefix where the app is served.
+# When proxied through sovereign-dashboard at /urban-indian-atlas/, use that value.
+ARG BASE_PATH=/urban-indian-atlas/
 
 ENV VITE_API_URL=${VITE_API_URL}
+ENV BASE_PATH=${BASE_PATH}
 ENV NODE_ENV=production
 ENV PORT=5173
 ENV REPL_ID=""
-# Use root base path for standalone deployment
-ENV BASE_PATH=/
 
 COPY tsconfig.base.json ./
 COPY lib/                lib/
@@ -53,7 +55,6 @@ COPY --from=builder /workspace/artifacts/urban-indian-atlas/dist/public \
 
 ARG API_HOST=api:8080
 ARG API_SCHEME=http
-
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -84,6 +85,4 @@ RUN printf "server {\n\
 }\n" > /etc/nginx/conf.d/urban-indian-atlas.conf
 
 EXPOSE 80
-
 CMD ["nginx", "-g", "daemon off;"]
-``
