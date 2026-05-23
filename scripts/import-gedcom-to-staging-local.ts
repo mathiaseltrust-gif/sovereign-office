@@ -39,21 +39,13 @@ async function main(): Promise<void> {
   const parsed = parseGedcom(buffer);
   const relationships = resolveRelationships(parsed);
 
-  const [batch] = await db
-    .insert(gedcomImportBatchesTable)
-    .values({
-      filename,
-      importedBy: null,
-      recordCount: parsed.individuals.length,
-      approvedCount: 0,
-      rejectedCount: 0,
-      pendingCount: parsed.individuals.length,
-      status: "pending",
-      notes: `Local-only private import. Encoding: ${parsed.encoding}. Families: ${parsed.families.length}. Parse errors: ${parsed.errors.length}.`,
-    })
-    .returning();
+  const batch = { id: Number(process.env.GEDCOM_BATCH_ID || 1) };
+  console.log(JSON.stringify({
+    status: "using-existing-batch",
+    batchId: batch.id
+  }, null, 2));
 
-  const chunkSize = 100;
+  const chunkSize = 1;
   let staged = 0;
 
   for (let i = 0; i < parsed.individuals.length; i += chunkSize) {
