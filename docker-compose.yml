@@ -90,6 +90,8 @@ services:
       - api
 
   # ── Urban Indian Continuity Atlas ───────────────────────────────────────────
+  # Proxy mode (office.mathiaseltribe.org): BASE_PATH=/urban-indian-atlas/ (default)
+  # Standalone mode (atlas.mathiaseltribe.org): override BASE_PATH to /
   atlas:
     image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/urban-indian-atlas:${IMAGE_TAG:-latest}
     build:
