@@ -123,7 +123,7 @@ function AppTile({ app }: { app: typeof M365_APPS[0] }) {
 
 // ── Page ─────────────────────────────────────────────────────────────────────
 export default function M365IntegrationPage() {
-  const { user, mode } = useAuth();
+  const { user, mode, loginWithSessionToken } = useAuth();
   const { toast } = useToast();
 
   const [status, setStatus] = useState<M365Status | null>(null);
@@ -166,7 +166,20 @@ export default function M365IntegrationPage() {
       const onMsg = (ev: MessageEvent) => {
         if (ev.origin !== window.location.origin) return;
         if (ev.data?.type === "OAUTH_SUCCESS") {
-          window.location.reload();
+          // Apply the new Microsoft session — this sets mode → "microsoft"
+          // so isMicrosoftLinked flips to true without a page reload.
+          const { sessionToken, user: msUser } = ev.data as {
+            sessionToken: string;
+            user: { id: number; email: string; name: string; roles: string[] };
+          };
+          loginWithSessionToken(sessionToken, {
+            id: msUser.id,
+            dbId: msUser.id,
+            email: msUser.email,
+            name: msUser.name,
+            roles: msUser.roles,
+          });
+          toast({ title: "Microsoft account linked", description: `Signed in as ${msUser.email}` });
         } else if (ev.data?.type === "OAUTH_ERROR") {
           toast({ title: "Sign-in failed", description: ev.data.error, variant: "destructive" });
         }
@@ -182,7 +195,7 @@ export default function M365IntegrationPage() {
       toast({ title: "Microsoft sign-in unavailable", description: "Azure Entra ID may not be configured yet.", variant: "destructive" });
       setLinking(false);
     }
-  }, [toast]);
+  }, [toast, loginWithSessionToken]);
 
   return (
     <div className="max-w-2xl mx-auto space-y-5 pb-10" data-testid="page-m365">
