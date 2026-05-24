@@ -16,3 +16,4 @@ jobs:
           script: |
             sudo certbot --nginx -d community.mathiaseltribe.org --non-interactive --agree-tos --email admin@mathiaseltribe.org
             sudo nginx -t && sudo systemctl reload nginx
+
