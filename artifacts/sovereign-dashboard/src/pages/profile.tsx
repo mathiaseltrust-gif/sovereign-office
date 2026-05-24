@@ -1555,7 +1555,7 @@ const FAMILY_LAST_NAME_MAP = [
   { lastName: "Ruff",     clan: "Morant-Ruff",     side: "Mother's side" as const, sideLabel: "Mother's side · Morant-Ruff family" },
 ] as const;
 
-type FamilyLastName = typeof FAMILY_LAST_NAME_MAP[number]["lastName"];
+type FamilyLastName = typeof FAMILY_LAST_NAME_MAP[number]["lastName"] | "Other";
 
 /** Reverse-map a stored clan name to a representative last name (first in list). */
 function clanToLastName(clan: string): FamilyLastName | "" {
@@ -1606,6 +1606,12 @@ function FamilyGroupControl({ clan, side, other, kinship, masterProfile, onClanC
     if (ln === "__none__" || ln === "") {
       setSelectedLastName("");
       onClanChange("");
+      onSideChange("");
+      return;
+    }
+    if (ln === "Other") {
+      setSelectedLastName("Other");
+      onClanChange("Other");
       onSideChange("");
       return;
     }
