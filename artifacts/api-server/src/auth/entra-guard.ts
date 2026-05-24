@@ -71,7 +71,7 @@ export async function requireTraceAccess(req: Request, res: Response, next: Next
     res.status(401).json({ error: "Authentication required." });
     return;
   }
-  const sovereignRoles: Role[] = ["sovereign_admin", "admin", "officer"];
+  const sovereignRoles: Role[] = ["sovereign_admin", "admin", "officer", "chief_justice", "chief_justice_trustee"];
   if (sovereignRoles.some(r => hasRole(req.user!.roles, r))) {
     next();
     return;
