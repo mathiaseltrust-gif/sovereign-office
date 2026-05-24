@@ -74,23 +74,21 @@ router.get("/", requireAuth, async (req, res, next) => {
         .orderBy(...ORDER_BY)
         .limit(limit).offset(offset);
     } else {
-      // Regular member: see official nodes + own nodes + tribal nodes from others
+      // Regular member: see all public/tribal records + own records (no source_type gating)
       nodes = await db.select(baseSelect).from(familyLineageTable)
         .where(
           or(
-            eq(familyLineageTable.sourceType, "manual"),
+            inArray(familyLineageTable.visibility, ["public", "tribal"]),
             ...(currentUserId ? [eq(familyLineageTable.addedByMemberId, currentUserId)] : []),
-            eq(familyLineageTable.visibility, "tribal"),
           )
         )
         .orderBy(...ORDER_BY)
         .limit(limit).offset(offset);
 
-      // Strip sensitive fields from tribal nodes that belong to other members
+      // Strip sensitive fields from records that belong to other members
       nodes = nodes.map((n) => {
         const isOwnNode = currentUserId && n.addedByMemberId === currentUserId;
-        const isOfficial = n.sourceType === "manual";
-        if (!isChief && !isOwnNode && !isOfficial) {
+        if (!isOwnNode) {
           return { ...n, notes: null, supportingDocumentName: null, lineageTags: [], entraObjectId: null };
         }
         return n;

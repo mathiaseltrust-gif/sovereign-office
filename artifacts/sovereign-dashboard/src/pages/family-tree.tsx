@@ -1439,13 +1439,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
 
-        {/* Generational depth stepper — + zooms in (fewer generations), – zooms out (more) */}
+        {/* Generational depth stepper — + shows more generations (zoom out), – shows fewer (zoom in) */}
         <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
           <button
             className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            title="Show fewer generations (zoom in)"
-            disabled={generationDepth <= 1}
-            onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
+            title="Show more generations"
+            disabled={generationDepth >= DEPTH_MAX}
+            onClick={() => setGenerationDepth((d) => Math.min(DEPTH_MAX, d + 1))}
           >
             <Plus className="h-3.5 w-3.5" />
           </button>
@@ -1458,9 +1458,9 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           </span>
           <button
             className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            title="Show more generations (zoom out)"
-            disabled={generationDepth >= DEPTH_MAX}
-            onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? DEPTH_MAX : d + 1)}
+            title="Show fewer generations"
+            disabled={generationDepth <= 1}
+            onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
           >
             <Minus className="h-3.5 w-3.5" />
           </button>
