@@ -1171,7 +1171,6 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
           {!collapsed && (
             <>
               {tabBtn("chat", <MessageCircle className="w-3 h-3" />, "Chat")}
-              {tabBtn("intake", <ClipboardList className="w-3 h-3" />, "Intake")}
               {tabBtn("memory", <Brain className="w-3 h-3" />, "Memory")}
               {tabBtn("journal", <BookOpen className="w-3 h-3" />, "Journal")}
             </>

@@ -77,18 +77,13 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Community",
       defaultOpen: false,
       items: [
-        { href: "/membership",         label: "Membership Status",     icon: BadgeCheck },
-        { href: "/welfare",            label: "Welfare Instruments",   icon: Heart },
-        { href: "/gwe-letter",         label: "GWE Letters",           icon: Mail },
-        { href: "/elder-advisory",     label: "Elder Advisory",        icon: Star },
-        { href: "/family-governance",  label: "Family Governance",     icon: Users },
+        { href: "/membership",           label: "Membership Status",      icon: BadgeCheck },
         { href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },
+        { href: "/family-governance",    label: "Family Governance",      icon: Users },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
-        { href: "/ancestral-exposure",   label: "Exposure Filter",        highlight: true, icon: Fingerprint },
         { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
         { href: "/complaints",           label: "Complaints",             icon: MessageSquare },
         { href: "/medical-notes",        label: "Medical Notes",          icon: Stethoscope },
-        { href: "/business-canvas",      label: "Business Canvas",        icon: Briefcase },
       ],
     },
     {
@@ -231,7 +226,6 @@ function getVisitorNav(): NavSectionDef[] {
       items: [
         { href: "/dashboard/visitor",  label: "Visitor Portal",      icon: Globe },
         { href: "/business-canvas",    label: "Business Canvas",     icon: Briefcase },
-        { href: "/search",             label: "Search Public Records",icon: Search },
       ],
     },
   ];
@@ -250,7 +244,6 @@ function getNavSections(role: Role): NavSectionDef[] {
 const PERSONAL_ITEMS: NavItemDef[] = [
   { href: "/notifications",  label: "Notifications",    icon: Bell },
   { href: "/calendar",       label: "Calendar",         icon: CalendarDays },
-  { href: "/search",         label: "Search",           icon: Search },
   { href: "/profile",        label: "Profile & Identity",icon: UserCircle },
   { href: "/tribal-id",      label: "Tribal ID",        icon: CreditCard },
 ];
