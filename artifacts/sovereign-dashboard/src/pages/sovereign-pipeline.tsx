@@ -14,10 +14,90 @@ import {
   FileText, Shield, Eye, BookOpen, Archive, Stamp,
   CheckCircle2, Clock, AlertTriangle, ChevronRight, Printer, RotateCcw, List,
   Mic, MicOff, Upload, X, Loader2,
-  Send, MapPin, PackageCheck, CreditCard, Info
+  Send, MapPin, PackageCheck, CreditCard, Info, Zap, Activity, ChevronDown, ChevronUp
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
+
+// ── Intel types (mirrors ki-chat) ─────────────────────────────────────────────
+
+interface ActionItem {
+  id: string;
+  priority: "IMMEDIATE" | "THIS_WEEK" | "THIS_MONTH";
+  title: string;
+  rationale: string;
+  lawCitations?: string[];
+}
+
+interface IntelPicture {
+  signals: { type: string; count: number }[];
+  actionQueue: ActionItem[];
+  lastUpdated?: string;
+}
+
+const PRIORITY_STYLE: Record<string, { cls: string; label: string }> = {
+  IMMEDIATE:  { cls: "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-300 border-red-300",    label: "IMMEDIATE" },
+  THIS_WEEK:  { cls: "bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300 border-amber-300", label: "THIS WEEK" },
+  THIS_MONTH: { cls: "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300 border-blue-300",  label: "THIS MONTH" },
+};
+
+function IntelPanel({ intel }: { intel: IntelPicture }) {
+  const [open, setOpen] = useState(false);
+  const immediate = intel.actionQueue.filter(a => a.priority === "IMMEDIATE").length;
+  return (
+    <Card className={`border ${immediate > 0 ? "border-red-300 dark:border-red-700" : "border-amber-200 dark:border-amber-800"}`}>
+      <button
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-4 py-3 text-left"
+      >
+        <div className="flex items-center gap-2.5">
+          <Activity className={`h-4 w-4 shrink-0 ${immediate > 0 ? "text-red-600 dark:text-red-400" : "text-amber-600 dark:text-amber-400"}`} />
+          <span className="text-sm font-semibold">Intelligence Picture</span>
+          <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${immediate > 0 ? PRIORITY_STYLE.IMMEDIATE.cls : PRIORITY_STYLE.THIS_WEEK.cls}`}>
+            {intel.actionQueue.length} action{intel.actionQueue.length !== 1 ? "s" : ""}
+            {immediate > 0 && ` · ${immediate} IMMEDIATE`}
+          </span>
+          {intel.signals.length > 0 && (
+            <span className="text-[10px] text-muted-foreground">{intel.signals.length} signal{intel.signals.length !== 1 ? "s" : ""} active</span>
+          )}
+        </div>
+        {open ? <ChevronUp className="h-4 w-4 text-muted-foreground" /> : <ChevronDown className="h-4 w-4 text-muted-foreground" />}
+      </button>
+      {open && (
+        <div className="px-4 pb-4 space-y-2 border-t pt-3">
+          {intel.actionQueue.map(item => {
+            const ps = PRIORITY_STYLE[item.priority] ?? PRIORITY_STYLE.THIS_MONTH;
+            return (
+              <div key={item.id} className="rounded-lg border bg-muted/20 p-3 space-y-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded border ${ps.cls}`}>{ps.label}</span>
+                  <span className="text-xs font-semibold">{item.title}</span>
+                </div>
+                <p className="text-[11px] text-muted-foreground leading-relaxed">{item.rationale}</p>
+                {item.lawCitations && item.lawCitations.length > 0 && (
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {item.lawCitations.map((c, i) => (
+                      <span key={i} className="text-[9px] font-mono bg-primary/10 text-primary px-1.5 py-0.5 rounded">§ {c}</span>
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+          {intel.signals.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 pt-1">
+              {intel.signals.map((s, i) => (
+                <span key={i} className="text-[10px] bg-muted rounded-full px-2 py-0.5 border">
+                  {s.type.replace(/_/g, " ")} ×{s.count}
+                </span>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+    </Card>
+  );
+}
 
 type SpeechRecognitionLike = {
   continuous: boolean;
@@ -586,6 +666,20 @@ export default function SovereignPipelinePage() {
 
   const canAccess = ["trustee", "officer", "sovereign_admin"].includes(activeRole);
 
+  const { data: intelData } = useQuery<IntelPicture>({
+    queryKey: ["kaya-intel"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`${API}/api/kaya/intel`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Intel unavailable");
+      return r.json() as Promise<IntelPicture>;
+    },
+    enabled: canAccess,
+    staleTime: 60_000,
+  });
+
   const [inputText, setInputText] = useState(() => {
     try {
       const prefill = sessionStorage.getItem("pipeline_prefill");
@@ -769,11 +863,11 @@ export default function SovereignPipelinePage() {
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
           <h1 className="text-2xl font-serif font-bold flex items-center gap-2">
-            <Shield className="h-6 w-6 text-primary" />
-            Intake Pipeline
+            <Zap className="h-6 w-6 text-primary" />
+            AI Intake &amp; Pipeline
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            6-engine pipeline: Intake → Doctrine → Analyst → Template → Record → Seal &amp; Print
+            Triage a matter · run the 6-engine pipeline · seal &amp; send
           </p>
           <div className="flex items-center gap-1.5 mt-1.5">
             <span className="relative flex h-2 w-2">
@@ -781,11 +875,19 @@ export default function SovereignPipelinePage() {
               <span className="relative inline-flex rounded-full h-2 w-2 bg-green-600" />
             </span>
             <span className="text-[10px] font-semibold uppercase tracking-widest text-green-700">
-              Live Listener — Auto-receiving from Intake &amp; Drafts
+              Live — auto-receiving from Intake &amp; Drafts
             </span>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate("/intake-ai")}
+            className="gap-1.5 text-xs"
+          >
+            <Activity className="h-3.5 w-3.5" /> Quick Triage
+          </Button>
           <Button
             variant={view === "pipeline" ? "default" : "outline"}
             size="sm"
@@ -804,6 +906,11 @@ export default function SovereignPipelinePage() {
           </Button>
         </div>
       </div>
+
+      {/* Intelligence Picture — collapsed accordion, shown when actions exist */}
+      {intelData && intelData.actionQueue && intelData.actionQueue.length > 0 && (
+        <IntelPanel intel={intelData} />
+      )}
 
       {view === "log" && (
         <Card>
