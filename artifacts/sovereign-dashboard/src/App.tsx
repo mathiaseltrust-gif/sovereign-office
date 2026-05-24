@@ -354,6 +354,9 @@ function AppRouter() {
       <Route path="/medical-notes">
         {() => <ProtectedRoute component={MedicalNotesPage} />}
       </Route>
+      <Route path="/medical">
+        {() => <Redirect to="/medical-notes" />}
+      </Route>
       <Route path="/supreme-court">
         {() => <ProtectedRoute component={SupremeCourtPage} />}
       </Route>
