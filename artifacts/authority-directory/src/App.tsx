@@ -133,7 +133,12 @@ export default function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
-        <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/, "")}>
+        <WouterRouter base={(() => {
+            const envBase = import.meta.env.BASE_URL.replace(/\/$/, "");
+            if (envBase && envBase !== "") return envBase;
+            if (typeof window !== "undefined" && window.location.pathname.startsWith("/authority-directory")) return "/authority-directory";
+            return "";
+          })()}>
           <Router />
         </WouterRouter>
         <Toaster />
