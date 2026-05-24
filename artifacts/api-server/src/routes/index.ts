@@ -92,6 +92,7 @@ import userIdDocumentRouter from "./user/id-document";
 import adminIdDocumentRouter from "./admin/id-document";
 import usersRouter from "./users";
 import traceRouter from "./trace/index";
+import githubIntakeRouter from "./github/intake";
 
 const router: IRouter = Router();
 
@@ -189,5 +190,6 @@ router.use("/atlas", atlasRouter);
 router.use("/authority", authorityRouter);
 router.use("/case-files", caseFilesRouter);
 router.use("/trace", traceRouter);
+router.use("/github/intake", githubIntakeRouter);
 
 export default router;

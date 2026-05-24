@@ -98,6 +98,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },
         { href: "/atlas-admin",         label: "Atlas Events",         icon: Map },
         { href: "/m365",                label: "Microsoft 365",        icon: Monitor },
+        { href: "/github-intake-preview", label: "GitHub Intake Pipeline", highlight: true, icon: GitMerge },
         { href: "/role-governors",      label: "Role Governor", highlight: true, icon: ShieldCheck },
       ],
     },

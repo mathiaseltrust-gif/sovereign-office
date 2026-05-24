@@ -84,6 +84,7 @@ const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
 const AtlasAdminPage = lazy(() => import("@/pages/atlas-admin"));
 const InvestigationsListPage = lazy(() => import("@/pages/investigations-list"));
+const GitHubIntakePreviewPage = lazy(() => import("@/pages/github-intake-preview"));
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -510,6 +511,9 @@ function AppRouter() {
       </Route>
       <Route path="/investigations">
         {() => <ProtectedRoute component={InvestigationsListPage} />}
+      </Route>
+      <Route path="/github-intake-preview">
+        {() => <ProtectedRoute component={GitHubIntakePreviewPage} />}
       </Route>
 
       <Route component={NotFound} />

@@ -1,0 +1,104 @@
+name: Tribal Intake Matter
+description: Submit a matter for tribal intake review and routing
+title: "[INTAKE] "
+labels: ["intake", "needs-review"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Tribal Intake Submission
+        Complete all fields below. This issue will be parsed automatically by the AI Intake Parser action.
+        One matter per issue. For urgent matters mark urgency accordingly.
+
+  - type: dropdown
+    id: matter_type
+    attributes:
+      label: Matter Type
+      description: Primary category for this matter
+      options:
+        - land
+        - membership
+        - enrollment
+        - treaty_rights
+        - child_welfare
+        - probate
+        - general
+    validations:
+      required: true
+
+  - type: dropdown
+    id: urgency
+    attributes:
+      label: Urgency Level
+      options:
+        - high
+        - medium
+        - low
+    validations:
+      required: true
+
+  - type: input
+    id: parties
+    attributes:
+      label: Parties Involved
+      description: "Names of individuals, agencies, or entities involved (comma-separated)"
+      placeholder: "e.g. John Doe, LA County DCFS"
+    validations:
+      required: true
+
+  - type: input
+    id: deadline
+    attributes:
+      label: Response Deadline
+      description: "Date by which action is required (YYYY-MM-DD or leave blank)"
+      placeholder: "e.g. 2026-06-15"
+    validations:
+      required: false
+
+  - type: textarea
+    id: document_text
+    attributes:
+      label: Document / Matter Description
+      description: "Paste the full text of the document or describe the matter in detail. The AI parser will extract key facts from this field."
+      placeholder: "Paste document text or describe the matter here..."
+      render: text
+    validations:
+      required: true
+
+  - type: input
+    id: state
+    attributes:
+      label: State
+      description: "Two-letter state code where the matter arose"
+      placeholder: "e.g. CA"
+    validations:
+      required: false
+
+  - type: input
+    id: county
+    attributes:
+      label: County
+      placeholder: "e.g. Los Angeles"
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: flags
+    attributes:
+      label: Legal Flags
+      description: Check all that apply
+      options:
+        - label: ICWA (Indian Child Welfare Act) may apply
+        - label: Trust land involved
+        - label: Federal review required
+        - label: Involves enrolled member
+        - label: Treaty rights implicated
+
+  - type: textarea
+    id: notes
+    attributes:
+      label: Additional Notes
+      description: "Any additional context, prior filings, or relevant references"
+    validations:
+      required: false
