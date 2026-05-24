@@ -54,7 +54,6 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/sovereign-pipeline",  label: "AI Intake & Pipeline", highlight: true, icon: Zap },
         { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
         { href: "/documents",           label: "Court Documents",     icon: Gavel },
-        { href: "/drafts",              label: "Document Drafts",     icon: Bot },
       ],
     },
     {

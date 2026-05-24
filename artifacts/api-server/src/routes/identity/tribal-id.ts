@@ -165,7 +165,8 @@ router.post("/photo", requireAuth, upload.single("photo"), async (req, res, next
     }
     const mimeType = req.file.mimetype.includes("png") ? "image/png" : "image/jpeg";
     const dataUrl = `data:${mimeType};base64,${req.file.buffer.toString("base64")}`;
-    // Update linked-profile node first; if none exists fall back to own lineage rows
+
+    // 1. Update linked-profile node first; if none exists fall back to own lineage rows
     const linkedRows = await db.update(familyLineageTable)
       .set({ photoUrl: dataUrl, updatedAt: new Date() })
       .where(eq(familyLineageTable.linkedProfileUserId, dbId))
@@ -175,7 +176,27 @@ router.post("/photo", requireAuth, upload.single("photo"), async (req, res, next
         .set({ photoUrl: dataUrl, updatedAt: new Date() })
         .where(eq(familyLineageTable.userId, dbId));
     }
-    logger.info({ dbId }, "Profile photo updated");
+
+    // 2. Always also persist in profiles.aiPreferences so the photo survives
+    //    even when no lineage rows exist for this user.
+    const [existingProfile] = await db
+      .select({ id: profilesTable.id, aiPreferences: profilesTable.aiPreferences })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, dbId))
+      .limit(1);
+    const basePrefs = (existingProfile?.aiPreferences && typeof existingProfile.aiPreferences === "object")
+      ? (existingProfile.aiPreferences as Record<string, unknown>)
+      : {};
+    const updatedPrefs = { ...basePrefs, photo_url: dataUrl };
+    if (existingProfile) {
+      await db.update(profilesTable)
+        .set({ aiPreferences: updatedPrefs, updatedAt: new Date() })
+        .where(eq(profilesTable.userId, dbId));
+    } else {
+      await db.insert(profilesTable).values({ userId: dbId, aiPreferences: updatedPrefs });
+    }
+
+    logger.info({ dbId }, "Profile photo updated (lineage + profile)");
     res.json({ success: true });
   } catch (err) {
     next(err);
