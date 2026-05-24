@@ -1543,6 +1543,26 @@ function VoiceMicBtn({ onTranscript }: { onTranscript: (t: string) => void }) {
 const KNOWN_CLANS = ["McCaster-Watson", "Morant-Ruff"] as const;
 const SIDES = ["Father's side", "Mother's side", "Both sides"] as const;
 
+/**
+ * Individual last-name entries shown to non-master members.
+ * Members know their last name but may not know "mother's/father's side."
+ * The system maps last name → clan group + side automatically.
+ */
+const FAMILY_LAST_NAME_MAP = [
+  { lastName: "McCaster", clan: "McCaster-Watson", side: "Father's side" as const, sideLabel: "Father's side · McCaster-Watson family" },
+  { lastName: "Watson",   clan: "McCaster-Watson", side: "Father's side" as const, sideLabel: "Father's side · McCaster-Watson family" },
+  { lastName: "Morant",   clan: "Morant-Ruff",     side: "Mother's side" as const, sideLabel: "Mother's side · Morant-Ruff family" },
+  { lastName: "Ruff",     clan: "Morant-Ruff",     side: "Mother's side" as const, sideLabel: "Mother's side · Morant-Ruff family" },
+] as const;
+
+type FamilyLastName = typeof FAMILY_LAST_NAME_MAP[number]["lastName"];
+
+/** Reverse-map a stored clan name to a representative last name (first in list). */
+function clanToLastName(clan: string): FamilyLastName | "" {
+  const match = FAMILY_LAST_NAME_MAP.find(e => e.clan === clan);
+  return (match?.lastName ?? "") as FamilyLastName | "";
+}
+
 function parseFamilyGroup(value: string): { clan: string; side: string; other: string } {
   if (!value) return { clan: "", side: "", other: "" };
   const sideMatch = value.match(/\((Father's side|Mother's side|Both sides)\)$/);
@@ -1567,64 +1587,134 @@ interface FamilyGroupControlProps {
   side: string;
   other: string;
   kinship: string;
+  masterProfile?: boolean;
   onClanChange: (v: string) => void;
   onSideChange: (v: string) => void;
   onOtherChange: (v: string) => void;
   onKinshipChange: (v: string) => void;
 }
 
-function FamilyGroupControl({ clan, side, other, kinship, onClanChange, onSideChange, onOtherChange, onKinshipChange }: FamilyGroupControlProps) {
+function FamilyGroupControl({ clan, side, other, kinship, masterProfile, onClanChange, onSideChange, onOtherChange, onKinshipChange }: FamilyGroupControlProps) {
+  // For regular members: track selected last name separately.
+  // Derive initial value from the stored clan name.
+  const [selectedLastName, setSelectedLastName] = useState<FamilyLastName | "">(
+    () => clanToLastName(clan)
+  );
+
+  // When a regular member picks their last name, auto-map clan + side.
+  function handleLastNameChange(ln: string) {
+    if (ln === "__none__" || ln === "") {
+      setSelectedLastName("");
+      onClanChange("");
+      onSideChange("");
+      return;
+    }
+    const entry = FAMILY_LAST_NAME_MAP.find(e => e.lastName === ln);
+    if (!entry) return;
+    setSelectedLastName(entry.lastName as FamilyLastName);
+    onClanChange(entry.clan);
+    onSideChange(entry.side);
+  }
+
+  const derivedEntry = FAMILY_LAST_NAME_MAP.find(e => e.lastName === selectedLastName);
+
   return (
     <div className="space-y-4 md:col-span-2">
-      {/* Part A — Primary Family / Clan */}
+      {/* Part A — Family selection */}
       <div className="space-y-1.5">
         <div className="flex items-start gap-1.5 text-[11px] text-primary/70 italic leading-snug">
           <Bot className="h-3 w-3 mt-0.5 shrink-0 text-primary/50" />
-          <span>What family or clan group are you part of within the Mathias El Tribe?</span>
+          <span>
+            {masterProfile
+              ? "What family or clan group are you part of within the Mathias El Tribe?"
+              : "Which family name are you from?"}
+          </span>
         </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Primary Family / Clan Line</Label>
-            <Select value={clan || "__none__"} onValueChange={v => onClanChange(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="text-sm h-9">
-                <SelectValue placeholder="Select family / clan…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__none__">Select…</SelectItem>
-                {KNOWN_CLANS.map(c => (
-                  <SelectItem key={c} value={c}>{c}</SelectItem>
-                ))}
-                <SelectItem value="Other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-            {clan === "Other" && (
-              <Input
-                className="text-sm h-9 mt-1"
-                value={other}
-                onChange={e => onOtherChange(e.target.value)}
-                placeholder="Enter your family / clan name"
-              />
+
+        {masterProfile ? (
+          /* ── Master profile: full admin dual-dropdown view ── */
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Primary Family / Clan Line</Label>
+              <Select value={clan || "__none__"} onValueChange={v => onClanChange(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="text-sm h-9">
+                  <SelectValue placeholder="Select family / clan…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select…</SelectItem>
+                  {KNOWN_CLANS.map(c => (
+                    <SelectItem key={c} value={c}>{c}</SelectItem>
+                  ))}
+                  <SelectItem value="Other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+              {clan === "Other" && (
+                <Input
+                  className="text-sm h-9 mt-1"
+                  value={other}
+                  onChange={e => onOtherChange(e.target.value)}
+                  placeholder="Enter your family / clan name"
+                />
+              )}
+            </div>
+            <div className="space-y-1">
+              <Label className="text-xs text-muted-foreground">Side of the Family</Label>
+              <Select value={side || "__none__"} onValueChange={v => onSideChange(v === "__none__" ? "" : v)}>
+                <SelectTrigger className="text-sm h-9">
+                  <SelectValue placeholder="Select side…" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="__none__">Select…</SelectItem>
+                  {SIDES.map(s => (
+                    <SelectItem key={s} value={s}>{s}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {(clan && clan !== "__none__" && side) && (
+              <p className="text-[10px] text-muted-foreground sm:col-span-2">
+                Saved as: <span className="font-medium text-foreground">{buildFamilyGroupValue(clan, side, other)}</span>
+              </p>
             )}
           </div>
-          <div className="space-y-1">
-            <Label className="text-xs text-muted-foreground">Side of the Family</Label>
-            <Select value={side || "__none__"} onValueChange={v => onSideChange(v === "__none__" ? "" : v)}>
-              <SelectTrigger className="text-sm h-9">
-                <SelectValue placeholder="Select side…" />
+        ) : (
+          /* ── Regular member: last-name picker, side auto-derived ── */
+          <div className="space-y-2">
+            <p className="text-[10px] text-muted-foreground leading-relaxed">
+              Select the family last name you are connected to. The system will determine your family line automatically.
+            </p>
+            <Select value={selectedLastName || "__none__"} onValueChange={handleLastNameChange}>
+              <SelectTrigger className="text-sm h-9 max-w-xs">
+                <SelectValue placeholder="Select your family name…" />
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="__none__">Select…</SelectItem>
-                {SIDES.map(s => (
-                  <SelectItem key={s} value={s}>{s}</SelectItem>
+                {FAMILY_LAST_NAME_MAP.map(e => (
+                  <SelectItem key={e.lastName} value={e.lastName}>{e.lastName}</SelectItem>
                 ))}
+                <SelectItem value="Other">Other / Not listed</SelectItem>
               </SelectContent>
             </Select>
+
+            {selectedLastName === "Other" || clan === "Other" ? (
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">Enter your family / clan name</Label>
+                <Input
+                  className="text-sm h-9 max-w-xs"
+                  value={other}
+                  onChange={e => onOtherChange(e.target.value)}
+                  placeholder="Your family or clan name"
+                />
+              </div>
+            ) : derivedEntry ? (
+              <div className="flex items-center gap-2 rounded-md bg-muted/50 border border-border px-3 py-2 max-w-xs">
+                <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
+                <p className="text-[11px] text-muted-foreground">
+                  Family line: <span className="font-semibold text-foreground">{derivedEntry.sideLabel}</span>
+                </p>
+              </div>
+            ) : null}
           </div>
-        </div>
-        {(clan && clan !== "__none__" && side) && (
-          <p className="text-[10px] text-muted-foreground">
-            Will be saved as: <span className="font-medium text-foreground">{buildFamilyGroupValue(clan, side, other)}</span>
-          </p>
         )}
       </div>
 
@@ -3219,6 +3309,7 @@ export default function ProfilePage() {
                     side={fgSide}
                     other={fgOther}
                     kinship={fields.kinshipToTribe}
+                    masterProfile={activeRole === "sovereign_admin"}
                     onClanChange={(v) => { setFgClan(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(v, fgSide, fgOther) })); }}
                     onSideChange={(v) => { setFgSide(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(fgClan, v, fgOther) })); }}
                     onOtherChange={(v) => { setFgOther(v); setFields(f => ({ ...f, familyGroup: buildFamilyGroupValue(fgClan, fgSide, v) })); }}
