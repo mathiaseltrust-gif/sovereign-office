@@ -150,6 +150,7 @@ router.get("/verify", requireAuth, async (req, res, next) => {
       memberType: authorities.memberType,
     });
   } catch (err) {
+    logger.error({ err, dbId: req.user?.dbId, path: "/api/membership/verify" }, "Membership verify failed");
     next(err);
   }
 });
