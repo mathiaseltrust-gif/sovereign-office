@@ -1,5 +1,5 @@
 import { Link, useLocation } from "wouter";
-import { useAuth, roleLandingPath, type Role } from "./auth-provider";
+import { useAuth, getCurrentBearerToken, roleLandingPath, type Role } from "./auth-provider";
 import { canManageGovernors } from "@/lib/governor-access";
 import { Button } from "@/components/ui/button";
 import type { LucideIcon } from "lucide-react";
@@ -344,8 +344,19 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const { activeRole, switchRole, mode, user, logout } = useAuth();
   const [location] = useLocation();
   const { open: paletteOpen, openPalette, closePalette } = useCommandPalette();
+  const [sidebarPhoto, setSidebarPhoto] = useState<string | null>(null);
 
   useEffect(() => { recordPageVisit(location); }, [location]);
+
+  useEffect(() => {
+    if (!user) return;
+    const token = getCurrentBearerToken();
+    if (!token) return;
+    fetch("/api/identity/gateway", { headers: { Authorization: `Bearer ${token}` } })
+      .then(r => r.ok ? r.json() : null)
+      .then(d => { if (d?.profilePhoto) setSidebarPhoto(d.profilePhoto); })
+      .catch(() => {});
+  }, [user]);
 
   const sections = getNavSections(activeRole);
   const showOrgs = activeRole !== "visitor_media" && activeRole !== "medical_provider";
@@ -426,9 +437,17 @@ export function Layout({ children }: { children: React.ReactNode }) {
 
         {/* Footer: user + role switcher + sign out */}
         <div className="p-3 border-t space-y-2">
-          <div className="px-1 min-w-0">
-            <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "—"}</p>
-            <p className="text-[10px] text-muted-foreground truncate">{user?.email ?? ""}</p>
+          <div className="px-1 min-w-0 flex items-center gap-2">
+            {sidebarPhoto
+              ? <img src={sidebarPhoto} alt="Profile" className="w-8 h-8 rounded-full object-cover shrink-0 border border-border" />
+              : <div className="w-8 h-8 rounded-full bg-muted shrink-0 flex items-center justify-center border border-border">
+                  <UserCircle className="h-5 w-5 text-muted-foreground" />
+                </div>
+            }
+            <div className="min-w-0">
+              <p className="text-xs font-semibold text-foreground truncate">{user?.name ?? "—"}</p>
+              <p className="text-[10px] text-muted-foreground truncate">{user?.email ?? ""}</p>
+            </div>
           </div>
 
           {/* Role preview switcher — only visible to the Chief Justice & Trustee (sovereign_admin) */}
