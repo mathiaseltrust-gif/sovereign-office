@@ -23,7 +23,7 @@ interface AuthContextType {
   setLineagePendingFlag: (pending: boolean) => void;
   switchRole: (role: Role) => void;
   loginWithToken: (token: string) => boolean;
-  loginWithSessionToken: (sessionToken: string, user: User) => void;
+  loginWithSessionToken: (sessionToken: string, user: User, mode?: AuthMode) => void;
   loginWithDevRole: (role: Role) => void;
   logout: () => void;
   renewSession: () => Promise<boolean>;
@@ -329,15 +329,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const loginWithSessionToken = useCallback((st: string, u: User) => {
+  const loginWithSessionToken = useCallback((st: string, u: User, authMode: AuthMode = "password") => {
     const role = roleFromStrings(u.roles);
     const expiry = parseJwtExpiry(st) ?? undefined;
     setUser(u);
-    setMode("password");
+    setMode(authMode);
     setActiveRole(role);
     setSessionToken(st);
     setTokenExpiry(expiry ?? null);
-    saveSession({ user: u, mode: "password", activeRole: role, sessionToken: st, tokenExpiry: expiry });
+    saveSession({ user: u, mode: authMode, activeRole: role, sessionToken: st, tokenExpiry: expiry });
   }, []);
 
   const loginWithToken = useCallback((rawToken: string): boolean => {

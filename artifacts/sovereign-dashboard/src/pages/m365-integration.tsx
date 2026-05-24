@@ -178,7 +178,7 @@ export default function M365IntegrationPage() {
             email: msUser.email,
             name: msUser.name,
             roles: msUser.roles,
-          });
+          }, "microsoft");
           toast({ title: "Microsoft account linked", description: `Signed in as ${msUser.email}` });
         } else if (ev.data?.type === "OAUTH_ERROR") {
           toast({ title: "Sign-in failed", description: ev.data.error, variant: "destructive" });
