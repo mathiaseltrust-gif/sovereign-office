@@ -84,7 +84,7 @@ function AgencyCard({ agency, isTribalJurisdiction }: AgencyCardProps) {
               <span className="text-xs px-1.5 py-0.5 rounded border bg-muted text-muted-foreground">
                 {agency.stateCode}
                 {agency.county ? ` · ${agency.county}` : ""}
-                {agency.city ? ` · ${agency.city}` : ""}
+                {agency.city && agency.city !== agency.county ? ` · ${agency.city}` : ""}
               </span>
             )}
             {verifiedStr && (
