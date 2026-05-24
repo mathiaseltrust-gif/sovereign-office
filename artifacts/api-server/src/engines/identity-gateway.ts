@@ -307,7 +307,9 @@ export async function resolveSovereignIdentityGateway(
         ...((narrative?.benefitEligibility as Record<string, boolean>) ?? {}),
       },
       orgAffiliations, elderStatus, isElder, elderAuthorities,
-      profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl ?? null,
+      profilePhoto: linkedNode?.photoUrl ?? lineageRows[0]?.photoUrl
+        ?? (profile?.aiPreferences as Record<string, string> | null)?.photo_url
+        ?? null,
       signatureUrl: profile?.signatureUrl ?? null,
       visibilityRules,
       generationalPosition, generationalDepth,

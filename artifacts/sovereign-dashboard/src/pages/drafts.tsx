@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken, useAuth } from "@/components/auth-provider";
 import { canManageGovernors } from "@/lib/governor-access";
+import { Zap, FileText, PenLine } from "lucide-react";
 
 type DocumentKind =
   | "court_document"
@@ -68,12 +70,14 @@ interface SessionGovernor {
 export default function DraftsPage() {
   const { toast } = useToast();
   const { activeRole, sessionToken } = useAuth();
+  const [, navigate] = useLocation();
   const [docType, setDocType] = useState<DocumentKind>("court_document");
   const [jurisdiction, setJurisdiction] = useState<Jurisdiction>("tribal");
   const [notes, setNotes] = useState("");
   const [result, setResult] = useState<DraftResult | null>(null);
   const [copied, setCopied] = useState(false);
   const [fromIntake, setFromIntake] = useState<{ riskLevel?: string } | null>(null);
+  const [showGateway, setShowGateway] = useState(true);
 
   useEffect(() => {
     try {
@@ -86,6 +90,8 @@ export default function DraftsPage() {
       }
       if (ctx.notes) setNotes(ctx.notes);
       if (ctx.riskLevel) setFromIntake({ riskLevel: ctx.riskLevel });
+      // Arriving from intake — skip the gateway
+      setShowGateway(false);
     } catch { /* ignore */ }
   }, []);
 
@@ -152,6 +158,61 @@ export default function DraftsPage() {
   }
 
   const selectedKind = DOC_KINDS.find(d => d.value === docType);
+
+  if (showGateway) {
+    return (
+      <div className="p-6 max-w-2xl mx-auto space-y-8 pt-16">
+        <div className="text-center space-y-2">
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Sovereign Office</p>
+          <h1 className="text-3xl font-serif font-bold">Document Drafting</h1>
+          <p className="text-muted-foreground text-sm max-w-md mx-auto">
+            Documents drafted with intake context are more accurate — the AI extracts facts, risk level, and violations from your matter before writing.
+          </p>
+        </div>
+
+        <div className="grid sm:grid-cols-2 gap-4">
+          {/* Intake funnel — recommended */}
+          <button
+            onClick={() => navigate("/sovereign-pipeline")}
+            className="text-left rounded-xl border-2 border-primary/40 hover:border-primary bg-primary/5 hover:bg-primary/10 p-5 transition-all group space-y-3"
+          >
+            <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center group-hover:bg-primary/20">
+              <Zap className="h-5 w-5 text-primary" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Run AI Intake First</p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                Upload a document, speak your matter, or paste text. The AI extracts violations, risk level, and recommended instruments — then drops you directly into drafting with everything pre-filled.
+              </p>
+            </div>
+            <p className="text-[10px] font-semibold text-primary uppercase tracking-wider">Recommended</p>
+          </button>
+
+          {/* Standalone draft */}
+          <button
+            onClick={() => setShowGateway(false)}
+            className="text-left rounded-xl border-2 border-muted hover:border-foreground/30 bg-muted/20 hover:bg-muted/40 p-5 transition-all group space-y-3"
+          >
+            <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center group-hover:bg-muted">
+              <PenLine className="h-5 w-5 text-muted-foreground group-hover:text-foreground" />
+            </div>
+            <div>
+              <p className="font-semibold text-sm">Draft Standalone</p>
+              <p className="text-[11px] text-muted-foreground mt-1 leading-relaxed">
+                Choose a document type, jurisdiction, and provide context manually. Best when you already know exactly what you need to write.
+              </p>
+            </div>
+            <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Start from scratch</p>
+          </button>
+        </div>
+
+        <div className="flex items-center gap-2 text-[11px] text-muted-foreground justify-center">
+          <FileText className="h-3.5 w-3.5" />
+          <span>10 document types · Tribal, county, state, and federal jurisdictions</span>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
