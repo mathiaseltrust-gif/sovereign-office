@@ -50,10 +50,11 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Chief's Office",
       defaultOpen: true,
       items: [
-        { href: "/profile",              label: "Office & Profile",    highlight: true, icon: Archive },
-        { href: "/sovereign-pipeline",  label: "Intake Pipeline",  highlight: true, icon: Zap },
+        { href: "/profile",             label: "Office & Profile",    highlight: true, icon: Archive },
+        { href: "/sovereign-pipeline",  label: "AI Intake & Pipeline", highlight: true, icon: Zap },
         { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
         { href: "/documents",           label: "Court Documents",     icon: Gavel },
+        { href: "/drafts",              label: "Document Drafts",     icon: Bot },
       ],
     },
     {
@@ -93,9 +94,6 @@ function getTrusteeNav(): NavSectionDef[] {
       items: [
         { href: "/trace",               label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
         { href: "/law",                 label: "Law Library",          icon: BookOpen },
-        { href: "/intake-ai",           label: "AI Intake Review",     icon: Brain },
-        { href: "/drafts",              label: "AI Document Drafts",   icon: Bot },
-        { href: "/classify",            label: "Classification",       icon: Tag },
         { href: "/tasks",               label: "Tasks",                icon: CheckSquare },
         { href: "/admin/lineage-import",label: "Lineage Registry",     icon: Database },
         { href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },
@@ -144,12 +142,11 @@ function getOfficerNav(): NavSectionDef[] {
       label: "Resources",
       defaultOpen: false,
       items: [
-        { href: "/trace-officer", label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
-        { href: "/drafts",    label: "AI Document Drafts", icon: Bot },
-        { href: "/law",       label: "Law Library",        icon: BookOpen },
-        { href: "/intake-ai", label: "AI Intake Review",   icon: Brain },
-        { href: "/classify",  label: "Classification",     icon: Tag },
-        { href: "/tasks",     label: "Tasks",              icon: CheckSquare },
+        { href: "/trace-officer",     label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
+        { href: "/sovereign-pipeline", label: "AI Intake & Pipeline",       highlight: true, icon: Zap },
+        { href: "/drafts",             label: "Document Drafts",            icon: Bot },
+        { href: "/law",                label: "Law Library",                icon: BookOpen },
+        { href: "/tasks",              label: "Tasks",                      icon: CheckSquare },
       ],
     },
   ];
