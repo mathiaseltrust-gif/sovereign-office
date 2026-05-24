@@ -92,7 +92,8 @@ RUN printf "server {\n\
     # The atlas is built with BASE_PATH=/urban-indian-atlas/ so its assets\n\
     # are referenced at /urban-indian-atlas/assets/...; stripping the prefix\n\
     # here routes those asset requests to the atlas container correctly.\n\
-    location /urban-indian-atlas/ {\n\
+    # ^~ prevents the *.js regex location from stealing asset requests.\n\
+    location ^~ /urban-indian-atlas/ {\n\
         proxy_pass         http://${ATLAS_HOST}/;\n\
         proxy_http_version 1.1;\n\
         proxy_set_header   Host \$host;\n\
@@ -104,7 +105,8 @@ RUN printf "server {\n\
 \n\
     # Proxy TRACE — APA/CFR Compliance Engine (separate container).\n\
     # The app is built with BASE_PATH=/trace/ so assets resolve correctly.\n\
-    location /trace/ {\n\
+    # ^~ prevents the *.js regex location from stealing asset requests.\n\
+    location ^~ /trace/ {\n\
         proxy_pass         http://${TRACE_HOST}/;\n\
         proxy_http_version 1.1;\n\
         proxy_set_header   Host \$host;\n\

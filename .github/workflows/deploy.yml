@@ -240,11 +240,28 @@ jobs:
           file: artifacts/urban-indian-atlas/Dockerfile
           push: true
           build-args: |
+            BASE_PATH=/urban-indian-atlas/
             VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/urban-indian-atlas:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/urban-indian-atlas:latest
+          cache-to: type=inline
+
+      # ── TRACE — APA/CFR Compliance Engine ──────────────────────────────────
+      - name: Build and push — trace
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/trace/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/trace/
+            VITE_API_URL=${{ env.VITE_API_URL }}
+          tags: |
+            ${{ env.REGISTRY }}/trace:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/trace:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/trace:latest
           cache-to: type=inline
 
       # ── Authority Directory & Oversight Routing Dashboard ──────────────────
@@ -340,8 +357,8 @@ jobs:
               echo "==> No previous tag found — first deploy, rollback will not be available"
             fi
 
-            echo "==> Pulling new images (all seven services)"
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
+            echo "==> Pulling new images (all eight services)"
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             # ── Run database schema migrations BEFORE starting the api ────────────
             # Runs migrate.mjs (compiled from artifacts/api-server/src/migrate.ts)
@@ -641,7 +658,7 @@ SEED_EOF
             export IMAGE_TAG="$ROLLBACK_TAG"
 
             echo "==> Pulling rollback images from ACR..."
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             echo "==> Restarting all services with rollback images..."
             docker compose -f docker-compose.prod.yml up -d --no-build
@@ -816,11 +833,28 @@ SEED_EOF
           file: artifacts/urban-indian-atlas/Dockerfile
           push: true
           build-args: |
+            BASE_PATH=/urban-indian-atlas/
             VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
           tags: |
             ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:staging
           cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:staging
+          cache-to: type=inline
+
+      # ── TRACE — APA/CFR Compliance Engine ──────────────────────────────────
+      - name: Build and push — trace
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: artifacts/trace/Dockerfile
+          push: true
+          build-args: |
+            BASE_PATH=/trace/
+            VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+          tags: |
+            ${{ secrets.ACR_REGISTRY }}/trace:${{ steps.meta.outputs.sha_tag }}
+            ${{ secrets.ACR_REGISTRY }}/trace:staging
+          cache-from: type=registry,ref=${{ secrets.ACR_REGISTRY }}/trace:staging
           cache-to: type=inline
 
   # ── 2. Deploy to staging VM via SSH ───────────────────────────────────────
