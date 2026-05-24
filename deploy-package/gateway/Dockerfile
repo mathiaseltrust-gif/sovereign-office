@@ -18,3 +18,4 @@ RUN chmod +x /docker-entrypoint-ssl.sh
 EXPOSE 3001 3002 3003 3004 3005
 
 ENTRYPOINT ["/docker-entrypoint-ssl.sh"]
+
