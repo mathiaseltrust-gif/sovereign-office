@@ -141,6 +141,13 @@
       "when": 1748390400000,
       "tag": "0018_add_missing_tables_and_columns",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1748476800000,
+      "tag": "0019_restore_family_lineage_visibility",
+      "breakpoints": true
     }
   ]
 }
