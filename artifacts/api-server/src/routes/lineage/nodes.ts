@@ -7,7 +7,7 @@ import { hasRole, canReviewPendingLineage } from "../../engines/authority";
 import { logger } from "../../lib/logger";
 import { createNotification } from "../../engines/notification-engine";
 
-const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer"]);
+const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer", "chief_justice", "chief_justice_trustee"]);
 
 const router = Router();
 
