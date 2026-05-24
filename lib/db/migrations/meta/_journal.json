@@ -134,6 +134,13 @@
       "when": 1748253600000,
       "tag": "0017_add_ancestor_life_events",
       "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1748390400000,
+      "tag": "0018_add_missing_tables_and_columns",
+      "breakpoints": true
     }
   ]
 }
