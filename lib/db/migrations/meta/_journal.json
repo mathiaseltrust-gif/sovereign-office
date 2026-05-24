@@ -148,6 +148,13 @@
       "when": 1748476800000,
       "tag": "0019_restore_family_lineage_visibility",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1748563200000,
+      "tag": "0020_add_land_and_life_event_columns",
+      "breakpoints": true
     }
   ]
 }
