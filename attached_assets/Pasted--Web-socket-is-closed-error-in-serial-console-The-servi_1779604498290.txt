@@ -1,0 +1,64 @@
+"Web socket is closed" error in serial console
+The service URLs of serial console were changed from .console.azure.com to .serialconsole.azure.com.
+If you receive the "Web socket is closed or could not be opened" error, add .serialconsole.azure.com to the firewall allowlist.
+Connectivity diagnostics
+These diagnostics perform checks on your resource under all conditions, including whether the VM is on or off, the network location awareness (NLA) and dynamic host configuration protocol (DHCP) status, and more. The checks take around three to five minutes to complete. Insights from the diagnostics will likely help resolve your issue.
+
+Rerun diagnostics
+Completed 1 of 1 diagnostics
+Completed on 05/24/26 06:31 (UTC)
+1 insight found. 
+Virtual machine networking is not accessible due to a networking platform failure
+We have investigated and identified that your VM sovereign-office-vm isn't accessible due to an Azure networking platform failure.
+
+Reset the primary NIC
+You can reset the network interface for Azure Linux VM to restore connectivity to the VM. If the VM doesn't have connectivity, see the following section to redeploy the VM to a new host.
+
+Redeploy the VM to a new host
+To redeploy to a new host, select the button below, and then select Redeploy.
+
+
+For more information on the redeploy operation, see Redeploy Linux virtual machine to new Azure node.
+
+Running 1 of 1 diagnostics
+Rerun diagnostics
+Completed diagnostics, no issues detected
+Completed on 05/24/26 06:32 (UTC)
+If the diagnostics can't find an issue, we recommend redeploying your VM. Typically, this is the best first step to resolving issues.
+
+Benefits of redeploying
+Resolves connection failure issues, such as with Windows VMs RDP and Linux VMs SSH.
+Resolves Windows and Linux VM application access issues.
+To redeploy, 
+.
+
+Note: If you prefer not to redeploy, or if the issue is still occurring, try the solutions in the following sections.
+
+Learn more about redeploying VMs.
+Common issues and solutions
+To resolve common SSH connect, VM connect, and other issues, try the following troubleshooting steps.
+
+Unable to SSH
+
+If you're unable to SSH, you have two options to verify the error:
+
+Access the serial console of your VM and verify if your VM is running.
+Select the Boot Diagnostics menu item under the Support + Troubleshooting header for your virtual machine.
+Common boot errors
+
+Review logs in the serial console or boot diagnostics for the following common boot errors.
+Mount point dependency errors FSTAB.
+Filesystem consistency errors FSCK (file system consistency).
+Kernel-related boot errors GRUB. Root access is not enabled by default, and you might need to enable root access by using the serial console in single-user mode.
+VM successfully booted and a sign-in prompt is available in the serial console or boot diagnostics logs
+
+Validate that your network security group (NSG) is allowing traffic. Review effective security group rules to make sure an inbound Allow NSG rule exists and is prioritized for SSH port (default 22).
+Access the VM by using the serial console and check internal OS firewall configuration – iptables|firewalld. We recommend completely disabling the firewall services during the troubleshooting to enable issue isolation.
+Reset SSH connection and configuration using CLI to fix SSH issues.
+Troubleshoot issues when trying to connect SSH from Azure.
+Review SSH configuration file permission issues
+Authentication issues
+
+First, try to reset SSH credentials for a user.
+If the preceding steps don't work, you can also use the offline method of resetting the password by attaching the source OS virtual disk to another VM. This is automated and creates a temporary recovery virtual machine. Only use this process as a last resort. Always try to reset a password using the Azure portal, Azure CLI or interrupting the boot process interacting with GRUB first.
+Note: If you use the VMAccess Extension to reset the password of your VM after installing the Microsoft Entra Login Extension, rerun the Microsoft Entra Login Extension to reenable Microsoft Entra Login for your machine.
