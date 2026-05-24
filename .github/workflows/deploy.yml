@@ -262,7 +262,22 @@ jobs:
             ${{ env.REGISTRY }}/authority-directory:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/authority-directory:latest
           cache-to: type=inline
-
+          
+      - name: Build and push — trace
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          file: artifacts/trace/Dockerfile
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+            BASE_PATH=/trace/
+          tags: |
+            ${{ env.REGISTRY }}/trace:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/trace:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/trace:latest
+          cache-to: type=inline
+          
       # ── SSL Gateway (nginx HTTPS termination on ports 3001-3005) ───────────
       - name: Build and push — sovereign-gateway
         uses: docker/build-push-action@v5
@@ -341,7 +356,7 @@ jobs:
             fi
 
             echo "==> Pulling new images (all seven services)"
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             # ── Run database schema migrations BEFORE starting the api ────────────
             # Runs migrate.mjs (compiled from artifacts/api-server/src/migrate.ts)
@@ -393,7 +408,7 @@ const res = await client.query(`
     apn              = '514-364-11-00-1',
     mailing_address  = '4305 Sun Devils Avenue, Bakersfield, California 93313',
     land_status      = 'restricted',
-    tribal_land_code = 'MET-TL-BC-001',
+    tribal_land_code = 'MET-BC-TL-001',
     land_classification = 'Tribal Housing / General Welfare Land',
     legal_description   = 'LOT 52 OF TRACT NO. 5958 – "PHASE 2," CITY OF BAKERSFIELD, COUNTY OF KERN, STATE OF CALIFORNIA, as per map recorded September 21, 2001, in Book 47, Pages 83-85, Kern County Recorder records.',
     has_recorded_instrument = true,
@@ -641,7 +656,7 @@ SEED_EOF
             export IMAGE_TAG="$ROLLBACK_TAG"
 
             echo "==> Pulling rollback images from ACR..."
-            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority gateway
+            docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             echo "==> Restarting all services with rollback images..."
             docker compose -f docker-compose.prod.yml up -d --no-build
