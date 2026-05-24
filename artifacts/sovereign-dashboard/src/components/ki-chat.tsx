@@ -871,6 +871,25 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
   const [lastSearchResults, setLastSearchResults] = useState<Array<{ entityType: string; entityId: string; content: string }> | null>(null);
   const [alignmentExpanded, setAlignmentExpanded] = useState(false);
 
+  // ── Session display gate ───────────────────────────────────────────────────
+  // History is always retained on the server for AI context.
+  // But we only SHOW past messages if the user explicitly resumes, or has
+  // already been chatting in this browser tab session.
+  const [showHistory, setShowHistory] = useState(false);
+
+  useEffect(() => {
+    if (!user?.id) return;
+    try {
+      const active = sessionStorage.getItem(`kaya_session_${user.id}`);
+      if (active) setShowHistory(true);
+    } catch { /* ignore */ }
+  }, [user?.id]);
+
+  function activateSession() {
+    setShowHistory(true);
+    try { if (user?.id) sessionStorage.setItem(`kaya_session_${user.id}`, "1"); } catch {}
+  }
+
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
 
   const { data: historyData, isLoading: historyLoading } = useQuery({
@@ -1013,6 +1032,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     setInput("");
     setLastNavigateCards(null);
     setLastSearchResults(null);
+    activateSession();
     if (inputMode === "journal") {
       diaryMutation.mutate({ content: text, mood: selectedMood ?? undefined });
       setSelectedMood(null);
@@ -1063,7 +1083,10 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
     setListening(true);
   }
 
-  const messages = historyData?.messages ?? [];
+  const allMessages = historyData?.messages ?? [];
+  // Only display messages from this session. History is still sent to the AI
+  // for context via the server — it just doesn't clutter the visible panel.
+  const messages = showHistory ? allMessages : [];
   const diaryEntries = diaryData?.entries ?? [];
   const knowledgeEntries = knowledgeData?.entries ?? [];
   const isWorking = chatMutation.isPending || diaryMutation.isPending || knowledgeMutation.isPending;
@@ -1197,6 +1220,24 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                   </div>
                 ) : messages.length === 0 ? (
                   <div className="py-5 space-y-4">
+                    {/* ── Resume prior session prompt ─────────────────────── */}
+                    {!showHistory && allMessages.length > 0 && (
+                      <div
+                        className="flex items-center justify-between rounded-lg px-3 py-2.5 gap-3"
+                        style={{ background: "rgba(180,120,10,0.12)", border: "1px solid rgba(200,150,20,0.2)" }}
+                      >
+                        <p className="text-[11px] text-amber-200/60 leading-snug">
+                          You have a previous conversation — pick up where you left off?
+                        </p>
+                        <button
+                          onClick={activateSession}
+                          className="shrink-0 text-[11px] px-2.5 py-1 rounded font-medium text-amber-300/90 hover:text-amber-200 transition-colors"
+                          style={{ background: "rgba(200,140,10,0.18)", border: "1px solid rgba(200,150,20,0.3)" }}
+                        >
+                          Resume
+                        </button>
+                      </div>
+                    )}
                     <div className="flex items-center gap-3">
                       {memberPhoto ? (
                         <div className="w-10 h-10 rounded-full overflow-hidden border border-white/20 shrink-0">
