@@ -3,6 +3,18 @@
 # Build context: repo root
 #   docker build -f artifacts/sovereign-dashboard/Dockerfile \
 #     --build-arg BASE_PATH=/ -t sovereign-dashboard .
+#
+# This container is the routing hub for all office.mathiaseltribe.org traffic.
+# nginx proxies sub-paths to other containers (path prefix is stripped before
+# forwarding so each downstream container serves from its own root):
+#
+#   /api/              → api:8080/api/
+#   /trace/            → trace:80/
+#   /atlas/            → atlas:80/   (also: /urban-indian-atlas/ alias)
+#   /trust/            → trust:80/
+#   /community/        → community:80/
+#   /authority/        → authority:80/
+#   /                  → sovereign static SPA
 # ============================================================================
 
 # ── Stage 1: install dependencies ────────────────────────────────────────────
@@ -53,10 +65,12 @@ COPY --from=builder /workspace/artifacts/sovereign-dashboard/dist/public \
 
 ARG API_HOST=api:8080
 ARG API_SCHEME=http
-# Host:port of the Urban Indian Atlas container (proxied at /urban-indian-atlas/).
 ARG ATLAS_HOST=atlas:80
-# Host:port of the TRACE compliance engine (proxied at /trace/).
 ARG TRACE_HOST=trace:80
+ARG TRUST_HOST=trust:80
+ARG COMMUNITY_HOST=community:80
+ARG AUTHORITY_HOST=authority:80
+
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -64,12 +78,7 @@ RUN printf "server {\n\
     gzip on;\n\
     gzip_types text/plain text/css application/javascript application/json;\n\
 \n\
-    # ✅ FIX: route Atlas traffic to atlas container\n\
-    location /urban-indian-atlas/ {\n\
-        proxy_pass http://atlas:80/;\n\
-    }\n\
-\n\
-    # Proxy API\n\
+    # ── API passthrough ──────────────────────────────────────────────────────\n\
     location /api/ {\n\
         proxy_pass         ${API_SCHEME}://${API_HOST}/api/;\n\
         proxy_ssl_verify   off;\n\
@@ -82,24 +91,8 @@ RUN printf "server {\n\
         proxy_read_timeout 60s;\n\
     }\n\
 \n\
-    # Proxy the Urban Indian Continuity Atlas (separate container).\n\
-    # The atlas is built with BASE_PATH=/urban-indian-atlas/ so its assets\n\
-    # are referenced at /urban-indian-atlas/assets/...; stripping the prefix\n\
-    # here routes those asset requests to the atlas container correctly.\n\
-    # ^~ prevents the *.js regex location from stealing asset requests.\n\
-    location ^~ /urban-indian-atlas/ {\n\
-        proxy_pass         http://${ATLAS_HOST}/;\n\
-        proxy_http_version 1.1;\n\
-        proxy_set_header   Host \$host;\n\
-        proxy_set_header   X-Real-IP \$remote_addr;\n\
-        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
-        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
-        proxy_read_timeout 60s;\n\
-    }\n\
-\n\
-    # Proxy TRACE — APA/CFR Compliance Engine (separate container).\n\
-    # The app is built with BASE_PATH=/trace/ so assets resolve correctly.\n\
-    # ^~ prevents the *.js regex location from stealing asset requests.\n\
+    # ── TRACE — APA/CFR Compliance Engine ────────────────────────────────────\n\
+    # Built with BASE_PATH=/trace/ — prefix stripped before proxy_pass.\n\
     location ^~ /trace/ {\n\
         proxy_pass         http://${TRACE_HOST}/;\n\
         proxy_http_version 1.1;\n\
@@ -110,12 +103,70 @@ RUN printf "server {\n\
         proxy_read_timeout 60s;\n\
     }\n\
 \n\
-    # SPA — serve static assets, fall back to index.html for client-side routes.\n\
+    # ── Urban Indian Continuity Atlas — /atlas/ (canonical) ──────────────────\n\
+    # Built with BASE_PATH=/atlas/ — prefix stripped before proxy_pass.\n\
+    location ^~ /atlas/ {\n\
+        proxy_pass         http://${ATLAS_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # ── Urban Indian Continuity Atlas — /urban-indian-atlas/ (backward compat)\n\
+    location ^~ /urban-indian-atlas/ {\n\
+        proxy_pass         http://${ATLAS_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # ── Trust Instruments Dashboard — /trust/ ────────────────────────────────\n\
+    # Built with BASE_PATH=/trust/ — prefix stripped before proxy_pass.\n\
+    location ^~ /trust/ {\n\
+        proxy_pass         http://${TRUST_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # ── Family & Community Dashboard — /community/ ───────────────────────────\n\
+    # Built with BASE_PATH=/community/ — prefix stripped before proxy_pass.\n\
+    location ^~ /community/ {\n\
+        proxy_pass         http://${COMMUNITY_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # ── Authority Directory & Oversight Routing — /authority/ ────────────────\n\
+    # Built with BASE_PATH=/authority/ — prefix stripped before proxy_pass.\n\
+    location ^~ /authority/ {\n\
+        proxy_pass         http://${AUTHORITY_HOST}/;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
+    # ── Sovereign SPA — serve static assets, SPA fallback ────────────────────\n\
     location / {\n\
         try_files \$uri \$uri/ /index.html;\n\
     }\n\
 \n\
-    # Cache static assets\n\
     location ~* \\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
         expires 1y;\n\
         add_header Cache-Control \"public, immutable\";\n\

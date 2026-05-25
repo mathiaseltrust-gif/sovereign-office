@@ -60,7 +60,7 @@ const navigation: { name: string; href: string; icon: React.ElementType; externa
     href: "#atlas",
     icon: Globe2,
     external: true,
-    externalHref: "/urban-indian-atlas/?mode=atlas",
+    externalHref: "/atlas/?mode=atlas",
     badge: "Atlas",
   },
   {
@@ -68,7 +68,7 @@ const navigation: { name: string; href: string; icon: React.ElementType; externa
     href: "#casefiles",
     icon: FolderOpen,
     external: true,
-    externalHref: "/authority-directory/case-files",
+    externalHref: "/authority/case-files",
     badge: "Cases",
   },
 ];

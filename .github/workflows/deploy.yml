@@ -61,26 +61,27 @@ env:
   REGISTRY: ${{ secrets.ACR_REGISTRY }}
 
   # ── Production domain names — SINGLE SOURCE OF TRUTH ─────────────────────
-  # To change a domain, update the matching GitHub Actions variable under
+  # All modules are served under office.mathiaseltribe.org via path-based routing.
+  # To change a URL, update the matching GitHub Actions variable under
   # Settings → Secrets and variables → Actions → Variables, then update the
-  # fallback default here.  These five values are referenced by every
-  # build-args block and by the HTTPS health-check step below — no other
-  # edits are needed.
+  # fallback default here.  These values are referenced by every build-args
+  # block and by the HTTPS health-check step below — no other edits needed.
   #
   #   Variable name   │ Example value
-  #   ────────────────┼──────────────────────────────────────────
-  #   VITE_API_URL    │ https://api.sovereignoffice.org
-  #   SOVEREIGN_URL   │ https://sovereign.sovereignoffice.org
-  #   TRUST_URL       │ https://trust.sovereignoffice.org
-  #   COMMUNITY_URL   │ https://community.sovereignoffice.org
-  #   ATLAS_URL       │ https://atlas.sovereignoffice.org
+  #   ────────────────┼─────────────────────────────────────────────────────
+  #   VITE_API_URL    │ https://office.mathiaseltribe.org/api
+  #   SOVEREIGN_URL   │ https://office.mathiaseltribe.org
+  #   TRUST_URL       │ https://office.mathiaseltribe.org/trust/
+  #   COMMUNITY_URL   │ https://office.mathiaseltribe.org/community/
+  #   ATLAS_URL       │ https://office.mathiaseltribe.org/atlas/
+  #   AUTHORITY_URL   │ https://office.mathiaseltribe.org/authority/
   # ─────────────────────────────────────────────────────────────────────────
-  VITE_API_URL:    ${{ vars.VITE_API_URL    || 'https://api.sovereignoffice.org' }}
-  SOVEREIGN_URL:   ${{ vars.SOVEREIGN_URL   || 'https://sovereign.sovereignoffice.org' }}
-  TRUST_URL:       ${{ vars.TRUST_URL       || 'https://trust.sovereignoffice.org' }}
-  COMMUNITY_URL:   ${{ vars.COMMUNITY_URL   || 'https://community.sovereignoffice.org' }}
-  ATLAS_URL:       ${{ vars.ATLAS_URL       || 'https://atlas.sovereignoffice.org' }}
-  AUTHORITY_URL:   ${{ vars.AUTHORITY_URL   || 'https://authority.mathiaseltribe.org' }}
+  VITE_API_URL:    ${{ vars.VITE_API_URL    || 'https://office.mathiaseltribe.org/api' }}
+  SOVEREIGN_URL:   ${{ vars.SOVEREIGN_URL   || 'https://office.mathiaseltribe.org' }}
+  TRUST_URL:       ${{ vars.TRUST_URL       || 'https://office.mathiaseltribe.org/trust/' }}
+  COMMUNITY_URL:   ${{ vars.COMMUNITY_URL   || 'https://office.mathiaseltribe.org/community/' }}
+  ATLAS_URL:       ${{ vars.ATLAS_URL       || 'https://office.mathiaseltribe.org/atlas/' }}
+  AUTHORITY_URL:   ${{ vars.AUTHORITY_URL   || 'https://office.mathiaseltribe.org/authority/' }}
 
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
@@ -137,7 +138,7 @@ jobs:
             local name="$1"
             local value="$2"
             if [ -z "$value" ]; then
-              echo "  ⚠ $name not set — will use default (https://authority.mathiaseltribe.org)"
+              echo "  ⚠ $name not set — will use default (https://office.mathiaseltribe.org/authority/)"
             elif [[ "$value" != https://* ]]; then
               echo "ERROR: $name must start with https:// for production (got: $value)." >&2
               FAIL=1
@@ -209,7 +210,7 @@ jobs:
           file: artifacts/trust-dashboard/Dockerfile
           push: true
           build-args: |
-            BASE_PATH=/
+            BASE_PATH=/trust/
             VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/trust-dashboard:${{ steps.meta.outputs.sha_tag }}
@@ -225,6 +226,7 @@ jobs:
           file: artifacts/community-dashboard/Dockerfile
           push: true
           build-args: |
+            BASE_PATH=/community/
             VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/community-dashboard:${{ steps.meta.outputs.sha_tag }}
@@ -240,7 +242,7 @@ jobs:
           file: artifacts/urban-indian-atlas/Dockerfile
           push: true
           build-args: |
-            BASE_PATH=/urban-indian-atlas/
+            BASE_PATH=/atlas/
             VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
@@ -272,7 +274,7 @@ jobs:
           file: artifacts/authority-directory/Dockerfile
           push: true
           build-args: |
-            BASE_PATH=/
+            BASE_PATH=/authority/
             VITE_API_URL=${{ env.VITE_API_URL }}
           tags: |
             ${{ env.REGISTRY }}/authority-directory:${{ steps.meta.outputs.sha_tag }}
@@ -395,11 +397,11 @@ jobs:
             docker image prune -f
 
 
-            # ── On-VM smoke test — all six services must respond 2xx ─────────────
-            # This is the first gate: it checks the raw container ports directly on
-            # the VM (before the external smoke-test job verifies the public URLs).
-            # A failure here aborts the SSH step and fails the deploy job immediately.
-            echo "==> On-VM smoke test — all six services..."
+            # ── On-VM smoke test — all services must respond 2xx ─────────────────
+            # Path-based routing: all dashboard modules are served through port 3001
+            # (sovereign gateway → sovereign container which proxies by path prefix).
+            # This is the first gate before the external smoke-test job.
+            echo "==> On-VM smoke test — all services via path-based routing..."
             SMOKE_FAIL=0
             # API health check (plain HTTP, port 8080)
             if curl -sf --max-time 15 http://localhost:8080/api/healthz > /dev/null; then
@@ -408,15 +410,15 @@ jobs:
               echo "  ✗ api (http :8080) — health check FAILED"
               SMOKE_FAIL=1
             fi
-            # Dashboard checks via SSL gateway (self-signed cert — skip verify)
-            for PORT_NAME in "3001:sovereign" "3002:trust" "3003:community" "3004:atlas" "3005:authority"; do
-              PORT="${PORT_NAME%%:*}"
-              NAME="${PORT_NAME##*:}"
-              CODE=$(curl -sfk --max-time 15 -o /dev/null -w "%{http_code}" https://localhost:$PORT/ || echo "000")
+            # All dashboard modules via SSL gateway on port 3001 (self-signed cert — skip verify)
+            for PATH_NAME in "/:sovereign" "/trust/:trust" "/community/:community" "/atlas/:atlas" "/authority/:authority" "/trace/:trace"; do
+              PATH_PREFIX="${PATH_NAME%%:*}"
+              NAME="${PATH_NAME##*:}"
+              CODE=$(curl -sfk --max-time 15 -o /dev/null -w "%{http_code}" "https://localhost:3001${PATH_PREFIX}" || echo "000")
               if [ "$CODE" = "200" ]; then
-                echo "  ✓ $NAME (https :$PORT)"
+                echo "  ✓ $NAME (https :3001${PATH_PREFIX})"
               else
-                echo "  ✗ $NAME (https :$PORT) — HTTP $CODE"
+                echo "  ✗ $NAME (https :3001${PATH_PREFIX}) — HTTP $CODE"
                 SMOKE_FAIL=1
               fi
             done

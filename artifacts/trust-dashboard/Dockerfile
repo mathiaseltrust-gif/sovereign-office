@@ -2,7 +2,10 @@
 # Sovereign Office — Trust Instruments Dashboard (static Vite build via nginx)
 # Build context: repo root
 #   docker build -f artifacts/trust-dashboard/Dockerfile \
-#     --build-arg BASE_PATH=/ -t trust-dashboard .
+#     --build-arg BASE_PATH=/trust/ -t trust-dashboard .
+#
+# Served at office.mathiaseltribe.org/trust/ via sovereign-dashboard proxy.
+# nginx serves from root; sovereign strips /trust/ before forwarding here.
 # ============================================================================
 
 # ── Stage 1: install dependencies ────────────────────────────────────────────
@@ -27,14 +30,12 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # ── Stage 2: build ───────────────────────────────────────────────────────────
 FROM deps AS builder
 
-ARG BASE_PATH=/
+ARG BASE_PATH=/trust/
 ARG VITE_API_URL=http://localhost:8080
 
 ENV BASE_PATH=${BASE_PATH}
 ENV VITE_API_URL=${VITE_API_URL}
 ENV NODE_ENV=production
-# vite.config.ts requires PORT at module load time (for dev server config).
-# During `vite build` no server is started, but the variable must be set.
 ENV PORT=5173
 ENV REPL_ID=""
 
@@ -78,7 +79,7 @@ RUN printf "server {\n\
         try_files \$uri \$uri/ /index.html;\n\
     }\n\
 \n\
-    location ~* \.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
+    location ~* \\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
         expires 1y;\n\
         add_header Cache-Control \"public, immutable\";\n\
     }\n\

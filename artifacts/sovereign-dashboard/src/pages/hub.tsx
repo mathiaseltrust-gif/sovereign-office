@@ -17,8 +17,8 @@ const POSITION_TITLES: Record<string, string | null> = {
   visitor_media: "Visitor",
 };
 
-const TRUST_URL = "https://trust-dashboard.redstone-3e658f00.eastus.azurecontainerapps.io";
-const COMMUNITY_URL = "https://community-dashboard.redstone-3e658f00.eastus.azurecontainerapps.io";
+const TRUST_URL = "/trust/";
+const COMMUNITY_URL = "/community/";
 
 function ServiceCard({
   icon: Icon,

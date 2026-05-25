@@ -460,7 +460,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
 
   // ── Ecosystem Portals ────────────────────────────────────────────────────────
   {
-    path: "/trust-dashboard",
+    path: "/trust/",
     label: "Trust Instruments Dashboard",
     section: "Ecosystem",
     description: "Full trust instruments management portal",
@@ -480,7 +480,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     external: true,
   },
   {
-    path: "/community-dashboard",
+    path: "/community/",
     label: "Community Dashboard",
     section: "Ecosystem",
     description: "Member-facing community portal for guidance and resources",
@@ -490,7 +490,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     external: true,
   },
   {
-    path: "/authority-directory",
+    path: "/authority/",
     label: "Authority Directory",
     section: "Ecosystem",
     description: "Agency authority directory, jurisdiction maps, and oversight routing",
@@ -500,7 +500,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     external: true,
   },
   {
-    path: "/urban-indian-atlas",
+    path: "/atlas",
     label: "Urban Indian Continuity Atlas",
     section: "Ecosystem",
     description: "Interactive map of urban Indian territories, ancestors, and migration paths",

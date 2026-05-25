@@ -62,12 +62,12 @@ function getTrusteeNav(): NavSectionDef[] {
       defaultOpen: true,
       items: [
         { href: "/files",        label: "Files",                    icon: FolderOpen },
-        { href: "/case-registry", label: "Case File Registry", icon: Scale, externalHref: "/authority-directory/case-files", highlight: true },
+        { href: "/case-registry", label: "Case File Registry", icon: Scale, externalHref: "/authority/case-files", highlight: true },
         { href: "/filings",      label: "Filings",                  icon: FileText },
         { href: "/templates",    label: "Document Templates",       highlight: true, icon: FilePen },
         { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
         { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
-        { href: "/atlas",        label: "Urban Indian Atlas",       highlight: true, icon: Map, externalHref: "/urban-indian-atlas/" },
+        { href: "/atlas",        label: "Urban Indian Atlas",       highlight: true, icon: Map, externalHref: "/atlas/" },
         { href: "/org",          label: "Organizations",            icon: Building2 },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
       ],
@@ -121,7 +121,7 @@ function getOfficerNav(): NavSectionDef[] {
       defaultOpen: true,
       items: [
         { href: "/dashboard/officer",  label: "Dashboard",            icon: LayoutDashboard },
-        { href: "/case-registry-officer", label: "Case File Registry", icon: Scale, externalHref: "/authority-directory/case-files", highlight: true },
+        { href: "/case-registry-officer", label: "Case File Registry", icon: Scale, externalHref: "/authority/case-files", highlight: true },
         { href: "/my-office",          label: "My Office",            icon: Archive },
         { href: "/land",               label: "Land & Asset Management", highlight: true, icon: Landmark },
         { href: "/membership",         label: "Membership Status",    icon: BadgeCheck },

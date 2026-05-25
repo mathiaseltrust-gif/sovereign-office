@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import { Globe2, ExternalLink, ArrowRight } from "lucide-react";
 
-const ATLAS_URL = "/urban-indian-atlas/?mode=atlas";
+const ATLAS_URL = "/atlas/?mode=atlas";
 
 /**
  * Ancestral Exposure Filter — now integrated into the Urban Indian Continuity Atlas.

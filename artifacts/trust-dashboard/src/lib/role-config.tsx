@@ -83,7 +83,7 @@ export function getRoleConfig(roles: string[]): RoleConfig {
         { label: "Overview", href: "/", icon: LayoutDashboard },
         { label: "Trust Instruments", href: "/instruments", icon: FolderOpen, group: "Trust Office" },
         { label: "Filings", href: "/filings", icon: FileText, group: "Trust Office" },
-        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority-directory/case-files" },
+        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority/case-files" },
         { label: "Notice of Federal Review", href: "/nfr", icon: Scale, group: "Court" },
         { label: "Member Administration", href: "/members", icon: Users, group: "Administration" },
       ],
@@ -109,7 +109,7 @@ export function getRoleConfig(roles: string[]): RoleConfig {
         { label: "Overview", href: "/", icon: LayoutDashboard },
         { label: "Trust Instruments", href: "/instruments", icon: FolderOpen, group: "Trust Office" },
         { label: "Filings", href: "/filings", icon: FileText, group: "Trust Office" },
-        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority-directory/case-files" },
+        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority/case-files" },
         { label: "Notice of Federal Review", href: "/nfr", icon: Scale, group: "Court" },
       ],
       whatNext: [
@@ -171,7 +171,7 @@ export function getRoleConfig(roles: string[]): RoleConfig {
         { label: "Overview", href: "/", icon: LayoutDashboard },
         { label: "Trust Instruments", href: "/instruments", icon: FolderOpen, group: "Trust Office" },
         { label: "Filings", href: "/filings", icon: FileText, group: "Trust Office" },
-        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority-directory/case-files" },
+        { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority/case-files" },
         { label: "Notice of Federal Review", href: "/nfr", icon: Scale, group: "Court" },
       ],
       whatNext: [
