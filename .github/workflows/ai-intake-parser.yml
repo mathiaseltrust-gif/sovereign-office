@@ -64,18 +64,23 @@ jobs:
           if [ -z "$TITLE" ]; then
             echo "Using built-in sample intake document"
             TITLE="[INTAKE] Land allotment dispute — Kern County parcel"
-            BODY="Matter Type: land
+          
+BODY=$(cat <<'EOF'
+Matter Type: land
+
 Urgency: high
-Parties: John Running Bear, Bureau of Indian Affairs – Pacific Region
+Parties: John Running Bear, Bureau of Indian Affairs - Pacific Region
 Deadline: 2026-07-01
 State: CA
 County: Kern
 
 Document Text:
+
 This matter concerns an unresolved allotment claim on trust land parcel APN 019-280-12
 in Kern County, California. The petitioner, John Running Bear, asserts that a 2019
 BIA determination incorrectly removed the parcel from trust status. Prior correspondence
 with the BIA Pacific Region office (dated March 4, 2026) went unanswered.
+
 Federal review under 25 CFR Part 151 may be required. ICWA does not directly apply.
 Treaty rights under the 1851 Fort Tejon Treaty may be implicated.
 
@@ -83,7 +88,9 @@ Legal Flags:
 - Trust land involved
 - Federal review required
 - Treaty rights implicated
-- Involves enrolled member"
+- Involves enrolled member
+EOF
+)
           fi
 
           echo "ISSUE_TITLE=$TITLE" >> "$GITHUB_OUTPUT"
