@@ -71,6 +71,8 @@ ARG TRUST_HOST=trust:80
 ARG COMMUNITY_HOST=community:80
 ARG AUTHORITY_HOST=authority:80
 
+# Host:port of the TRACE compliance engine (proxied at /trace/).
+ARG TRACE_HOST=trace:80
 RUN printf "server {\n\
     listen 80;\n\
     root /usr/share/nginx/html;\n\
@@ -118,6 +120,11 @@ RUN printf "server {\n\
     # ── Urban Indian Continuity Atlas — /urban-indian-atlas/ (backward compat)\n\
     location ^~ /urban-indian-atlas/ {\n\
         proxy_pass         http://${ATLAS_HOST}/;\n\
+    # Proxy TRACE — APA/CFR Compliance Engine (separate container).\n\
+    # The app is built with BASE_PATH=/trace/ so assets resolve correctly.\n\
+    # ^~ prevents the *.js regex location from stealing asset requests.\n\
+    location ^~ /trace/ {\n\
+        proxy_pass         http://${TRACE_HOST}/;\n\
         proxy_http_version 1.1;\n\
         proxy_set_header   Host \$host;\n\
         proxy_set_header   X-Real-IP \$remote_addr;\n\

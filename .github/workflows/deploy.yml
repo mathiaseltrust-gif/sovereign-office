@@ -281,7 +281,22 @@ jobs:
             ${{ env.REGISTRY }}/authority-directory:latest
           cache-from: type=registry,ref=${{ env.REGISTRY }}/authority-directory:latest
           cache-to: type=inline
-
+          
+      - name: Build and push — trace
+        uses: docker/build-push-action@v5
+        with:
+          push: true
+          context: .
+          file: artifacts/trace/Dockerfile
+          build-args: |
+            VITE_API_URL=${{ env.VITE_API_URL }}
+            BASE_PATH=/trace/
+          tags: |
+            ${{ env.REGISTRY }}/trace:${{ steps.meta.outputs.sha_tag }}
+            ${{ env.REGISTRY }}/trace:latest
+          cache-from: type=registry,ref=${{ env.REGISTRY }}/trace:latest
+          cache-to: type=inline
+          
       # ── SSL Gateway (nginx HTTPS termination on ports 3001-3005) ───────────
       - name: Build and push — sovereign-gateway
         uses: docker/build-push-action@v5
@@ -359,7 +374,7 @@ jobs:
               echo "==> No previous tag found — first deploy, rollback will not be available"
             fi
 
-            echo "==> Pulling new images (all eight services)"
+            echo "==> Pulling new images (all seven services)"
             docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             # ── Run database schema migrations BEFORE starting the api ────────────
