@@ -1442,10 +1442,10 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                             {lastNavigateCards.map((card, ci) => {
                               const isExternal = card.path.startsWith("/") && !card.path.startsWith("/profile") && (
                                 card.path.startsWith("/trace") ||
-                                card.path.startsWith("/trust-dashboard") ||
-                                card.path.startsWith("/community-dashboard") ||
-                                card.path.startsWith("/authority-directory") ||
-                                card.path.startsWith("/urban-indian-atlas")
+                                card.path.startsWith("/trust/") ||
+                                card.path.startsWith("/community/") ||
+                                card.path.startsWith("/authority/") ||
+                                card.path.startsWith("/atlas")
                               );
                               return (
                                 <button

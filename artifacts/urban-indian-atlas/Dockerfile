@@ -29,8 +29,9 @@ FROM deps AS builder
 
 ARG VITE_API_URL=http://localhost:8080
 # BASE_PATH must match the path prefix where the app is served.
-# When proxied through sovereign-dashboard at /urban-indian-atlas/, use that value.
-ARG BASE_PATH=/urban-indian-atlas/
+# Canonical path is /atlas/ (short alias). /urban-indian-atlas/ is kept as a
+# backward-compat alias in sovereign-dashboard's nginx.
+ARG BASE_PATH=/atlas/
 
 ENV VITE_API_URL=${VITE_API_URL}
 ENV BASE_PATH=${BASE_PATH}

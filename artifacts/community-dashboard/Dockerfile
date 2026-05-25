@@ -2,7 +2,10 @@
 # Sovereign Office — Community Dashboard (Vite SPA served by nginx)
 # Build context: repo root
 #   docker build -f artifacts/community-dashboard/Dockerfile \
-#     --build-arg VITE_API_URL=http://api:8080 -t community-dashboard .
+#     --build-arg BASE_PATH=/community/ -t community-dashboard .
+#
+# Served at office.mathiaseltribe.org/community/ via sovereign-dashboard proxy.
+# nginx serves from root; sovereign strips /community/ before forwarding here.
 # =============================================================================
 
 # ── Stage 1: install dependencies ────────────────────────────────────────────
@@ -28,7 +31,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS builder
 
 ARG VITE_API_URL=http://localhost:8080
-ARG BASE_PATH=/
+ARG BASE_PATH=/community/
 
 ENV VITE_API_URL=${VITE_API_URL}
 ENV BASE_PATH=${BASE_PATH}

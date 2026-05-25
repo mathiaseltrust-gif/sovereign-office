@@ -14,7 +14,7 @@ Chief's Office:
 
 Governance:
 - Files (/files) — General tribal file repository
-- Case File Registry (/case-registry → /authority-directory/case-files) — All open and closed case files
+- Case File Registry (/case-registry → /authority/case-files) — All open and closed case files
 - Filings (/filings) — Formal filings with tribal and federal agencies
 - Document Templates (/templates) — Ready-to-use sovereign templates (NFR, ICWA, notices, letters)
 - Trust Instruments (/instruments) — Trust deeds and governance instruments
@@ -71,7 +71,7 @@ Ecosystem Portals (other dashboards):
 - TRACE — Compliance Engine (/trace/) — Administrative Procedure & Compliance Engine, NIAC review
 - Community Dashboard (/community-dashboard) — Member-facing community portal
 - Authority Directory (/authority-directory) — Agency directory and jurisdiction maps
-- Urban Indian Continuity Atlas (/urban-indian-atlas) — Ancestral migration map
+- Urban Indian Continuity Atlas (/atlas) — Ancestral migration map
 `.trim();
 
 /**

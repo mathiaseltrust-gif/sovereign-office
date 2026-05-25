@@ -2,7 +2,10 @@
 # Sovereign Office — Authority Directory & Oversight Routing Dashboard
 # Build context: repo root
 #   docker build -f artifacts/authority-directory/Dockerfile \
-#     --build-arg BASE_PATH=/ -t authority-directory .
+#     --build-arg BASE_PATH=/authority/ -t authority-directory .
+#
+# Served at office.mathiaseltribe.org/authority/ via sovereign-dashboard proxy.
+# nginx serves from root; sovereign strips /authority/ before forwarding here.
 # ============================================================================
 
 # ── Stage 1: install dependencies ────────────────────────────────────────────
@@ -27,7 +30,7 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 # ── Stage 2: build ───────────────────────────────────────────────────────────
 FROM deps AS builder
 
-ARG BASE_PATH=/
+ARG BASE_PATH=/authority/
 ARG VITE_API_URL=http://localhost:8080
 
 ENV BASE_PATH=${BASE_PATH}
@@ -76,7 +79,7 @@ RUN printf "server {\n\
         try_files \$uri \$uri/ /index.html;\n\
     }\n\
 \n\
-    location ~* \.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
+    location ~* \\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
         expires 1y;\n\
         add_header Cache-Control \"public, immutable\";\n\
     }\n\

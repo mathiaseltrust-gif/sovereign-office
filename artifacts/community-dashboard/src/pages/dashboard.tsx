@@ -202,7 +202,7 @@ export default function Dashboard() {
               </CardDescription>
             </CardHeader>
             <CardFooter className="mt-auto pt-4">
-              <a href="/urban-indian-atlas/?mode=atlas" target="_blank" rel="noopener noreferrer" className="w-full">
+              <a href="/atlas/?mode=atlas" target="_blank" rel="noopener noreferrer" className="w-full">
                 <Button className="w-full justify-between group" variant="default" size="sm">
                   <span>Open Atlas</span>
                   <ExternalLink className="h-3.5 w-3.5" />

@@ -136,7 +136,7 @@ export default function App() {
         <WouterRouter base={(() => {
             const envBase = import.meta.env.BASE_URL.replace(/\/$/, "");
             if (envBase && envBase !== "") return envBase;
-            if (typeof window !== "undefined" && window.location.pathname.startsWith("/authority-directory")) return "/authority-directory";
+            if (typeof window !== "undefined" && window.location.pathname.startsWith("/authority")) return "/authority";
             return "";
           })()}>
           <Router />

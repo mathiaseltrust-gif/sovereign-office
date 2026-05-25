@@ -776,7 +776,7 @@ function TreeNode({ person, isMain = false }: { person: FamilyPerson; isMain?: b
   );
   if (isAncestor) {
     return (
-      <a href={`/urban-indian-atlas/?mode=atlas&person=${person.id}`} target="_blank" rel="noopener noreferrer" className={cardClass}>
+      <a href={`/atlas/?mode=atlas&person=${person.id}`} target="_blank" rel="noopener noreferrer" className={cardClass}>
         {inner}
       </a>
     );
@@ -1341,7 +1341,7 @@ export default function MemberDetail() {
                   </div>
                   {(member.isDeceased || member.isAncestor) && (
                     <a
-                      href={`/urban-indian-atlas/?mode=atlas&person=${member.id}`}
+                      href={`/atlas/?mode=atlas&person=${member.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 text-xs text-primary/70 hover:text-primary transition-colors"
@@ -1373,7 +1373,7 @@ export default function MemberDetail() {
                   {/* "View in Atlas" — shown for deceased or ancestor records */}
                   {(member.isDeceased || member.isAncestor) && (
                     <a
-                      href={`/urban-indian-atlas/?mode=atlas&person=${member.id}`}
+                      href={`/atlas/?mode=atlas&person=${member.id}`}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md border border-primary/30 bg-primary/5 text-[10px] font-semibold text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors"
@@ -1429,7 +1429,7 @@ export default function MemberDetail() {
                             </div>
                           );
                           return isAnc
-                            ? <a key={sibling.id} href={`/urban-indian-atlas/?mode=atlas&person=${sibling.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            ? <a key={sibling.id} href={`/atlas/?mode=atlas&person=${sibling.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
                             : <Link key={sibling.id} href={`/directory/${sibling.id}`}>{card}</Link>;
                         })}
                       </div>
@@ -1456,7 +1456,7 @@ export default function MemberDetail() {
                             </div>
                           );
                           return isAnc
-                            ? <a key={parent.id} href={`/urban-indian-atlas/?mode=atlas&person=${parent.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            ? <a key={parent.id} href={`/atlas/?mode=atlas&person=${parent.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
                             : <Link key={parent.id} href={`/directory/${parent.id}`}>{card}</Link>;
                         })}
                       </div>
@@ -1505,7 +1505,7 @@ export default function MemberDetail() {
                             </div>
                           );
                           return isAnc
-                            ? <a key={child.id} href={`/urban-indian-atlas/?mode=atlas&person=${child.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
+                            ? <a key={child.id} href={`/atlas/?mode=atlas&person=${child.id}`} target="_blank" rel="noopener noreferrer">{card}</a>
                             : <Link key={child.id} href={`/directory/${child.id}`}>{card}</Link>;
                         })}
                       </div>
