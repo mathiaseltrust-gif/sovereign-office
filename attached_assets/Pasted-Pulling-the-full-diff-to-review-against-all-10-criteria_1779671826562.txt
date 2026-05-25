@@ -1,0 +1,99 @@
+Pulling the full diff to review against all 10 criteria:
+
+
+5 actions
+Good — DB and auth checks clean. Now checking the remaining 8 criteria in parallel:
+
+
+8 actions
+All data gathered. Compiling the full risk review:
+
+PR Risk Review — routing-standardization-office-paths
+Diff scope: 20 files, 210 insertions / 208 deletions — almost exactly a net-zero line change, purely structural.
+
+1. ✅ No database migrations
+Zero changes to lib/db/migrations/, schema.*, or seed files. Confirmed by empty diff output.
+
+2. ✅ Auth/session logic unchanged — except one correct URL fix
+The only auth-adjacent change is in docker-compose.prod.yml:
+
+- MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-https://20.83.210.26:3001/microsoft/callback}
++ MICROSOFT_REDIRECT_URI: ${MICROSOFT_REDIRECT_URI:-https://office.mathiaseltribe.org/microsoft/callback}
+
+This is a fix, not a risk. The raw IP+port default was wrong for production. No session middleware, auth routes, token handling, or cookie logic touched.
+
+3. ✅ No family/lineage/GEDCOM/profile data logic changed
+All 6 changes in member-detail.tsx are only href string replacements:
+
+- href={`/urban-indian-atlas/?mode=atlas&person=${person.id}`}
++ href={`/atlas/?mode=atlas&person=${person.id}`}
+
+The person.id passthrough, tree rendering logic, lineage data fetching, and GEDCOM handlers are completely untouched. No data logic was approached.
+
+4. ✅ No destructive deployment commands added
+Grep for rm -rf, docker rmi, docker rm -f, prune -a, reset --hard, force, DROP, DELETE, TRUNCATE across deploy.yml additions returned zero results. The only new shell code is a for loop running curl checks.
+
+5. ✅ /trace/ routing intact
+The sovereign Dockerfile preserves the existing ^~/trace/ proxy block unchanged. The BASE_PATH=/trace/ build arg in deploy.yml is not modified. Trace is on the same path in both old and new architecture.
+
+6. ✅ Old aliases redirect cleanly — harmless
+Gateway (ports 3002–3005): Retained as listeners, now proxy to sovereign:80/trust/, /community/, /atlas/, /authority/ respectively. Functionally correct — requests hit sovereign's routing hub and get served normally.
+
+VM nginx subdomains: Old domains now issue 301 redirects:
+
+trust.sovereignoffice.org      → office.mathiaseltribe.org/trust/
+community.sovereignoffice.org  → office.mathiaseltribe.org/community/
+atlas.mathiaseltribe.org       → office.mathiaseltribe.org/atlas/
+authority.mathiaseltribe.org   → office.mathiaseltribe.org/authority/
+
+ACME challenge blocks preserved on all server blocks — Certbot renewals remain unaffected.
+
+⚠️ Operational note: nginx-sovereign.conf is a manually deployed file — it must be copied to the VM and nginx reloaded after deploy for the 301 redirects to take effect. CI/CD does not apply this automatically. The Docker-layer changes are all CI/CD-driven.
+
+7. ✅ GitHub Actions build args match exactly
+App	Build arg
+trust-dashboard	BASE_PATH=/trust/ ✅
+community-dashboard	BASE_PATH=/community/ ✅
+urban-indian-atlas	BASE_PATH=/atlas/ ✅
+authority-directory	BASE_PATH=/authority/ ✅
+trace	BASE_PATH=/trace/ ✅ (unchanged)
+sovereign-dashboard	BASE_PATH=/ ✅ (unchanged)
+8. ✅ Smoke tests target the new path-based routes
+On-VM (first gate):
+
+for PATH_NAME in "/:sovereign" "/trust/:trust" "/community/:community" \
+                 "/atlas/:atlas" "/authority/:authority" "/trace/:trace"; do
+  curl -sfk https://localhost:3001${PATH_PREFIX}
+
+Tests all 6 modules through the single port 3001.
+
+External (second gate):
+
+TRUST_URL     = https://office.mathiaseltribe.org/trust/
+COMMUNITY_URL = https://office.mathiaseltribe.org/community/
+ATLAS_URL     = https://office.mathiaseltribe.org/atlas/
+AUTHORITY_URL = https://office.mathiaseltribe.org/authority/
+
+API healthz still checked at office.mathiaseltribe.org/api/healthz.
+
+9. ✅ Rollback path unchanged
+The rollback job and .last_good_tag write logic were not modified (confirmed by empty diff on those lines). If any smoke test fails, the existing rollback mechanism triggers identically to before.
+
+10. ✅ If merged: only routing and deployment paths change, not core data
+Every changed file falls into one of:
+
+Dockerfiles — build args and nginx location blocks
+nginx configs — routing rules and upstream targets
+deploy.yml — build args, URL env vars, smoke test paths
+Source files — href string values only, all pointing to the new canonical paths
+No API endpoints, database queries, state management, component logic, or business rules were modified.
+
+Verdict
+✅ SAFE TO MERGE
+With one action required before or after merge:
+Manually apply nginx-sovereign.conf to the Azure VM after the Docker deploy completes:
+
+sudo cp nginx-sovereign.conf /etc/nginx/sites-available/sovereign-office
+sudo nginx -t && sudo systemctl reload nginx
+
+Without this step, the old subdomains won't redirect — but office.mathiaseltribe.org itself will work correctly (CI/CD handles all Docker routing changes automatically).
