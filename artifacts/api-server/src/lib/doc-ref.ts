@@ -80,6 +80,51 @@ async function ensureSequenceTable(): Promise<void> {
   _seqTableEnsured = true;
 }
 
+async function ensureProfileIdentityColumns(): Promise<void> {
+  const profileColumnStatements = [
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS legal_name text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS preferred_name text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tribal_name text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS nickname text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS title text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS family_group text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS jurisdiction_tags jsonb DEFAULT '[]'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS welfare_tags jsonb DEFAULT '[]'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS notification_preferences jsonb DEFAULT '{}'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS membership_verified boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS entra_verified boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS lineage_verified boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS delegated_authorities jsonb DEFAULT '{}'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS apn text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS mailing_address text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS land_status varchar(50)`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS legal_description text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS has_recorded_instrument boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS signature_url text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS tribal_land_code text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS doc_numbers jsonb DEFAULT '[]'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS land_restriction_basis jsonb DEFAULT '[]'::jsonb`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS land_classification text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS self_executing boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS signature_consent boolean NOT NULL DEFAULT false`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS kinship_to_tribe text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS chief_statement text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS chief_statement_ref text`,
+    `ALTER TABLE profiles ADD COLUMN IF NOT EXISTS trace_access boolean NOT NULL DEFAULT false`,
+  ];
+
+  for (const statement of profileColumnStatements) {
+    try {
+      await db.execute(sql.raw(statement));
+    } catch (err) {
+      logger.warn({ statement, err }, "Could not ensure profile identity column");
+      throw err;
+    }
+  }
+
+  logger.info("Profile identity columns ensured");
+}
+
 /**
  * Atomically returns the next tribal reference number for a document type.
  * Counter resets at the start of each calendar year.
@@ -119,6 +164,7 @@ export async function nextDocRef(docType: string): Promise<string> {
  */
 export async function ensureDocRefColumns(): Promise<void> {
   await ensureSequenceTable();
+  await ensureProfileIdentityColumns();
 
   const drizzleTables = [
     "trust_instruments",
