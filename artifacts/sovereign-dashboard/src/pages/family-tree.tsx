@@ -74,8 +74,8 @@ interface LineageNode {
 }
 
 interface PositionedNode extends LineageNode {
-  x: number;
   y: number;
+  x: number;
 }
 
 interface Edge {
