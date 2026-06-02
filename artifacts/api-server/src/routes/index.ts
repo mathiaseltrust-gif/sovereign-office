@@ -93,6 +93,7 @@ import adminIdDocumentRouter from "./admin/id-document";
 import usersRouter from "./users";
 import traceRouter from "./trace/index";
 import githubIntakeRouter from "./github/intake";
+import harmonizationProfileRouter from "./harmonization/profile";
 
 const router: IRouter = Router();
 
@@ -191,5 +192,6 @@ router.use("/authority", authorityRouter);
 router.use("/case-files", caseFilesRouter);
 router.use("/trace", traceRouter);
 router.use("/github/intake", githubIntakeRouter);
+router.use("/harmonization/profile", harmonizationProfileRouter);
 
 export default router;
