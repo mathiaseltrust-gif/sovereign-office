@@ -1,0 +1,1 @@
+{"name":"people-platform","version":"0.1.0","private":true,"type":"module","scripts":{"dev":"tsx src/server.ts","typecheck":"tsc --noEmit","build":"tsc -p tsconfig.json"},"dependencies":{"@types/express":"latest","cors":"latest","dotenv":"latest","express":"latest","pg":"latest","zod":"latest"},"devDependencies":{"tsx":"latest","typescript":"latest","@types/node":"latest"}}
