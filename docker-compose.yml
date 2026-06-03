@@ -42,6 +42,10 @@ services:
       context: .
       dockerfile: artifacts/api-server/Dockerfile
     restart: unless-stopped
+    entrypoint: ["node"]
+    command: ["/app/dist/index.mjs"]
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
       - "8080:8080"
     environment:
@@ -88,69 +92,22 @@ services:
       - "3001:80"
     depends_on:
       - api
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    entrypoint:
+      - sh
+      - -c
+      - |
+        find /etc/nginx/conf.d -type f -name '*.conf' -exec sed -i \
+          -e 's|api:8080|host.docker.internal:8080|g' \
+          -e 's|server api|server host.docker.internal|g' \
+          -e 's|server atlas|server host.docker.internal|g' \
+          -e 's|atlas:80|host.docker.internal:3003|g' \
+          -e 's|trust:80|host.docker.internal:3002|g' \
+          -e 's|trace:80|host.docker.internal:3006|g' \
+          {} \;
+        nginx -g 'daemon off;'
 
-  # ── TRACE — APA/CFR Compliance Engine ──────────────────────────────────────
-  # Proxied through sovereign-dashboard at /trace/
-  # Direct access at http://localhost:3006/ for local debugging
-  trace:
-    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/trace:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: artifacts/trace/Dockerfile
-      args:
-        BASE_PATH: /trace/
-        VITE_API_URL: ${APP_URL:-http://localhost:8080}
-    restart: unless-stopped
-    ports:
-      - "3006:80"
-    depends_on:
-      - api
 
-  # ── Urban Indian Continuity Atlas ───────────────────────────────────────────
-  # Proxy mode (office.mathiaseltribe.org): BASE_PATH=/urban-indian-atlas/ (default)
-  # Standalone mode (atlas.mathiaseltribe.org): override BASE_PATH to /
-  atlas:
-    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/urban-indian-atlas:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: artifacts/urban-indian-atlas/Dockerfile
-      args:
-        BASE_PATH: /urban-indian-atlas/
-        VITE_API_URL: ${APP_URL:-http://localhost:8080}
-    restart: unless-stopped
-    ports:
-      - "3003:80"
-    depends_on:
-      - api
-
-  # ── Trust Instruments Dashboard ─────────────────────────────────────────────
-  trust:
-    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/trust-dashboard:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: artifacts/trust-dashboard/Dockerfile
-      args:
-        BASE_PATH: /
-        VITE_API_URL: ${APP_URL:-http://localhost:8080}
-    restart: unless-stopped
-    ports:
-      - "3002:80"
-    depends_on:
-      - api
-      
-# ── Urban Indian Atlas ─────────────────────────────────────────────
-  atlas:
-    image: ${ACR_REGISTRY:-sovereignoffice.azurecr.io}/urban-indian-atlas:${IMAGE_TAG:-latest}
-    build:
-      context: .
-      dockerfile: artifacts/urban-indian-atlas/Dockerfile
-      args:
-        VITE_API_URL: ${APP_URL:-http://localhost:8080}
-    restart: unless-stopped
-    ports:
-      - "3003:80"
-    depends_on:
-      - api
-      
 volumes:
   db_data:
