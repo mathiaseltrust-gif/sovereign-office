@@ -165,6 +165,17 @@ export async function harmonizeCanonicalProfile(input: CanonicalProfileHarmonize
     .where(eq(familyLineageTable.linkedProfileUserId, userId))
     .limit(1);
 
+  const landParcelResult = await db.execute(sql`
+    SELECT *
+    FROM land_parcels
+    WHERE
+      parcel_id = ${String((profile as any)?.apn ?? "")}
+      OR tribal_code_ref = ${String((profile as any)?.tribalLandCode ?? "")}
+    LIMIT 1
+  `);
+  const landParcelRows = Array.isArray(landParcelResult) ? landParcelResult : (landParcelResult as any).rows;
+  const landParcel = landParcelRows?.[0] ?? null;
+
   const activeMatters = input.includeRecentMatters === false
     ? []
     : await db
@@ -183,11 +194,23 @@ export async function harmonizeCanonicalProfile(input: CanonicalProfileHarmonize
         .orderBy(desc(nfrReviewSignalsTable.createdAt))
         .limit(10);
 
-  const apn = normalizeText((profile as any)?.apn);
+  const apn =
+    normalizeText((landParcel as any)?.parcel_id) ??
+    normalizeText((profile as any)?.apn);
+
   const mailingAddress = normalizeText((profile as any)?.mailingAddress);
-  const landStatus = normalizeStatus((profile as any)?.landStatus);
-  const landClassification = normalizeStatus((profile as any)?.landClassification);
-  const tribalLandCode = normalizeText((profile as any)?.tribalLandCode);
+
+  const landStatus =
+    normalizeStatus((landParcel as any)?.jurisdictional_status) ??
+    normalizeStatus((profile as any)?.landStatus);
+
+  const landClassification =
+    normalizeStatus((landParcel as any)?.classification) ??
+    normalizeStatus((profile as any)?.landClassification);
+
+  const tribalLandCode =
+    normalizeText((landParcel as any)?.tribal_code_ref) ??
+    normalizeText((profile as any)?.tribalLandCode);
   const traceAccess = Boolean((profile as any)?.traceAccess);
   const headTribalNation = normalizeText((linkedNode as any)?.tribalNation);
 
