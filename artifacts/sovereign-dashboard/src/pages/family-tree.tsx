@@ -211,14 +211,18 @@ const H_GAP = 48;
 const V_GAP = 80;
 const CANVAS_PADDING = 60;
 
-function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = []): { positioned: PositionedNode[]; totalW: number; totalH: number } {
+function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], preferredRootId?: number | null): { positioned: PositionedNode[]; totalW: number; totalH: number } {
   if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
 
   // ── Identify root (lowest gen, or ID 20 if present) ──────────────────────
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const rootNode = nodes.find((n) => n.id === 20) ?? nodes.reduce((a, b) =>
-    (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
-  );
+  const rootNode =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
+    ?? nodes.reduce((a, b) =>
+      (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
+    );
 
   // ── Tag each node as paternal / maternal / root via BFS ──────────────────
   const side = new Map<number, "root" | "paternal" | "maternal">();
@@ -1066,7 +1070,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   const treeNodes = connectedNodes;
 
-  const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes, familyUnits), [treeNodes, familyUnits]);
+  const preferredRootId =
+    treeNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id ?? null;
+
+  const { positioned, totalW, totalH } = useMemo(
+    () => computeLayout(treeNodes, familyUnits, preferredRootId),
+    [treeNodes, familyUnits, preferredRootId]
+  );
   const edges = useMemo(() => buildEdges(positioned, familyUnits), [positioned, familyUnits]);
 
   const containerRef = useRef<HTMLDivElement>(null);
