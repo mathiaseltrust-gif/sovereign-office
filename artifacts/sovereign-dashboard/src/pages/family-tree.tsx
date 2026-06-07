@@ -699,14 +699,17 @@ interface PedigreeNode extends LineageNode {
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
-function computePedigreeLayout(nodes: LineageNode[]): {
+function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | null): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
   pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }>;
 } {
   const byId = new Map(nodes.map(n => [n.id, n]));
-  const root = nodes.find(n => n.id === 20)
+  const root =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
     ?? nodes.find(n => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0];
   if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
@@ -798,9 +801,12 @@ interface FanEntry {
   a1: number; a2: number; isPat: boolean;
 }
 
-function buildFanEntries(nodes: LineageNode[]): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
+function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const root = nodes.find((n) => n.id === 20)
+  const root =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
     ?? nodes.find((n) => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0] ?? null;
   if (!root) return { entries: [], root: null, maxGen: 0 };
@@ -1095,11 +1101,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const importRef = useRef<HTMLInputElement>(null);
 
   const pedigreeData = useMemo(
-    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
     [treeNodes, treeView],
   );
   const fanData = useMemo(
-    () => treeView === "fan" ? buildFanEntries(treeNodes) : { entries: [], root: null, maxGen: 0 },
+    () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId) : { entries: [], root: null, maxGen: 0 },
     [treeNodes, treeView],
   );
   const fanCanvasSize = useMemo(() => {
