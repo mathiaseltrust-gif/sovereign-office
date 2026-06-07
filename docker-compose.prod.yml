@@ -84,14 +84,8 @@ services:
       - sh
       - -c
       - |
-        find /etc/nginx/conf.d -type f -name '*.conf' -exec sed -i \
-          -e 's|api:8080|host.docker.internal:8080|g' \
-          -e 's|server api|server host.docker.internal|g' \
-          -e 's|server atlas|server host.docker.internal|g' \
-          -e 's|atlas:80|host.docker.internal:3003|g' \
-          -e 's|trust:80|host.docker.internal:3002|g' \
-          -e 's|trace:80|host.docker.internal:3006|g' \
-          {} \;
+        # Keep Docker service-name routing inside the compose network.
+        # Do not rewrite atlas/trace/trust/api to host.docker.internal.
         nginx -g 'daemon off;'
     depends_on:
       api:
