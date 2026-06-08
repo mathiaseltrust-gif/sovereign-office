@@ -321,11 +321,14 @@ function AppRouter() {
       <Route path="/welfare">
         {() => <ProtectedRoute component={WelfarePage} />}
       </Route>
+      <Route path="/lineage">
+        {() => <ProtectedRoute component={GedcomImportPage} />}
+      </Route>
       <Route path="/family-tree">
-        {() => <ProtectedRoute component={FamilyTreePage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/kinship-tree">
-        {() => <ProtectedRoute component={KinshipTreePage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/ancestral-affiliations">
         {() => <ProtectedRoute component={AncestralAffiliationsPage} />}
@@ -390,7 +393,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={M365IntegrationPage} />}
       </Route>
       <Route path="/admin/lineage-import">
-        {() => <ProtectedRoute component={AdminLineageImportPage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/business-canvas/new">
         {() => <ProtectedRoute component={BusinessCanvasWizard} />}
@@ -505,7 +508,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={AncestralExposurePage} />}
       </Route>
       <Route path="/gedcom-import">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/admin/email-preview">
         {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
