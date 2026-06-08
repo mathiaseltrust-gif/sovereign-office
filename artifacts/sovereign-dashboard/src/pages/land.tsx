@@ -266,7 +266,7 @@ function daysUntil(dateStr: string) {
 
 function internalStatusColor(s: string) {
   const m: Record<string, string> = {
-    tribal_government_land: "bg-amber-700 text-amber-100",
+    tribal_government_land: "bg-amber-100 text-amber-950 border border-amber-400",
     tribal_trust_stewardship: "bg-emerald-700 text-emerald-100",
     protected_tribal_land: "bg-blue-700 text-blue-100",
     restricted_tribal_status: "bg-violet-700 text-violet-100",
@@ -280,7 +280,8 @@ function internalStatusColor(s: string) {
 
 function jurisdictionColor(s: string) {
   const m: Record<string, string> = {
-    exclusive_tribal: "text-emerald-400",
+    exclusive_tribal: "text-emerald-700",
+    exclusive_tribal_jurisdiction: "text-emerald-700",
     concurrent: "text-blue-400",
     contested: "text-red-400",
     federal_overlay: "text-amber-400",
@@ -322,10 +323,10 @@ function Modal({ title, subtitle, onClose, children }: {
 }) {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
-      <div className="bg-[#111] border border-border rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
-        <div className="flex items-start justify-between px-6 py-4 border-b border-border sticky top-0 bg-[#111] z-10">
+      <div className="bg-white text-slate-950 border border-slate-300 rounded-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl">
+        <div className="flex items-start justify-between px-6 py-4 border-b border-slate-200 sticky top-0 bg-white z-10">
           <div>
-            <h2 className="text-base font-semibold text-amber-400">{title}</h2>
+            <h2 className="text-base font-semibold text-slate-950">{title}</h2>
             {subtitle && <p className="text-xs text-muted-foreground mt-0.5">{subtitle}</p>}
           </div>
           <button onClick={onClose} className="text-muted-foreground hover:text-foreground mt-0.5">
@@ -1120,7 +1121,15 @@ function ParcelsTab({ parcels, assignments, onRefresh, onSelectParcel }: { parce
                   >
                     {p.tract_number || p.parcel_id || `#${p.id}` || "—"}
                   </button>
-                  {p.tribal_code_ref && <div className="text-[10px] text-amber-500 mt-0.5">{p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}</div>}
+                  {p.tribal_code_ref && (
+                <button
+                  onClick={() => onSelectParcel?.(p)}
+                  className="text-[11px] text-amber-700 hover:text-amber-900 hover:underline mt-0.5 font-mono font-semibold"
+                  title={`Open land profile for ${p.tribal_code_ref}`}
+                >
+                  {p.tribal_code_ref.replace("METC.T4.", "METC T4 ")}
+                </button>
+              )}
                   {p.tribal_court_order_num && <div className="text-[10px] text-muted-foreground">Order: {p.tribal_court_order_num}</div>}
                 </td>
                 <td className="px-4 py-3 max-w-[200px]">
