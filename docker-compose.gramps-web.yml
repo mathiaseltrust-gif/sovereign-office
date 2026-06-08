@@ -1,0 +1,46 @@
+# Gramps Web sidecar integration for Sovereign Office
+#
+# This compose file intentionally does NOT alter docker-compose.prod.yml or gateway routing.
+# It runs Gramps Web as a separate sidecar first so GEDCOM import and tree rendering can be proven
+# before wiring it into the main gateway.
+#
+# Usage:
+#   docker compose -f docker-compose.gramps-web.yml up -d
+#
+# Open:
+#   http://<server-ip>:5050
+#
+# Notes:
+# - Sovereign Office remains the authority for tribal membership, member numbers, land, trust, NFR,
+#   Companion, and verification.
+# - Gramps Web is the genealogy engine/viewer for GEDCOM, fan charts, pedigrees, family units,
+#   sources, events, and relationship traversal.
+
+services:
+  grampsweb:
+    image: ghcr.io/gramps-project/grampsweb:latest
+    restart: unless-stopped
+    ports:
+      - "5050:5000"
+    environment:
+      GRAMPSWEB_TREE: "Mathias-El-Lineage"
+      GRAMPSWEB_SECRET_KEY: "${GRAMPSWEB_SECRET_KEY:-change-me-before-public-use}"
+      GRAMPSWEB_BASE_URL: "${GRAMPSWEB_BASE_URL:-http://localhost:5050}"
+    volumes:
+      - gramps_users:/app/users
+      - gramps_index:/app/indexdir
+      - gramps_thumb_cache:/app/thumbnail_cache
+      - gramps_cache:/app/cache
+      - gramps_secret:/app/secret
+      - gramps_db:/root/.gramps/grampsdb
+      - gramps_media:/app/media
+      - ./gramps-import:/import
+
+volumes:
+  gramps_users:
+  gramps_index:
+  gramps_thumb_cache:
+  gramps_cache:
+  gramps_secret:
+  gramps_db:
+  gramps_media:
