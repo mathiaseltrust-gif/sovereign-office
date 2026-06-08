@@ -41,6 +41,7 @@ const IntakeAiPage = lazy(() => import("@/pages/intake-ai"));
 const IntakeCompanionPage = lazy(() => import("@/pages/intake-companion"));
 const CourtDocumentsPage = lazy(() => import("@/pages/court-documents"));
 const FamilyTreePage = lazy(() => import("@/pages/family-tree"));
+const KinshipTreePage = lazy(() => import("@/pages/kinship-tree"));
 const MedicalNotesPage = lazy(() => import("@/pages/medical-notes"));
 const SupremeCourtPage = lazy(() => import("@/pages/supreme-court"));
 const TribalTrustPage = lazy(() => import("@/pages/tribal-trust"));
@@ -322,6 +323,9 @@ function AppRouter() {
       </Route>
       <Route path="/family-tree">
         {() => <ProtectedRoute component={FamilyTreePage} />}
+      </Route>
+      <Route path="/kinship-tree">
+        {() => <ProtectedRoute component={KinshipTreePage} />}
       </Route>
       <Route path="/ancestral-affiliations">
         {() => <ProtectedRoute component={AncestralAffiliationsPage} />}
