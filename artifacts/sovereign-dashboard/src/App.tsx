@@ -325,10 +325,10 @@ function AppRouter() {
         {() => <ProtectedRoute component={GedcomImportPage} />}
       </Route>
       <Route path="/family-tree">
-        {() => <Redirect to="/lineage" />}
+        {() => <ProtectedRoute component={FamilyTreePage} />}
       </Route>
       <Route path="/kinship-tree">
-        {() => <Redirect to="/lineage" />}
+        {() => <ProtectedRoute component={KinshipTreePage} />}
       </Route>
       <Route path="/ancestral-affiliations">
         {() => <ProtectedRoute component={AncestralAffiliationsPage} />}
