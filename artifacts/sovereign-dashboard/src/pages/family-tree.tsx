@@ -954,6 +954,36 @@ const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count
       }
     }
 
+    const self =
+      nodes.find((n) => /mathew|mathias/i.test(n.fullName) && /mccaster/i.test(n.fullName))
+      ?? nodes.find((n) => n.fullName.toLowerCase().includes("mccaster"))
+      ?? nodes[0];
+
+    if (self) {
+      self.generationalPosition = 0;
+      const queue: Array<{ id: number; gen: number }> = [{ id: self.id, gen: 0 }];
+      const seen = new Set<number>();
+
+      while (queue.length) {
+        const current = queue.shift()!;
+        if (seen.has(current.id)) continue;
+        seen.add(current.id);
+
+        const node = nodeById.get(current.id);
+        if (!node) continue;
+
+        node.generationalPosition = current.gen;
+
+        for (const parentId of node.parentIds || []) {
+          queue.push({ id: parentId, gen: current.gen - 1 });
+        }
+
+        for (const childId of node.childrenIds || []) {
+          queue.push({ id: childId, gen: current.gen + 1 });
+        }
+      }
+    }
+
     return {
       nodes,
       page: 1,
