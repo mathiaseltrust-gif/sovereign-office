@@ -64,6 +64,9 @@ services:
       AZURE_OPENAI_API_KEY: ${AZURE_OPENAI_API_KEY}
       AZURE_OPENAI_DEPLOYMENT: ${AZURE_OPENAI_DEPLOYMENT}
       LOG_LEVEL: ${LOG_LEVEL:-info}
+      GRAMPS_API_URL: ${GRAMPS_API_URL:-http://sovereign-office-grampsweb:5000}
+      GRAMPS_USERNAME: ${GRAMPS_USERNAME:-}
+      GRAMPS_PASSWORD: ${GRAMPS_PASSWORD:-}
     healthcheck:
       test: ["CMD-SHELL", "node -e \"require('http').get('http://localhost:8080/api/healthz', r => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))\""]
       interval: 30s

@@ -79,6 +79,7 @@ function getTrusteeNav(): NavSectionDef[] {
       items: [
         { href: "/membership",           label: "Membership Status",      icon: BadgeCheck },
         { href: "/lineage",              label: "Lineage Registry",      icon: TreePine },
+        { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/family-governance",    label: "Family Governance",      icon: Users },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
         { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
