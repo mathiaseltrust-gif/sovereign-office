@@ -95,6 +95,7 @@ import usersRouter from "./users";
 import traceRouter from "./trace/index";
 import githubIntakeRouter from "./github/intake";
 import harmonizationProfileRouter from "./harmonization/profile";
+import grampsRouter from "./gramps";
 
 const router: IRouter = Router();
 
@@ -195,5 +196,6 @@ router.use("/case-files", caseFilesRouter);
 router.use("/trace", traceRouter);
 router.use("/github/intake", githubIntakeRouter);
 router.use("/harmonization/profile", harmonizationProfileRouter);
+router.use("/gramps", grampsRouter);
 
 export default router;
