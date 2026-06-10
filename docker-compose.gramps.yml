@@ -4,13 +4,16 @@
 # Usage on VM:
 #   docker compose -f docker-compose.gramps.yml up -d
 #
-# First-run URL:
+# Direct first-run URL:
 #   http://<server-ip-or-domain>:5010
 #
+# Proxied URL after nginx routing:
+#   https://office.mathiaseltribe.org/gramps/
+#
 # Notes:
-# - This is intentionally standalone so it does not disturb production routing.
-# - Gramps Web docs recommend Docker Compose and persistent volumes.
-# - After first-run setup is stable, route/proxy can be added under Sovereign Office.
+# - This stack is intentionally separate from the production Sovereign Office stack.
+# - Gramps Web stores genealogy data in persistent Docker volumes.
+# - The /gramps/ proxy path is handled by host nginx.
 
 services:
   grampsweb: &grampsweb
@@ -21,6 +24,8 @@ services:
       - "5010:5000"
     environment:
       GRAMPSWEB_TREE: "Mathias El Tribe Lineage"
+      GRAMPSWEB_BASE_URL: "/gramps"
+      BASE_URL: "/gramps"
       GRAMPSWEB_CELERY_CONFIG__broker_url: "redis://grampsweb_redis:6379/0"
       GRAMPSWEB_CELERY_CONFIG__result_backend: "redis://grampsweb_redis:6379/0"
       GRAMPSWEB_RATELIMIT_STORAGE_URI: "redis://grampsweb_redis:6379/1"
