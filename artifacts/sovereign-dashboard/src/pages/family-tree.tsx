@@ -862,14 +862,50 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
-    queryKey: ["lineage-nodes"],
-    queryFn: async () => {
-      const r = await fetch("/api/lineage/nodes?limit=2000", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
-      if (!r.ok) throw new Error("Failed to load tree data");
-      return r.json();
-    },
-  });
+const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
+  queryKey: ["gramps-lineage-nodes"],
+  queryFn: async () => {
+    const token = getCurrentBearerToken();
+
+    const r = await fetch("/api/gramps/people?pagesize=2000", {
+      headers: token
+        ? { Authorization: `Bearer ${token}` }
+        : {},
+      credentials: "include",
+    });
+
+    if (!r.ok) {
+      throw new Error("Failed to load Gramps lineage data");
+    }
+
+    const json = await r.json();
+
+    const nodes: LineageNode[] = (json.data || []).map((p: any, idx: number) => ({
+      id: idx + 1,
+      fullName:
+        `${p?.primary_name?.first_name || ""} ${p?.primary_name?.surname_list?.[0]?.surname || ""}`.trim() || "Unknown",
+      firstName: p?.primary_name?.first_name || null,
+      lastName: p?.primary_name?.surname_list?.[0]?.surname || null,
+      gender: p?.gender || null,
+      birthDate: null,
+      deathDate: null,
+      notes: null,
+      parentIds: [],
+      childrenIds: [],
+      spouseIds: [],
+      sourceType: "gramps",
+      photoUrl: null,
+      birthPlace: null,
+      deathPlace: null,
+    }));
+
+    return {
+      nodes,
+      page: 1,
+      count: nodes.length,
+    };
+  },
+});
 
   // Always load the current user's own node + immediate family regardless of pagination
   const { data: selfData } = useQuery<{ nodes: LineageNode[] }>({
