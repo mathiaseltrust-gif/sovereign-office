@@ -61,18 +61,18 @@ function categoryColor(cat: string | null): string {
 }
 
 export function ActiveMattersPanel() {
-  const { data: matters, isLoading, refetch } = useQuery<Investigation[]>({
+  const { data: matters, isLoading, isFetching, refetch } = useQuery<Investigation[]>({
     queryKey: ["active-matters"],
     queryFn: async () => {
       const res = await fetch("/api/court/review-engine/active-matters", {
-        cache: "no-store",
         credentials: "include",
       });
       if (!res.ok) throw new Error("Failed to load active matters");
       return res.json();
     },
-    staleTime: 0,
-    refetchInterval: 60_000,
+    staleTime: 5 * 60_000,
+    gcTime: 15 * 60_000,
+    refetchOnWindowFocus: false,
   });
 
   if (isLoading) {
@@ -107,10 +107,11 @@ export function ActiveMattersPanel() {
         </CardTitle>
         <button
           onClick={() => refetch()}
-          className="text-xs text-muted-foreground hover:text-foreground transition-colors"
+          disabled={isFetching}
+          className="text-xs text-muted-foreground hover:text-foreground transition-colors disabled:opacity-50"
           title="Refresh"
         >
-          ↺
+          {isFetching ? "…" : "↺"}
         </button>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -141,14 +142,12 @@ export function ActiveMattersPanel() {
                 </Badge>
               </div>
 
-              {/* Implicated law — first citation */}
               {m.implicatedLaws && m.implicatedLaws.length > 0 && (
                 <p className="text-[10px] text-muted-foreground italic">
                   {m.implicatedLaws[0]}
                 </p>
               )}
 
-              {/* Next required action */}
               {m.externalActions && m.externalActions.length > 0 && (
                 <p className="text-[11px] text-foreground/80 font-medium">
                   → {m.externalActions[0].action}
