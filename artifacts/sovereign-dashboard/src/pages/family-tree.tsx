@@ -862,136 +862,26 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
-const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
-  queryKey: ["gramps-lineage-nodes-with-families"],
-  queryFn: async () => {
-    const token = getCurrentBearerToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
+    queryKey: ["lineage-nodes-canonical"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
-    const [peopleRes, familiesRes] = await Promise.all([
-      fetch("/api/gramps/people?pagesize=5000", { headers, credentials: "include" }),
-      fetch("/api/gramps/families?pagesize=5000", { headers, credentials: "include" }),
-    ]);
+      // Canonical visual-tree source: persisted lineage nodes.
+      // Keep Gramps data out of this render path because Gramps handles are mapped
+      // to transient array IDs, while family_units references stable family_lineage IDs.
+      const r = await fetch("/api/lineage/nodes?limit=5000", { headers, credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load lineage nodes");
 
-    if (!peopleRes.ok) throw new Error("Failed to load Gramps people");
-    if (!familiesRes.ok) throw new Error("Failed to load Gramps families");
-
-    const peopleJson = await peopleRes.json();
-    const familiesJson = await familiesRes.json();
-
-    const people = peopleJson.data || [];
-    const families = familiesJson.data || [];
-
-    const handleToId = new Map<string, number>();
-
-    people.forEach((p: any, idx: number) => {
-      handleToId.set(p.handle, idx + 1);
-    });
-
-    const nodes: LineageNode[] = people.map((p: any, idx: number) => {
-      const id = idx + 1;
-
-      const parentIds: number[] = [];
-      const childrenIds: number[] = [];
-      const spouseIds: number[] = [];
-
-      const fullName =
-        `${p?.primary_name?.first_name || ""} ${p?.primary_name?.surname_list?.[0]?.surname || ""}`.trim() || "Unknown";
-
+      const json = await r.json();
       return {
-        id,
-        fullName,
-        firstName: p?.primary_name?.first_name || null,
-        lastName: p?.primary_name?.surname_list?.[0]?.surname || null,
-        gender: String(p?.gender ?? ""),
-        birthDate: null,
-        deathDate: null,
-        notes: null,
-        parentIds,
-        childrenIds,
-        spouseIds,
-        sourceType: "gramps",
-        photoUrl: null,
-        birthPlace: null,
-        deathPlace: null,
+        nodes: Array.isArray(json.nodes) ? json.nodes : [],
+        page: Number(json.page ?? 1),
+        count: Number(json.count ?? 0),
       };
-    });
-
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
-
-    for (const fam of families) {
-      const fatherHandle = fam?.father_handle || fam?.father;
-      const motherHandle = fam?.mother_handle || fam?.mother;
-      const childRefs = fam?.child_ref_list || [];
-
-      const fatherId = fatherHandle ? handleToId.get(fatherHandle) : undefined;
-      const motherId = motherHandle ? handleToId.get(motherHandle) : undefined;
-
-      if (fatherId && motherId) {
-        const father = nodeById.get(fatherId);
-        const mother = nodeById.get(motherId);
-        if (father && !father.spouseIds?.includes(motherId)) father.spouseIds = [...(father.spouseIds || []), motherId];
-        if (mother && !mother.spouseIds?.includes(fatherId)) mother.spouseIds = [...(mother.spouseIds || []), fatherId];
-      }
-
-      for (const ref of childRefs) {
-        const childHandle = ref?.ref || ref?.handle;
-        const childId = childHandle ? handleToId.get(childHandle) : undefined;
-        if (!childId) continue;
-
-        const child = nodeById.get(childId);
-        if (!child) continue;
-
-        const parents = [fatherId, motherId].filter(Boolean) as number[];
-        child.parentIds = [...new Set([...(child.parentIds || []), ...parents])];
-
-        for (const parentId of parents) {
-          const parent = nodeById.get(parentId);
-          if (parent && !parent.childrenIds?.includes(childId)) {
-            parent.childrenIds = [...(parent.childrenIds || []), childId];
-          }
-        }
-      }
-    }
-
-    const self =
-      nodes.find((n) => /mathew|mathias/i.test(n.fullName) && /mccaster/i.test(n.fullName))
-      ?? nodes.find((n) => n.fullName.toLowerCase().includes("mccaster"))
-      ?? nodes[0];
-
-    if (self) {
-      self.generationalPosition = 0;
-      const queue: Array<{ id: number; gen: number }> = [{ id: self.id, gen: 0 }];
-      const seen = new Set<number>();
-
-      while (queue.length) {
-        const current = queue.shift()!;
-        if (seen.has(current.id)) continue;
-        seen.add(current.id);
-
-        const node = nodeById.get(current.id);
-        if (!node) continue;
-
-        node.generationalPosition = current.gen;
-
-        for (const parentId of node.parentIds || []) {
-          queue.push({ id: parentId, gen: current.gen - 1 });
-        }
-
-        for (const childId of node.childrenIds || []) {
-          queue.push({ id: childId, gen: current.gen + 1 });
-        }
-      }
-    }
-
-    return {
-      nodes,
-      page: 1,
-      count: nodes.length,
-    };
-  }
-});
-
+    },
+  });
 
   // Always load the current user's own node + immediate family regardless of pagination
   const { data: selfData } = useQuery<{ nodes: LineageNode[] }>({
@@ -1199,7 +1089,14 @@ const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count
   const treeNodes = connectedNodes;
 
   const preferredRootId =
-    treeNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id ?? null;
+    treeNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id
+    ?? selfNodeRaw?.id
+    ?? treeNodes.find((n) => (n.generationalPosition ?? 99) === 0)?.id
+    ?? treeNodes[0]?.id
+    ?? null;
+
+  const rawNodeCount = data?.count ?? data?.nodes?.length ?? 0;
+  const selectedRootLabel = preferredRootId != null ? `#${preferredRootId}` : "none";
 
   const { positioned, totalW, totalH } = useMemo(
     () => computeLayout(treeNodes, familyUnits, preferredRootId),
@@ -1224,11 +1121,11 @@ const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count
 
   const pedigreeData = useMemo(
     () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
-    [treeNodes, treeView],
+    [treeNodes, treeView, preferredRootId],
   );
   const fanData = useMemo(
     () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId) : { entries: [], root: null, maxGen: 0 },
-    [treeNodes, treeView],
+    [treeNodes, treeView, preferredRootId],
   );
   const fanCanvasSize = useMemo(() => {
     if (fanData.maxGen === 0) return (FAN_ROOT_R + FAN_PAD) * 2;
@@ -1634,12 +1531,17 @@ const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count
           </>
         )}
 
-        {/* Record count */}
-        <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-          {activeFilterCount > 0
-            ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
-            : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
-          }
+        {/* Debug counters */}
+        <span
+          className="text-xs text-muted-foreground ml-auto whitespace-nowrap"
+          title="Canonical lineage render counters: raw API nodes, post-merge nodes, filtered nodes, connected nodes, family units, selected layout root"
+        >
+          raw {rawNodeCount}
+          <span className="opacity-50"> · loaded {nodes.length}</span>
+          <span className="opacity-50"> · filtered {filteredNodes.length}</span>
+          <span className="opacity-50"> · connected {connectedNodes.length}</span>
+          <span className="opacity-50"> · family units {familyUnits.length}</span>
+          <span className="opacity-50"> · root {selectedRootLabel}</span>
           <span className="hidden sm:inline opacity-50"> · scroll to zoom</span>
         </span>
       </div>
