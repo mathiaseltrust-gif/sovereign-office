@@ -420,10 +420,25 @@ async function linkRelationshipsForBatch(batchId: number): Promise<void> {
 }
 
 
+type SkippedFamilyGroup = {
+  key: string;
+  reason: string;
+  husbandId: number | null;
+  wifeId: number | null;
+  childIds: number[];
+  missingIds: number[];
+};
+
 type BatchRelationshipSyncResult = {
   familyUnitsCreated: number;
   familyUnitsUpdated: number;
   siblingGroupsUpdated: number;
+  skippedGroups: SkippedFamilyGroup[];
+  errors: Array<{ key: string; message: string }>;
+};
+
+type ExistingFamilyUnit = typeof familyUnitsTable.$inferSelect;
+type BatchFamilyGroup = { key: string; husbandId: number | null; wifeId: number | null; childIds: Set<number> };
 };
 
 type ExistingFamilyUnit = typeof familyUnitsTable.$inferSelect;
@@ -439,6 +454,35 @@ function sameMembers(a: number[], b: number[]): boolean {
   const aa = [...new Set(a)].sort((x, y) => x - y).join(",");
   const bb = [...new Set(b)].sort((x, y) => x - y).join(",");
   return aa === bb;
+}
+
+function familyGroupIds(group: BatchFamilyGroup): number[] {
+  return [group.husbandId, group.wifeId, ...group.childIds]
+    .filter((id): id is number => id != null && Number.isFinite(id) && id > 0);
+}
+
+async function loadExistingLineageIds(groups: Iterable<BatchFamilyGroup>): Promise<Set<number>> {
+  const ids = [...new Set([...groups].flatMap(familyGroupIds))];
+  return loadExistingLineageIdsByIds(ids);
+}
+
+async function loadExistingLineageIdsByIds(ids: number[]): Promise<Set<number>> {
+  ids = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))];
+  if (ids.length === 0) return new Set<number>();
+  const rows = await db.select({ id: familyLineageTable.id }).from(familyLineageTable).where(inArray(familyLineageTable.id, ids));
+  return new Set(rows.map((row: { id: number }) => row.id));
+}
+
+function validateFamilyGroup(group: BatchFamilyGroup, existingLineageIds: Set<number>): { reason: string; missingIds: number[] } | null {
+  const childIds = [...group.childIds];
+  if (!group.husbandId && !group.wifeId && childIds.length === 0) return { reason: "empty family group", missingIds: [] };
+  const missingIds = familyGroupIds(group).filter((id) => !existingLineageIds.has(id));
+  if (missingIds.length > 0) return { reason: `stale mapped lineage IDs: ${missingIds.join(",")}`, missingIds };
+  return null;
+}
+
+function skippedFamilyGroup(group: BatchFamilyGroup, reason: string, missingIds: number[]): SkippedFamilyGroup {
+  return { key: group.key, reason, husbandId: group.husbandId, wifeId: group.wifeId, childIds: [...group.childIds], missingIds };
 }
 
 async function loadApprovedStagedForBatch(batchId: number): Promise<{ staged: StagedRow[]; gToL: Map<string, number> }> {
@@ -464,6 +508,7 @@ function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, numb
 
     if (fatherId || motherId) {
       const key = `${fatherId ?? "none"}:${motherId ?? "none"}`;
+      const group = familyGroups.get(key) ?? { key, husbandId: fatherId, wifeId: motherId, childIds: new Set<number>() };
       const group = familyGroups.get(key) ?? { husbandId: fatherId, wifeId: motherId, childIds: new Set<number>() };
       group.childIds.add(row.matchedAncestorId);
       familyGroups.set(key, group);
@@ -476,6 +521,7 @@ function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, numb
       const husbandId = row.gender === "female" ? spouseId : row.matchedAncestorId;
       const wifeId = row.gender === "female" ? row.matchedAncestorId : spouseId;
       const key = `${husbandId ?? "none"}:${wifeId ?? "none"}`;
+      if (!familyGroups.has(key)) familyGroups.set(key, { key, husbandId, wifeId, childIds: new Set<number>() });
       if (!familyGroups.has(key)) familyGroups.set(key, { husbandId, wifeId, childIds: new Set<number>() });
     }
   }
@@ -487,10 +533,23 @@ async function analyzeBatchRelationshipCoverage(batchId: number) {
   const { staged, gToL } = await loadApprovedStagedForBatch(batchId);
   const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
   const existingUnits: ExistingFamilyUnit[] = await db.select().from(familyUnitsTable);
+  const existingLineageIds = await loadExistingLineageIds(familyGroups.values());
+  const mappedLineageIds = [...new Set([...gToL.values()])];
+  const existingMappedLineageIds = await loadExistingLineageIdsByIds(mappedLineageIds);
+  const staleMappedLineageIds = mappedLineageIds.filter((id) => !existingMappedLineageIds.has(id));
 
   let existingFamilyUnits = 0;
   let missingFamilyUnits = 0;
   let siblingGroupsNeedingRepair = 0;
+  const skippedGroups: SkippedFamilyGroup[] = [];
+
+  for (const group of familyGroups.values()) {
+    const invalidReason = validateFamilyGroup(group, existingLineageIds);
+    if (invalidReason) {
+      skippedGroups.push(skippedFamilyGroup(group, invalidReason.reason, invalidReason.missingIds));
+      continue;
+    }
+
 
   for (const group of familyGroups.values()) {
     const childIds = [...group.childIds];
@@ -520,15 +579,46 @@ async function analyzeBatchRelationshipCoverage(batchId: number) {
     batchId,
     approvedRows: staged.length,
     mappedGedcomIds: gToL.size,
+    staleMappedLineageIds: staleMappedLineageIds.length,
+    sampleStaleMappedLineageIds: staleMappedLineageIds.slice(0, 20),
     familyGroups: familyGroups.size,
     existingFamilyUnits,
     missingFamilyUnits,
     siblingGroupsNeedingRepair,
+    skippedGroups,
   };
 }
 
 async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<BatchRelationshipSyncResult> {
   const { staged, gToL } = await loadApprovedStagedForBatch(batchId);
+  if (gToL.size === 0) return { familyUnitsCreated: 0, familyUnitsUpdated: 0, siblingGroupsUpdated: 0, skippedGroups: [], errors: [] };
+
+  const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
+  const existingUnits: ExistingFamilyUnit[] = await db.select().from(familyUnitsTable);
+  const existingLineageIds = await loadExistingLineageIds(familyGroups.values());
+  let familyUnitsCreated = 0;
+  let familyUnitsUpdated = 0;
+  let siblingGroupsUpdated = 0;
+  const skippedGroups: SkippedFamilyGroup[] = [];
+  const errors: Array<{ key: string; message: string }> = [];
+
+  for (const group of familyGroups.values()) {
+    const invalidReason = validateFamilyGroup(group, existingLineageIds);
+    if (invalidReason) {
+      skippedGroups.push(skippedFamilyGroup(group, invalidReason.reason, invalidReason.missingIds));
+      continue;
+    }
+
+    const childIds = [...group.childIds];
+    try {
+      const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
+        const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+        return sameParents && sameMembers(numberArray(unit.childIds), childIds);
+      }) ?? existingUnits.find((unit: ExistingFamilyUnit) => {
+        return (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+      });
+
+      if (existing) {
   if (gToL.size === 0) return { familyUnitsCreated: 0, familyUnitsUpdated: 0, siblingGroupsUpdated: 0 };
 
   const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
@@ -565,6 +655,25 @@ async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<Batc
       familyUnitsCreated++;
     }
 
+      if (childIds.length > 1) {
+        for (const childId of childIds) {
+          const [child] = await db.select({ siblingIds: familyLineageTable.siblingIds }).from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+          if (!child) continue;
+          const currentSiblings = numberArray(child.siblingIds);
+          const mergedSiblings = [...new Set([...currentSiblings, ...childIds.filter((id) => id !== childId)])];
+          if (!sameMembers(currentSiblings, mergedSiblings)) {
+            await db.update(familyLineageTable).set({ siblingIds: mergedSiblings, updatedAt: new Date() }).where(eq(familyLineageTable.id, childId));
+            siblingGroupsUpdated++;
+          }
+        }
+      }
+    } catch (err) {
+      errors.push({ key: group.key, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  logger.info({ batchId, familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups: skippedGroups.length, errors: errors.length }, "GEDCOM family units and siblings synchronized");
+  return { familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups, errors };
     if (childIds.length > 1) {
       for (const childId of childIds) {
         const [child] = await db.select({ siblingIds: familyLineageTable.siblingIds }).from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
