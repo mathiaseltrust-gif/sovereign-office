@@ -1,7 +1,7 @@
 import { Router } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
-import { gedcomImportBatchesTable, gedcomStagingTable, familyLineageTable, ancestorLifeEventsTable, ancestorMediaTable } from "@workspace/db";
+import { gedcomImportBatchesTable, gedcomStagingTable, familyLineageTable, familyUnitsTable, ancestorLifeEventsTable, ancestorMediaTable } from "@workspace/db";
 import { eq, desc, sql, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { parseGedcom, resolveRelationships, type GedcomLifeEvent, type GedcomMediaRef } from "../../lib/gedcom-parser";
@@ -419,6 +419,237 @@ async function linkRelationshipsForBatch(batchId: number): Promise<void> {
   logger.info({ batchId, linked: staged.length }, "GEDCOM relationship linking complete");
 }
 
+
+type SkippedFamilyGroup = {
+  key: string;
+  reason: string;
+  husbandId: number | null;
+  wifeId: number | null;
+  childIds: number[];
+  missingIds: number[];
+};
+
+type BatchRelationshipSyncResult = {
+  familyUnitsCreated: number;
+  familyUnitsUpdated: number;
+  siblingGroupsUpdated: number;
+  skippedGroups: SkippedFamilyGroup[];
+  errors: Array<{ key: string; message: string }>;
+};
+
+type ExistingFamilyUnit = typeof familyUnitsTable.$inferSelect;
+type BatchFamilyGroup = { key: string; husbandId: number | null; wifeId: number | null; childIds: Set<number> };
+
+function numberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+}
+
+function sameMembers(a: number[], b: number[]): boolean {
+  const aa = [...new Set(a)].sort((x, y) => x - y).join(",");
+  const bb = [...new Set(b)].sort((x, y) => x - y).join(",");
+  return aa === bb;
+}
+
+function familyGroupIds(group: BatchFamilyGroup): number[] {
+  return [group.husbandId, group.wifeId, ...group.childIds]
+    .filter((id): id is number => id != null && Number.isFinite(id) && id > 0);
+}
+
+async function loadExistingLineageIds(groups: Iterable<BatchFamilyGroup>): Promise<Set<number>> {
+  const ids = [...new Set([...groups].flatMap(familyGroupIds))];
+  return loadExistingLineageIdsByIds(ids);
+}
+
+async function loadExistingLineageIdsByIds(ids: number[]): Promise<Set<number>> {
+  ids = [...new Set(ids.filter((id) => Number.isFinite(id) && id > 0))];
+  if (ids.length === 0) return new Set<number>();
+  const rows = await db.select({ id: familyLineageTable.id }).from(familyLineageTable).where(inArray(familyLineageTable.id, ids));
+  return new Set(rows.map((row: { id: number }) => row.id));
+}
+
+function validateFamilyGroup(group: BatchFamilyGroup, existingLineageIds: Set<number>): { reason: string; missingIds: number[] } | null {
+  const childIds = [...group.childIds];
+  if (!group.husbandId && !group.wifeId && childIds.length === 0) return { reason: "empty family group", missingIds: [] };
+  const missingIds = familyGroupIds(group).filter((id) => !existingLineageIds.has(id));
+  if (missingIds.length > 0) return { reason: `stale mapped lineage IDs: ${missingIds.join(",")}`, missingIds };
+  return null;
+}
+
+function skippedFamilyGroup(group: BatchFamilyGroup, reason: string, missingIds: number[]): SkippedFamilyGroup {
+  return { key: group.key, reason, husbandId: group.husbandId, wifeId: group.wifeId, childIds: [...group.childIds], missingIds };
+}
+
+async function loadApprovedStagedForBatch(batchId: number): Promise<{ staged: StagedRow[]; gToL: Map<string, number> }> {
+  const staged: StagedRow[] = await db.select().from(gedcomStagingTable).where(
+    and(eq(gedcomStagingTable.batchId, batchId), eq(gedcomStagingTable.status, "approved")),
+  );
+
+  const gToL = new Map<string, number>();
+  for (const row of staged) {
+    if (row.gedcomId && row.matchedAncestorId) gToL.set(row.gedcomId, row.matchedAncestorId);
+  }
+
+  return { staged, gToL };
+}
+
+function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, number>): Map<string, BatchFamilyGroup> {
+  const familyGroups = new Map<string, BatchFamilyGroup>();
+
+  for (const row of staged) {
+    if (!row.matchedAncestorId) continue;
+    const fatherId = row.fatherGedcomId ? gToL.get(row.fatherGedcomId) ?? null : null;
+    const motherId = row.motherGedcomId ? gToL.get(row.motherGedcomId) ?? null : null;
+
+    if (fatherId || motherId) {
+      const key = `${fatherId ?? "none"}:${motherId ?? "none"}`;
+      const group = familyGroups.get(key) ?? { key, husbandId: fatherId, wifeId: motherId, childIds: new Set<number>() };
+      group.childIds.add(row.matchedAncestorId);
+      familyGroups.set(key, group);
+    }
+
+    const spouseIds = (Array.isArray(row.spouseGedcomIds) ? row.spouseGedcomIds as string[] : [])
+      .map((gid) => gToL.get(gid))
+      .filter((id): id is number => id !== undefined);
+    for (const spouseId of spouseIds) {
+      const husbandId = row.gender === "female" ? spouseId : row.matchedAncestorId;
+      const wifeId = row.gender === "female" ? row.matchedAncestorId : spouseId;
+      const key = `${husbandId ?? "none"}:${wifeId ?? "none"}`;
+      if (!familyGroups.has(key)) familyGroups.set(key, { key, husbandId, wifeId, childIds: new Set<number>() });
+    }
+  }
+
+  return familyGroups;
+}
+
+async function analyzeBatchRelationshipCoverage(batchId: number) {
+  const { staged, gToL } = await loadApprovedStagedForBatch(batchId);
+  const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
+  const existingUnits: ExistingFamilyUnit[] = await db.select().from(familyUnitsTable);
+  const existingLineageIds = await loadExistingLineageIds(familyGroups.values());
+  const mappedLineageIds = [...new Set([...gToL.values()])];
+  const existingMappedLineageIds = await loadExistingLineageIdsByIds(mappedLineageIds);
+  const staleMappedLineageIds = mappedLineageIds.filter((id) => !existingMappedLineageIds.has(id));
+
+  let existingFamilyUnits = 0;
+  let missingFamilyUnits = 0;
+  let siblingGroupsNeedingRepair = 0;
+  const skippedGroups: SkippedFamilyGroup[] = [];
+
+  for (const group of familyGroups.values()) {
+    const invalidReason = validateFamilyGroup(group, existingLineageIds);
+    if (invalidReason) {
+      skippedGroups.push(skippedFamilyGroup(group, invalidReason.reason, invalidReason.missingIds));
+      continue;
+    }
+
+    const childIds = [...group.childIds];
+    const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
+      const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+      return sameParents && sameMembers(numberArray(unit.childIds), childIds);
+    }) ?? existingUnits.find((unit: ExistingFamilyUnit) => {
+      return (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+    });
+
+    if (existing) existingFamilyUnits++;
+    else missingFamilyUnits++;
+
+    if (childIds.length > 1) {
+      for (const childId of childIds) {
+        const [child] = await db.select({ siblingIds: familyLineageTable.siblingIds }).from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+        const currentSiblings = numberArray(child?.siblingIds);
+        if (!sameMembers(currentSiblings, [...new Set([...currentSiblings, ...childIds.filter((id) => id !== childId)])])) {
+          siblingGroupsNeedingRepair++;
+          break;
+        }
+      }
+    }
+  }
+
+  return {
+    batchId,
+    approvedRows: staged.length,
+    mappedGedcomIds: gToL.size,
+    staleMappedLineageIds: staleMappedLineageIds.length,
+    sampleStaleMappedLineageIds: staleMappedLineageIds.slice(0, 20),
+    familyGroups: familyGroups.size,
+    existingFamilyUnits,
+    missingFamilyUnits,
+    siblingGroupsNeedingRepair,
+    skippedGroups,
+  };
+}
+
+async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<BatchRelationshipSyncResult> {
+  const { staged, gToL } = await loadApprovedStagedForBatch(batchId);
+  if (gToL.size === 0) return { familyUnitsCreated: 0, familyUnitsUpdated: 0, siblingGroupsUpdated: 0, skippedGroups: [], errors: [] };
+
+  const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
+  const existingUnits: ExistingFamilyUnit[] = await db.select().from(familyUnitsTable);
+  const existingLineageIds = await loadExistingLineageIds(familyGroups.values());
+  let familyUnitsCreated = 0;
+  let familyUnitsUpdated = 0;
+  let siblingGroupsUpdated = 0;
+  const skippedGroups: SkippedFamilyGroup[] = [];
+  const errors: Array<{ key: string; message: string }> = [];
+
+  for (const group of familyGroups.values()) {
+    const invalidReason = validateFamilyGroup(group, existingLineageIds);
+    if (invalidReason) {
+      skippedGroups.push(skippedFamilyGroup(group, invalidReason.reason, invalidReason.missingIds));
+      continue;
+    }
+
+    const childIds = [...group.childIds];
+    try {
+      const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
+        const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+        return sameParents && sameMembers(numberArray(unit.childIds), childIds);
+      }) ?? existingUnits.find((unit: ExistingFamilyUnit) => {
+        return (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+      });
+
+      if (existing) {
+      const mergedChildIds = [...new Set([...numberArray(existing.childIds), ...childIds])];
+      if (!sameMembers(numberArray(existing.childIds), mergedChildIds)) {
+        await db.update(familyUnitsTable).set({ childIds: mergedChildIds, updatedAt: new Date() }).where(eq(familyUnitsTable.id, existing.id));
+        familyUnitsUpdated++;
+      }
+    } else {
+      const [created] = await db.insert(familyUnitsTable).values({
+        husbandId: group.husbandId ?? undefined,
+        wifeId: group.wifeId ?? undefined,
+        spouseIds: [],
+        childIds,
+        relationshipType: "biological",
+        sourceType: "gedcom",
+      }).returning();
+      existingUnits.push(created);
+      familyUnitsCreated++;
+    }
+
+      if (childIds.length > 1) {
+        for (const childId of childIds) {
+          const [child] = await db.select({ siblingIds: familyLineageTable.siblingIds }).from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+          if (!child) continue;
+          const currentSiblings = numberArray(child.siblingIds);
+          const mergedSiblings = [...new Set([...currentSiblings, ...childIds.filter((id) => id !== childId)])];
+          if (!sameMembers(currentSiblings, mergedSiblings)) {
+            await db.update(familyLineageTable).set({ siblingIds: mergedSiblings, updatedAt: new Date() }).where(eq(familyLineageTable.id, childId));
+            siblingGroupsUpdated++;
+          }
+        }
+      }
+    } catch (err) {
+      errors.push({ key: group.key, message: err instanceof Error ? err.message : String(err) });
+    }
+  }
+
+  logger.info({ batchId, familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups: skippedGroups.length, errors: errors.length }, "GEDCOM family units and siblings synchronized");
+  return { familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups, errors };
+}
+
 // ── POST /api/ancestry/gedcom/staging/:id/approve ────────────────────────────
 // For match_type === "new" (or ?force=new): inserts a new family_lineage record.
 // For exact / probable / possible with a matchedAncestorId: merges missing fields
@@ -508,6 +739,7 @@ router.post("/staging/:id/approve", requireAuth, requireAdminOrTrustee, async (r
       // Re-run the full relationship pass for the batch so this node and any
       // previously-approved siblings now see each other's IDs.
       await linkRelationshipsForBatch(staged.batchId).catch(() => {});
+      await syncFamilyUnitsAndSiblingsForBatch(staged.batchId).catch(() => {});
     }
 
     res.json({ approved: true, merged: shouldMerge, ancestorId: resultId, fullName: resultName });
@@ -587,12 +819,12 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
       ...(batchId ? [eq(gedcomStagingTable.batchId, batchId)] : []),
     ];
 
-    const pending = await db.select().from(gedcomStagingTable).where(and(...conditions));
+    const pending: StagedRow[] = await db.select().from(gedcomStagingTable).where(and(...conditions));
 
     // Auto-reject nameless records — never let "(Unknown)" into family_lineage
-    const nameless = pending.filter(r => !r.givenName && !r.surname && r.fullName === "(Unknown)");
+    const nameless = pending.filter((r: StagedRow) => !r.givenName && !r.surname && r.fullName === "(Unknown)");
     if (nameless.length > 0) {
-      const namelessIds = nameless.map(r => r.id);
+      const namelessIds = nameless.map((r: StagedRow) => r.id);
       await db.update(gedcomStagingTable)
         .set({ status: "rejected" })
         .where(inArray(gedcomStagingTable.id, namelessIds));
@@ -607,7 +839,7 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
     }
 
     // Only process records that actually have name data
-    const toProcess = pending.filter(r => r.givenName || r.surname || r.fullName !== "(Unknown)");
+    const toProcess = pending.filter((r: StagedRow) => r.givenName || r.surname || r.fullName !== "(Unknown)");
 
     if (toProcess.length === 0) {
       res.json({ approved: 0, merged: 0, skipped: nameless.length, message: "No valid named records found to approve" });
@@ -642,16 +874,25 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
           const bulkLifeEvents = (staged.lifeEvents as GedcomLifeEvent[] | null) ?? [];
           const bulkResidencePlace = bulkLifeEvents.find(e => e.type === "residence")?.place;
           const bulkLocationAddress = bulkResidencePlace ?? staged.birthPlace ?? staged.deathPlace ?? undefined;
+          const bulkBurialEvent = bulkLifeEvents.find(e => e.type === "burial");
+          const bulkMediaRefs = (staged.mediaRefs as GedcomMediaRef[] | null) ?? [];
+          const bulkProfilePhoto = bulkMediaRefs.find(m => m.isProfilePhoto) ?? bulkMediaRefs[0];
 
           const [bulkCreated] = await db.insert(familyLineageTable).values({
             firstName:       staged.givenName ?? undefined,
             lastName:        staged.surname   ?? undefined,
             fullName:        staged.fullName,
             birthYear:       staged.birthYear ?? undefined,
+            birthDate:       staged.birthDate ?? undefined,
+            birthPlace:      staged.birthPlace ?? undefined,
             deathYear:       staged.deathYear ?? undefined,
+            deathDate:       staged.deathDate ?? undefined,
+            deathPlace:      staged.deathPlace ?? undefined,
+            burialPlace:     bulkBurialEvent?.place ?? undefined,
             gender:          staged.gender    ?? undefined,
             notes:           noteText,
             locationAddress: bulkLocationAddress,
+            photoFilename:   bulkProfilePhoto?.fileRef ?? undefined,
             lineageTags:     [...(staged.censusLabels as string[] ?? []), "gedcom-import"],
             sourceType:      "gedcom",
             isDeceased,
@@ -681,10 +922,25 @@ router.post("/staging/bulk-approve", requireAuth, requireAdminOrTrustee, async (
       `);
     }
 
-    // Wire up parentIds / childrenIds / spouseIds for every approved record in the batch
-    if (batchId) await linkRelationshipsForBatch(batchId).catch(() => {});
+    // Wire up parentIds / childrenIds / spouseIds and rebuild family units/siblings for every approved record in the batch
+    let relationshipSync: BatchRelationshipSyncResult | null = null;
+    if (batchId) {
+      await linkRelationshipsForBatch(batchId).catch(() => {});
+      relationshipSync = await syncFamilyUnitsAndSiblingsForBatch(batchId).catch(() => null);
+    }
 
-    res.json({ approved, merged, total, matchTypes: types });
+    res.json({ approved, merged, total, matchTypes: types, relationshipSync });
+  } catch (err) { next(err); }
+});
+
+// ── GET /api/ancestry/gedcom/batches/:id/relationship-audit ──────────────────
+// Read-only coverage check for existing approved GEDCOM batches.
+router.get("/batches/:id/relationship-audit", requireAuth, requireAdminOrTrustee, async (req, res, next) => {
+  try {
+    const batchId = Number(req.params.id);
+    if (!batchId) { res.status(400).json({ error: "Invalid batch ID" }); return; }
+    const audit = await analyzeBatchRelationshipCoverage(batchId);
+    res.json(audit);
   } catch (err) { next(err); }
 });
 
@@ -696,7 +952,8 @@ router.post("/batches/:id/link-relationships", requireAuth, requireAdminOrTruste
     const batchId = Number(req.params.id);
     if (!batchId) { res.status(400).json({ error: "Invalid batch ID" }); return; }
     await linkRelationshipsForBatch(batchId);
-    res.json({ ok: true, batchId });
+    const relationshipSync = await syncFamilyUnitsAndSiblingsForBatch(batchId);
+    res.json({ ok: true, batchId, relationshipSync });
   } catch (err) { next(err); }
 });
 
