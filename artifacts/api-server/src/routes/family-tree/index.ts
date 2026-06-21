@@ -14,8 +14,8 @@ import {
   buildLineageSummaryForIntake,
 } from "../../engines/family-tree-engine";
 import { db } from "@workspace/db";
-import { ancestorLifeEventsTable, familyLineageTable, familyUnitsTable, identityNarrativesTable } from "@workspace/db";
-import { eq, inArray, sql } from "drizzle-orm";
+import { familyLineageTable, familyUnitsTable, identityNarrativesTable } from "@workspace/db";
+import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 async function getAncestorHistoricalContext(userId: number) {
@@ -209,19 +209,30 @@ async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number,
   const byPerson = new Map<number, LifeEventApi[]>();
   if (ids.length === 0) return byPerson;
 
-  const rows = await db
-    .select({
-      personId: ancestorLifeEventsTable.personId,
-      eventType: ancestorLifeEventsTable.eventType,
-      eventDate: ancestorLifeEventsTable.eventDate,
-      eventYear: ancestorLifeEventsTable.eventYear,
-      eventPlace: ancestorLifeEventsTable.eventPlace,
-      eventPlaceConfidence: ancestorLifeEventsTable.eventPlaceConfidence,
-      eventSource: ancestorLifeEventsTable.eventSource,
-      sourceType: ancestorLifeEventsTable.sourceType,
-    })
-    .from(ancestorLifeEventsTable)
-    .where(inArray(ancestorLifeEventsTable.personId, ids));
+  const result = await db.execute(sql`
+    SELECT
+      person_id AS "personId",
+      event_type AS "eventType",
+      event_date AS "eventDate",
+      event_year AS "eventYear",
+      event_place AS "eventPlace",
+      event_place_confidence AS "eventPlaceConfidence",
+      event_source AS "eventSource",
+      source_type AS "sourceType"
+    FROM ancestor_life_events
+    WHERE person_id IN (${sql.raw(ids.join(","))})
+  `);
+
+  const rows = result.rows as Array<{
+    personId: number;
+    eventType: string;
+    eventDate: string | null;
+    eventYear: number | null;
+    eventPlace: string | null;
+    eventPlaceConfidence: string | null;
+    eventSource: string | null;
+    sourceType: string | null;
+  }>;
 
   for (const row of rows) {
     const events = byPerson.get(row.personId) ?? [];
