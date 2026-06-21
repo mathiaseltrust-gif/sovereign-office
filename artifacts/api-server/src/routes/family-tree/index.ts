@@ -14,8 +14,8 @@ import {
   buildLineageSummaryForIntake,
 } from "../../engines/family-tree-engine";
 import { db } from "@workspace/db";
-import { familyLineageTable, identityNarrativesTable } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { ancestorLifeEventsTable, familyLineageTable, familyUnitsTable, identityNarrativesTable } from "@workspace/db";
+import { eq, inArray, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 
 async function getAncestorHistoricalContext(userId: number) {
@@ -170,6 +170,97 @@ async function getAncestorHistoricalContext(userId: number) {
 
 const router = Router();
 
+const LIFE_EVENT_PRIORITY: Record<string, number> = {
+  birth: 0,
+  residence: 1,
+  marriage: 2,
+  death: 3,
+  burial: 4,
+};
+
+type LifeEventApi = {
+  event_type: string;
+  event_date: string | null;
+  event_year: number | null;
+  event_place: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  place_normalized: string | null;
+  county: string | null;
+  state: string | null;
+  country: string | null;
+  source_type: string | null;
+  source_reference: string | null;
+  source_confidence: string | null;
+  raw_payload: unknown | null;
+};
+
+function sortLifeEvents(events: LifeEventApi[]): LifeEventApi[] {
+  return [...events].sort((a, b) => {
+    const priorityA = LIFE_EVENT_PRIORITY[a.event_type] ?? 99;
+    const priorityB = LIFE_EVENT_PRIORITY[b.event_type] ?? 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return (a.event_year ?? 9999) - (b.event_year ?? 9999);
+  });
+}
+
+async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number, LifeEventApi[]>> {
+  const ids = [...new Set(personIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const byPerson = new Map<number, LifeEventApi[]>();
+  if (ids.length === 0) return byPerson;
+
+  const rows = await db
+    .select({
+      personId: ancestorLifeEventsTable.personId,
+      eventType: ancestorLifeEventsTable.eventType,
+      eventDate: ancestorLifeEventsTable.eventDate,
+      eventYear: ancestorLifeEventsTable.eventYear,
+      eventPlace: ancestorLifeEventsTable.eventPlace,
+      eventPlaceConfidence: ancestorLifeEventsTable.eventPlaceConfidence,
+      eventSource: ancestorLifeEventsTable.eventSource,
+      sourceType: ancestorLifeEventsTable.sourceType,
+    })
+    .from(ancestorLifeEventsTable)
+    .where(inArray(ancestorLifeEventsTable.personId, ids));
+
+  for (const row of rows) {
+    const events = byPerson.get(row.personId) ?? [];
+    events.push({
+      event_type: row.eventType,
+      event_date: row.eventDate ?? null,
+      event_year: row.eventYear ?? null,
+      event_place: row.eventPlace ?? null,
+      latitude: null,
+      longitude: null,
+      place_normalized: null,
+      county: null,
+      state: null,
+      country: null,
+      source_type: row.sourceType ?? null,
+      source_reference: row.eventSource ?? null,
+      source_confidence: row.eventPlaceConfidence ?? null,
+      raw_payload: null,
+    });
+    byPerson.set(row.personId, events);
+  }
+
+  for (const [personId, events] of byPerson.entries()) {
+    byPerson.set(personId, sortLifeEvents(events));
+  }
+
+  return byPerson;
+}
+
+function numberArray(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map((id) => Number(id)).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+}
+
+function mergeIds(existing: unknown, additions: Array<number | null | undefined>): number[] {
+  return [...new Set([...numberArray(existing), ...additions.filter((id): id is number => Number.isFinite(id) && !!id)])];
+}
+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 20 * 1024 * 1024 },
@@ -192,6 +283,106 @@ router.get("/", requireAuth, async (req, res, next) => {
     }
     const data = await getLineageForUser(dbId);
     res.json(data);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/full", requireAuth, async (_req, res, next) => {
+  try {
+    const [lineageRows, familyUnits] = await Promise.all([
+      db
+        .select({
+          id: familyLineageTable.id,
+          fullName: familyLineageTable.fullName,
+          firstName: familyLineageTable.firstName,
+          lastName: familyLineageTable.lastName,
+          birthYear: familyLineageTable.birthYear,
+          deathYear: familyLineageTable.deathYear,
+          birthDate: familyLineageTable.birthDate,
+          deathDate: familyLineageTable.deathDate,
+          birthPlace: familyLineageTable.birthPlace,
+          deathPlace: familyLineageTable.deathPlace,
+          burialPlace: familyLineageTable.burialPlace,
+          gender: familyLineageTable.gender,
+          tribalNation: familyLineageTable.tribalNation,
+          parentIds: familyLineageTable.parentIds,
+          childrenIds: familyLineageTable.childrenIds,
+          spouseIds: familyLineageTable.spouseIds,
+          siblingIds: familyLineageTable.siblingIds,
+          sourceType: familyLineageTable.sourceType,
+          linkedProfileUserId: familyLineageTable.linkedProfileUserId,
+          generationalPosition: familyLineageTable.generationalPosition,
+          protectionLevel: familyLineageTable.protectionLevel,
+          membershipStatus: familyLineageTable.membershipStatus,
+          pendingReview: familyLineageTable.pendingReview,
+          photoUrl: familyLineageTable.photoUrl,
+          visibility: familyLineageTable.visibility,
+          isDeceased: familyLineageTable.isDeceased,
+          isAncestor: familyLineageTable.isAncestor,
+          locationLat: familyLineageTable.locationLat,
+          locationLng: familyLineageTable.locationLng,
+          locationAddress: familyLineageTable.locationAddress,
+          createdAt: familyLineageTable.createdAt,
+        })
+        .from(familyLineageTable)
+        .where(sql`COALESCE(${familyLineageTable.pendingReview}, false) = false AND COALESCE(${familyLineageTable.membershipStatus}, '') <> 'rejected'`)
+        .orderBy(sql`${familyLineageTable.generationalPosition} DESC NULLS LAST`, familyLineageTable.id),
+      db
+        .select({
+          id: familyUnitsTable.id,
+          gedcomFamId: familyUnitsTable.gedcomFamId,
+          husbandId: familyUnitsTable.husbandId,
+          wifeId: familyUnitsTable.wifeId,
+          spouseIds: familyUnitsTable.spouseIds,
+          childIds: familyUnitsTable.childIds,
+          relationshipType: familyUnitsTable.relationshipType,
+          sourceType: familyUnitsTable.sourceType,
+        })
+        .from(familyUnitsTable),
+    ]);
+
+    const nodeById = new Map(lineageRows.map((node) => [node.id, { ...node }]));
+    for (const familyUnit of familyUnits) {
+      const husbandId = familyUnit.husbandId ?? null;
+      const wifeId = familyUnit.wifeId ?? null;
+      const childIds = numberArray(familyUnit.childIds).filter((id) => nodeById.has(id));
+      const spouseIds = mergeIds(familyUnit.spouseIds, [husbandId, wifeId]).filter((id) => nodeById.has(id));
+      const parentIds = [husbandId, wifeId].filter((id): id is number => Number.isFinite(id) && !!id && nodeById.has(id));
+
+      for (const parentId of parentIds) {
+        const parent = nodeById.get(parentId);
+        if (!parent) continue;
+        parent.childrenIds = mergeIds(parent.childrenIds, childIds);
+        parent.spouseIds = mergeIds(parent.spouseIds, spouseIds.filter((id) => id !== parentId));
+      }
+
+      for (const childId of childIds) {
+        const child = nodeById.get(childId);
+        if (!child) continue;
+        child.parentIds = mergeIds(child.parentIds, parentIds);
+        child.siblingIds = mergeIds(child.siblingIds, childIds.filter((id) => id !== childId));
+      }
+    }
+
+    const lifeEventsByPerson = await loadLifeEventsForPeople([...nodeById.keys()]);
+    const nodes = [...nodeById.values()].map((node) => ({
+      ...node,
+      parentIds: numberArray(node.parentIds),
+      childrenIds: numberArray(node.childrenIds),
+      spouseIds: numberArray(node.spouseIds),
+      siblingIds: numberArray(node.siblingIds),
+      lifeEvents: lifeEventsByPerson.get(node.id) ?? [],
+    }));
+
+    res.json({
+      nodes,
+      familyUnits,
+      page: 1,
+      limit: nodes.length,
+      count: nodes.length,
+      source: "family_lineage",
+    });
   } catch (err) {
     next(err);
   }

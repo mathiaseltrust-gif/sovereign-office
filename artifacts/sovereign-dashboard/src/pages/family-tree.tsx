@@ -62,6 +62,7 @@ interface LineageNode {
   parentIds?: number[] | null;
   childrenIds?: number[] | null;
   spouseIds?: number[] | null;
+  siblingIds?: number[] | null;
   pendingReview?: boolean | null;
   addedByMemberId?: number | null;
   supportingDocumentName?: string | null;
@@ -905,135 +906,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
-    queryKey: ["gramps-lineage-nodes-with-families"],
+  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; familyUnits?: FamilyUnit[]; page: number; count: number }>({
+    queryKey: ["lineage-nodes", "full"],
     queryFn: async () => {
       const token = getCurrentBearerToken();
       const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
-
-    const [peopleRes, familiesRes] = await Promise.all([
-      fetch("/api/gramps/people?pagesize=5000", { headers, credentials: "include" }),
-      fetch("/api/gramps/families?pagesize=5000", { headers, credentials: "include" }),
-    ]);
-
-    if (!peopleRes.ok) throw new Error("Failed to load Gramps people");
-    if (!familiesRes.ok) throw new Error("Failed to load Gramps families");
-
-    const peopleJson = await peopleRes.json();
-    const familiesJson = await familiesRes.json();
-
-    const people = peopleJson.data || [];
-    const families = familiesJson.data || [];
-
-    const handleToId = new Map<string, number>();
-
-    people.forEach((p: any, idx: number) => {
-      handleToId.set(p.handle, idx + 1);
-    });
-
-    const nodes: LineageNode[] = people.map((p: any, idx: number) => {
-      const id = idx + 1;
-
-      const parentIds: number[] = [];
-      const childrenIds: number[] = [];
-      const spouseIds: number[] = [];
-
-      const fullName =
-        `${p?.primary_name?.first_name || ""} ${p?.primary_name?.surname_list?.[0]?.surname || ""}`.trim() || "Unknown";
-
-      return {
-        id,
-        fullName,
-        firstName: p?.primary_name?.first_name || null,
-        lastName: p?.primary_name?.surname_list?.[0]?.surname || null,
-        gender: String(p?.gender ?? ""),
-        birthDate: null,
-        deathDate: null,
-        notes: null,
-        parentIds,
-        childrenIds,
-        spouseIds,
-        sourceType: "gramps",
-        photoUrl: null,
-        birthPlace: null,
-        deathPlace: null,
-      };
-    });
-
-    const nodeById = new Map(nodes.map((n) => [n.id, n]));
-
-    for (const fam of families) {
-      const fatherHandle = fam?.father_handle || fam?.father;
-      const motherHandle = fam?.mother_handle || fam?.mother;
-      const childRefs = fam?.child_ref_list || [];
-
-      const fatherId = fatherHandle ? handleToId.get(fatherHandle) : undefined;
-      const motherId = motherHandle ? handleToId.get(motherHandle) : undefined;
-
-      if (fatherId && motherId) {
-        const father = nodeById.get(fatherId);
-        const mother = nodeById.get(motherId);
-        if (father && !father.spouseIds?.includes(motherId)) father.spouseIds = [...(father.spouseIds || []), motherId];
-        if (mother && !mother.spouseIds?.includes(fatherId)) mother.spouseIds = [...(mother.spouseIds || []), fatherId];
-      }
-
-      for (const ref of childRefs) {
-        const childHandle = ref?.ref || ref?.handle;
-        const childId = childHandle ? handleToId.get(childHandle) : undefined;
-        if (!childId) continue;
-
-        const child = nodeById.get(childId);
-        if (!child) continue;
-
-        const parents = [fatherId, motherId].filter(Boolean) as number[];
-        child.parentIds = [...new Set([...(child.parentIds || []), ...parents])];
-
-        for (const parentId of parents) {
-          const parent = nodeById.get(parentId);
-          if (parent && !parent.childrenIds?.includes(childId)) {
-            parent.childrenIds = [...(parent.childrenIds || []), childId];
-          }
-        }
-      }
-    }
-
-    const self =
-      nodes.find((n) => /mathew|mathias/i.test(n.fullName) && /mccaster/i.test(n.fullName))
-      ?? nodes.find((n) => n.fullName.toLowerCase().includes("mccaster"))
-      ?? nodes[0];
-
-    if (self) {
-      self.generationalPosition = 0;
-      const queue: Array<{ id: number; gen: number }> = [{ id: self.id, gen: 0 }];
-      const seen = new Set<number>();
-
-      while (queue.length) {
-        const current = queue.shift()!;
-        if (seen.has(current.id)) continue;
-        seen.add(current.id);
-
-        const node = nodeById.get(current.id);
-        if (!node) continue;
-
-        node.generationalPosition = current.gen;
-
-        for (const parentId of node.parentIds || []) {
-          queue.push({ id: parentId, gen: current.gen - 1 });
-        }
-
-        for (const childId of node.childrenIds || []) {
-          queue.push({ id: childId, gen: current.gen + 1 });
-        }
-      }
-    }
-
-    return {
-      nodes,
-      page: 1,
-      count: nodes.length,
-    };
-  }
-});
+      const r = await fetch("/api/family-tree/full", { headers, credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load canonical family lineage");
+      return r.json();
+    },
+    staleTime: 60_000,
+  });
 
 
   // Always load the current user's own node + immediate family regardless of pagination
@@ -1057,7 +940,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     },
     staleTime: 60_000,
   });
-  const familyUnits: FamilyUnit[] = famUnitData?.familyUnits ?? [];
+  const familyUnits: FamilyUnit[] = data?.familyUnits ?? famUnitData?.familyUnits ?? [];
 
   const nodes = (() => {
     const base = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
