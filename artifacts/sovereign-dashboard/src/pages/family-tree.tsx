@@ -19,6 +19,23 @@ import { MapPickerModal } from "@/components/map-picker-modal";
 
 type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
+interface LineageLifeEvent {
+  event_type: string;
+  event_date?: string | null;
+  event_year?: number | null;
+  event_place?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  place_normalized?: string | null;
+  county?: string | null;
+  state?: string | null;
+  country?: string | null;
+  source_type?: string | null;
+  source_reference?: string | null;
+  source_confidence?: string | null;
+  raw_payload?: unknown | null;
+}
+
 interface LineageNode {
   id: number;
   fullName: string;
@@ -59,6 +76,7 @@ interface LineageNode {
   locationLat?: number | null;
   locationLng?: number | null;
   locationAddress?: string | null;
+  lifeEvents?: LineageLifeEvent[] | null;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
   _spouses?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
@@ -394,6 +412,31 @@ function nodeCardClasses(node: LineageNode): { border: string; bg: string } {
     case "affiliate": return { border: "border-purple-300", bg: "bg-purple-50 dark:bg-purple-950/20" };
     default: return { border: "border-border", bg: "bg-card" };
   }
+}
+
+const LIFE_EVENT_DISPLAY_ORDER: Record<string, number> = {
+  birth: 0,
+  residence: 1,
+  marriage: 2,
+  death: 3,
+  burial: 4,
+};
+
+function lifeEventLabel(type: string): string {
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function sortLifeEventsForDisplay(events: LineageLifeEvent[]): LineageLifeEvent[] {
+  return [...events].sort((a, b) => {
+    const priorityA = LIFE_EVENT_DISPLAY_ORDER[a.event_type] ?? 99;
+    const priorityB = LIFE_EVENT_DISPLAY_ORDER[b.event_type] ?? 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return (a.event_year ?? 9999) - (b.event_year ?? 9999);
+  });
+}
+
+function formatLifeEventDate(ev: LineageLifeEvent): string | null {
+  return ev.event_date ?? (ev.event_year != null ? String(ev.event_year) : null);
 }
 
 function protectionBadge(level?: string | null) {
@@ -862,11 +905,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
-const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
-  queryKey: ["gramps-lineage-nodes-with-families"],
-  queryFn: async () => {
-    const token = getCurrentBearerToken();
-    const headers = token ? { Authorization: `Bearer ${token}` } : {};
+  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
+    queryKey: ["gramps-lineage-nodes-with-families"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
 
     const [peopleRes, familiesRes] = await Promise.all([
       fetch("/api/gramps/people?pagesize=5000", { headers, credentials: "include" }),
@@ -2386,6 +2429,8 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
     setShowEditOwn(true);
   }
 
+  const lifeEvents = Array.isArray(n.lifeEvents) ? sortLifeEventsForDisplay(n.lifeEvents) : [];
+
   return (
     <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300, paddingBottom: 56 }}>
       <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card z-10">
@@ -2458,6 +2503,40 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
               </div>
             )}
           </div>
+
+          {lifeEvents.length > 0 && (
+            <div className="border rounded-md px-3 py-2.5 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Life events
+              </p>
+              <div className="space-y-2">
+                {lifeEvents.map((ev, index) => {
+                  const when = formatLifeEventDate(ev);
+                  const place = ev.event_place ?? ev.place_normalized;
+                  const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
+                  const source = ev.source_reference ?? ev.source_type;
+                  return (
+                    <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="border-l-2 border-primary/30 pl-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">{lifeEventLabel(ev.event_type)}</span>
+                        {when && <span className="text-[10px] text-muted-foreground">{when}</span>}
+                      </div>
+                      {place && <p className="text-xs text-muted-foreground">{place}</p>}
+                      {locationParts.length > 0 && <p className="text-[10px] text-muted-foreground">{locationParts.join(", ")}</p>}
+                      {ev.latitude != null && ev.longitude != null && (
+                        <p className="text-[10px] font-mono text-muted-foreground">{ev.latitude.toFixed(5)}, {ev.longitude.toFixed(5)}</p>
+                      )}
+                      {source && (
+                        <p className="text-[10px] text-muted-foreground">
+                          Source: {source}{ev.source_confidence ? ` (${ev.source_confidence})` : ""}
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── "This is me" self-link button ──────────────────────────── */}
           {currentUserId && (!n.linkedProfileUserId || n.linkedProfileUserId === currentUserId) && (

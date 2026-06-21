@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
+import { ancestorLifeEventsTable, familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../engines/authority";
@@ -10,6 +10,95 @@ import { createNotification } from "../../engines/notification-engine";
 const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer", "chief_justice", "chief_justice_trustee"]);
 
 const router = Router();
+
+const LIFE_EVENT_PRIORITY: Record<string, number> = {
+  birth: 0,
+  residence: 1,
+  marriage: 2,
+  death: 3,
+  burial: 4,
+};
+
+type LifeEventApi = {
+  event_type: string;
+  event_date: string | null;
+  event_year: number | null;
+  event_place: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  place_normalized: string | null;
+  county: string | null;
+  state: string | null;
+  country: string | null;
+  source_type: string | null;
+  source_reference: string | null;
+  source_confidence: string | null;
+  raw_payload: unknown | null;
+};
+
+function sortLifeEvents(events: LifeEventApi[]): LifeEventApi[] {
+  return [...events].sort((a, b) => {
+    const priorityA = LIFE_EVENT_PRIORITY[a.event_type] ?? 99;
+    const priorityB = LIFE_EVENT_PRIORITY[b.event_type] ?? 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return (a.event_year ?? 9999) - (b.event_year ?? 9999);
+  });
+}
+
+async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number, LifeEventApi[]>> {
+  const ids = [...new Set(personIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const byPerson = new Map<number, LifeEventApi[]>();
+  if (ids.length === 0) return byPerson;
+
+  const rows = await db
+    .select({
+      personId: ancestorLifeEventsTable.personId,
+      eventType: ancestorLifeEventsTable.eventType,
+      eventDate: ancestorLifeEventsTable.eventDate,
+      eventYear: ancestorLifeEventsTable.eventYear,
+      eventPlace: ancestorLifeEventsTable.eventPlace,
+      eventPlaceConfidence: ancestorLifeEventsTable.eventPlaceConfidence,
+      eventSource: ancestorLifeEventsTable.eventSource,
+      sourceType: ancestorLifeEventsTable.sourceType,
+    })
+    .from(ancestorLifeEventsTable)
+    .where(inArray(ancestorLifeEventsTable.personId, ids));
+
+  for (const row of rows) {
+    const events = byPerson.get(row.personId) ?? [];
+    events.push({
+      event_type: row.eventType,
+      event_date: row.eventDate ?? null,
+      event_year: row.eventYear ?? null,
+      event_place: row.eventPlace ?? null,
+      latitude: null,
+      longitude: null,
+      place_normalized: null,
+      county: null,
+      state: null,
+      country: null,
+      source_type: row.sourceType ?? null,
+      source_reference: row.eventSource ?? null,
+      source_confidence: row.eventPlaceConfidence ?? null,
+      raw_payload: null,
+    });
+    byPerson.set(row.personId, events);
+  }
+
+  for (const [personId, events] of byPerson.entries()) {
+    byPerson.set(personId, sortLifeEvents(events));
+  }
+
+  return byPerson;
+}
+
+async function attachLifeEvents<T extends { id: number }>(nodes: T[]): Promise<Array<T & { lifeEvents: LifeEventApi[] }>> {
+  const lifeEventsByPerson = await loadLifeEventsForPeople(nodes.map((node) => node.id));
+  return nodes.map((node) => ({
+    ...node,
+    lifeEvents: lifeEventsByPerson.get(node.id) ?? [],
+  }));
+}
 
 router.get("/", requireAuth, async (req, res, next) => {
   try {
@@ -95,7 +184,8 @@ router.get("/", requireAuth, async (req, res, next) => {
       });
     }
 
-    res.json({ nodes, page, limit, count: nodes.length });
+    const nodesWithLifeEvents = await attachLifeEvents(nodes);
+    res.json({ nodes: nodesWithLifeEvents, page, limit, count: nodesWithLifeEvents.length });
   } catch (err) {
     next(err);
   }
@@ -144,7 +234,7 @@ router.get("/self", requireAuth, async (req, res, next) => {
     const seen = new Set<number>();
     const deduped = allNodes.filter((n) => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
 
-    res.json({ nodes: deduped });
+    res.json({ nodes: await attachLifeEvents(deduped) });
   } catch (err) {
     next(err);
   }
@@ -472,7 +562,8 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       resolveNames(spouseIds),
     ]);
 
-    res.json({ ...node, _parents: parents, _children: children, _spouses: spouses, _profile: profileData });
+    const [nodeWithLifeEvents] = await attachLifeEvents([node]);
+    res.json({ ...nodeWithLifeEvents, _parents: parents, _children: children, _spouses: spouses, _profile: profileData });
   } catch (err) {
     next(err);
   }
