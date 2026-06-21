@@ -274,20 +274,6 @@ const upload = multer({
   },
 });
 
-router.get("/", requireAuth, async (req, res, next) => {
-  try {
-    const dbId = req.user!.dbId;
-    if (!dbId) {
-      res.json({ lineage: [], narratives: [], message: "No profile registered — lineage is session-only" });
-      return;
-    }
-    const data = await getLineageForUser(dbId);
-    res.json(data);
-  } catch (err) {
-    next(err);
-  }
-});
-
 router.get("/full", requireAuth, async (_req, res, next) => {
   try {
     const [lineageRows, familyUnits] = await Promise.all([
@@ -383,6 +369,20 @@ router.get("/full", requireAuth, async (_req, res, next) => {
       count: nodes.length,
       source: "family_lineage",
     });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/", requireAuth, async (req, res, next) => {
+  try {
+    const dbId = req.user!.dbId;
+    if (!dbId) {
+      res.json({ lineage: [], narratives: [], message: "No profile registered — lineage is session-only" });
+      return;
+    }
+    const data = await getLineageForUser(dbId);
+    res.json(data);
   } catch (err) {
     next(err);
   }
