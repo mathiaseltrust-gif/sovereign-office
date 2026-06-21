@@ -440,6 +440,16 @@ function formatLifeEventDate(ev: LineageLifeEvent): string | null {
   return ev.event_date ?? (ev.event_year != null ? String(ev.event_year) : null);
 }
 
+function formatRawPayload(payload: unknown): string | null {
+  if (payload == null) return null;
+  if (typeof payload === "string") return payload;
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+}
+
 function protectionBadge(level?: string | null) {
   switch (level) {
     case "ancestor": return <span className="px-1.5 py-0.5 rounded text-xs font-semibold bg-yellow-200 text-yellow-900">Ancestor</span>;
@@ -2390,29 +2400,40 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
           {lifeEvents.length > 0 && (
             <div className="border rounded-md px-3 py-2.5 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Life events
+                <Clock className="w-3 h-3" /> Life event evidence records
+              </p>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Repeated birth or death entries are separate source mentions and evidence records.
               </p>
               <div className="space-y-2">
                 {lifeEvents.map((ev, index) => {
                   const when = formatLifeEventDate(ev);
                   const place = ev.event_place ?? ev.place_normalized;
                   const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
-                  const source = ev.source_reference ?? ev.source_type;
+                  const rawPayload = formatRawPayload(ev.raw_payload);
                   return (
                     <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="border-l-2 border-primary/30 pl-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground">{lifeEventLabel(ev.event_type)}</span>
+                        <span className="text-xs font-semibold text-foreground">{lifeEventLabel(ev.event_type)} source mention #{index + 1}</span>
                         {when && <span className="text-[10px] text-muted-foreground">{when}</span>}
+                      </div>
+                      <div className="mt-0.5 space-y-0.5">
+                        {ev.event_date && <p className="text-[10px] text-muted-foreground">Event date: {ev.event_date}</p>}
+                        {ev.event_year != null && <p className="text-[10px] text-muted-foreground">Event year: {ev.event_year}</p>}
                       </div>
                       {place && <p className="text-xs text-muted-foreground">{place}</p>}
                       {locationParts.length > 0 && <p className="text-[10px] text-muted-foreground">{locationParts.join(", ")}</p>}
                       {ev.latitude != null && ev.longitude != null && (
                         <p className="text-[10px] font-mono text-muted-foreground">{ev.latitude.toFixed(5)}, {ev.longitude.toFixed(5)}</p>
                       )}
-                      {source && (
-                        <p className="text-[10px] text-muted-foreground">
-                          Source: {source}{ev.source_confidence ? ` (${ev.source_confidence})` : ""}
-                        </p>
+                      {ev.source_type && <p className="text-[10px] text-muted-foreground">Source type: {ev.source_type}</p>}
+                      {ev.source_reference && <p className="text-[10px] text-muted-foreground">Source reference: {ev.source_reference}</p>}
+                      {ev.source_confidence && <p className="text-[10px] text-muted-foreground">Source confidence: {ev.source_confidence}</p>}
+                      {rawPayload && (
+                        <details className="text-[10px] text-muted-foreground">
+                          <summary className="cursor-pointer">Raw payload</summary>
+                          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-muted p-2 font-mono">{rawPayload}</pre>
+                        </details>
                       )}
                     </div>
                   );
