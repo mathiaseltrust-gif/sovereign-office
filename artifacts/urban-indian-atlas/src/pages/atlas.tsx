@@ -50,6 +50,26 @@ export interface AtlasEvent {
 
 // AncestorRecord only contains safe, non-PII fields returned by /api/atlas/ancestors.
 // Notes, membershipStatus, and gender are NOT returned by the endpoint.
+export interface AncestorLifeEvent {
+  eventType?: string | null;
+  event_type?: string | null;
+  eventDate?: string | null;
+  event_date?: string | null;
+  eventYear?: number | null;
+  event_year?: number | null;
+  eventPlace?: string | null;
+  event_place?: string | null;
+  placeNormalized?: string | null;
+  place_normalized?: string | null;
+  county?: string | null;
+  state?: string | null;
+  country?: string | null;
+  sourceType?: string | null;
+  source_type?: string | null;
+  sourceReference?: string | null;
+  source_reference?: string | null;
+}
+
 export interface AncestorRecord {
   id: number;
   fullName: string;
@@ -78,6 +98,7 @@ export interface AncestorRecord {
   deathPlace: string | null;
   deathDate: string | null;
   burialPlace: string | null;
+  lifeEvents?: AncestorLifeEvent[] | null;
   // Record classification for display and location resolution:
   //   "ancestor"          — deceased family member or confirmed ancestor
   //   "household_member"  — living immediate household (self / spouse / children)
@@ -305,6 +326,7 @@ interface DbAncestorRow {
   death_place: string | null;
   death_date: string | null;
   burial_place: string | null;
+  life_events?: AncestorLifeEvent[] | null;
   record_status: "ancestor" | "household_member" | "extended_family";
 }
 
@@ -334,6 +356,7 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     deathPlace: r.death_place ?? null,
     deathDate: r.death_date ?? null,
     burialPlace: r.burial_place ?? null,
+    lifeEvents: Array.isArray(r.life_events) ? r.life_events : [],
     recordStatus: r.record_status ?? "ancestor",
   };
 }

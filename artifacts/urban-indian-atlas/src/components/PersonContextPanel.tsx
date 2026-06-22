@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import type { AncestorRecord, AncestorContextMatch } from "@/pages/atlas";
 import { ContinuityReport } from "@/components/ContinuityReport";
 import { authHeaders } from "@/lib/atlasAuth";
+import { buildAffiliationSignals } from "@/lib/affiliationSignals";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 
@@ -493,6 +494,7 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose, onEventF
   const criticalCount = eventsByPriority.filter(e => e.severityLevel === "critical").length;
   const highCount = eventsByPriority.filter(e => e.severityLevel === "high").length;
   const highConfidenceCount = eventsByPriority.filter(e => e.confidenceLevel === "high").length;
+  const affiliationSignals = buildAffiliationSignals(ancestor);
 
   // ── Location records (with confidence tier) ─────────────────────────────────
   // We surface all known location signals for this ancestor, each with an
@@ -738,6 +740,41 @@ export function PersonContextPanel({ ancestor, contextMatches, onClose, onEventF
                   This location is based on known ancestry records, last known residence, historical movement, and likely lineage affiliation. It does not determine political jurisdiction or tribal citizenship by itself. Presence in a territory does not automatically mean a person was governed by, subject to, or politically part of that nation.
                 </p>
               </div>
+            </div>
+
+
+            {/* ── Affiliation Signals ── */}
+            <div className="bg-amber-500/5 border border-amber-500/20 rounded-lg p-4 space-y-3">
+              <h3 className="text-xs font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                <ShieldAlert className="w-3.5 h-3.5" /> Affiliation Signals
+              </h3>
+              {affiliationSignals.length === 0 ? (
+                <p className="text-xs text-muted-foreground/70 leading-relaxed">
+                  No geography-based probable affiliation signals are available yet. This does not mean affiliation is unknown or absent; it means the Atlas needs more place, date, or source evidence.
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {affiliationSignals.map((signal, i) => (
+                    <div key={`${signal.type}-${signal.tribeOrTerritory}-${i}`} className="rounded-md border border-amber-500/20 bg-background/50 p-3 space-y-2">
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider border-amber-500/30 text-amber-300 bg-amber-500/10">
+                          {signal.label}
+                        </Badge>
+                        <Badge variant="outline" className="text-[9px] uppercase tracking-wider border-border/60 text-muted-foreground">
+                          {signal.confidence} confidence
+                        </Badge>
+                      </div>
+                      <p className="text-sm font-semibold text-foreground">{signal.tribeOrTerritory}</p>
+                      <ul className="space-y-1 list-disc pl-4">
+                        {signal.basis.map((basis, basisIndex) => (
+                          <li key={basisIndex} className="text-xs text-muted-foreground/80 leading-relaxed">{basis}</li>
+                        ))}
+                      </ul>
+                      <p className="text-[10px] text-amber-200/65 leading-relaxed italic">{signal.warning}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* ── Tribal Affiliation Logic Engine ── */}

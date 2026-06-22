@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { AtlasEvent, ActiveLayers, AncestorRecord } from "@/pages/atlas";
 import { AtlasAIQuery, AIQueryResult } from "@/components/AtlasAIQuery";
+import { buildAffiliationSignals } from "@/lib/affiliationSignals";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
@@ -287,6 +288,8 @@ export function AtlasSidebar({
       ).slice(0, 8)
     : [];
 
+  const affiliationSignalCount = allAncestors.reduce((count, ancestor) => count + buildAffiliationSignals(ancestor, allAncestors).length, 0);
+
   const manualFilterCount =
     activeEras.length + activeTypes.length + activeSeverities.length +
     activePolicies.length + activeExposureFilters.length +
@@ -370,9 +373,16 @@ export function AtlasSidebar({
                       <span className="text-xs font-semibold text-primary">Family Layer Active</span>
                     </div>
                     {isAuthenticated && ancestorCount > 0 ? (
-                      <p className="text-[11px] text-primary/70 font-medium">
-                        {ancestorCount} ancestor{ancestorCount !== 1 ? "s" : ""} visible on the map
-                      </p>
+                      <div className="space-y-1">
+                        <p className="text-[11px] text-primary/70 font-medium">
+                          {ancestorCount} ancestor{ancestorCount !== 1 ? "s" : ""} visible on the map
+                        </p>
+                        {affiliationSignalCount > 0 && (
+                          <p className="text-[10px] text-amber-500/80 leading-relaxed">
+                            {affiliationSignalCount} possible affiliation signal{affiliationSignalCount !== 1 ? "s" : ""} surfaced for evidence review — no tribalNation values are changed.
+                          </p>
+                        )}
+                      </div>
                     ) : !isAuthenticated ? (
                       <p className="text-[11px] text-muted-foreground/60 italic">
                         Sign in via Community or Sovereign Dashboard to load your family members.
@@ -434,6 +444,11 @@ export function AtlasSidebar({
                                   {[a.birthYear, a.deathYear].filter(Boolean).join(" – ")}
                                   {a.tribalNation ? ` · ${a.tribalNation}` : ""}
                                 </p>
+                                {buildAffiliationSignals(a, allAncestors).length > 0 && (
+                                  <p className="text-[9px] text-amber-500/75 mt-0.5">
+                                    Probable affiliation signal · requires evidence review
+                                  </p>
+                                )}
                               </div>
                             </button>
                           ))}
