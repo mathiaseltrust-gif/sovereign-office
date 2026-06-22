@@ -74,7 +74,6 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         fl.death_place,
         fl.death_date,
         fl.burial_place,
-        COALESCE(le.life_events, '[]'::json) AS life_events,
         tl.location        AS location_text,
         (tl.location IS NOT NULL) AS has_timeline_location,
         CASE
@@ -91,22 +90,6 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
           ELSE 'extended_family'
         END AS record_status
       FROM family_lineage fl
-      LEFT JOIN LATERAL (
-        SELECT json_agg(json_build_object(
-          'eventType', event_type,
-          'eventDate', event_date,
-          'eventYear', event_year,
-          'eventPlace', event_place,
-          'placeNormalized', place_normalized,
-          'county', county,
-          'state', state,
-          'country', country,
-          'sourceType', source_type,
-          'sourceReference', source_reference
-        ) ORDER BY COALESCE(event_year, 9999), event_type) AS life_events
-        FROM ancestor_life_events
-        WHERE person_id = fl.id
-      ) le ON true
       LEFT JOIN LATERAL (
         SELECT location
         FROM ancestral_timeline_events

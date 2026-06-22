@@ -62,6 +62,12 @@ function eventLabel(ev: LifeEventLike): string {
   return (ev.eventType ?? ev.event_type ?? "life event").replace(/_/g, " ");
 }
 
+function lineageTagPlaces(tags: unknown): string[] {
+  if (Array.isArray(tags)) return tags.filter((tag): tag is string => typeof tag === "string");
+  if (typeof tags === "string") return [tags];
+  return [];
+}
+
 function eventPlaces(ancestor: AncestorWithEvents): { place: string; label: string; year: number | null; source: string | null }[] {
   const direct = [
     { place: ancestor.birthPlace, label: "birth place", year: ancestor.birthYear, source: null },
@@ -69,6 +75,8 @@ function eventPlaces(ancestor: AncestorWithEvents): { place: string; label: stri
     { place: ancestor.burialPlace, label: "burial place", year: ancestor.deathYear, source: null },
     { place: ancestor.locationAddress, label: "recorded location", year: null, source: null },
     { place: ancestor.locationText, label: "timeline location", year: null, source: null },
+    { place: ancestor.tribalNation, label: "recorded family affiliation field", year: null, source: "canonical field, not proof by itself" },
+    ...lineageTagPlaces(ancestor.lineageTags).map((tag) => ({ place: tag, label: "lineage tag", year: null, source: "lineageTags" })),
   ];
   const fromEvents = (ancestor.lifeEvents ?? []).flatMap((ev) => {
     const place = compact([ev.eventPlace ?? ev.event_place, ev.placeNormalized ?? ev.place_normalized, ev.county, ev.state, ev.country]).join(", ");
