@@ -111,6 +111,200 @@ async function attachLifeEvents<T extends { id: number }>(nodes: T[]): Promise<A
   }));
 }
 
+type ManualLifeEventInput = {
+  eventType: "birth" | "death" | "burial" | "residence";
+  eventDate?: string | null;
+  eventYear?: number | null;
+  eventPlace?: string | null;
+  rawPayload: Record<string, unknown>;
+};
+
+function extractYearFromDate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const match = value.match(/\b(1[5-9]\d{2}|20\d{2}|21\d{2})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+function isYearOnly(value: unknown): boolean {
+  return typeof value === "string" && /^\s*\d{4}\s*$/.test(value);
+}
+
+function keepMoreCompleteDate(existing: unknown, incoming: unknown): string | null | undefined {
+  if (incoming === undefined) return undefined;
+  if (incoming === null) return null;
+  if (typeof incoming !== "string") return undefined;
+  const trimmed = incoming.trim();
+  if (!trimmed) return null;
+  if (isYearOnly(trimmed) && typeof existing === "string" && existing.trim() && !isYearOnly(existing)) {
+    return existing;
+  }
+  return trimmed;
+}
+
+function cleanString(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return typeof value === "string" ? (value.trim() || null) : undefined;
+}
+
+function parseStructuredFactsFromNotes(notes: string): { narrative: string; facts: Record<string, string> } {
+  const facts: Record<string, string> = {};
+  const narrativeLines: string[] = [];
+  const labelToField: Record<string, string> = {
+    "birth place": "birthPlace",
+    "birth date": "birthDate",
+    "death place": "deathPlace",
+    "death date": "deathDate",
+    "burial place": "burialPlace",
+    "residence": "residencePlace",
+    "residence place": "residencePlace",
+  };
+
+  for (const line of notes.split(/\r?\n/)) {
+    const match = line.match(/^\s*(birth place|birth date|death place|death date|burial place|residence|residence place)\s*:\s*(.+?)\s*$/i);
+    if (match) {
+      const field = labelToField[match[1].toLowerCase()];
+      if (field && !facts[field]) facts[field] = match[2].trim();
+      continue;
+    }
+    narrativeLines.push(line);
+  }
+
+  return { narrative: narrativeLines.join("\n").trim(), facts };
+}
+
+function buildCanonicalFactUpdates(existing: typeof familyLineageTable.$inferSelect, body: Record<string, unknown>) {
+  const normalizedBody = { ...body };
+  const evidence: ManualLifeEventInput[] = [];
+
+  if (typeof normalizedBody.notes === "string") {
+    const parsed = parseStructuredFactsFromNotes(normalizedBody.notes);
+    normalizedBody.notes = parsed.narrative;
+    for (const [field, value] of Object.entries(parsed.facts)) {
+      if (normalizedBody[field] === undefined || normalizedBody[field] === null || normalizedBody[field] === "") {
+        normalizedBody[field] = value;
+      }
+    }
+  }
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const birthDate = keepMoreCompleteDate(existing.birthDate, normalizedBody.birthDate);
+  const deathDate = keepMoreCompleteDate(existing.deathDate, normalizedBody.deathDate);
+  const birthPlace = cleanString(normalizedBody.birthPlace);
+  const deathPlace = cleanString(normalizedBody.deathPlace);
+  const burialPlace = cleanString(normalizedBody.burialPlace);
+  const residencePlace = cleanString(normalizedBody.residencePlace ?? normalizedBody.historicalResidence ?? normalizedBody.locationAddress);
+
+  if (birthDate !== undefined) updates.birthDate = birthDate;
+  if (deathDate !== undefined) updates.deathDate = deathDate;
+  if (birthPlace !== undefined) updates.birthPlace = birthPlace;
+  if (deathPlace !== undefined) updates.deathPlace = deathPlace;
+  if (burialPlace !== undefined) updates.burialPlace = burialPlace;
+  if (residencePlace !== undefined && normalizedBody.locationAddress !== undefined) updates.locationAddress = residencePlace;
+
+  const derivedBirthYear = extractYearFromDate(updates.birthDate ?? normalizedBody.birthYear);
+  const derivedDeathYear = extractYearFromDate(updates.deathDate ?? normalizedBody.deathYear);
+  if (derivedBirthYear != null) updates.birthYear = derivedBirthYear;
+  if (derivedDeathYear != null) updates.deathYear = derivedDeathYear;
+  if (normalizedBody.birthYear === null) updates.birthYear = null;
+  if (normalizedBody.deathYear === null) updates.deathYear = null;
+
+  const pushEvidence = (eventType: ManualLifeEventInput["eventType"], eventDate: unknown, eventPlace: unknown, eventYear: unknown = undefined) => {
+    const date = cleanString(eventDate);
+    const place = cleanString(eventPlace);
+    const year = extractYearFromDate(date) ?? extractYearFromDate(eventYear);
+    if (date === undefined && place === undefined && year == null) return;
+    evidence.push({
+      eventType,
+      eventDate: date ?? null,
+      eventYear: year,
+      eventPlace: place ?? null,
+      rawPayload: {
+        source: "community_directory_editor",
+        eventType,
+        eventDate: date ?? null,
+        eventYear: year,
+        eventPlace: place ?? null,
+      },
+    });
+  };
+
+  pushEvidence("birth", updates.birthDate ?? normalizedBody.birthDate, updates.birthPlace ?? normalizedBody.birthPlace, updates.birthYear ?? normalizedBody.birthYear);
+  pushEvidence("death", updates.deathDate ?? normalizedBody.deathDate, updates.deathPlace ?? normalizedBody.deathPlace, updates.deathYear ?? normalizedBody.deathYear);
+  pushEvidence("burial", normalizedBody.burialDate, updates.burialPlace ?? normalizedBody.burialPlace);
+  pushEvidence("residence", null, residencePlace);
+
+  return { normalizedBody, updates, evidence };
+}
+
+let ancestorLifeEventsRawPayloadColumn: boolean | null = null;
+async function hasAncestorLifeEventsRawPayload(): Promise<boolean> {
+  if (ancestorLifeEventsRawPayloadColumn != null) return ancestorLifeEventsRawPayloadColumn;
+  const result = await db.execute(sql`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'ancestor_life_events'
+      AND column_name = 'raw_payload'
+    LIMIT 1
+  `);
+  ancestorLifeEventsRawPayloadColumn = result.rows.length > 0;
+  return ancestorLifeEventsRawPayloadColumn;
+}
+
+async function upsertManualLifeEvent(personId: number, input: ManualLifeEventInput) {
+  const sourceReference = "community_directory_editor";
+  const [existing] = (await db.execute(sql`
+    SELECT id
+    FROM ancestor_life_events
+    WHERE person_id = ${personId}
+      AND event_type = ${input.eventType}
+      AND COALESCE(event_date, '') = COALESCE(${input.eventDate}, '')
+      AND COALESCE(event_place, '') = COALESCE(${input.eventPlace}, '')
+      AND COALESCE(event_source, '') = ${sourceReference}
+    LIMIT 1
+  `)).rows as Array<{ id: number }>;
+
+  const hasRawPayload = await hasAncestorLifeEventsRawPayload();
+  if (existing) {
+    if (hasRawPayload) {
+      await db.execute(sql`
+        UPDATE ancestor_life_events
+        SET event_year = ${input.eventYear},
+            event_place_confidence = 'documented',
+            source_type = 'manual_edit',
+            raw_payload = ${JSON.stringify(input.rawPayload)}::jsonb
+        WHERE id = ${existing.id}
+      `);
+    } else {
+      await db.execute(sql`
+        UPDATE ancestor_life_events
+        SET event_year = ${input.eventYear},
+            event_place_confidence = 'documented',
+            source_type = 'manual_edit'
+        WHERE id = ${existing.id}
+      `);
+    }
+    return;
+  }
+
+  if (hasRawPayload) {
+    await db.execute(sql`
+      INSERT INTO ancestor_life_events
+        (person_id, event_type, event_date, event_year, event_place, event_place_confidence, event_source, source_type, raw_payload)
+      VALUES
+        (${personId}, ${input.eventType}, ${input.eventDate}, ${input.eventYear}, ${input.eventPlace}, 'documented', ${sourceReference}, 'manual_edit', ${JSON.stringify(input.rawPayload)}::jsonb)
+    `);
+  } else {
+    await db.execute(sql`
+      INSERT INTO ancestor_life_events
+        (person_id, event_type, event_date, event_year, event_place, event_place_confidence, event_source, source_type)
+      VALUES
+        (${personId}, ${input.eventType}, ${input.eventDate}, ${input.eventYear}, ${input.eventPlace}, 'documented', ${sourceReference}, 'manual_edit')
+    `);
+  }
+}
+
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
@@ -298,6 +492,39 @@ router.get("/pending-reviews", requireAuth, requireRole("trustee"), async (req, 
       .orderBy(desc(familyLineageTable.createdAt))
       .limit(50);
     res.json(pending);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.get("/notes-structured-facts/dry-run", requireAuth, requireRole("trustee"), async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        id: familyLineageTable.id,
+        fullName: familyLineageTable.fullName,
+        notes: familyLineageTable.notes,
+      })
+      .from(familyLineageTable);
+
+    const matches = rows
+      .map((row) => {
+        const parsed = parseStructuredFactsFromNotes(row.notes ?? "");
+        return {
+          id: row.id,
+          fullName: row.fullName,
+          facts: parsed.facts,
+          narrativeNotes: parsed.narrative,
+        };
+      })
+      .filter((row) => Object.keys(row.facts).length > 0);
+
+    res.json({
+      dryRun: true,
+      scanned: rows.length,
+      matched: matches.length,
+      matches,
+    });
   } catch (err) {
     next(err);
   }
@@ -938,7 +1165,7 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
     if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
 
     const body = req.body as Record<string, unknown>;
-    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const { normalizedBody, updates, evidence } = buildCanonicalFactUpdates(existing, body);
     const allowed = ["fullName", "firstName", "lastName", "birthYear", "deathYear", "gender",
       "tribalNation", "tribalEnrollmentNumber", "notes", "generationalPosition",
       "icwaEligible", "welfareEligible", "trustBeneficiary", "protectionLevel",
@@ -946,12 +1173,15 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
       "birthPlace", "birthDate", "deathPlace", "deathDate", "burialPlace", "locationAddress"];
 
     for (const field of allowed) {
-      if (body[field] !== undefined) {
-        updates[field] = body[field];
+      if (normalizedBody[field] !== undefined && updates[field] === undefined) {
+        updates[field] = normalizedBody[field];
       }
     }
 
     const [updated] = await db.update(familyLineageTable).set(updates).where(eq(familyLineageTable.id, id)).returning();
+    for (const event of evidence) {
+      await upsertManualLifeEvent(id, event);
+    }
     res.json(updated);
   } catch (err) {
     next(err);
