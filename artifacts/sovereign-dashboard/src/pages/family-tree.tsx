@@ -33,6 +33,8 @@ interface LineageLifeEvent {
   source_type?: string | null;
   source_reference?: string | null;
   source_confidence?: string | null;
+  event_source?: string | null;
+  event_note?: string | null;
   raw_payload?: unknown | null;
 }
 
@@ -423,6 +425,22 @@ const LIFE_EVENT_DISPLAY_ORDER: Record<string, number> = {
   burial: 4,
 };
 
+const LIFE_EVENT_AUTHORITY_ORDER = [
+  "Primary Vital Record",
+  "Government / Administrative Record",
+  "Church / Institutional Record",
+  "Family / Oral Record",
+  "Platform / Derived Record",
+  "Unclassified Evidence",
+] as const;
+
+type LifeEventAuthority = typeof LIFE_EVENT_AUTHORITY_ORDER[number];
+
+const LIFE_EVENT_AUTHORITY_RANK: Record<LifeEventAuthority, number> = LIFE_EVENT_AUTHORITY_ORDER.reduce(
+  (acc, label, index) => ({ ...acc, [label]: index }),
+  {} as Record<LifeEventAuthority, number>
+);
+
 function lifeEventLabel(type: string): string {
   return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
@@ -432,6 +450,9 @@ function sortLifeEventsForDisplay(events: LineageLifeEvent[]): LineageLifeEvent[
     const priorityA = LIFE_EVENT_DISPLAY_ORDER[a.event_type] ?? 99;
     const priorityB = LIFE_EVENT_DISPLAY_ORDER[b.event_type] ?? 99;
     if (priorityA !== priorityB) return priorityA - priorityB;
+    const authorityA = LIFE_EVENT_AUTHORITY_RANK[classifyLifeEventAuthority(a)];
+    const authorityB = LIFE_EVENT_AUTHORITY_RANK[classifyLifeEventAuthority(b)];
+    if (authorityA !== authorityB) return authorityA - authorityB;
     return (a.event_year ?? 9999) - (b.event_year ?? 9999);
   });
 }
@@ -448,6 +469,40 @@ function formatRawPayload(payload: unknown): string | null {
   } catch {
     return String(payload);
   }
+}
+
+function lifeEventEvidenceText(ev: LineageLifeEvent): string {
+  return [
+    ev.source_type,
+    ev.source_reference,
+    ev.source_confidence,
+    ev.event_source,
+    ev.event_note,
+    ev.event_type,
+    ev.event_place,
+    ev.place_normalized,
+    formatRawPayload(ev.raw_payload),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function classifyLifeEventAuthority(ev: LineageLifeEvent): LifeEventAuthority {
+  const evidence = lifeEventEvidenceText(ev);
+  if (/(birth certificate|certificate of live birth|death certificate|marriage certificate|marriage license|divorce decree)/i.test(evidence)) {
+    return "Primary Vital Record";
+  }
+  if (/(social security|\bssa\b|social security death index|\bssdi\b|census|military|draft card|immigration|naturalization|court record|probate|land record)/i.test(evidence)) {
+    return "Government / Administrative Record";
+  }
+  if (/(baptism|christening|church|parish|cemetery|funeral home|burial record)/i.test(evidence)) {
+    return "Church / Institutional Record";
+  }
+  if (/(family bible|oral history|family testimony|family record|memorial note)/i.test(evidence)) {
+    return "Family / Oral Record";
+  }
+  if (/(gedcom|gramps|ancestry hint|family tree import|user import|compiled tree)/i.test(evidence)) {
+    return "Platform / Derived Record";
+  }
+  return "Unclassified Evidence";
 }
 
 function protectionBadge(level?: string | null) {
@@ -2411,12 +2466,15 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
                   const place = ev.event_place ?? ev.place_normalized;
                   const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
                   const rawPayload = formatRawPayload(ev.raw_payload);
+                  const authority = classifyLifeEventAuthority(ev);
                   return (
                     <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="border-l-2 border-primary/30 pl-2">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground">{lifeEventLabel(ev.event_type)} source mention #{index + 1}</span>
+                        <span className="text-xs font-semibold text-foreground">Source Mention #{index + 1}</span>
                         {when && <span className="text-[10px] text-muted-foreground">{when}</span>}
                       </div>
+                      <p className="text-xs text-foreground">{lifeEventLabel(ev.event_type)}</p>
+                      <p className="text-[10px] font-semibold text-primary">{authority}</p>
                       <div className="mt-0.5 space-y-0.5">
                         {ev.event_date && <p className="text-[10px] text-muted-foreground">Event date: {ev.event_date}</p>}
                         {ev.event_year != null && <p className="text-[10px] text-muted-foreground">Event year: {ev.event_year}</p>}
