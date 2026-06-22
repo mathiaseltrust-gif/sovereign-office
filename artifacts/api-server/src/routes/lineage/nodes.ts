@@ -11,6 +11,300 @@ const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "of
 
 const router = Router();
 
+const LIFE_EVENT_PRIORITY: Record<string, number> = {
+  birth: 0,
+  residence: 1,
+  marriage: 2,
+  death: 3,
+  burial: 4,
+};
+
+type LifeEventApi = {
+  event_type: string;
+  event_date: string | null;
+  event_year: number | null;
+  event_place: string | null;
+  latitude: number | null;
+  longitude: number | null;
+  place_normalized: string | null;
+  county: string | null;
+  state: string | null;
+  country: string | null;
+  source_type: string | null;
+  source_reference: string | null;
+  source_confidence: string | null;
+  raw_payload: unknown | null;
+};
+
+function sortLifeEvents(events: LifeEventApi[]): LifeEventApi[] {
+  return [...events].sort((a, b) => {
+    const priorityA = LIFE_EVENT_PRIORITY[a.event_type] ?? 99;
+    const priorityB = LIFE_EVENT_PRIORITY[b.event_type] ?? 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    return (a.event_year ?? 9999) - (b.event_year ?? 9999);
+  });
+}
+
+async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number, LifeEventApi[]>> {
+  const ids = [...new Set(personIds.filter((id) => Number.isFinite(id) && id > 0))];
+  const byPerson = new Map<number, LifeEventApi[]>();
+  if (ids.length === 0) return byPerson;
+
+  const result = await db.execute(sql`
+    SELECT
+      person_id AS "personId",
+      event_type AS "eventType",
+      event_date AS "eventDate",
+      event_year AS "eventYear",
+      event_place AS "eventPlace",
+      event_place_confidence AS "eventPlaceConfidence",
+      event_source AS "eventSource",
+      source_type AS "sourceType"
+    FROM ancestor_life_events
+    WHERE person_id IN (${sql.raw(ids.join(","))})
+  `);
+
+  const rows = result.rows as Array<{
+    personId: number;
+    eventType: string;
+    eventDate: string | null;
+    eventYear: number | null;
+    eventPlace: string | null;
+    eventPlaceConfidence: string | null;
+    eventSource: string | null;
+    sourceType: string | null;
+  }>;
+
+  for (const row of rows) {
+    const events = byPerson.get(row.personId) ?? [];
+    events.push({
+      event_type: row.eventType,
+      event_date: row.eventDate ?? null,
+      event_year: row.eventYear ?? null,
+      event_place: row.eventPlace ?? null,
+      latitude: null,
+      longitude: null,
+      place_normalized: null,
+      county: null,
+      state: null,
+      country: null,
+      source_type: row.sourceType ?? null,
+      source_reference: row.eventSource ?? null,
+      source_confidence: row.eventPlaceConfidence ?? null,
+      raw_payload: null,
+    });
+    byPerson.set(row.personId, events);
+  }
+
+  for (const [personId, events] of byPerson.entries()) {
+    byPerson.set(personId, sortLifeEvents(events));
+  }
+
+  return byPerson;
+}
+
+async function attachLifeEvents<T extends { id: number }>(nodes: T[]): Promise<Array<T & { lifeEvents: LifeEventApi[] }>> {
+  const lifeEventsByPerson = await loadLifeEventsForPeople(nodes.map((node) => node.id));
+  return nodes.map((node) => ({
+    ...node,
+    lifeEvents: lifeEventsByPerson.get(node.id) ?? [],
+  }));
+}
+
+type ManualLifeEventInput = {
+  eventType: "birth" | "death" | "burial" | "residence";
+  eventDate?: string | null;
+  eventYear?: number | null;
+  eventPlace?: string | null;
+  rawPayload: Record<string, unknown>;
+};
+
+function extractYearFromDate(value: unknown): number | null {
+  if (typeof value === "number" && Number.isFinite(value)) return value;
+  if (typeof value !== "string") return null;
+  const match = value.match(/\b(1[5-9]\d{2}|20\d{2}|21\d{2})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+function isYearOnly(value: unknown): boolean {
+  return typeof value === "string" && /^\s*\d{4}\s*$/.test(value);
+}
+
+function keepMoreCompleteDate(existing: unknown, incoming: unknown): string | null | undefined {
+  if (incoming === undefined) return undefined;
+  if (incoming === null) return null;
+  if (typeof incoming !== "string") return undefined;
+  const trimmed = incoming.trim();
+  if (!trimmed) return null;
+  if (isYearOnly(trimmed) && typeof existing === "string" && existing.trim() && !isYearOnly(existing)) {
+    return existing;
+  }
+  return trimmed;
+}
+
+function cleanString(value: unknown): string | null | undefined {
+  if (value === undefined) return undefined;
+  if (value === null) return null;
+  return typeof value === "string" ? (value.trim() || null) : undefined;
+}
+
+function parseStructuredFactsFromNotes(notes: string): { narrative: string; facts: Record<string, string> } {
+  const facts: Record<string, string> = {};
+  const narrativeLines: string[] = [];
+  const labelToField: Record<string, string> = {
+    "birth place": "birthPlace",
+    "birth date": "birthDate",
+    "death place": "deathPlace",
+    "death date": "deathDate",
+    "burial place": "burialPlace",
+    "residence": "residencePlace",
+    "residence place": "residencePlace",
+  };
+
+  for (const line of notes.split(/\r?\n/)) {
+    const match = line.match(/^\s*(birth place|birth date|death place|death date|burial place|residence|residence place)\s*:\s*(.+?)\s*$/i);
+    if (match) {
+      const field = labelToField[match[1].toLowerCase()];
+      if (field && !facts[field]) facts[field] = match[2].trim();
+      continue;
+    }
+    narrativeLines.push(line);
+  }
+
+  return { narrative: narrativeLines.join("\n").trim(), facts };
+}
+
+function buildCanonicalFactUpdates(existing: typeof familyLineageTable.$inferSelect, body: Record<string, unknown>) {
+  const normalizedBody = { ...body };
+  const evidence: ManualLifeEventInput[] = [];
+
+  if (typeof normalizedBody.notes === "string") {
+    const parsed = parseStructuredFactsFromNotes(normalizedBody.notes);
+    normalizedBody.notes = parsed.narrative;
+    for (const [field, value] of Object.entries(parsed.facts)) {
+      if (normalizedBody[field] === undefined || normalizedBody[field] === null || normalizedBody[field] === "") {
+        normalizedBody[field] = value;
+      }
+    }
+  }
+
+  const updates: Record<string, unknown> = { updatedAt: new Date() };
+  const birthDate = keepMoreCompleteDate(existing.birthDate, normalizedBody.birthDate);
+  const deathDate = keepMoreCompleteDate(existing.deathDate, normalizedBody.deathDate);
+  const birthPlace = cleanString(normalizedBody.birthPlace);
+  const deathPlace = cleanString(normalizedBody.deathPlace);
+  const burialPlace = cleanString(normalizedBody.burialPlace);
+  const residencePlace = cleanString(normalizedBody.residencePlace ?? normalizedBody.historicalResidence ?? normalizedBody.locationAddress);
+
+  if (birthDate !== undefined) updates.birthDate = birthDate;
+  if (deathDate !== undefined) updates.deathDate = deathDate;
+  if (birthPlace !== undefined) updates.birthPlace = birthPlace;
+  if (deathPlace !== undefined) updates.deathPlace = deathPlace;
+  if (burialPlace !== undefined) updates.burialPlace = burialPlace;
+  if (residencePlace !== undefined && normalizedBody.locationAddress !== undefined) updates.locationAddress = residencePlace;
+
+  const derivedBirthYear = extractYearFromDate(updates.birthDate ?? normalizedBody.birthYear);
+  const derivedDeathYear = extractYearFromDate(updates.deathDate ?? normalizedBody.deathYear);
+  if (derivedBirthYear != null) updates.birthYear = derivedBirthYear;
+  if (derivedDeathYear != null) updates.deathYear = derivedDeathYear;
+  if (normalizedBody.birthYear === null) updates.birthYear = null;
+  if (normalizedBody.deathYear === null) updates.deathYear = null;
+
+  const pushEvidence = (eventType: ManualLifeEventInput["eventType"], eventDate: unknown, eventPlace: unknown, eventYear: unknown = undefined) => {
+    const date = cleanString(eventDate);
+    const place = cleanString(eventPlace);
+    const year = extractYearFromDate(date) ?? extractYearFromDate(eventYear);
+    if (date === undefined && place === undefined && year == null) return;
+    evidence.push({
+      eventType,
+      eventDate: date ?? null,
+      eventYear: year,
+      eventPlace: place ?? null,
+      rawPayload: {
+        source: "community_directory_editor",
+        eventType,
+        eventDate: date ?? null,
+        eventYear: year,
+        eventPlace: place ?? null,
+      },
+    });
+  };
+
+  pushEvidence("birth", updates.birthDate ?? normalizedBody.birthDate, updates.birthPlace ?? normalizedBody.birthPlace, updates.birthYear ?? normalizedBody.birthYear);
+  pushEvidence("death", updates.deathDate ?? normalizedBody.deathDate, updates.deathPlace ?? normalizedBody.deathPlace, updates.deathYear ?? normalizedBody.deathYear);
+  pushEvidence("burial", normalizedBody.burialDate, updates.burialPlace ?? normalizedBody.burialPlace);
+  pushEvidence("residence", null, residencePlace);
+
+  return { normalizedBody, updates, evidence };
+}
+
+let ancestorLifeEventsRawPayloadColumn: boolean | null = null;
+async function hasAncestorLifeEventsRawPayload(): Promise<boolean> {
+  if (ancestorLifeEventsRawPayloadColumn != null) return ancestorLifeEventsRawPayloadColumn;
+  const result = await db.execute(sql`
+    SELECT 1
+    FROM information_schema.columns
+    WHERE table_name = 'ancestor_life_events'
+      AND column_name = 'raw_payload'
+    LIMIT 1
+  `);
+  ancestorLifeEventsRawPayloadColumn = result.rows.length > 0;
+  return ancestorLifeEventsRawPayloadColumn;
+}
+
+async function upsertManualLifeEvent(personId: number, input: ManualLifeEventInput) {
+  const sourceReference = "community_directory_editor";
+  const [existing] = (await db.execute(sql`
+    SELECT id
+    FROM ancestor_life_events
+    WHERE person_id = ${personId}
+      AND event_type = ${input.eventType}
+      AND COALESCE(event_date, '') = COALESCE(${input.eventDate}, '')
+      AND COALESCE(event_place, '') = COALESCE(${input.eventPlace}, '')
+      AND COALESCE(event_source, '') = ${sourceReference}
+    LIMIT 1
+  `)).rows as Array<{ id: number }>;
+
+  const hasRawPayload = await hasAncestorLifeEventsRawPayload();
+  if (existing) {
+    if (hasRawPayload) {
+      await db.execute(sql`
+        UPDATE ancestor_life_events
+        SET event_year = ${input.eventYear},
+            event_place_confidence = 'documented',
+            source_type = 'manual_edit',
+            raw_payload = ${JSON.stringify(input.rawPayload)}::jsonb
+        WHERE id = ${existing.id}
+      `);
+    } else {
+      await db.execute(sql`
+        UPDATE ancestor_life_events
+        SET event_year = ${input.eventYear},
+            event_place_confidence = 'documented',
+            source_type = 'manual_edit'
+        WHERE id = ${existing.id}
+      `);
+    }
+    return;
+  }
+
+  if (hasRawPayload) {
+    await db.execute(sql`
+      INSERT INTO ancestor_life_events
+        (person_id, event_type, event_date, event_year, event_place, event_place_confidence, event_source, source_type, raw_payload)
+      VALUES
+        (${personId}, ${input.eventType}, ${input.eventDate}, ${input.eventYear}, ${input.eventPlace}, 'documented', ${sourceReference}, 'manual_edit', ${JSON.stringify(input.rawPayload)}::jsonb)
+    `);
+  } else {
+    await db.execute(sql`
+      INSERT INTO ancestor_life_events
+        (person_id, event_type, event_date, event_year, event_place, event_place_confidence, event_source, source_type)
+      VALUES
+        (${personId}, ${input.eventType}, ${input.eventDate}, ${input.eventYear}, ${input.eventPlace}, 'documented', ${sourceReference}, 'manual_edit')
+    `);
+  }
+}
+
 router.get("/", requireAuth, async (req, res, next) => {
   try {
     const page = Math.max(1, parseInt(String(req.query.page ?? "1"), 10));
@@ -95,7 +389,8 @@ router.get("/", requireAuth, async (req, res, next) => {
       });
     }
 
-    res.json({ nodes, page, limit, count: nodes.length });
+    const nodesWithLifeEvents = await attachLifeEvents(nodes);
+    res.json({ nodes: nodesWithLifeEvents, page, limit, count: nodesWithLifeEvents.length });
   } catch (err) {
     next(err);
   }
@@ -144,7 +439,7 @@ router.get("/self", requireAuth, async (req, res, next) => {
     const seen = new Set<number>();
     const deduped = allNodes.filter((n) => { if (seen.has(n.id)) return false; seen.add(n.id); return true; });
 
-    res.json({ nodes: deduped });
+    res.json({ nodes: await attachLifeEvents(deduped) });
   } catch (err) {
     next(err);
   }
@@ -182,7 +477,7 @@ router.get("/my", requireAuth, async (req, res, next) => {
       .where(eq(familyLineageTable.addedByMemberId, currentUserId))
       .orderBy(desc(familyLineageTable.createdAt));
 
-    res.json({ nodes });
+    res.json({ nodes: await attachLifeEvents(nodes) });
   } catch (err) {
     next(err);
   }
@@ -199,6 +494,44 @@ router.get("/pending-reviews", requireAuth, requireRole("trustee"), async (req, 
     res.json(pending);
   } catch (err) {
     next(err);
+  }
+});
+
+router.get("/notes-structured-facts/dry-run", requireAuth, requireRole("trustee"), async (_req, res) => {
+  try {
+    const rows = await db
+      .select({
+        id: familyLineageTable.id,
+        fullName: familyLineageTable.fullName,
+        notes: familyLineageTable.notes,
+      })
+      .from(familyLineageTable);
+
+    const matches = rows
+      .map((row) => {
+        const parsed = parseStructuredFactsFromNotes(row.notes ?? "");
+        return {
+          id: row.id,
+          fullName: row.fullName,
+          facts: parsed.facts,
+          narrativeNotes: parsed.narrative,
+        };
+      })
+      .filter((row) => Object.keys(row.facts).length > 0);
+
+    res.json({
+      dryRun: true,
+      scanned: rows.length,
+      matched: matches.length,
+      matches,
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Failed to scan structured facts";
+    res.status(500).json({
+      dryRun: true,
+      error: message,
+      matches: [],
+    });
   }
 });
 
@@ -472,7 +805,8 @@ router.get("/:id", requireAuth, async (req, res, next) => {
       resolveNames(spouseIds),
     ]);
 
-    res.json({ ...node, _parents: parents, _children: children, _spouses: spouses, _profile: profileData });
+    const [nodeWithLifeEvents] = await attachLifeEvents([node]);
+    res.json({ ...nodeWithLifeEvents, _parents: parents, _children: children, _spouses: spouses, _profile: profileData });
   } catch (err) {
     next(err);
   }
@@ -836,7 +1170,7 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
     if (!existing) { res.status(404).json({ error: "Node not found" }); return; }
 
     const body = req.body as Record<string, unknown>;
-    const updates: Record<string, unknown> = { updatedAt: new Date() };
+    const { normalizedBody, updates, evidence } = buildCanonicalFactUpdates(existing, body);
     const allowed = ["fullName", "firstName", "lastName", "birthYear", "deathYear", "gender",
       "tribalNation", "tribalEnrollmentNumber", "notes", "generationalPosition",
       "icwaEligible", "welfareEligible", "trustBeneficiary", "protectionLevel",
@@ -844,12 +1178,15 @@ router.patch("/:id", requireAuth, requireRole("trustee"), async (req, res, next)
       "birthPlace", "birthDate", "deathPlace", "deathDate", "burialPlace", "locationAddress"];
 
     for (const field of allowed) {
-      if (body[field] !== undefined) {
-        updates[field] = body[field];
+      if (normalizedBody[field] !== undefined && updates[field] === undefined) {
+        updates[field] = normalizedBody[field];
       }
     }
 
     const [updated] = await db.update(familyLineageTable).set(updates).where(eq(familyLineageTable.id, id)).returning();
+    for (const event of evidence) {
+      await upsertManualLifeEvent(id, event);
+    }
     res.json(updated);
   } catch (err) {
     next(err);
