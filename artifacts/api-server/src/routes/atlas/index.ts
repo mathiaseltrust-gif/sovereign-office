@@ -9,13 +9,106 @@ import { enrichLifeEventPlace } from "../../lib/place-normalization";
 
 const router = Router();
 
+function extractYear(value: string | null): number | null {
+  const match = value?.match(/\b(1[5-9]\d{2}|20\d{2}|21\d{2})\b/);
+  return match ? Number(match[1]) : null;
+}
+
+
 router.get("/events", async (_req, res, next) => {
   try {
-    const events = await db
+    const atlasEvents = await db
       .select()
       .from(atlasEventsTable)
       .orderBy(atlasEventsTable.year);
-    res.json(events);
+
+    const lifeEventRows = await db.execute(sql`
+      SELECT
+        ale.id,
+        ale.person_id AS "personId",
+        ale.event_type AS "eventType",
+        ale.event_date AS "eventDate",
+        ale.event_year AS "eventYear",
+        ale.event_place AS "eventPlace",
+        ale.place_normalized AS "placeNormalized",
+        ale.county,
+        ale.state,
+        ale.country,
+        ale.latitude,
+        ale.longitude,
+        ale.source_type AS "sourceType",
+        ale.source_reference AS "sourceReference",
+        fl.full_name AS "fullName"
+      FROM ancestor_life_events ale
+      LEFT JOIN family_lineage fl ON fl.id = ale.person_id
+      WHERE COALESCE(ale.atlas_visible, true) = true
+        AND (ale.event_year IS NOT NULL OR ale.event_date IS NOT NULL)
+      ORDER BY COALESCE(ale.event_year, 9999), ale.event_type
+    `);
+
+    const lifeEvents = (lifeEventRows.rows as Array<{
+      id: number;
+      personId: number;
+      eventType: string | null;
+      eventDate: string | null;
+      eventYear: number | null;
+      eventPlace: string | null;
+      placeNormalized: string | null;
+      county: string | null;
+      state: string | null;
+      country: string | null;
+      latitude: number | null;
+      longitude: number | null;
+      sourceType: string | null;
+      sourceReference: string | null;
+      fullName: string | null;
+    }>).flatMap((row) => {
+      const enriched = enrichLifeEventPlace({
+        eventPlace: row.eventPlace,
+        placeNormalized: row.placeNormalized,
+        county: row.county,
+        state: row.state,
+        country: row.country,
+      });
+      const year = row.eventYear ?? extractYear(row.eventDate);
+      if (!year) return [];
+      const label = (row.eventType ?? "life_event").replace(/_/g, " ");
+      const person = row.fullName ?? `Ancestor #${row.personId}`;
+      const location = enriched.placeNormalized ?? row.eventPlace ?? null;
+      return [{
+        id: -Math.abs(row.id),
+        eventId: `life-event-${row.id}`,
+        title: `${person}: ${label}`,
+        shortTitle: label,
+        year,
+        dateStart: row.eventDate,
+        dateEnd: null,
+        era: "life-event",
+        eventType: row.eventType ?? "life_event",
+        policyArea: "Life Event Evidence",
+        description: [label, row.eventPlace].filter(Boolean).join(" — ") || "Life-event evidence record",
+        plainLanguageSummary: `${person} has a ${label} source mention${row.eventPlace ? ` at ${row.eventPlace}` : ""}.`,
+        severityLevel: "moderate",
+        status: "active",
+        identityImpact: null,
+        reclassificationImpact: null,
+        continuitySurvivalNote: null,
+        familyImpact: null,
+        urbanizationImpact: null,
+        healthAccessImpact: null,
+        ancestorRelevanceNote: "Life-event evidence record; do not collapse repeated source mentions without review.",
+        modernEffect: null,
+        sourceTitle: row.sourceReference ?? row.sourceType ?? "ancestor_life_events",
+        sourceUrl: "",
+        tags: ["life_event", row.eventType ?? "unknown"],
+        affectedRegions: location ? [location] : [],
+        statesAffected: enriched.state ? [enriched.state] : [],
+        coordinateLat: row.latitude,
+        coordinateLng: row.longitude,
+      }];
+    });
+
+    res.json([...atlasEvents, ...lifeEvents].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999)));
   } catch (err) {
     next(err);
   }
