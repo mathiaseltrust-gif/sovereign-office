@@ -27,6 +27,12 @@ const ERA_LABELS: Record<string, string> = {
 };
 
 export function AtlasDetailPanel({ event, onClose, atlasMode = false, contextMatches = [], onSelectPerson }: AtlasDetailPanelProps) {
+  const eventType = event?.eventType ?? event?.event_type ?? "Historical event";
+  const policyArea = event?.policyArea ?? event?.policy_area ?? "Policy context";
+  const severityLevel = event?.severityLevel ?? event?.severity_level ?? "moderate";
+  const locationText = event?.locationName ?? event?.eventPlace ?? event?.affected_regions?.[0] ?? null;
+  const eventDate = event?.eventDate ?? event?.dateStart ?? null;
+
   // Ancestors potentially relevant to this event
   const relatedAncestors = atlasMode
     ? contextMatches.filter(m => m.eventId === event?.id)
@@ -59,16 +65,28 @@ export function AtlasDetailPanel({ event, onClose, atlasMode = false, contextMat
                 <h2 className="font-serif text-2xl font-bold text-foreground mb-3 leading-tight">{event.title}</h2>
                 <div className="flex flex-wrap gap-2 mb-4">
                   <Badge className={`
-                    ${event.severity_level === "critical" ? "bg-[#a64115] hover:bg-[#a64115]" : ""}
-                    ${event.severity_level === "high" ? "bg-[#c29b40] hover:bg-[#c29b40]" : ""}
-                    ${event.severity_level === "moderate" ? "bg-[#5c744c] hover:bg-[#5c744c]" : ""}
+                    ${severityLevel === "critical" ? "bg-[#a64115] hover:bg-[#a64115]" : ""}
+                    ${severityLevel === "high" ? "bg-[#c29b40] hover:bg-[#c29b40]" : ""}
+                    ${severityLevel === "moderate" ? "bg-[#5c744c] hover:bg-[#5c744c]" : ""}
                     text-white border-none uppercase tracking-widest text-[10px]
                   `}>
-                    {event.severity_level} Severity
+                    {severityLevel} Severity
                   </Badge>
-                  <Badge variant="secondary" className="uppercase tracking-widest text-[10px]">{event.event_type}</Badge>
-                  <Badge variant="outline" className="uppercase tracking-widest text-[10px] bg-background">{event.policy_area}</Badge>
+                  <Badge variant="secondary" className="uppercase tracking-widest text-[10px]">{eventType}</Badge>
+                  <Badge variant="outline" className="uppercase tracking-widest text-[10px] bg-background">{policyArea}</Badge>
                 </div>
+
+                {(eventDate || locationText) && (
+                  <div className="bg-card/60 border border-border/60 rounded-lg p-3 mb-4 text-xs space-y-1">
+                    {eventDate && <p><span className="text-muted-foreground">Date</span> · {eventDate}</p>}
+                    {locationText && (
+                      <p className="flex items-start gap-1.5">
+                        <MapPin className="w-3 h-3 mt-0.5 text-primary shrink-0" />
+                        <span><span className="text-muted-foreground">Location</span> · {locationText}</span>
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="prose prose-sm prose-stone dark:prose-invert mt-4 leading-relaxed text-foreground/90 max-w-none">
                   <p>{event.description}</p>
@@ -79,7 +97,7 @@ export function AtlasDetailPanel({ event, onClose, atlasMode = false, contextMat
                 <h3 className="text-xs font-bold uppercase tracking-wider text-primary mb-2 flex items-center gap-2">
                   <Info className="w-3.5 h-3.5" /> In plain language
                 </h3>
-                <p className="text-sm text-foreground/90">{event.plain_language_summary}</p>
+                <p className="text-sm text-foreground/90">{event.plainLanguageSummary ?? event.plain_language_summary}</p>
               </div>
 
               {event.ancestor_relevance_note && (
