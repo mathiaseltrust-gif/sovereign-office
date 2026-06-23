@@ -420,8 +420,6 @@ async function linkRelationshipsForBatch(batchId: number): Promise<void> {
 }
 
 
-// Keep GEDCOM relationship-audit and repair helpers at module scope so the
-// top-level route registrations below can call both functions after bundling.
 type SkippedFamilyGroup = {
   key: string;
   reason: string;
@@ -441,6 +439,10 @@ type BatchRelationshipSyncResult = {
 
 type ExistingFamilyUnit = typeof familyUnitsTable.$inferSelect;
 type BatchFamilyGroup = { key: string; husbandId: number | null; wifeId: number | null; childIds: Set<number> };
+};
+
+type ExistingFamilyUnit = typeof familyUnitsTable.$inferSelect;
+type BatchFamilyGroup = { husbandId: number | null; wifeId: number | null; childIds: Set<number> };
 
 function numberArray(value: unknown): number[] {
   return Array.isArray(value)
@@ -507,6 +509,7 @@ function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, numb
     if (fatherId || motherId) {
       const key = `${fatherId ?? "none"}:${motherId ?? "none"}`;
       const group = familyGroups.get(key) ?? { key, husbandId: fatherId, wifeId: motherId, childIds: new Set<number>() };
+      const group = familyGroups.get(key) ?? { husbandId: fatherId, wifeId: motherId, childIds: new Set<number>() };
       group.childIds.add(row.matchedAncestorId);
       familyGroups.set(key, group);
     }
@@ -519,6 +522,7 @@ function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, numb
       const wifeId = row.gender === "female" ? row.matchedAncestorId : spouseId;
       const key = `${husbandId ?? "none"}:${wifeId ?? "none"}`;
       if (!familyGroups.has(key)) familyGroups.set(key, { key, husbandId, wifeId, childIds: new Set<number>() });
+      if (!familyGroups.has(key)) familyGroups.set(key, { husbandId, wifeId, childIds: new Set<number>() });
     }
   }
 
@@ -546,6 +550,8 @@ async function analyzeBatchRelationshipCoverage(batchId: number) {
       continue;
     }
 
+
+  for (const group of familyGroups.values()) {
     const childIds = [...group.childIds];
     const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
       const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
@@ -605,16 +611,6 @@ async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<Batc
 
     const childIds = [...group.childIds];
     try {
-      // Re-check this exact group immediately before touching family_units.
-      // This guards against stale gedcom_staging.matched_ancestor_id values and
-      // races with lineage cleanup/merge jobs after the batch-level snapshot.
-      const currentLineageIds = await loadExistingLineageIdsByIds(familyGroupIds(group));
-      const currentInvalidReason = validateFamilyGroup(group, currentLineageIds);
-      if (currentInvalidReason) {
-        skippedGroups.push(skippedFamilyGroup(group, currentInvalidReason.reason, currentInvalidReason.missingIds));
-        continue;
-      }
-
       const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
         const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
         return sameParents && sameMembers(numberArray(unit.childIds), childIds);
@@ -623,23 +619,41 @@ async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<Batc
       });
 
       if (existing) {
-        const mergedChildIds = [...new Set([...numberArray(existing.childIds), ...childIds])];
-        if (!sameMembers(numberArray(existing.childIds), mergedChildIds)) {
-          await db.update(familyUnitsTable).set({ childIds: mergedChildIds, updatedAt: new Date() }).where(eq(familyUnitsTable.id, existing.id));
-          familyUnitsUpdated++;
-        }
-      } else {
-        const [created] = await db.insert(familyUnitsTable).values({
-          husbandId: group.husbandId ?? undefined,
-          wifeId: group.wifeId ?? undefined,
-          spouseIds: [],
-          childIds,
-          relationshipType: "biological",
-          sourceType: "gedcom",
-        }).returning();
-        existingUnits.push(created);
-        familyUnitsCreated++;
+  if (gToL.size === 0) return { familyUnitsCreated: 0, familyUnitsUpdated: 0, siblingGroupsUpdated: 0 };
+
+  const familyGroups = buildFamilyGroupsFromStaged(staged, gToL);
+  const existingUnits: ExistingFamilyUnit[] = await db.select().from(familyUnitsTable);
+  let familyUnitsCreated = 0;
+  let familyUnitsUpdated = 0;
+  let siblingGroupsUpdated = 0;
+
+  for (const group of familyGroups.values()) {
+    const childIds = [...group.childIds];
+    const existing = existingUnits.find((unit: ExistingFamilyUnit) => {
+      const sameParents = (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+      return sameParents && sameMembers(numberArray(unit.childIds), childIds);
+    }) ?? existingUnits.find((unit: ExistingFamilyUnit) => {
+      return (unit.husbandId ?? null) === group.husbandId && (unit.wifeId ?? null) === group.wifeId;
+    });
+
+    if (existing) {
+      const mergedChildIds = [...new Set([...numberArray(existing.childIds), ...childIds])];
+      if (!sameMembers(numberArray(existing.childIds), mergedChildIds)) {
+        await db.update(familyUnitsTable).set({ childIds: mergedChildIds, updatedAt: new Date() }).where(eq(familyUnitsTable.id, existing.id));
+        familyUnitsUpdated++;
       }
+    } else {
+      const [created] = await db.insert(familyUnitsTable).values({
+        husbandId: group.husbandId ?? undefined,
+        wifeId: group.wifeId ?? undefined,
+        spouseIds: [],
+        childIds,
+        relationshipType: "biological",
+        sourceType: "gedcom",
+      }).returning();
+      existingUnits.push(created);
+      familyUnitsCreated++;
+    }
 
       if (childIds.length > 1) {
         for (const childId of childIds) {
@@ -660,6 +674,22 @@ async function syncFamilyUnitsAndSiblingsForBatch(batchId: number): Promise<Batc
 
   logger.info({ batchId, familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups: skippedGroups.length, errors: errors.length }, "GEDCOM family units and siblings synchronized");
   return { familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated, skippedGroups, errors };
+    if (childIds.length > 1) {
+      for (const childId of childIds) {
+        const [child] = await db.select({ siblingIds: familyLineageTable.siblingIds }).from(familyLineageTable).where(eq(familyLineageTable.id, childId)).limit(1);
+        if (!child) continue;
+        const currentSiblings = numberArray(child.siblingIds);
+        const mergedSiblings = [...new Set([...currentSiblings, ...childIds.filter((id) => id !== childId)])];
+        if (!sameMembers(currentSiblings, mergedSiblings)) {
+          await db.update(familyLineageTable).set({ siblingIds: mergedSiblings, updatedAt: new Date() }).where(eq(familyLineageTable.id, childId));
+          siblingGroupsUpdated++;
+        }
+      }
+    }
+  }
+
+  logger.info({ batchId, familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated }, "GEDCOM family units and siblings synchronized");
+  return { familyUnitsCreated, familyUnitsUpdated, siblingGroupsUpdated };
 }
 
 // ── POST /api/ancestry/gedcom/staging/:id/approve ────────────────────────────
