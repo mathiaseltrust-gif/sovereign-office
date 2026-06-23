@@ -17,6 +17,7 @@ import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable, identityNarrativesTable } from "@workspace/db";
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { enrichLifeEventPlace } from "../../lib/place-normalization";
 
 async function getAncestorHistoricalContext(userId: number) {
   const result = await db.execute(sql`
@@ -216,9 +217,18 @@ async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number,
       event_date AS "eventDate",
       event_year AS "eventYear",
       event_place AS "eventPlace",
+      place_normalized AS "placeNormalized",
+      county,
+      state,
+      country,
+      latitude,
+      longitude,
       event_place_confidence AS "eventPlaceConfidence",
       event_source AS "eventSource",
-      source_type AS "sourceType"
+      source_type AS "sourceType",
+      source_reference AS "sourceReference",
+      source_confidence AS "sourceConfidence",
+      raw_payload AS "rawPayload"
     FROM ancestor_life_events
     WHERE person_id IN (${sql.raw(ids.join(","))})
   `);
@@ -229,29 +239,38 @@ async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number,
     eventDate: string | null;
     eventYear: number | null;
     eventPlace: string | null;
+    placeNormalized: string | null;
+    county: string | null;
+    state: string | null;
+    country: string | null;
+    latitude: number | null;
+    longitude: number | null;
     eventPlaceConfidence: string | null;
     eventSource: string | null;
     sourceType: string | null;
+    sourceReference: string | null;
+    sourceConfidence: string | null;
+    rawPayload: unknown | null;
   }>;
 
   for (const row of rows) {
     const events = byPerson.get(row.personId) ?? [];
-    events.push({
+    events.push(enrichLifeEventPlace({
       event_type: row.eventType,
       event_date: row.eventDate ?? null,
       event_year: row.eventYear ?? null,
       event_place: row.eventPlace ?? null,
-      latitude: null,
-      longitude: null,
-      place_normalized: null,
-      county: null,
-      state: null,
-      country: null,
+      latitude: row.latitude ?? null,
+      longitude: row.longitude ?? null,
+      place_normalized: row.placeNormalized ?? null,
+      county: row.county ?? null,
+      state: row.state ?? null,
+      country: row.country ?? null,
       source_type: row.sourceType ?? null,
-      source_reference: row.eventSource ?? null,
-      source_confidence: row.eventPlaceConfidence ?? null,
-      raw_payload: null,
-    });
+      source_reference: row.sourceReference ?? row.eventSource ?? null,
+      source_confidence: row.sourceConfidence ?? row.eventPlaceConfidence ?? null,
+      raw_payload: row.rawPayload ?? null,
+    }));
     byPerson.set(row.personId, events);
   }
 

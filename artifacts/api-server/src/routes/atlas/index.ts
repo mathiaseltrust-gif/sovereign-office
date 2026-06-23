@@ -5,6 +5,7 @@ import { atlasEventsTable, type InsertAtlasEvent } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { sql } from "drizzle-orm";
 import { callAzureOpenAI } from "../../lib/azure-openai";
+import { enrichLifeEventPlace } from "../../lib/place-normalization";
 
 const router = Router();
 
@@ -118,7 +119,63 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         fl.full_name NULLS LAST
     `);
 
-    res.json(result.rows);
+    const ancestorRows = result.rows as Array<{ id: number; [key: string]: unknown }>;
+    const ids = ancestorRows.map((row) => Number(row.id)).filter((id) => Number.isFinite(id) && id > 0);
+    const lifeEventsByPerson = new Map<number, unknown[]>();
+
+    if (ids.length > 0) {
+      const lifeEventRows = await db.execute(sql`
+        SELECT
+          person_id AS "personId",
+          event_type AS "eventType",
+          event_date AS "eventDate",
+          event_year AS "eventYear",
+          event_place AS "eventPlace",
+          place_normalized AS "placeNormalized",
+          county,
+          state,
+          country,
+          source_type AS "sourceType",
+          source_reference AS "sourceReference"
+        FROM ancestor_life_events
+        WHERE person_id IN (${sql.raw(ids.join(","))})
+        ORDER BY COALESCE(event_year, 9999), event_type
+      `);
+
+      for (const row of lifeEventRows.rows as Array<{
+        personId: number;
+        eventType: string | null;
+        eventDate: string | null;
+        eventYear: number | null;
+        eventPlace: string | null;
+        placeNormalized: string | null;
+        county: string | null;
+        state: string | null;
+        country: string | null;
+        sourceType: string | null;
+        sourceReference: string | null;
+      }>) {
+        const existing = lifeEventsByPerson.get(row.personId) ?? [];
+        existing.push(enrichLifeEventPlace({
+          eventType: row.eventType,
+          eventDate: row.eventDate,
+          eventYear: row.eventYear,
+          eventPlace: row.eventPlace,
+          placeNormalized: row.placeNormalized,
+          county: row.county,
+          state: row.state,
+          country: row.country,
+          sourceType: row.sourceType,
+          sourceReference: row.sourceReference,
+        }));
+        lifeEventsByPerson.set(row.personId, existing);
+      }
+    }
+
+    res.json(ancestorRows.map((row) => ({
+      ...row,
+      life_events: lifeEventsByPerson.get(Number(row.id)) ?? [],
+    })));
   } catch (err) {
     next(err);
   }

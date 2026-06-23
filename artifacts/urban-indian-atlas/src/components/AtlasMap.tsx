@@ -1075,7 +1075,7 @@ export function AtlasMap({
             scope of national acts (e.g. 1956 Relocation Act) is visible.
         ── */}
         {(() => {
-          const sel = selectedEventId ? events.find(e => e.id === selectedEventId) : null;
+          const sel = selectedEventId ? (filteredEvents.find(e => e.id === selectedEventId) ?? events.find(e => e.id === selectedEventId)) : null;
           if (!sel) return null;
           const states = sel.states_affected;
           if (!states || states.length < 2 || states[0] === "All states") return null;

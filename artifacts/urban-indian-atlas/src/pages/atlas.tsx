@@ -27,10 +27,20 @@ export interface AtlasEvent {
   year: number;
   era: string;
   event_type: string;
+  eventType: string;
+  eventDate: string | null;
+  dateStart: string | null;
+  locationName: string | null;
+  eventPlace: string | null;
+  coordinateLat: number | null;
+  coordinateLng: number | null;
   policy_area: string;
+  policyArea: string;
   severity_level: EventSeverity;
+  severityLevel: EventSeverity;
   description: string;
   plain_language_summary: string;
+  plainLanguageSummary: string;
   coordinates: [number, number];
   identity_impact: string | null;
   reclassification_impact: string | null;
@@ -241,10 +251,20 @@ function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
     year: e.year,
     era: e.era,
     event_type: e.eventType,
+    eventType: e.eventType,
+    eventDate: e.dateStart ?? null,
+    dateStart: e.dateStart ?? null,
+    locationName: (e.affectedRegions ?? [])[0] ?? null,
+    eventPlace: (e.affectedRegions ?? [])[0] ?? null,
+    coordinateLat: e.coordinateLat ?? null,
+    coordinateLng: e.coordinateLng ?? null,
     policy_area: e.policyArea,
+    policyArea: e.policyArea,
     severity_level: (e.severityLevel as EventSeverity) || "moderate",
+    severityLevel: (e.severityLevel as EventSeverity) || "moderate",
     description: e.description,
     plain_language_summary: e.plainLanguageSummary,
+    plainLanguageSummary: e.plainLanguageSummary,
     coordinates: [e.coordinateLat ?? 38.5, e.coordinateLng ?? -97.0],
     identity_impact: e.identityImpact ?? null,
     reclassification_impact: e.reclassificationImpact ?? null,
@@ -662,7 +682,9 @@ export default function Atlas() {
     });
   }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter, maxGeneration, lineageFilter, ancestorNameSearch]);
 
-  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+  const selectedEvent = selectedEventId
+    ? filteredEvents.find((e) => e.id === selectedEventId) ?? events.find((e) => e.id === selectedEventId) ?? null
+    : null;
 
   const selectedAncestor = selectedPersonId !== null
     ? ancestors.find(a => a.id === selectedPersonId) ?? null
@@ -685,8 +707,14 @@ export default function Atlas() {
   };
 
   const handleSelectEvent = (id: string) => {
+    const event = filteredEvents.find((e) => e.id === id) ?? events.find((e) => e.id === id) ?? null;
     setSelectedEventId(id);
     setSelectedPersonId(null);
+    if (event?.coordinateLat != null && event.coordinateLng != null) {
+      setFocusedEventCoords([event.coordinateLat, event.coordinateLng]);
+    } else {
+      setFocusedEventCoords(null);
+    }
   };
 
   const handleToggleAtlasMode = () => {
