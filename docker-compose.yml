@@ -88,8 +88,8 @@ services:
         BASE_PATH: /
         VITE_API_URL: ${APP_URL:-http://localhost:8080}
     restart: unless-stopped
-    ports:
-      - "3001:80"
+    expose:
+      - "80"
     depends_on:
       - api
     extra_hosts:
