@@ -13,7 +13,7 @@ import { PersonContextPanel } from "@/components/PersonContextPanel";
 import { ActivateAtlasButton } from "@/components/ActivateAtlasButton";
 import { SourcesModal } from "@/components/SourcesModal";
 import { Button } from "@/components/ui/button";
-import { BookOpen, Home, LayoutDashboard, Loader2, User } from "lucide-react";
+import { BookOpen, Loader2 } from "lucide-react";
 import { getAtlasBearerToken, isAtlasAuthenticated, authHeaders } from "@/lib/atlasAuth";
 import { AIQueryResult } from "@/components/AtlasAIQuery";
 
@@ -251,15 +251,9 @@ interface DbContextMatch {
 }
 
 function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
-  const rawTitle = e.title?.trim() ?? "";
-  const hasGeneratedAncestorTitle = /^ancestor\s+#\d+$/i.test(rawTitle);
-  const readableTitle = hasGeneratedAncestorTitle
-    ? (e.sourceTitle?.trim() || "Ancestor record")
-    : (rawTitle || e.shortTitle?.trim() || e.sourceTitle?.trim() || "Ancestor record");
-
   return {
     id: e.eventId,
-    title: readableTitle,
+    title: e.title,
     year: e.year,
     era: e.era,
     event_type: e.eventType,
@@ -768,8 +762,6 @@ export default function Atlas() {
     }
   };
 
-  const officeBase = "/sovereign-dashboard";
-
   if (isLoading) {
     return (
       <div className="flex items-center justify-center h-[100dvh] bg-background">
@@ -805,22 +797,6 @@ export default function Atlas() {
           </p>
         </div>
         <div className="flex items-center gap-3">
-          <nav className="hidden lg:flex items-center gap-1 border-r border-border/60 pr-3 mr-1" aria-label="Office navigation">
-            {[
-              { href: `${officeBase}/hub`, label: "Home", icon: Home },
-              { href: `${officeBase}/dashboard`, label: "Dashboard", icon: LayoutDashboard },
-              { href: `${officeBase}/profile`, label: "Profile", icon: User },
-            ].map(({ href, label, icon: Icon }) => (
-              <a
-                key={href}
-                href={href}
-                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-xs text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors"
-              >
-                <Icon className="h-3.5 w-3.5" />
-                {label}
-              </a>
-            ))}
-          </nav>
           {atlasMode && ancestorsLoading && (
             <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
               <Loader2 className="w-3.5 h-3.5 animate-spin" />

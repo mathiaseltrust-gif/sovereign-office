@@ -208,10 +208,6 @@ const severityRadius = {
   moderate: 7,
 };
 
-function hasEventCoordinates(evt: AtlasEvent): boolean {
-  return evt.coordinateLat != null && evt.coordinateLng != null;
-}
-
 // Region name → approximate centroid. Used by resolveAncestorCoord for both
 // verified locationText (from ancestralTimelineEvents) and tribal-nation fallback.
 const REGION_COORD_MAP: Record<string, [number, number]> = {
@@ -917,7 +913,6 @@ export function AtlasMap({
               historicalEvents  — everything else
         ── */}
         {events.map((evt) => {
-          if (!hasEventCoordinates(evt)) return null;
           const isFilteredOut = isEventFilteredOut(evt.id);
           const isSelected = evt.id === selectedEventId;
           const et = (evt.event_type ?? "").toLowerCase();
@@ -985,7 +980,6 @@ export function AtlasMap({
         ── */}
         {activeLayers.treaties && events
           .filter(evt => {
-            if (!hasEventCoordinates(evt)) return false;
             const et = (evt.event_type ?? "").toLowerCase();
             const pa = (evt.policy_area ?? "").toLowerCase();
             return et === "treaty" || pa.includes("treaty rights") || pa === "treaty";
@@ -1035,7 +1029,7 @@ export function AtlasMap({
             visually distinct from both treaty diamonds and the generic circles.
         ── */}
         {activeLayers.courtDecisions && events
-          .filter(evt => hasEventCoordinates(evt) && (evt.event_type ?? "").toLowerCase() === "court decision")
+          .filter(evt => (evt.event_type ?? "").toLowerCase() === "court decision")
           .map(evt => {
             const isFilteredOut = isEventFilteredOut(evt.id);
             const isSelected = evt.id === selectedEventId;
@@ -1082,7 +1076,7 @@ export function AtlasMap({
         ── */}
         {(() => {
           const sel = selectedEventId ? (filteredEvents.find(e => e.id === selectedEventId) ?? events.find(e => e.id === selectedEventId)) : null;
-          if (!sel || !hasEventCoordinates(sel)) return null;
+          if (!sel) return null;
           const states = sel.states_affected;
           if (!states || states.length < 2 || states[0] === "All states") return null;
           const primaryCoord = sel.coordinates;

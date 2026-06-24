@@ -2581,7 +2581,7 @@ export default function ProfilePage() {
   }
 
   return (
-    <div data-testid="page-profile" className="space-y-4 max-w-4xl pb-2">
+    <div data-testid="page-profile" className="space-y-4 max-w-4xl">
 
       {/* ── Header ── */}
       {isChief ? (
