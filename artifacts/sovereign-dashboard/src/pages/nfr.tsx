@@ -1,103 +1,286 @@
 import { useState } from "react";
-import { useListNfrs, useExportNfrPdf, getListNfrsQueryKey } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { Link } from "wouter";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
-import { Gavel } from "lucide-react";
+import { AlertTriangle, FileText, Gavel, Loader2, RadioTower, Scale } from "lucide-react";
 import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
 
+type NfrDocument = {
+  id: number;
+  status: string;
+  content?: string | null;
+  classificationId?: number | null;
+  investigationId?: number | null;
+  pdfUrl?: string | null;
+  tribalRef?: string | null;
+  urgencyScore?: number | null;
+  protectionCategory?: string | null;
+  triggeringEntity?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NfrInvestigation = {
+  id: number;
+  nfrId?: number | null;
+  signalType?: string | null;
+  triggeringEventType?: string | null;
+  affectedMatter?: string | null;
+  triggeringEntity?: string | null;
+  protectionCategory?: string | null;
+  urgencyScore?: number | null;
+  recommendedReviewLevel?: string | null;
+  status: string;
+  summary?: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
+type NfrSignal = {
+  id: number;
+  investigationId?: number | null;
+  signalType?: string | null;
+  source?: string | null;
+  context?: string | null;
+  detectedAt: string;
+};
+
+type NfrOverview = {
+  documents: NfrDocument[];
+  investigations: NfrInvestigation[];
+  activeMatters: NfrInvestigation[];
+  recentSignals: NfrSignal[];
+};
+
+const emptyOverview: NfrOverview = {
+  documents: [],
+  investigations: [],
+  activeMatters: [],
+  recentSignals: [],
+};
+
+function authHeaders(): HeadersInit {
+  const token = getCurrentBearerToken();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function apiFetch<T>(path: string, init?: RequestInit): Promise<T> {
+  const response = await fetch(path, {
+    ...init,
+    headers: {
+      "Content-Type": "application/json",
+      ...authHeaders(),
+      ...(init?.headers ?? {}),
+    },
+  });
+  if (!response.ok) {
+    const body = await response.json().catch(() => ({})) as { error?: string };
+    throw new Error(body.error ?? `HTTP ${response.status}`);
+  }
+  return response.json() as Promise<T>;
+}
+
+function pretty(value?: string | null): string {
+  if (!value) return "—";
+  return value.replace(/_/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
+}
+
+function statusClass(status?: string | null): string {
+  switch (status) {
+    case "open":
+    case "draft":
+      return "border-amber-600/40 text-amber-400";
+    case "under_review":
+    case "active":
+      return "border-blue-600/40 text-blue-400";
+    case "escalated":
+      return "border-red-600/40 text-red-400";
+    case "resolved":
+    case "closed":
+      return "border-green-600/40 text-green-400";
+    default:
+      return "border-muted-foreground/40 text-muted-foreground";
+  }
+}
+
 export default function NfrPage() {
-  const { data: nfrs, isLoading } = useListNfrs();
-  const exportPdf = useExportNfrPdf();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const isOfficer = useIsOfficer();
   const [investigationNfrId, setInvestigationNfrId] = useState<number | null>(null);
 
-  const handleExport = (id: number) => {
-    exportPdf.mutate({ id }, {
-      onSuccess: () => {
-        queryClient.invalidateQueries({ queryKey: getListNfrsQueryKey() });
-        toast({ title: "PDF exported", description: `NFR #${id} PDF ready.` });
-      },
-      onError: () => toast({ title: "Error", description: "PDF export failed.", variant: "destructive" }),
-    });
-  };
+  const { data = emptyOverview, isLoading, isError, error } = useQuery({
+    queryKey: ["nfr-overview"],
+    queryFn: () => apiFetch<NfrOverview>("/api/court/nfr/overview"),
+    refetchInterval: 60_000,
+  });
+
+  const exportPdf = useMutation({
+    mutationFn: async (id: number) => apiFetch<{ downloadUrl?: string }>(`/api/court/nfr/${id}/export-pdf`, { method: "POST", body: "{}" }),
+    onSuccess: (_result, id) => {
+      queryClient.invalidateQueries({ queryKey: ["nfr-overview"] });
+      toast({ title: "PDF generated", description: `NFR #${id} PDF is ready.` });
+    },
+    onError: (err) => toast({ title: "PDF export failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" }),
+  });
 
   const downloadPdf = async (id: number) => {
-    const token = getCurrentBearerToken() ?? "";
-    const r = await fetch(`/api/court/nfr/${id}/pdf`, { headers: { Authorization: `Bearer ${token}` } });
-    if (!r.ok) { toast({ title: "Error", description: "PDF not available.", variant: "destructive" }); return; }
+    const r = await fetch(`/api/court/nfr/${id}/pdf`, { headers: authHeaders() });
+    if (!r.ok) {
+      toast({ title: "Error", description: "PDF not available.", variant: "destructive" });
+      return;
+    }
     const blob = await r.blob();
     window.open(URL.createObjectURL(blob));
   };
 
   const investigationNfr = investigationNfrId != null
-    ? (nfrs ?? []).find(n => n.id === investigationNfrId)
+    ? data.documents.find(n => n.id === investigationNfrId)
     : null;
 
+  const hasRecords = data.documents.length > 0 || data.activeMatters.length > 0 || data.recentSignals.length > 0;
+
   return (
-    <div data-testid="page-nfr">
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Notice of Federal Review</h1>
-        <p className="text-muted-foreground mt-1">NFR — Notice of Federal Review issued upon violations of federal Indian law</p>
+    <div data-testid="page-nfr" className="space-y-6">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Notice of Federal Review</h1>
+          <p className="text-muted-foreground mt-1">
+            Live NFR engine feed: active investigations, generated notices, and recent review signals.
+          </p>
+        </div>
+        <div className="flex gap-2">
+          <Button asChild variant="outline">
+            <Link href="/classify">Classify Intake</Link>
+          </Button>
+          {isOfficer && (
+            <Button onClick={() => setInvestigationNfrId(0)}>
+              <Gavel className="w-4 h-4 mr-2" /> Manual NFR Trigger
+            </Button>
+          )}
+        </div>
       </div>
+
       {isLoading ? (
-        <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-      ) : (nfrs ?? []).length === 0 ? (
-        <Card><CardContent className="py-12 text-center text-muted-foreground">No NFR documents. Submit a classification to generate one.</CardContent></Card>
+        <div className="space-y-3">{[...Array(4)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+      ) : isError ? (
+        <Card>
+          <CardContent className="py-10 text-center text-destructive">
+            <AlertTriangle className="w-8 h-8 mx-auto mb-2" />
+            <p className="font-medium">NFR overview failed to load</p>
+            <p className="text-xs mt-1 text-muted-foreground">{error instanceof Error ? error.message : "Check API connection."}</p>
+          </CardContent>
+        </Card>
+      ) : !hasRecords ? (
+        <Card>
+          <CardContent className="py-12 text-center text-muted-foreground">
+            <Scale className="w-10 h-10 mx-auto mb-3 opacity-70" />
+            <p className="font-medium text-foreground">No NFR activity is open yet.</p>
+            <p className="text-sm mt-1">Submit a classification or use the manual trigger to open the first review.</p>
+          </CardContent>
+        </Card>
       ) : (
-        <div className="space-y-3">
-          {(nfrs ?? []).map((n) => (
-            <Card key={n.id} data-testid={`nfr-card-${n.id}`}>
-              <CardContent className="flex items-center justify-between py-4">
-                <div>
-                  <h3 className="font-semibold">NFR #{n.id}</h3>
-                  <div className="flex items-center gap-2 mt-1 text-xs text-muted-foreground">
-                    <span>Classification #{n.classificationId}</span>
-                    <span>· {new Date(n.createdAt).toLocaleDateString()}</span>
-                  </div>
-                  <div className="text-xs text-muted-foreground mt-1 max-w-lg truncate">{n.content?.substring(0, 100)}</div>
-                </div>
-                <div className="flex items-center gap-2 ml-4">
-                  <Badge variant="outline">{n.status}</Badge>
-                  {isOfficer && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      data-testid={`button-open-investigation-nfr-${n.id}`}
-                      onClick={() => setInvestigationNfrId(n.id)}
-                      className="border-amber-700/50 text-amber-400 hover:bg-amber-900/20 hover:border-amber-600"
-                    >
-                      <Gavel className="w-3.5 h-3.5 mr-1.5" /> Open Investigation
-                    </Button>
-                  )}
-                  {!n.pdfUrl ? (
-                    <Button size="sm" variant="outline" data-testid={`button-export-pdf-${n.id}`} onClick={() => handleExport(n.id)} disabled={exportPdf.isPending}>
-                      Generate PDF
-                    </Button>
-                  ) : (
-                    <Button size="sm" variant="outline" data-testid={`button-download-pdf-${n.id}`} onClick={() => downloadPdf(n.id)}>
-                      Download PDF
-                    </Button>
-                  )}
-                </div>
+        <>
+          <div className="grid gap-4 md:grid-cols-3">
+            <Card>
+              <CardContent className="py-4">
+                <div className="text-xs text-muted-foreground">Active Matters</div>
+                <div className="text-2xl font-semibold">{data.activeMatters.length}</div>
               </CardContent>
             </Card>
-          ))}
-        </div>
+            <Card>
+              <CardContent className="py-4">
+                <div className="text-xs text-muted-foreground">NFR Documents</div>
+                <div className="text-2xl font-semibold">{data.documents.length}</div>
+              </CardContent>
+            </Card>
+            <Card>
+              <CardContent className="py-4">
+                <div className="text-xs text-muted-foreground">Recent Signals</div>
+                <div className="text-2xl font-semibold">{data.recentSignals.length}</div>
+              </CardContent>
+            </Card>
+          </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><RadioTower className="w-4 h-4" /> Active NFR Investigations</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {data.activeMatters.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No active investigations.</p>
+              ) : data.activeMatters.map((matter) => (
+                <div key={matter.id} className="rounded-lg border p-4 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold">Investigation #{matter.id}</h3>
+                      <Badge variant="outline" className={statusClass(matter.status)}>{pretty(matter.status)}</Badge>
+                      {matter.urgencyScore != null && <Badge variant="secondary">Urgency {matter.urgencyScore}/10</Badge>}
+                    </div>
+                    <p className="text-sm mt-1">{pretty(matter.signalType)}</p>
+                    <p className="text-xs text-muted-foreground mt-1 truncate max-w-3xl">{matter.summary ?? matter.affectedMatter ?? "No summary recorded."}</p>
+                  </div>
+                  <Button asChild size="sm" variant="outline">
+                    <Link href={`/investigations/${matter.id}`}>Open</Link>
+                  </Button>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><FileText className="w-4 h-4" /> Generated NFR Documents</CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {data.documents.length === 0 ? (
+                <p className="text-sm text-muted-foreground">No NFR documents have been drafted yet.</p>
+              ) : data.documents.map((n) => (
+                <div key={n.id} className="rounded-lg border p-4 flex items-start justify-between gap-4">
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h3 className="font-semibold">NFR #{n.id}</h3>
+                      <Badge variant="outline" className={statusClass(n.status)}>{pretty(n.status)}</Badge>
+                      {n.tribalRef && <Badge variant="secondary">{n.tribalRef}</Badge>}
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {n.investigationId ? `Investigation #${n.investigationId}` : `Classification #${n.classificationId ?? "—"}`} · {new Date(n.createdAt).toLocaleDateString()}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1 max-w-3xl truncate">{n.content?.substring(0, 180) ?? "No content preview."}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {isOfficer && (
+                      <Button size="sm" variant="outline" onClick={() => setInvestigationNfrId(n.id)}>
+                        <Gavel className="w-3.5 h-3.5 mr-1.5" /> Review
+                      </Button>
+                    )}
+                    {!n.pdfUrl ? (
+                      <Button size="sm" variant="outline" onClick={() => exportPdf.mutate(n.id)} disabled={exportPdf.isPending}>
+                        {exportPdf.isPending ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : null}
+                        Generate PDF
+                      </Button>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => downloadPdf(n.id)}>Download PDF</Button>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </CardContent>
+          </Card>
+        </>
       )}
 
-      {investigationNfr != null && (
+      {(investigationNfrId === 0 || investigationNfr != null) && (
         <OpenInvestigationModal
           onClose={() => setInvestigationNfrId(null)}
-          defaultSignalType="TRUST_RESPONSIBILITY_BREACH"
-          affectedMatter={`NFR #${investigationNfr.id}`}
-          sourceLabel={`NFR #${investigationNfr.id}`}
+          defaultSignalType={investigationNfr ? "TRUST_RESPONSIBILITY_BREACH" : "FEDERAL_TRUST_TRIGGER"}
+          affectedMatter={investigationNfr ? `NFR #${investigationNfr.id}` : "Manual Notice of Federal Review"}
+          sourceLabel={investigationNfr ? `NFR #${investigationNfr.id}` : "NFR manual trigger"}
         />
       )}
     </div>
