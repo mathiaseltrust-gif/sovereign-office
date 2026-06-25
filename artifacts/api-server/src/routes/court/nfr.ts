@@ -13,6 +13,115 @@ import { auditLog, triggerReviewEngine, type ReviewSignalType, type TriggeringEv
 
 const router = Router();
 
+type AdminFollowthrough = { step?: number; item?: string; action?: string; status?: string };
+type NfrInvestigationRow = typeof nfrInvestigationsTable.$inferSelect;
+type NfrDocumentRow = typeof nfrDocumentsTable.$inferSelect;
+type NfrSignalRow = typeof nfrReviewSignalsTable.$inferSelect;
+
+function pretty(value?: string | null): string {
+  return value ? value.replace(/_/g, " ") : "—";
+}
+
+function asFollowthroughItems(value: unknown): AdminFollowthrough[] {
+  return Array.isArray(value) ? value as AdminFollowthrough[] : [];
+}
+
+function buildAdministrativeRecord(
+  investigations: NfrInvestigationRow[],
+  documents: NfrDocumentRow[],
+  recentSignals: NfrSignalRow[],
+) {
+  const entityMap = new Map<string, { name: string; count: number; investigationIds: number[] }>();
+  const interestMap = new Map<string, { label: string; kind: string; investigationIds: number[] }>();
+  const evidenceMap = new Map<string, { source: string; investigationIds: number[] }>();
+
+  for (const inv of investigations) {
+    if (inv.triggeringEntity) {
+      const current = entityMap.get(inv.triggeringEntity) ?? { name: inv.triggeringEntity, count: 0, investigationIds: [] };
+      current.count += 1;
+      current.investigationIds.push(inv.id);
+      entityMap.set(inv.triggeringEntity, current);
+    }
+
+    if (inv.affectedParcelId != null) {
+      const key = `parcel:${inv.affectedParcelId}`;
+      const current = interestMap.get(key) ?? { label: `Parcel #${inv.affectedParcelId}`, kind: "land_parcel", investigationIds: [] };
+      current.investigationIds.push(inv.id);
+      interestMap.set(key, current);
+    }
+
+    if (inv.affectedInstrumentId != null) {
+      const key = `instrument:${inv.affectedInstrumentId}`;
+      const current = interestMap.get(key) ?? { label: `Instrument #${inv.affectedInstrumentId}`, kind: "instrument", investigationIds: [] };
+      current.investigationIds.push(inv.id);
+      interestMap.set(key, current);
+    }
+
+    if (inv.evidenceSource) {
+      const current = evidenceMap.get(inv.evidenceSource) ?? { source: inv.evidenceSource, investigationIds: [] };
+      current.investigationIds.push(inv.id);
+      evidenceMap.set(inv.evidenceSource, current);
+    }
+  }
+
+  const deadlines = investigations.flatMap((inv) => {
+    const followthrough = asFollowthroughItems(inv.requiredFollowthrough);
+    return followthrough.map((item, index) => ({
+      id: `${inv.id}-${item.step ?? index + 1}`,
+      investigationId: inv.id,
+      label: item.item ?? item.action ?? `Follow-up step ${item.step ?? index + 1}`,
+      status: item.status ?? "pending",
+      source: pretty(inv.signalType),
+    }));
+  });
+
+  const notices = documents.map((doc) => ({
+    id: doc.id,
+    noticeNo: doc.tribalRef ?? `NFR-${doc.id}`,
+    investigationId: doc.investigationId ?? null,
+    status: doc.status,
+    pdfUrl: doc.pdfUrl,
+    triggeringEntity: doc.triggeringEntity,
+    createdAt: doc.createdAt,
+  }));
+
+  const outcomes = investigations
+    .filter((inv) => ["resolved", "dismissed", "escalated"].includes(inv.status))
+    .map((inv) => ({
+      id: inv.id,
+      investigationId: inv.id,
+      status: inv.status,
+      summary: inv.summary,
+      updatedAt: inv.updatedAt,
+    }));
+
+  return {
+    model: "Incident → Entity → Notice → Evidence → Protected Interest → Deadline → Outcome",
+    incidents: investigations.map((inv) => ({
+      id: inv.id,
+      incidentNo: `NFR-IR-${String(inv.id).padStart(6, "0")}`,
+      signalType: inv.signalType,
+      status: inv.status,
+      urgencyScore: inv.urgencyScore,
+      affectedMatter: inv.affectedMatter,
+      createdAt: inv.createdAt,
+    })),
+    entities: [...entityMap.values()],
+    notices,
+    evidenceFiles: [...evidenceMap.values()],
+    protectedInterests: [...interestMap.values()],
+    deadlines,
+    outcomes,
+    recentSignals: recentSignals.map((signal) => ({
+      id: signal.id,
+      investigationId: signal.investigationId,
+      signalType: signal.signalType,
+      source: signal.source,
+      detectedAt: signal.detectedAt,
+    })),
+  };
+}
+
 router.get("/", requireAuth, async (_req, res, next) => {
   try {
     const docs = await db
@@ -42,8 +151,10 @@ router.get("/overview", requireAuth, async (_req, res, next) => {
       db.select().from(nfrReviewSignalsTable).orderBy(desc(nfrReviewSignalsTable.detectedAt)).limit(50),
     ]);
 
+    const administrativeRecord = buildAdministrativeRecord(investigations, documents, recentSignals);
+
     res.setHeader("Cache-Control", "no-store");
-    res.json({ documents, investigations, activeMatters, recentSignals });
+    res.json({ documents, investigations, activeMatters, recentSignals, administrativeRecord });
   } catch (err) {
     next(err);
   }
