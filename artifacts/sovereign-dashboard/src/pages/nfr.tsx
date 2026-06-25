@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
-import { AlertTriangle, FileText, Gavel, Loader2, RadioTower, Scale } from "lucide-react";
+import { AlertTriangle, Archive, Building2, CalendarClock, FileText, Gavel, Landmark, Loader2, RadioTower, Scale, Send } from "lucide-react";
 import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
 
 type NfrDocument = {
@@ -50,11 +50,36 @@ type NfrSignal = {
   detectedAt: string;
 };
 
+type AdminRecord = {
+  model: string;
+  incidents: Array<{ id: number; incidentNo: string; signalType?: string | null; status: string; urgencyScore?: number | null; affectedMatter?: string | null; createdAt: string }>;
+  entities: Array<{ name: string; count: number; investigationIds: number[] }>;
+  notices: Array<{ id: number; noticeNo: string; investigationId?: number | null; status: string; pdfUrl?: string | null; triggeringEntity?: string | null; createdAt: string }>;
+  evidenceFiles: Array<{ source: string; investigationIds: number[] }>;
+  protectedInterests: Array<{ label: string; kind: string; investigationIds: number[] }>;
+  deadlines: Array<{ id: string; investigationId: number; label: string; status: string; source: string }>;
+  outcomes: Array<{ id: number; investigationId: number; status: string; summary?: string | null; updatedAt: string }>;
+  recentSignals: Array<{ id: number; investigationId?: number | null; signalType?: string | null; source?: string | null; detectedAt: string }>;
+};
+
 type NfrOverview = {
   documents: NfrDocument[];
   investigations: NfrInvestigation[];
   activeMatters: NfrInvestigation[];
   recentSignals: NfrSignal[];
+  administrativeRecord?: AdminRecord;
+};
+
+const emptyAdminRecord: AdminRecord = {
+  model: "Incident → Entity → Notice → Evidence → Protected Interest → Deadline → Outcome",
+  incidents: [],
+  entities: [],
+  notices: [],
+  evidenceFiles: [],
+  protectedInterests: [],
+  deadlines: [],
+  outcomes: [],
+  recentSignals: [],
 };
 
 const emptyOverview: NfrOverview = {
@@ -62,6 +87,7 @@ const emptyOverview: NfrOverview = {
   investigations: [],
   activeMatters: [],
   recentSignals: [],
+  administrativeRecord: emptyAdminRecord,
 };
 
 function authHeaders(): HeadersInit {
@@ -108,6 +134,22 @@ function statusClass(status?: string | null): string {
   }
 }
 
+function AdminSummaryCard({ icon: Icon, label, value }: { icon: React.ElementType; label: string; value: number }) {
+  return (
+    <Card>
+      <CardContent className="py-4 flex items-center gap-3">
+        <div className="h-9 w-9 rounded-lg bg-muted flex items-center justify-center">
+          <Icon className="h-4 w-4 text-muted-foreground" />
+        </div>
+        <div>
+          <div className="text-xs text-muted-foreground">{label}</div>
+          <div className="text-2xl font-semibold">{value}</div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
 export default function NfrPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -119,6 +161,8 @@ export default function NfrPage() {
     queryFn: () => apiFetch<NfrOverview>("/api/court/nfr/overview"),
     refetchInterval: 60_000,
   });
+
+  const admin = data.administrativeRecord ?? emptyAdminRecord;
 
   const exportPdf = useMutation({
     mutationFn: async (id: number) => apiFetch<{ downloadUrl?: string }>(`/api/court/nfr/${id}/export-pdf`, { method: "POST", body: "{}" }),
@@ -151,7 +195,7 @@ export default function NfrPage() {
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground">Notice of Federal Review</h1>
           <p className="text-muted-foreground mt-1">
-            Live NFR engine feed: active investigations, generated notices, and recent review signals.
+            Live NFR engine feed plus the administrative-record structure from the original review registry.
           </p>
         </div>
         <div className="flex gap-2">
@@ -206,6 +250,50 @@ export default function NfrPage() {
               </CardContent>
             </Card>
           </div>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="flex items-center gap-2 text-base"><Archive className="w-4 h-4" /> Administrative Record Bridge</CardTitle>
+              <p className="text-xs text-muted-foreground">{admin.model}</p>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid gap-3 md:grid-cols-4">
+                <AdminSummaryCard icon={RadioTower} label="Incidents" value={admin.incidents.length} />
+                <AdminSummaryCard icon={Building2} label="Entities" value={admin.entities.length} />
+                <AdminSummaryCard icon={Send} label="Notices" value={admin.notices.length} />
+                <AdminSummaryCard icon={Landmark} label="Protected Interests" value={admin.protectedInterests.length} />
+                <AdminSummaryCard icon={FileText} label="Evidence Sources" value={admin.evidenceFiles.length} />
+                <AdminSummaryCard icon={CalendarClock} label="Follow-Up Items" value={admin.deadlines.length} />
+                <AdminSummaryCard icon={Scale} label="Outcomes" value={admin.outcomes.length} />
+                <AdminSummaryCard icon={AlertTriangle} label="Signals" value={admin.recentSignals.length} />
+              </div>
+
+              <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-lg border p-4">
+                  <h3 className="text-sm font-semibold mb-3">Accountable Entities</h3>
+                  {admin.entities.length === 0 ? <p className="text-xs text-muted-foreground">No entities linked yet.</p> : admin.entities.slice(0, 6).map(entity => (
+                    <div key={entity.name} className="flex items-center justify-between py-2 border-b last:border-0">
+                      <span className="text-sm truncate">{entity.name}</span>
+                      <Badge variant="secondary">{entity.count}</Badge>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="rounded-lg border p-4">
+                  <h3 className="text-sm font-semibold mb-3">Pending Follow-Up</h3>
+                  {admin.deadlines.length === 0 ? <p className="text-xs text-muted-foreground">No follow-up items generated yet.</p> : admin.deadlines.slice(0, 6).map(item => (
+                    <div key={item.id} className="py-2 border-b last:border-0">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm truncate">{item.label}</span>
+                        <Badge variant="outline" className={statusClass(item.status)}>{pretty(item.status)}</Badge>
+                      </div>
+                      <p className="text-xs text-muted-foreground">Investigation #{item.investigationId} · {item.source}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
 
           <Card>
             <CardHeader>
