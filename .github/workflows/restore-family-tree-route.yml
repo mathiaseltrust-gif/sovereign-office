@@ -31,58 +31,74 @@ jobs:
           app = Path('artifacts/sovereign-dashboard/src/App.tsx')
           s = app.read_text()
 
-          # Keep /lineage as the single GEDCOM/import route, but restore the interactive family tree renderer.
-          s = s.replace('''      <Route path="/lineage">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
-      </Route>
-      <Route path="/family-tree">
-        {() => <Redirect to="/lineage" />}
-      </Route>
-      <Route path="/kinship-tree">
-        {() => <Redirect to="/lineage" />}
-      </Route>''', '''      <Route path="/lineage">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
-      </Route>
-      <Route path="/family-tree">
-        {() => <ProtectedRoute component={FamilyTreePage} />}
-      </Route>
-      <Route path="/kinship-tree">
-        {() => <ProtectedRoute component={KinshipTreePage} />}
-      </Route>''')
+          old_routes = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+              '      <Route path="/family-tree">',
+              '        {() => <Redirect to="/lineage" />}',
+              '      </Route>',
+              '      <Route path="/kinship-tree">',
+              '        {() => <Redirect to="/lineage" />}',
+              '      </Route>',
+          ])
+          restored_routes = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+              '      <Route path="/family-tree">',
+              '        {() => <ProtectedRoute component={FamilyTreePage} />}',
+              '      </Route>',
+              '      <Route path="/kinship-tree">',
+              '        {() => <ProtectedRoute component={KinshipTreePage} />}',
+              '      </Route>',
+          ])
+          s = s.replace(old_routes, restored_routes)
 
-          # If someone removed the /lineage route entirely, add it immediately before /family-tree.
+          family_tree_route = "\n".join([
+              '      <Route path="/family-tree">',
+              '        {() => <ProtectedRoute component={FamilyTreePage} />}',
+              '      </Route>',
+          ])
+          lineage_route = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+          ])
           if '<Route path="/lineage">' not in s and '<Route path="/family-tree">' in s:
-              s = s.replace('''      <Route path="/family-tree">
-        {() => <ProtectedRoute component={FamilyTreePage} />}
-      </Route>''', '''      <Route path="/lineage">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
-      </Route>
-      <Route path="/family-tree">
-        {() => <ProtectedRoute component={FamilyTreePage} />}
-      </Route>''')
+              s = s.replace(family_tree_route, lineage_route + "\n" + family_tree_route)
 
-          # Keep the older upload URLs redirected to the one upload experience.
-          s = s.replace('''      <Route path="/gedcom-import">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
-      </Route>''', '''      <Route path="/gedcom-import">
-        {() => <Redirect to="/lineage" />}
-      </Route>''')
-          s = s.replace('''      <Route path="/admin/lineage-import">
-        {() => <ProtectedRoute component={AdminLineageImportPage} />}
-      </Route>''', '''      <Route path="/admin/lineage-import">
-        {() => <Redirect to="/lineage" />}
-      </Route>''')
+          s = s.replace(
+              "\n".join([
+                  '      <Route path="/gedcom-import">',
+                  '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+                  '      </Route>',
+              ]),
+              "\n".join([
+                  '      <Route path="/gedcom-import">',
+                  '        {() => <Redirect to="/lineage" />}',
+                  '      </Route>',
+              ]),
+          )
+          s = s.replace(
+              "\n".join([
+                  '      <Route path="/admin/lineage-import">',
+                  '        {() => <ProtectedRoute component={AdminLineageImportPage} />}',
+                  '      </Route>',
+              ]),
+              "\n".join([
+                  '      <Route path="/admin/lineage-import">',
+                  '        {() => <Redirect to="/lineage" />}',
+                  '      </Route>',
+              ]),
+          )
           app.write_text(s)
 
           layout = Path('artifacts/sovereign-dashboard/src/components/layout.tsx')
           s = layout.read_text()
-
-          # Community navigation should point to the interactive tree centerpiece, not the GEDCOM uploader.
           s = s.replace('{ href: "/lineage",              label: "Lineage Registry",      icon: TreePine },', '{ href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },', 1)
           s = s.replace('{ href: "/lineage",              label: "Lineage Registry",     icon: TreePine },', '{ href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },', 1)
           s = s.replace('{ href: "/lineage",                    label: "Lineage Registry",  icon: TreePine },', '{ href: "/family-tree",                label: "Patient Lineage",   icon: TreePine },', 1)
-
-          # Keep only one GEDCOM/import navigation item in Administration.
           if '{ href: "/lineage",             label: "Lineage Import",' not in s:
               s = s.replace('{ href: "/lineage",             label: "Lineage Registry",     icon: TreePine },', '{ href: "/lineage",             label: "Lineage Import",       icon: GitMerge },')
           s = s.replace('{ href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },\n', '')
