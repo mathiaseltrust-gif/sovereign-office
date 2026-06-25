@@ -108,7 +108,17 @@ function yearOf(event: AncestorLifeEvent): number | null {
 }
 
 function placeOf(event: AncestorLifeEvent): string | null {
-  return event.eventPlace ?? event.event_place ?? event.placeNormalized ?? event.place_normalized ?? [event.county, event.state, event.country].filter(Boolean).join(", ") || null;
+  const fallback = [event.county, event.state, event.country]
+    .filter(Boolean)
+    .join(", ");
+
+  return (
+    event.eventPlace ??
+    event.event_place ??
+    event.placeNormalized ??
+    event.place_normalized ??
+    (fallback || null)
+  );
 }
 
 function coordOf(event: AncestorLifeEvent): [number, number] | null {
