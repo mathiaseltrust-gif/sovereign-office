@@ -307,6 +307,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
           county,
           state,
           country,
+          latitude,
+          longitude,
           source_type AS "sourceType",
           source_reference AS "sourceReference"
         FROM ancestor_life_events
@@ -324,6 +326,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
         county: string | null;
         state: string | null;
         country: string | null;
+        latitude: number | string | null;
+        longitude: number | string | null;
         sourceType: string | null;
         sourceReference: string | null;
       }>) {
@@ -337,6 +341,8 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
           county: row.county,
           state: row.state,
           country: row.country,
+          latitude: row.latitude,
+          longitude: row.longitude,
           sourceType: row.sourceType,
           sourceReference: row.sourceReference,
         }));

@@ -127,11 +127,13 @@ function coordOf(event: AncestorLifeEvent): [number, number] | null {
     coordinateLng?: number | string | null;
     coordinate_lat?: number | string | null;
     coordinate_lng?: number | string | null;
+    latitude?: number | string | null;
+    longitude?: number | string | null;
     lat?: number | string | null;
     lng?: number | string | null;
   };
-  const lat = raw.coordinateLat ?? raw.coordinate_lat ?? raw.lat ?? null;
-  const lng = raw.coordinateLng ?? raw.coordinate_lng ?? raw.lng ?? null;
+  const lat = raw.coordinateLat ?? raw.coordinate_lat ?? raw.latitude ?? raw.lat ?? null;
+  const lng = raw.coordinateLng ?? raw.coordinate_lng ?? raw.longitude ?? raw.lng ?? null;
   if (lat == null || lng == null) return null;
   const parsedLat = Number(lat);
   const parsedLng = Number(lng);
