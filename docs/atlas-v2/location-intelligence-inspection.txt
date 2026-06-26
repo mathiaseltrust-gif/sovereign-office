@@ -1,0 +1,69 @@
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:23:  eventPlace?: string | null;
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:25:  placeNormalized?: string | null;
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:36:type AncestorWithEvents = AncestorRecord & { lifeEvents?: LifeEventLike[] | null };
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:71:function eventPlaces(ancestor: AncestorWithEvents): { place: string; label: string; year: number | null; source: string | null }[] {
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:81:  const fromEvents = (ancestor.lifeEvents ?? []).flatMap((ev) => {
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:82:    const place = compact([ev.eventPlace ?? ev.event_place, ev.placeNormalized ?? ev.place_normalized, ev.county, ev.state, ev.country]).join(", ");
+artifacts/urban-indian-atlas/src/lib/affiliationSignals.ts:120:  const places = eventPlaces(ancestor);
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:34:  eventPlace: string | null;
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:73:  eventPlace?: string | null;
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:75:  placeNormalized?: string | null;
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:114:  lifeEvents?: AncestorLifeEvent[] | null;
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:264:    eventPlace: (e.affectedRegions ?? [])[0] ?? null,
+artifacts/urban-indian-atlas/src/pages/atlas.tsx:398:    lifeEvents: Array.isArray(r.life_events) ? r.life_events : [],
+artifacts/urban-indian-atlas/src/components/AtlasDetailPanel.tsx:33:  const locationText = event?.locationName ?? event?.eventPlace ?? event?.affected_regions?.[0] ?? null;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:110:function placeOf(event: AncestorLifeEvent): string | null {
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:116:    event.eventPlace ??
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:118:    event.placeNormalized ??
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:130:    latitude?: number | string | null;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:131:    longitude?: number | string | null;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:135:  const lat = raw.coordinateLat ?? raw.coordinate_lat ?? raw.latitude ?? raw.lat ?? null;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:136:  const lng = raw.coordinateLng ?? raw.coordinate_lng ?? raw.longitude ?? raw.lng ?? null;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:169:  const events = (ancestor.lifeEvents ?? []).map((event, index): NormalizedLifeEvent => {
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:171:    const place = placeOf(event);
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:282:  const lifeEvents = useMemo(() => normalizeLifeEvents(ancestor), [ancestor]);
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:283:  const mappedCount = lifeEvents.filter(event => event.coords).length;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:284:  const needsCoordCount = lifeEvents.filter(event => event.needsCoordinates).length;
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:296:          {lifeEvents.length} recorded life event{lifeEvents.length !== 1 ? "s" : ""}
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:306:        {lifeEvents.length === 0 ? (
+artifacts/urban-indian-atlas/src/components/PersonContextPanel.tsx:314:            {lifeEvents.map(event => <LifeEventRow key={event.id} event={event} onEventFocus={onEventFocus} />)}
+artifacts/api-server/src/routes/atlas/index.ts:23:  eventPlace: string | null;
+artifacts/api-server/src/routes/atlas/index.ts:24:  placeNormalized: string | null;
+artifacts/api-server/src/routes/atlas/index.ts:28:  latitude: number | null;
+artifacts/api-server/src/routes/atlas/index.ts:29:  longitude: number | null;
+artifacts/api-server/src/routes/atlas/index.ts:41:      eventPlace: row.eventPlace,
+artifacts/api-server/src/routes/atlas/index.ts:42:      placeNormalized: row.placeNormalized,
+artifacts/api-server/src/routes/atlas/index.ts:51:    const location = enriched.placeNormalized ?? row.eventPlace ?? null;
+artifacts/api-server/src/routes/atlas/index.ts:52:    const hasCoordinates = row.latitude != null && row.longitude != null;
+artifacts/api-server/src/routes/atlas/index.ts:78:      description: [label, row.eventPlace].filter(Boolean).join(" — ") || "Life-event evidence record",
+artifacts/api-server/src/routes/atlas/index.ts:79:      plainLanguageSummary: `${person} has a ${label} source mention${row.eventPlace ? ` at ${row.eventPlace}` : ""}.`,
+artifacts/api-server/src/routes/atlas/index.ts:95:      coordinateLat: row.latitude,
+artifacts/api-server/src/routes/atlas/index.ts:96:      coordinateLng: row.longitude,
+artifacts/api-server/src/routes/atlas/index.ts:117:        ale.event_place AS "eventPlace",
+artifacts/api-server/src/routes/atlas/index.ts:118:        ale.place_normalized AS "placeNormalized",
+artifacts/api-server/src/routes/atlas/index.ts:122:        ale.latitude,
+artifacts/api-server/src/routes/atlas/index.ts:123:        ale.longitude,
+artifacts/api-server/src/routes/atlas/index.ts:134:    const lifeEvents = lifeEventRowsToAtlasEvents(lifeEventRows.rows as LifeEventAtlasRow[]);
+artifacts/api-server/src/routes/atlas/index.ts:136:    res.json([...atlasEvents, ...lifeEvents].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999)));
+artifacts/api-server/src/routes/atlas/index.ts:157:        ale.event_place AS "eventPlace",
+artifacts/api-server/src/routes/atlas/index.ts:158:        ale.place_normalized AS "placeNormalized",
+artifacts/api-server/src/routes/atlas/index.ts:162:        ale.latitude,
+artifacts/api-server/src/routes/atlas/index.ts:163:        ale.longitude,
+artifacts/api-server/src/routes/atlas/index.ts:296:    const lifeEventsByPerson = new Map<number, unknown[]>();
+artifacts/api-server/src/routes/atlas/index.ts:305:          event_place AS "eventPlace",
+artifacts/api-server/src/routes/atlas/index.ts:306:          place_normalized AS "placeNormalized",
+artifacts/api-server/src/routes/atlas/index.ts:310:          latitude,
+artifacts/api-server/src/routes/atlas/index.ts:311:          longitude,
+artifacts/api-server/src/routes/atlas/index.ts:324:        eventPlace: string | null;
+artifacts/api-server/src/routes/atlas/index.ts:325:        placeNormalized: string | null;
+artifacts/api-server/src/routes/atlas/index.ts:329:        latitude: number | string | null;
+artifacts/api-server/src/routes/atlas/index.ts:330:        longitude: number | string | null;
+artifacts/api-server/src/routes/atlas/index.ts:334:        const existing = lifeEventsByPerson.get(row.personId) ?? [];
+artifacts/api-server/src/routes/atlas/index.ts:339:          eventPlace: row.eventPlace,
+artifacts/api-server/src/routes/atlas/index.ts:340:          placeNormalized: row.placeNormalized,
+artifacts/api-server/src/routes/atlas/index.ts:344:          latitude: row.latitude,
+artifacts/api-server/src/routes/atlas/index.ts:345:          longitude: row.longitude,
+artifacts/api-server/src/routes/atlas/index.ts:349:        lifeEventsByPerson.set(row.personId, existing);
+artifacts/api-server/src/routes/atlas/index.ts:355:      life_events: lifeEventsByPerson.get(Number(row.id)) ?? [],
+artifacts/api-server/src/routes/atlas/index.ts:604:  "coordinateLat": null (decimal latitude of primary location if known),
+artifacts/api-server/src/routes/atlas/index.ts:605:  "coordinateLng": null (decimal longitude of primary location if known),
