@@ -1,6 +1,7 @@
 import { coordinateConfidence } from "./confidence";
 import { normalizePlaceName } from "./normalizePlace";
 import { resolveCoordinates } from "./resolveCoordinates";
+import { classifyPlace } from "./classifyPlace";
 import type { PlaceIntelligence } from "./types";
 
 export function buildPlaceIntelligence(input: {
@@ -12,6 +13,10 @@ export function buildPlaceIntelligence(input: {
   longitude?: number | string | null;
   sourceType?: string | null;
   sourceReference?: string | null;
+  eventType?: string | null;
+  county?: string | null;
+  state?: string | null;
+  country?: string | null;
 }): PlaceIntelligence {
   const canonicalName =
     normalizePlaceName(input.placeNormalized) ||
@@ -20,10 +25,24 @@ export function buildPlaceIntelligence(input: {
 
   const resolved = resolveCoordinates(input);
   const confidence = coordinateConfidence(resolved.coordinateStatus);
+  const classification = classifyPlace({
+    eventType: input.eventType,
+    sourceType: input.sourceType,
+    place: canonicalName,
+  });
 
   return {
     canonicalName,
     displayName: canonicalName,
+    classification,
+    administrativeHierarchy: {
+      county: input.county || null,
+      state: input.state || null,
+      country: input.country || null,
+    },
+    historicalNames: [],
+    currentNames: [canonicalName],
+    aliases: [],
     coordinates: resolved.coordinates,
     coordinateStatus: resolved.coordinateStatus,
     confidence,
