@@ -18,6 +18,7 @@ import { ScrollArea } from "@/components/ui/scroll-area";
 import { Badge } from "@/components/ui/badge";
 import type { AncestorRecord, AncestorContextMatch, AncestorLifeEvent } from "@/pages/atlas";
 import { ContinuityReport } from "@/components/ContinuityReport";
+import { buildPlaceIntelligence, type PlaceIntelligence } from "@/lib/location-intelligence";
 
 interface PersonContextPanelProps {
   ancestor: AncestorRecord | null;
@@ -38,6 +39,7 @@ type NormalizedLifeEvent = {
   coords: [number, number] | null;
   needsCoordinates: boolean;
   isAnchor: boolean;
+  placeIntelligence: PlaceIntelligence;
 };
 
 const severityColors: Record<string, string> = {
@@ -163,6 +165,12 @@ function normalizeLifeEvents(ancestor: AncestorRecord): NormalizedLifeEvent[] {
       coords: null,
       needsCoordinates: !!ancestor.birthPlace,
       isAnchor: true,
+      placeIntelligence: buildPlaceIntelligence({
+        id: `anchor-birth-${ancestor.id}`,
+        personId: ancestor.id,
+        eventPlace: ancestor.birthPlace,
+        sourceType: "profile_anchor",
+      }),
     });
   }
 
@@ -182,6 +190,16 @@ function normalizeLifeEvents(ancestor: AncestorRecord): NormalizedLifeEvent[] {
       coords,
       needsCoordinates: !!place && !coords,
       isAnchor: false,
+      placeIntelligence: buildPlaceIntelligence({
+        id: event.id ?? `life-${ancestor.id}-${index}`,
+        personId: ancestor.id,
+        eventPlace: event.eventPlace ?? event.event_place ?? null,
+        placeNormalized: event.placeNormalized ?? event.place_normalized ?? null,
+        latitude: (event as any).latitude ?? (event as any).coordinateLat ?? (event as any).coordinate_lat ?? null,
+        longitude: (event as any).longitude ?? (event as any).coordinateLng ?? (event as any).coordinate_lng ?? null,
+        sourceType: sourceTypeOf(event),
+        sourceReference: sourceReferenceOf(event),
+      }),
     };
   });
 
@@ -198,6 +216,12 @@ function normalizeLifeEvents(ancestor: AncestorRecord): NormalizedLifeEvent[] {
       coords: null,
       needsCoordinates: !!ancestor.deathPlace,
       isAnchor: true,
+      placeIntelligence: buildPlaceIntelligence({
+        id: `anchor-death-${ancestor.id}`,
+        personId: ancestor.id,
+        eventPlace: ancestor.deathPlace,
+        sourceType: "profile_anchor",
+      }),
     });
   }
 
@@ -214,6 +238,12 @@ function normalizeLifeEvents(ancestor: AncestorRecord): NormalizedLifeEvent[] {
       coords: null,
       needsCoordinates: true,
       isAnchor: true,
+      placeIntelligence: buildPlaceIntelligence({
+        id: `anchor-burial-${ancestor.id}`,
+        personId: ancestor.id,
+        eventPlace: ancestor.burialPlace,
+        sourceType: "profile_anchor",
+      }),
     });
   }
 
