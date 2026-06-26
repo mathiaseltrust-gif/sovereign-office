@@ -82,3 +82,26 @@ but may not yet have:
 - verified beneficiary status
 
 Atlas must not guess the person record. Family Tree must offer linking or creation. Community must guide onboarding.
+
+## Governor Naming Guardrail
+
+The platform must distinguish between:
+
+- Role Governor: a human or assigned governance role.
+- Governor Intelligence: the platform intelligence and oversight engine.
+
+Code must not use the bare term "governor" ambiguously.
+
+Preferred technical identifiers:
+- governor_intelligence
+- governor_engine
+- oversight_engine
+
+Rules:
+1. Human role names must remain role-based, such as role_governor or governor_role.
+2. AI/automation systems must use governor_intelligence or governor_engine.
+3. Permissions should avoid ambiguity, for example:
+   - governor_role.manage
+   - governor_intelligence.read
+   - governor_intelligence.recommend
+   - governor_intelligence.audit
