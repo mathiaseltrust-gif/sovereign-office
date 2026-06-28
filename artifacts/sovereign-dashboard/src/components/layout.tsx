@@ -185,7 +185,7 @@ function getElderNav(): NavSectionDef[] {
         { href: "/dashboard/elder",    label: "Dashboard",            icon: LayoutDashboard },
         { href: "/elder-advisory",     label: "Elder Advisory Panel", icon: Star },
         { href: "/family-governance",  label: "Family Governance",    icon: Users },
-        { href: "/lineage",              label: "Lineage Registry",     icon: TreePine },
+        { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank", icon: BookMarked },
         { href: "/journal",              label: "Sovereign Journal",     icon: PenLine },
         { href: "/membership",           label: "Membership Status",     icon: BadgeCheck },
