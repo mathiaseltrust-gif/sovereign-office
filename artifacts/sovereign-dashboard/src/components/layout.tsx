@@ -164,7 +164,7 @@ function getMemberNav(): NavSectionDef[] {
         { href: "/filings",           label: "Filings",              icon: FileText },
         { href: "/welfare",           label: "Welfare Instruments",  icon: Heart },
         { href: "/family-governance", label: "Family Governance",    icon: Users },
-        { href: "/lineage",              label: "Lineage Registry",     icon: TreePine },
+        { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank", icon: BookMarked },
         { href: "/journal",              label: "Sovereign Journal",     icon: PenLine },
         { href: "/complaints",           label: "Complaints",            icon: MessageSquare },
