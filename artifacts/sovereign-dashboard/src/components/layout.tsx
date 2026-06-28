@@ -258,6 +258,7 @@ const ORG_ITEMS: NavItemDef[] = [
 // ── Education section ──────────────────────────────────────────────────────────
 const EDU_ITEMS: NavItemDef[] = [
   { href: "/sdu",             label: "Self Determination University", icon: GraduationCap },
+  { href: "/creative-studio", label: "Creative Studio", icon: Palette, highlight: true },
   { href: "/sdu/definitions", label: "Sovereign Definitions",        icon: BookOpenCheck },
 ];
 
