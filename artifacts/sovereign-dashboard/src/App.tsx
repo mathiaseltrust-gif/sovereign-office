@@ -524,7 +524,12 @@ function AppRouter() {
       <Route path="/github-intake-preview">
         {() => <ProtectedRoute component={GitHubIntakePreviewPage} />}
       </Route>
-
+<Route path="/creative-studio/projects/:id">
+  {() => <ProtectedRoute component={CreativeStudioProjectPage} />}
+</Route>
+<Route path="/creative-studio">
+  {() => <ProtectedRoute component={CreativeStudioPage} />}
+</Route>
       <Route component={NotFound} />
     </Switch>
   );
