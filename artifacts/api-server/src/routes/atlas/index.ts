@@ -100,7 +100,7 @@ function lifeEventRowsToAtlasEvents(
 }
 
 
-router.get("/events", async (_req, res, next) => {
+router.get("/events", requireAuth, async (_req, res, next) => {
   try {
     const atlasEvents = await db
       .select()

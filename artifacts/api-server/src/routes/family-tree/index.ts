@@ -1,6 +1,6 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireAnyRole } from "../../auth/entra-guard";
 import {
   parseLineageCsv,
   buildLineageGraph,
@@ -304,7 +304,7 @@ const upload = multer({
   },
 });
 
-router.get("/full", requireAuth, async (_req, res, next) => {
+router.get("/full", requireAuth, requireAnyRole(["sovereign_admin", "admin", "officer", "trustee", "chief_justice", "chief_justice_trustee"]), async (_req, res, next) => {
   try {
     const [lineageRows, familyUnits] = await Promise.all([
       db
