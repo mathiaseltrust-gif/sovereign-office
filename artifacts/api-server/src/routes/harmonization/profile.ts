@@ -1,16 +1,16 @@
 import { Router } from "express";
 import { requireAuth } from "../../auth/entra-guard";
+import { hasRole } from "../../engines/authority";
 import { harmonizeCanonicalProfile } from "../../engines/canonical-profile-harmonizer";
 
 const router = Router();
+
+const PRIVILEGED_ROLES = ["sovereign_admin", "admin", "officer", "trustee", "chief_justice", "chief_justice_trustee"] as const;
 
 /**
  * GET /api/harmonization/profile/me
  *
  * Returns the canonical operational profile context for the current user.
- * This is the stabilization endpoint for the Master Profile / Sovereign Nervous
- * System spine: identity, lineage, household, land, governance, TRACE, NFR,
- * protection flags, and recommended pathways.
  */
 router.get("/me", requireAuth, async (req, res, next) => {
   try {
@@ -30,15 +30,24 @@ router.get("/me", requireAuth, async (req, res, next) => {
 /**
  * GET /api/harmonization/profile/:userId
  *
- * Officer/admin-facing lookup route. Access control is currently enforced by
- * requireAuth; role/domain-gated access should be tightened when Delegated
- * Authority Configuration is wired into the Role Governor.
+ * Officer/admin-facing lookup route.
+ * Access allowed only to:
+ *   1. The user themselves (self-access), OR
+ *   2. A privileged role (sovereign_admin, admin, officer, trustee, chief_justice, chief_justice_trustee)
  */
 router.get("/:userId", requireAuth, async (req, res, next) => {
   try {
     const userId = Number(req.params.userId);
     if (!Number.isFinite(userId) || userId <= 0) {
       res.status(400).json({ error: "Invalid userId" });
+      return;
+    }
+
+    const isSelf = req.user?.dbId === userId;
+    const isPrivileged = PRIVILEGED_ROLES.some(r => hasRole(req.user!.roles, r));
+
+    if (!isSelf && !isPrivileged) {
+      res.status(403).json({ error: "Insufficient privileges. This endpoint requires an officer, admin, or trustee role." });
       return;
     }
 
