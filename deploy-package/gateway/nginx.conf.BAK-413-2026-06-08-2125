@@ -1,0 +1,118 @@
+worker_processes auto;
+error_log /var/log/nginx/error.log warn;
+pid /tmp/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    include       /etc/nginx/mime.types;
+    default_type  application/octet-stream;
+    sendfile      on;
+    keepalive_timeout 65;
+
+    ssl_certificate     /etc/nginx/ssl/selfsigned.crt;
+    ssl_certificate_key /etc/nginx/ssl/selfsigned.key;
+    ssl_protocols       TLSv1.2 TLSv1.3;
+    ssl_ciphers         HIGH:!aNULL:!MD5;
+    ssl_session_cache   shared:SSL:10m;
+
+    # ── Primary entry point: office.mathiaseltribe.org — HTTPS :3001 ──────────
+    #
+    # All routing is path-based under a single port.
+    # The sovereign container's nginx handles sub-path proxying internally:
+    #
+    #   /               → sovereign SPA
+    #   /api/           → api:8080
+    #   /trace/         → trace:80   (BASE_PATH=/trace/)
+    #   /atlas/         → atlas:80   (BASE_PATH=/atlas/)
+    #   /trust/         → trust:80   (BASE_PATH=/trust/)
+    #   /community/     → community:80  (BASE_PATH=/community/)
+    #   /authority/     → authority:80  (BASE_PATH=/authority/)
+    #
+    server {
+    client_max_body_size 100M;
+        listen 3001 ssl;
+        server_name _;
+
+        location / {
+            proxy_pass         http://sovereign:80;
+            proxy_http_version 1.1;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_read_timeout 120s;
+        }
+    }
+
+    # ── Legacy ports — optional subdomain aliases ─────────────────────────────
+    # These remain available for backward compatibility with existing DNS entries
+    # (trust.sovereignoffice.org, community.sovereignoffice.org, etc.).
+    # Remove these blocks once DNS cutover to office.mathiaseltribe.org is complete.
+
+    # Trust Instruments — HTTPS :3002
+    server {
+    client_max_body_size 100M;
+        listen 3002 ssl;
+        server_name _;
+        location / {
+            proxy_pass         http://sovereign:80/trust/;
+            proxy_http_version 1.1;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_read_timeout 60s;
+        }
+    }
+
+    # Community Dashboard — HTTPS :3003
+    server {
+    client_max_body_size 100M;
+        listen 3003 ssl;
+        server_name _;
+        location / {
+            proxy_pass         http://sovereign:80/community/;
+            proxy_http_version 1.1;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_read_timeout 60s;
+        }
+    }
+
+    # Urban Indian Atlas — HTTPS :3004
+    server {
+    client_max_body_size 100M;
+        listen 3004 ssl;
+        server_name _;
+        location / {
+            proxy_pass         http://sovereign:80/atlas/;
+            proxy_http_version 1.1;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_read_timeout 60s;
+        }
+    }
+
+    # Authority Directory — HTTPS :3005
+    server {
+    client_max_body_size 100M;
+        listen 3005 ssl;
+        server_name _;
+        location / {
+            proxy_pass         http://sovereign:80/authority/;
+            proxy_http_version 1.1;
+            proxy_set_header   Host              $host;
+            proxy_set_header   X-Real-IP         $remote_addr;
+            proxy_set_header   X-Forwarded-For   $proxy_add_x_forwarded_for;
+            proxy_set_header   X-Forwarded-Proto https;
+            proxy_read_timeout 60s;
+        }
+    }
+}

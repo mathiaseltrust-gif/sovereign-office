@@ -9,6 +9,8 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { ClipToCompanion } from "@/components/ClipToCompanion";
 
+const CreativeStudioPage = lazy(() => import("@/pages/creative-studio"));
+const CreativeStudioProjectPage = lazy(() => import("@/pages/creative-studio-project"));
 const Login = lazy(() => import("@/pages/login"));
 const MicrosoftCallback = lazy(() => import("@/pages/MicrosoftCallback"));
 const NotFound = lazy(() => import("@/pages/not-found"));
@@ -41,6 +43,7 @@ const IntakeAiPage = lazy(() => import("@/pages/intake-ai"));
 const IntakeCompanionPage = lazy(() => import("@/pages/intake-companion"));
 const CourtDocumentsPage = lazy(() => import("@/pages/court-documents"));
 const FamilyTreePage = lazy(() => import("@/pages/family-tree"));
+const KinshipTreePage = lazy(() => import("@/pages/kinship-tree"));
 const MedicalNotesPage = lazy(() => import("@/pages/medical-notes"));
 const SupremeCourtPage = lazy(() => import("@/pages/supreme-court"));
 const TribalTrustPage = lazy(() => import("@/pages/tribal-trust"));
@@ -320,8 +323,14 @@ function AppRouter() {
       <Route path="/welfare">
         {() => <ProtectedRoute component={WelfarePage} />}
       </Route>
+      <Route path="/lineage">
+        {() => <ProtectedRoute component={GedcomImportPage} />}
+      </Route>
       <Route path="/family-tree">
         {() => <ProtectedRoute component={FamilyTreePage} />}
+      </Route>
+      <Route path="/kinship-tree">
+        {() => <ProtectedRoute component={KinshipTreePage} />}
       </Route>
       <Route path="/ancestral-affiliations">
         {() => <ProtectedRoute component={AncestralAffiliationsPage} />}
@@ -386,7 +395,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={M365IntegrationPage} />}
       </Route>
       <Route path="/admin/lineage-import">
-        {() => <ProtectedRoute component={AdminLineageImportPage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/business-canvas/new">
         {() => <ProtectedRoute component={BusinessCanvasWizard} />}
@@ -501,7 +510,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={AncestralExposurePage} />}
       </Route>
       <Route path="/gedcom-import">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
+        {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/admin/email-preview">
         {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
@@ -515,7 +524,12 @@ function AppRouter() {
       <Route path="/github-intake-preview">
         {() => <ProtectedRoute component={GitHubIntakePreviewPage} />}
       </Route>
-
+      <Route path="/creative-studio/projects/:id">
+        {() => <ProtectedRoute component={CreativeStudioProjectPage} />}
+      </Route>
+      <Route path="/creative-studio">
+        {() => <ProtectedRoute component={CreativeStudioPage} />}
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

@@ -1,0 +1,14 @@
+name: Patch Atlas Life Event Coordinates
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  noop:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Disabled pending safe rewrite
+        run: echo "Patch Atlas Life Event Coordinates workflow disabled because the previous YAML heredoc broke workflow parsing."

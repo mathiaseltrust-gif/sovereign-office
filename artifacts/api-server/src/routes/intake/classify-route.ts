@@ -31,6 +31,15 @@ export const DOC_TYPE_LABELS: Record<string, string> = {
   tax_lien:                  "Tax Lien Notice",
   foreclosure:               "Foreclosure Notice",
   deed:                      "Property Deed",
+  deed_of_trust:              "Deed of Trust",
+  trust_instrument:           "Trust Instrument",
+  grant_deed:                 "Grant Deed",
+  correction_deed:            "Correction Deed",
+  quitclaim_deed:             "Quitclaim Deed",
+  mortgage_security_instrument:"Mortgage / Security Instrument",
+  recorder_notice:            "Recorder Notice",
+  ancestry_record:            "Ancestry / Lineage Record",
+  household_record:           "Household Record",
   court_order:               "Court Order",
   complaint:                 "Formal Complaint",
   icwa_notice:               "ICWA Notice",
@@ -53,6 +62,15 @@ const DOC_TYPE_SIGNAL: Record<string, ReviewSignalType | null> = {
   received_stamp:            null,
   certificate_of_record:     null,
   deed:                      null,
+  deed_of_trust:              "UNAUTHORIZED_LAND_ENCUMBRANCE",
+  trust_instrument:           "TRUST_RESPONSIBILITY_BREACH",
+  grant_deed:                 null,
+  correction_deed:            null,
+  quitclaim_deed:             null,
+  mortgage_security_instrument:"UNAUTHORIZED_LAND_ENCUMBRANCE",
+  recorder_notice:            "RECORDER_REFUSAL",
+  ancestry_record:            null,
+  household_record:           null,
   trust_declaration:         null,
   nfr:                       null,
   jurisdictional_statement:  null,
@@ -67,11 +85,20 @@ const DOC_TYPE_TARGETS: Record<string, string[]> = {
   tax_lien:                  ["land_parcel", "nfr_investigation", "encumbrance"],
   foreclosure:               ["land_parcel", "nfr_investigation", "encumbrance"],
   deed:                      ["land_parcel", "court_document"],
+  deed_of_trust:              ["land_parcel", "encumbrance", "trust_instrument", "nfr_investigation", "court_document"],
+  trust_instrument:           ["trust_instrument", "court_document"],
+  trust_declaration:          ["trust_instrument", "court_document"],
+  grant_deed:                 ["land_parcel", "court_document"],
+  correction_deed:            ["land_parcel", "court_document"],
+  quitclaim_deed:             ["land_parcel", "court_document"],
+  mortgage_security_instrument:["land_parcel", "encumbrance", "nfr_investigation", "court_document"],
+  recorder_notice:            ["land_parcel", "nfr_investigation", "court_document"],
+  ancestry_record:            ["lineage_record", "court_document"],
+  household_record:           ["lineage_record", "court_document"],
   court_order:               ["court_document", "nfr_investigation"],
   complaint:                 ["court_document", "nfr_investigation"],
   icwa_notice:               ["court_document", "nfr_investigation"],
   identity_document:         ["court_document"],
-  trust_declaration:         ["court_document"],
   nfr:                       ["court_document"],
   jurisdictional_statement:  ["court_document"],
   other:                     ["court_document"],
@@ -105,9 +132,19 @@ function classifyByRules(text: string, filename: string): string {
       probe.includes("state equalized value"))
     return "tax_notice";
 
-  if (probe.includes("warranty deed") || probe.includes("quitclaim") ||
-      probe.includes("trust deed") || probe.includes("deed of trust") ||
-      probe.includes("grant deed") || probe.includes("special warranty"))
+  if (probe.includes("deed of trust") || probe.includes("trust deed"))
+    return "deed_of_trust";
+  if (probe.includes("declaration of trust") || probe.includes("trust instrument") || probe.includes("trust agreement"))
+    return "trust_instrument";
+  if (probe.includes("correction deed") || probe.includes("corrective deed"))
+    return "correction_deed";
+  if (probe.includes("quitclaim"))
+    return "quitclaim_deed";
+  if (probe.includes("grant deed"))
+    return "grant_deed";
+  if (probe.includes("mortgage") && (probe.includes("security instrument") || probe.includes("lien")))
+    return "mortgage_security_instrument";
+  if (probe.includes("warranty deed") || probe.includes("special warranty"))
     return "deed";
 
   if (probe.includes("icwa") || probe.includes("indian child welfare"))
@@ -209,9 +246,27 @@ router.post("/classify-and-route", requireAuth, async (req, res, next) => {
       const { callAzureOpenAI } = await import("../../lib/azure-openai");
       const system = `You are a sovereign tribal legal office document classifier. Classify the document type and extract key structured fields. Respond ONLY with valid JSON in this exact shape — no markdown, no explanation:
 {
-  "documentType": "one of: board_of_review_petition | received_stamp | certificate_of_record | tax_notice | tax_lien | foreclosure | deed | court_order | complaint | icwa_notice | identity_document | trust_declaration | nfr | jurisdictional_statement | other",
+  "documentType": "one of: board_of_review_petition | received_stamp | certificate_of_record | tax_notice | tax_lien | foreclosure | deed | deed_of_trust | trust_instrument | trust_declaration | grant_deed | correction_deed | quitclaim_deed | mortgage_security_instrument | recorder_notice | court_order | complaint | icwa_notice | identity_document | ancestry_record | household_record | nfr | jurisdictional_statement | other",
   "confidence": "high | medium | low",
   "extractedFields": {
+    "apn": "string|null",
+    "atn": "string|null",
+    "parcelId": "string|null",
+    "propertyAddress": "string|null",
+    "legalDescription": "string|null",
+    "recordingNumber": "string|null",
+    "recordingDate": "string|null",
+    "instrumentNumber": "string|null",
+    "county": "string|null",
+    "grantor": "string|null",
+    "grantee": "string|null",
+    "trustor": "string|null",
+    "trustee": "string|null",
+    "beneficiary": "string|null",
+    "lender": "string|null",
+    "servicer": "string|null",
+    "trustName": "string|null",
+    "encumbranceIndicators": [],
     "parcelId": "assessor parcel number or null",
     "propertyAddress": "full property address or null",
     "taxYear": "4-digit year or null",

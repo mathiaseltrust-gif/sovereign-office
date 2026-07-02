@@ -52,3 +52,28 @@ private_import/
 *.ged
 *.gedcom
 import-error*.log
+
+# Local environment
+.env
+.env.*
+*.bak
+
+# Logs
+*.log
+
+# Recovery / temp scripts
+*_recover.sh
+*_restore.sh
+*_check.sh
+*_verify.sh
+*_repair.sh
+
+# Runtime / temp folders
+backups/
+data/
+frontend-photo-backup/
+
+# Local debug artifacts
+docker-status-*.txt
+sovereign_system_verify.log
+

@@ -975,7 +975,18 @@ export default function MemberDetail() {
   const [locationInitialized, setLocationInitialized] = useState(false);
   const [editOpen, setEditOpen] = useState(false);
   const [editSaving, setEditSaving] = useState(false);
-  const [editForm, setEditForm] = useState({ birthPlace: "", locationAddress: "", photoUrl: "", notes: "" });
+  const [editForm, setEditForm] = useState({
+    birthDate: "",
+    birthYear: "",
+    birthPlace: "",
+    deathDate: "",
+    deathYear: "",
+    deathPlace: "",
+    burialPlace: "",
+    locationAddress: "",
+    photoUrl: "",
+    notes: "",
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -1004,9 +1015,26 @@ export default function MemberDetail() {
   // Sync edit form when member data loads
   React.useEffect(() => {
     if (member) {
-      const m = member as typeof member & { birthPlace?: string | null; locationAddress?: string | null; photoUrl?: string | null; notes?: string | null };
+      const m = member as typeof member & {
+        birthDate?: string | null;
+        birthYear?: number | null;
+        birthPlace?: string | null;
+        deathDate?: string | null;
+        deathYear?: number | null;
+        deathPlace?: string | null;
+        burialPlace?: string | null;
+        locationAddress?: string | null;
+        photoUrl?: string | null;
+        notes?: string | null;
+      };
       setEditForm({
+        birthDate: m.birthDate ?? "",
+        birthYear: m.birthYear != null ? String(m.birthYear) : "",
         birthPlace: m.birthPlace ?? "",
+        deathDate: m.deathDate ?? "",
+        deathYear: m.deathYear != null ? String(m.deathYear) : "",
+        deathPlace: m.deathPlace ?? "",
+        burialPlace: m.burialPlace ?? "",
         locationAddress: m.locationAddress ?? "",
         photoUrl: m.photoUrl ?? "",
         notes: m.notes ?? "",
@@ -1022,15 +1050,36 @@ export default function MemberDetail() {
     }
     setEditSaving(true);
     try {
-      const r = await fetch(`/api/community/directory/${id}`, {
+      const birthYear = editForm.birthYear.trim() ? Number(editForm.birthYear) : null;
+      const deathYear = editForm.deathYear.trim() ? Number(editForm.deathYear) : null;
+      if (birthYear !== null && !Number.isFinite(birthYear)) throw new Error("Birth year must be a valid number");
+      if (deathYear !== null && !Number.isFinite(deathYear)) throw new Error("Death year must be a valid number");
+
+      const m = member as typeof member & { _profileSource?: string | null };
+      const isLineageProfile = m._profileSource === "lineage";
+      const url = isLineageProfile ? `/api/lineage/nodes/${id}` : `/api/community/directory/${id}`;
+      const payload = isLineageProfile
+        ? {
+            birthDate: editForm.birthDate || null,
+            birthYear,
+            birthPlace: editForm.birthPlace || null,
+            deathDate: editForm.deathDate || null,
+            deathYear,
+            deathPlace: editForm.deathPlace || null,
+            burialPlace: editForm.burialPlace || null,
+            notes: editForm.notes || null,
+          }
+        : {
+            birthPlace: editForm.birthPlace || null,
+            locationAddress: editForm.locationAddress || null,
+            photoUrl: editForm.photoUrl || null,
+            notes: editForm.notes || null,
+          };
+
+      const r = await fetch(url, {
         method: "PATCH",
         headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-        body: JSON.stringify({
-          birthPlace: editForm.birthPlace || null,
-          locationAddress: editForm.locationAddress || null,
-          photoUrl: editForm.photoUrl || null,
-          notes: editForm.notes || null,
-        }),
+        body: JSON.stringify(payload),
       });
       if (!r.ok) {
         const err = await r.json().catch(() => ({})) as { error?: string };
@@ -1197,11 +1246,63 @@ export default function MemberDetail() {
                     </div>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                       <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Birth Date</label>
+                        <Input
+                          placeholder="e.g. 2 Sep 1988"
+                          value={editForm.birthDate}
+                          onChange={(e) => setEditForm({ ...editForm, birthDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Birth Year</label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="e.g. 1988"
+                          value={editForm.birthYear}
+                          onChange={(e) => setEditForm({ ...editForm, birthYear: e.target.value })}
+                        />
+                      </div>
+                      <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-muted-foreground mb-1 block">Birth Place</label>
                         <Input
                           placeholder="e.g. Orange, California"
                           value={editForm.birthPlace}
                           onChange={(e) => setEditForm({ ...editForm, birthPlace: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Death Date</label>
+                        <Input
+                          placeholder="e.g. 14 Jan 2020"
+                          value={editForm.deathDate}
+                          onChange={(e) => setEditForm({ ...editForm, deathDate: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Death Year</label>
+                        <Input
+                          type="number"
+                          inputMode="numeric"
+                          placeholder="e.g. 2020"
+                          value={editForm.deathYear}
+                          onChange={(e) => setEditForm({ ...editForm, deathYear: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Death Place</label>
+                        <Input
+                          placeholder="e.g. Bakersfield, California"
+                          value={editForm.deathPlace}
+                          onChange={(e) => setEditForm({ ...editForm, deathPlace: e.target.value })}
+                        />
+                      </div>
+                      <div>
+                        <label className="text-xs font-medium text-muted-foreground mb-1 block">Burial Place</label>
+                        <Input
+                          placeholder="e.g. Greenlawn Cemetery"
+                          value={editForm.burialPlace}
+                          onChange={(e) => setEditForm({ ...editForm, burialPlace: e.target.value })}
                         />
                       </div>
                       <div>
@@ -1236,11 +1337,14 @@ export default function MemberDetail() {
                       <div className="sm:col-span-2">
                         <label className="text-xs font-medium text-muted-foreground mb-1 block">Notes</label>
                         <Textarea
-                          placeholder="Biographical notes..."
+                          placeholder="Narrative biographical notes only. Use the structured fields above for birth, death, burial, or residence facts."
                           rows={3}
                           value={editForm.notes}
                           onChange={(e) => setEditForm({ ...editForm, notes: e.target.value })}
                         />
+                        <p className="mt-1 text-[11px] text-muted-foreground">
+                          Notes are narrative only; structured facts are saved through the dedicated fields above.
+                        </p>
                       </div>
                     </div>
                     <div className="flex gap-2 pt-1">

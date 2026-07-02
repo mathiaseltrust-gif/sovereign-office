@@ -27,10 +27,23 @@ export interface AtlasEvent {
   year: number;
   era: string;
   event_type: string;
+  eventType: string;
+  eventDate: string | null;
+  dateStart: string | null;
+  locationName: string | null;
+  eventPlace: string | null;
+  coordinateLat: number | null;
+  coordinateLng: number | null;
+  coordinateSource?: string | null;
+  locationConfidence?: string | null;
+  needsCoordinates?: boolean;
   policy_area: string;
+  policyArea: string;
   severity_level: EventSeverity;
+  severityLevel: EventSeverity;
   description: string;
   plain_language_summary: string;
+  plainLanguageSummary: string;
   coordinates: [number, number];
   identity_impact: string | null;
   reclassification_impact: string | null;
@@ -50,6 +63,26 @@ export interface AtlasEvent {
 
 // AncestorRecord only contains safe, non-PII fields returned by /api/atlas/ancestors.
 // Notes, membershipStatus, and gender are NOT returned by the endpoint.
+export interface AncestorLifeEvent {
+  eventType?: string | null;
+  event_type?: string | null;
+  eventDate?: string | null;
+  event_date?: string | null;
+  eventYear?: number | null;
+  event_year?: number | null;
+  eventPlace?: string | null;
+  event_place?: string | null;
+  placeNormalized?: string | null;
+  place_normalized?: string | null;
+  county?: string | null;
+  state?: string | null;
+  country?: string | null;
+  sourceType?: string | null;
+  source_type?: string | null;
+  sourceReference?: string | null;
+  source_reference?: string | null;
+}
+
 export interface AncestorRecord {
   id: number;
   fullName: string;
@@ -78,6 +111,7 @@ export interface AncestorRecord {
   deathPlace: string | null;
   deathDate: string | null;
   burialPlace: string | null;
+  lifeEvents?: AncestorLifeEvent[] | null;
   // Record classification for display and location resolution:
   //   "ancestor"          — deceased family member or confirmed ancestor
   //   "household_member"  — living immediate household (self / spouse / children)
@@ -180,6 +214,9 @@ interface DbAtlasEvent {
   statesAffected: string[];
   coordinateLat: number | null;
   coordinateLng: number | null;
+  coordinateSource?: string | null;
+  locationConfidence?: string | null;
+  needsCoordinates?: boolean;
 }
 
 interface DbContextMatch {
@@ -220,10 +257,23 @@ function dbToAtlasEvent(e: DbAtlasEvent): AtlasEvent {
     year: e.year,
     era: e.era,
     event_type: e.eventType,
+    eventType: e.eventType,
+    eventDate: e.dateStart ?? null,
+    dateStart: e.dateStart ?? null,
+    locationName: (e.affectedRegions ?? [])[0] ?? null,
+    eventPlace: (e.affectedRegions ?? [])[0] ?? null,
+    coordinateLat: e.coordinateLat ?? null,
+    coordinateLng: e.coordinateLng ?? null,
+    coordinateSource: e.coordinateSource ?? null,
+    locationConfidence: e.locationConfidence ?? null,
+    needsCoordinates: e.needsCoordinates ?? false,
     policy_area: e.policyArea,
+    policyArea: e.policyArea,
     severity_level: (e.severityLevel as EventSeverity) || "moderate",
+    severityLevel: (e.severityLevel as EventSeverity) || "moderate",
     description: e.description,
     plain_language_summary: e.plainLanguageSummary,
+    plainLanguageSummary: e.plainLanguageSummary,
     coordinates: [e.coordinateLat ?? 38.5, e.coordinateLng ?? -97.0],
     identity_impact: e.identityImpact ?? null,
     reclassification_impact: e.reclassificationImpact ?? null,
@@ -282,6 +332,16 @@ async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
   return data.map(dbToAtlasEvent);
 }
 
+async function fetchAtlasTimelineEvents(): Promise<AtlasEvent[]> {
+  const tok = getAtlasBearerToken();
+  if (!tok) return [];
+  const res = await fetch(`/api/atlas/timeline-events`, { headers: { Authorization: `Bearer ${tok}` } });
+  if (res.status === 401) throw new Error("UNAUTHORIZED");
+  if (!res.ok) throw new Error("Failed to load timeline events");
+  const data = await res.json() as DbAtlasEvent[];
+  return data.map(dbToAtlasEvent);
+}
+
 interface DbAncestorRow {
   id: number;
   full_name: string;
@@ -305,6 +365,7 @@ interface DbAncestorRow {
   death_place: string | null;
   death_date: string | null;
   burial_place: string | null;
+  life_events?: AncestorLifeEvent[] | null;
   record_status: "ancestor" | "household_member" | "extended_family";
 }
 
@@ -334,6 +395,7 @@ function dbToAncestorRecord(r: DbAncestorRow): AncestorRecord {
     deathPlace: r.death_place ?? null,
     deathDate: r.death_date ?? null,
     burialPlace: r.burial_place ?? null,
+    lifeEvents: Array.isArray(r.life_events) ? r.life_events : [],
     recordStatus: r.record_status ?? "ancestor",
   };
 }
@@ -553,6 +615,25 @@ export default function Atlas() {
     staleTime: 5 * 60_000,
   });
 
+  const { data: timelineEvents = [] } = useQuery({
+    queryKey: ["/api/atlas/timeline-events", atlasMode, authenticated],
+    queryFn: fetchAtlasTimelineEvents,
+    enabled: atlasMode && authenticated,
+    staleTime: 5 * 60_000,
+    retry: (failureCount, error) => {
+      if ((error as Error)?.message === "UNAUTHORIZED") return false;
+      return failureCount < 2;
+    },
+  });
+
+  const atlasEvents = useMemo(() => {
+    if (!atlasMode || !authenticated) return events;
+    return [
+      ...events.filter((event) => event.era !== "life-event"),
+      ...timelineEvents,
+    ].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999));
+  }, [authenticated, atlasMode, events, timelineEvents]);
+
   const { data: ancestors = [], isLoading: ancestorsLoading, isError: ancestorsFetchError, error: ancestorsError } = useQuery({
     queryKey: ["/api/atlas/ancestors", atlasMode, authenticated],
     queryFn: fetchAncestors,
@@ -574,7 +655,7 @@ export default function Atlas() {
   });
 
   const filteredEvents = useMemo(() => {
-    return events.filter((e) => {
+    return atlasEvents.filter((e) => {
       if (e.year < yearRange[0] || e.year > yearRange[1]) return false;
       if (activeEras.length > 0 && !activeEras.includes(e.era)) return false;
       if (activeTypes.length > 0 && !activeTypes.includes(e.event_type)) return false;
@@ -582,7 +663,7 @@ export default function Atlas() {
       if (activePolicies.length > 0 && !activePolicies.includes(e.policy_area)) return false;
       return true;
     });
-  }, [events, yearRange, activeEras, activeTypes, activeSeverities, activePolicies]);
+  }, [atlasEvents, yearRange, activeEras, activeTypes, activeSeverities, activePolicies]);
 
   // Helper: does this ancestor's lineageTags match the selected line filter?
   function ancestorMatchesLineageFilter(
@@ -639,7 +720,9 @@ export default function Atlas() {
     });
   }, [ancestors, contextMatches, activeExposureFilters, atlasMode, yearRange, aiStateFilter, maxGeneration, lineageFilter, ancestorNameSearch]);
 
-  const selectedEvent = events.find((e) => e.id === selectedEventId) || null;
+  const selectedEvent = selectedEventId
+    ? filteredEvents.find((e) => e.id === selectedEventId) ?? atlasEvents.find((e) => e.id === selectedEventId) ?? null
+    : null;
 
   const selectedAncestor = selectedPersonId !== null
     ? ancestors.find(a => a.id === selectedPersonId) ?? null
@@ -662,8 +745,14 @@ export default function Atlas() {
   };
 
   const handleSelectEvent = (id: string) => {
+    const event = filteredEvents.find((e) => e.id === id) ?? atlasEvents.find((e) => e.id === id) ?? null;
     setSelectedEventId(id);
     setSelectedPersonId(null);
+    if (event?.coordinateLat != null && event.coordinateLng != null) {
+      setFocusedEventCoords([event.coordinateLat, event.coordinateLng]);
+    } else {
+      setFocusedEventCoords(null);
+    }
   };
 
   const handleToggleAtlasMode = () => {
@@ -759,7 +848,7 @@ export default function Atlas() {
       {/* Main Content Area */}
       <div className="flex-1 flex overflow-hidden relative">
         <AtlasSidebar
-          events={events}
+          events={atlasEvents}
           activeEras={activeEras}
           setActiveEras={setActiveEras}
           activeTypes={activeTypes}
@@ -804,7 +893,7 @@ export default function Atlas() {
 
         <div className="flex-1 flex flex-col relative h-full">
           <AtlasMap
-            events={events}
+            events={atlasEvents}
             filteredEvents={filteredEvents}
             selectedEventId={selectedEventId}
             onSelectEvent={handleSelectEvent}
@@ -826,7 +915,7 @@ export default function Atlas() {
           />
 
           <AtlasTimeline
-            events={events}
+            events={atlasEvents}
             filteredEvents={filteredEvents}
             yearRange={yearRange}
             setYearRange={setYearRange}

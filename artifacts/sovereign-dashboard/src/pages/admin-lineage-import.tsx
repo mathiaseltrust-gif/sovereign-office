@@ -8,14 +8,20 @@ import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 
 interface ImportResult {
-  format: string;
-  total: number;
-  created: number;
-  merged: number;
-  skipped: number;
-  errors: string[];
-  lineageIds: number[];
-  graph: {
+  format?: string;
+  total?: number;
+  created?: number;
+  merged?: number;
+  skipped?: number;
+  errors?: string[];
+  lineageIds?: number[];
+  batchId?: number;
+  filename?: string;
+  encoding?: string;
+  totalIndividuals?: number;
+  totalFamilies?: number;
+  matchSummary?: { exact: number; probable: number; possible: number; new: number };
+  graph?: {
     totalGenerations: number;
     tribalNations: string[];
     familyGroups: string[];
@@ -80,24 +86,32 @@ export default function AdminLineageImportPage() {
       const file = fileRef.current?.files?.[0];
       if (!file) throw new Error("No file selected");
       const form = new FormData();
-      form.append("file", file);
-      const r = await fetch("/api/lineage/import", {
+      form.append("gedcom", file);
+      const r = await fetch("/api/ancestry/gedcom/import", {
         method: "POST",
         headers: { Authorization: `Bearer ${getCurrentBearerToken()}` },
         body: form,
       });
+      const contentType = r.headers.get("content-type") ?? "";
+      const payload = contentType.includes("application/json")
+        ? await r.json()
+        : { error: await r.text() };
       if (!r.ok) {
-        const err = await r.json();
-        throw new Error(err.error ?? "Import failed");
+        const message = typeof payload.error === "string"
+          ? payload.error.slice(0, 500)
+          : "Import failed";
+        throw new Error(message);
       }
-      return r.json() as Promise<ImportResult>;
+      return payload as ImportResult;
     },
     onSuccess: (data) => {
       setResult(data);
       void refetch();
       toast({
-        title: "Import complete",
-        description: `Created ${data.created}, merged ${data.merged}, skipped ${data.skipped} of ${data.total} records.`,
+        title: "GEDCOM staged",
+        description: data.totalIndividuals
+          ? `Staged ${data.totalIndividuals} people and ${data.totalFamilies ?? 0} family groups for review.`
+          : `Created ${data.created ?? 0}, merged ${data.merged ?? 0}, skipped ${data.skipped ?? 0} of ${data.total ?? 0} records.`,
       });
     },
     onError: (err: Error) => {
@@ -198,7 +212,7 @@ export default function AdminLineageImportPage() {
         <Card className="mb-8 border-green-300 bg-green-50">
           <CardHeader className="pb-2">
             <CardTitle className="text-base text-green-800">
-              Import Complete — {result.format.toUpperCase()}
+              GEDCOM Import — {result.format?.toUpperCase?.() ?? "STAGED"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -215,11 +229,11 @@ export default function AdminLineageImportPage() {
               ))}
             </div>
 
-            {result.graph.lineageTags.length > 0 && (
+            {(result.graph?.lineageTags?.length ?? 0) > 0 && (
               <div>
                 <p className="text-xs font-semibold uppercase tracking-widest text-green-700 mb-1">Lineage Tags</p>
                 <div className="flex flex-wrap gap-1">
-                  {result.graph.lineageTags.map((tag) => (
+                  {result.graph!.lineageTags.map((tag) => (
                     <Badge key={tag} variant="outline" className="text-xs border-green-300 text-green-800">{tag}</Badge>
                   ))}
                 </div>
@@ -227,21 +241,21 @@ export default function AdminLineageImportPage() {
             )}
 
             <div className="flex flex-wrap gap-3 text-sm">
-              {result.graph.tribalNations.length > 0 && (
-                <span className="text-green-700"><strong>Nations:</strong> {result.graph.tribalNations.join(", ")}</span>
+              {(result.graph?.tribalNations?.length ?? 0) > 0 && (
+                <span className="text-green-700"><strong>Nations:</strong> {result.graph!.tribalNations.join(", ")}</span>
               )}
-              {result.graph.totalGenerations > 0 && (
-                <span className="text-green-700"><strong>Generations:</strong> {result.graph.totalGenerations}</span>
+              {(result.graph?.totalGenerations ?? 0) > 0 && (
+                <span className="text-green-700"><strong>Generations:</strong> {result.graph!.totalGenerations}</span>
               )}
-              {result.graph.icwaEligible && <Badge className="bg-blue-700 text-white text-xs">ICWA Eligible</Badge>}
-              {result.graph.welfareEligible && <Badge className="bg-green-700 text-white text-xs">Welfare Eligible</Badge>}
+              {result.graph?.icwaEligible && <Badge className="bg-blue-700 text-white text-xs">ICWA Eligible</Badge>}
+              {result.graph?.welfareEligible && <Badge className="bg-green-700 text-white text-xs">Welfare Eligible</Badge>}
             </div>
 
-            {result.errors.length > 0 && (
+            {(result.errors?.length ?? 0) > 0 && (
               <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
-                <p className="text-xs font-semibold uppercase tracking-widest text-yellow-700 mb-1">Warnings ({result.errors.length})</p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-yellow-700 mb-1">Warnings ({result.errors?.length ?? 0})</p>
                 <ul className="space-y-0.5">
-                  {result.errors.map((e, i) => (
+                  {(result.errors ?? []).map((e, i) => (
                     <li key={i} className="text-xs text-yellow-800">{e}</li>
                   ))}
                 </ul>

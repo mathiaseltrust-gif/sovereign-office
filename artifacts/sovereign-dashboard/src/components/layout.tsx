@@ -10,7 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
-  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map,
+  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map, Palette,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { CommandPalette } from "./CommandPalette";
@@ -79,6 +79,7 @@ function getTrusteeNav(): NavSectionDef[] {
       items: [
         { href: "/membership",           label: "Membership Status",      icon: BadgeCheck },
         { href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },
+        { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
         { href: "/family-governance",    label: "Family Governance",      icon: Users },
         { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
         { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
@@ -94,8 +95,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/trace",               label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
         { href: "/law",                 label: "Law Library",          icon: BookOpen },
         { href: "/tasks",               label: "Tasks",                icon: CheckSquare },
-        { href: "/admin/lineage-import",label: "Lineage Registry",     icon: Database },
-        { href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },
+        { href: "/lineage",             label: "Lineage Import",       icon: GitMerge },
         { href: "/atlas-admin",         label: "Atlas Events",         icon: Map },
         { href: "/m365",                label: "Microsoft 365",        icon: Monitor },
         { href: "/github-intake-preview", label: "GitHub Intake Pipeline", highlight: true, icon: GitMerge },
@@ -258,6 +258,7 @@ const ORG_ITEMS: NavItemDef[] = [
 // ── Education section ──────────────────────────────────────────────────────────
 const EDU_ITEMS: NavItemDef[] = [
   { href: "/sdu",             label: "Self Determination University", icon: GraduationCap },
+  { href: "/creative-studio", label: "Creative Studio", icon: Palette, highlight: true },
   { href: "/sdu/definitions", label: "Sovereign Definitions",        icon: BookOpenCheck },
 ];
 

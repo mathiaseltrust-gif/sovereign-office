@@ -48,6 +48,7 @@ import lineageImportRouter from "./lineage/import";
 import lineageImportDocumentRouter from "./lineage/import-document";
 import lineageDuplicatesRouter from "./lineage/duplicates";
 import lineageNodesRouter from "./lineage/nodes";
+import lineageRelationshipsRouter from "./lineage/relationships";
 import lineageMatchRouter from "./lineage/match";
 import lineageEnrollRouter from "./lineage/enroll";
 import lineageFamilyUnitsRouter from "./lineage/family-units";
@@ -93,6 +94,8 @@ import adminIdDocumentRouter from "./admin/id-document";
 import usersRouter from "./users";
 import traceRouter from "./trace/index";
 import githubIntakeRouter from "./github/intake";
+import harmonizationProfileRouter from "./harmonization/profile";
+import grampsRouter from "./gramps";
 
 const router: IRouter = Router();
 
@@ -151,6 +154,7 @@ router.use("/m365", m365StatusRouter);
 router.use("/lineage/import", lineageImportRouter);
 router.use("/lineage/import-document", lineageImportDocumentRouter);
 router.use("/lineage/duplicates", lineageDuplicatesRouter);
+router.use("/lineage/relationships", lineageRelationshipsRouter);
 router.use("/lineage/nodes", lineageNodesRouter);
 router.use("/lineage/nodes", lineageEnrollRouter);
 router.use("/lineage/match", lineageMatchRouter);
@@ -191,5 +195,7 @@ router.use("/authority", authorityRouter);
 router.use("/case-files", caseFilesRouter);
 router.use("/trace", traceRouter);
 router.use("/github/intake", githubIntakeRouter);
+router.use("/harmonization/profile", harmonizationProfileRouter);
+router.use("/gramps", grampsRouter);
 
 export default router;

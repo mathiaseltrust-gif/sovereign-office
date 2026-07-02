@@ -1,0 +1,120 @@
+name: Restore Family Tree Route
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - '.github/workflows/restore-family-tree-route.yml'
+      - 'artifacts/sovereign-dashboard/src/App.tsx'
+      - 'artifacts/sovereign-dashboard/src/components/layout.tsx'
+
+permissions:
+  contents: write
+
+jobs:
+  restore-family-tree:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Restore interactive family tree and keep one GEDCOM upload route
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          from pathlib import Path
+
+          app = Path('artifacts/sovereign-dashboard/src/App.tsx')
+          s = app.read_text()
+
+          old_routes = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+              '      <Route path="/family-tree">',
+              '        {() => <Redirect to="/lineage" />}',
+              '      </Route>',
+              '      <Route path="/kinship-tree">',
+              '        {() => <Redirect to="/lineage" />}',
+              '      </Route>',
+          ])
+          restored_routes = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+              '      <Route path="/family-tree">',
+              '        {() => <ProtectedRoute component={FamilyTreePage} />}',
+              '      </Route>',
+              '      <Route path="/kinship-tree">',
+              '        {() => <ProtectedRoute component={KinshipTreePage} />}',
+              '      </Route>',
+          ])
+          s = s.replace(old_routes, restored_routes)
+
+          family_tree_route = "\n".join([
+              '      <Route path="/family-tree">',
+              '        {() => <ProtectedRoute component={FamilyTreePage} />}',
+              '      </Route>',
+          ])
+          lineage_route = "\n".join([
+              '      <Route path="/lineage">',
+              '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+              '      </Route>',
+          ])
+          if '<Route path="/lineage">' not in s and '<Route path="/family-tree">' in s:
+              s = s.replace(family_tree_route, lineage_route + "\n" + family_tree_route)
+
+          s = s.replace(
+              "\n".join([
+                  '      <Route path="/gedcom-import">',
+                  '        {() => <ProtectedRoute component={GedcomImportPage} />}',
+                  '      </Route>',
+              ]),
+              "\n".join([
+                  '      <Route path="/gedcom-import">',
+                  '        {() => <Redirect to="/lineage" />}',
+                  '      </Route>',
+              ]),
+          )
+          s = s.replace(
+              "\n".join([
+                  '      <Route path="/admin/lineage-import">',
+                  '        {() => <ProtectedRoute component={AdminLineageImportPage} />}',
+                  '      </Route>',
+              ]),
+              "\n".join([
+                  '      <Route path="/admin/lineage-import">',
+                  '        {() => <Redirect to="/lineage" />}',
+                  '      </Route>',
+              ]),
+          )
+          app.write_text(s)
+
+          layout = Path('artifacts/sovereign-dashboard/src/components/layout.tsx')
+          s = layout.read_text()
+          s = s.replace('{ href: "/lineage",              label: "Lineage Registry",      icon: TreePine },', '{ href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },', 1)
+          s = s.replace('{ href: "/lineage",              label: "Lineage Registry",     icon: TreePine },', '{ href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },', 1)
+          s = s.replace('{ href: "/lineage",                    label: "Lineage Registry",  icon: TreePine },', '{ href: "/family-tree",                label: "Patient Lineage",   icon: TreePine },', 1)
+          if '{ href: "/lineage",             label: "Lineage Import",' not in s:
+              s = s.replace('{ href: "/lineage",             label: "Lineage Registry",     icon: TreePine },', '{ href: "/lineage",             label: "Lineage Import",       icon: GitMerge },')
+          s = s.replace('{ href: "/gedcom-import",       label: "GEDCOM Import",        icon: GitMerge },\n', '')
+          s = s.replace('{ href: "/admin/lineage-import",label: "Lineage Registry",     icon: Database },\n', '')
+          layout.write_text(s)
+          PY
+
+      - name: Commit restoration if needed
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No family-tree restoration changes needed."
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add artifacts/sovereign-dashboard/src/App.tsx artifacts/sovereign-dashboard/src/components/layout.tsx
+          git commit -m "Restore interactive family tree route and keep single lineage import"
+          git push

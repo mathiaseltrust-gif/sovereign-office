@@ -19,6 +19,25 @@ import { MapPickerModal } from "@/components/map-picker-modal";
 
 type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
+interface LineageLifeEvent {
+  event_type: string;
+  event_date?: string | null;
+  event_year?: number | null;
+  event_place?: string | null;
+  latitude?: number | null;
+  longitude?: number | null;
+  place_normalized?: string | null;
+  county?: string | null;
+  state?: string | null;
+  country?: string | null;
+  source_type?: string | null;
+  source_reference?: string | null;
+  source_confidence?: string | null;
+  event_source?: string | null;
+  event_note?: string | null;
+  raw_payload?: unknown | null;
+}
+
 interface LineageNode {
   id: number;
   fullName: string;
@@ -45,6 +64,7 @@ interface LineageNode {
   parentIds?: number[] | null;
   childrenIds?: number[] | null;
   spouseIds?: number[] | null;
+  siblingIds?: number[] | null;
   pendingReview?: boolean | null;
   addedByMemberId?: number | null;
   supportingDocumentName?: string | null;
@@ -59,6 +79,7 @@ interface LineageNode {
   locationLat?: number | null;
   locationLng?: number | null;
   locationAddress?: string | null;
+  lifeEvents?: LineageLifeEvent[] | null;
   _parents?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
   _children?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
   _spouses?: Array<{ id: number; fullName: string; birthYear?: number | null; photoUrl?: string | null }>;
@@ -74,8 +95,8 @@ interface LineageNode {
 }
 
 interface PositionedNode extends LineageNode {
-  x: number;
   y: number;
+  x: number;
 }
 
 interface Edge {
@@ -211,14 +232,18 @@ const H_GAP = 48;
 const V_GAP = 80;
 const CANVAS_PADDING = 60;
 
-function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = []): { positioned: PositionedNode[]; totalW: number; totalH: number } {
+function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], preferredRootId?: number | null): { positioned: PositionedNode[]; totalW: number; totalH: number } {
   if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
 
   // ── Identify root (lowest gen, or ID 20 if present) ──────────────────────
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const rootNode = nodes.find((n) => n.id === 20) ?? nodes.reduce((a, b) =>
-    (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
-  );
+  const rootNode =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
+    ?? nodes.reduce((a, b) =>
+      (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
+    );
 
   // ── Tag each node as paternal / maternal / root via BFS ──────────────────
   const side = new Map<number, "root" | "paternal" | "maternal">();
@@ -390,6 +415,94 @@ function nodeCardClasses(node: LineageNode): { border: string; bg: string } {
     case "affiliate": return { border: "border-purple-300", bg: "bg-purple-50 dark:bg-purple-950/20" };
     default: return { border: "border-border", bg: "bg-card" };
   }
+}
+
+const LIFE_EVENT_DISPLAY_ORDER: Record<string, number> = {
+  birth: 0,
+  residence: 1,
+  marriage: 2,
+  death: 3,
+  burial: 4,
+};
+
+const LIFE_EVENT_AUTHORITY_ORDER = [
+  "Primary Vital Record",
+  "Government / Administrative Record",
+  "Church / Institutional Record",
+  "Family / Oral Record",
+  "Platform / Derived Record",
+  "Unclassified Evidence",
+] as const;
+
+type LifeEventAuthority = typeof LIFE_EVENT_AUTHORITY_ORDER[number];
+
+const LIFE_EVENT_AUTHORITY_RANK: Record<LifeEventAuthority, number> = LIFE_EVENT_AUTHORITY_ORDER.reduce(
+  (acc, label, index) => ({ ...acc, [label]: index }),
+  {} as Record<LifeEventAuthority, number>
+);
+
+function lifeEventLabel(type: string): string {
+  return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+}
+
+function sortLifeEventsForDisplay(events: LineageLifeEvent[]): LineageLifeEvent[] {
+  return [...events].sort((a, b) => {
+    const priorityA = LIFE_EVENT_DISPLAY_ORDER[a.event_type] ?? 99;
+    const priorityB = LIFE_EVENT_DISPLAY_ORDER[b.event_type] ?? 99;
+    if (priorityA !== priorityB) return priorityA - priorityB;
+    const authorityA = LIFE_EVENT_AUTHORITY_RANK[classifyLifeEventAuthority(a)];
+    const authorityB = LIFE_EVENT_AUTHORITY_RANK[classifyLifeEventAuthority(b)];
+    if (authorityA !== authorityB) return authorityA - authorityB;
+    return (a.event_year ?? 9999) - (b.event_year ?? 9999);
+  });
+}
+
+function formatLifeEventDate(ev: LineageLifeEvent): string | null {
+  return ev.event_date ?? (ev.event_year != null ? String(ev.event_year) : null);
+}
+
+function formatRawPayload(payload: unknown): string | null {
+  if (payload == null) return null;
+  if (typeof payload === "string") return payload;
+  try {
+    return JSON.stringify(payload, null, 2);
+  } catch {
+    return String(payload);
+  }
+}
+
+function lifeEventEvidenceText(ev: LineageLifeEvent): string {
+  return [
+    ev.source_type,
+    ev.source_reference,
+    ev.source_confidence,
+    ev.event_source,
+    ev.event_note,
+    ev.event_type,
+    ev.event_place,
+    ev.place_normalized,
+    formatRawPayload(ev.raw_payload),
+  ].filter(Boolean).join(" ").toLowerCase();
+}
+
+function classifyLifeEventAuthority(ev: LineageLifeEvent): LifeEventAuthority {
+  const evidence = lifeEventEvidenceText(ev);
+  if (/(birth certificate|certificate of live birth|death certificate|marriage certificate|marriage license|divorce decree)/i.test(evidence)) {
+    return "Primary Vital Record";
+  }
+  if (/(social security|\bssa\b|social security death index|\bssdi\b|census|military|draft card|immigration|naturalization|court record|probate|land record)/i.test(evidence)) {
+    return "Government / Administrative Record";
+  }
+  if (/(baptism|christening|church|parish|cemetery|funeral home|burial record)/i.test(evidence)) {
+    return "Church / Institutional Record";
+  }
+  if (/(family bible|oral history|family testimony|family record|memorial note)/i.test(evidence)) {
+    return "Family / Oral Record";
+  }
+  if (/(gedcom|gramps|ancestry hint|family tree import|user import|compiled tree)/i.test(evidence)) {
+    return "Platform / Derived Record";
+  }
+  return "Unclassified Evidence";
 }
 
 function protectionBadge(level?: string | null) {
@@ -695,14 +808,17 @@ interface PedigreeNode extends LineageNode {
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
-function computePedigreeLayout(nodes: LineageNode[]): {
+function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | null): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
   pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }>;
 } {
   const byId = new Map(nodes.map(n => [n.id, n]));
-  const root = nodes.find(n => n.id === 20)
+  const root =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
     ?? nodes.find(n => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0];
   if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
@@ -794,9 +910,12 @@ interface FanEntry {
   a1: number; a2: number; isPat: boolean;
 }
 
-function buildFanEntries(nodes: LineageNode[]): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
+function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
   const byId = new Map(nodes.map((n) => [n.id, n]));
-  const root = nodes.find((n) => n.id === 20)
+  const root =
+    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
+    ?? nodes.find((n) => n.id === 12)
+    ?? nodes.find((n) => n.linkedProfileUserId != null)
     ?? nodes.find((n) => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0] ?? null;
   if (!root) return { entries: [], root: null, maxGen: 0 };
@@ -852,14 +971,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const isOfficer = useIsOfficer();
   const { user } = useAuth();
 
-  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; page: number; count: number }>({
-    queryKey: ["lineage-nodes"],
+  const { data, isLoading } = useQuery<{ nodes: LineageNode[]; familyUnits?: FamilyUnit[]; page: number; count: number }>({
+    queryKey: ["lineage-nodes", "full"],
     queryFn: async () => {
-      const r = await fetch("/api/lineage/nodes?limit=2000", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
-      if (!r.ok) throw new Error("Failed to load tree data");
+      const token = getCurrentBearerToken();
+      const headers: HeadersInit = token ? { Authorization: `Bearer ${token}` } : {};
+      const r = await fetch("/api/family-tree/full", { headers, credentials: "include" });
+      if (!r.ok) throw new Error("Failed to load canonical family lineage");
       return r.json();
     },
+    staleTime: 60_000,
   });
+
 
   // Always load the current user's own node + immediate family regardless of pagination
   const { data: selfData } = useQuery<{ nodes: LineageNode[] }>({
@@ -882,7 +1005,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     },
     staleTime: 60_000,
   });
-  const familyUnits: FamilyUnit[] = famUnitData?.familyUnits ?? [];
+  const familyUnits: FamilyUnit[] = data?.familyUnits ?? famUnitData?.familyUnits ?? [];
 
   const nodes = (() => {
     const base = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
@@ -1066,7 +1189,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   const treeNodes = connectedNodes;
 
-  const { positioned, totalW, totalH } = useMemo(() => computeLayout(treeNodes, familyUnits), [treeNodes, familyUnits]);
+  const preferredRootId =
+    treeNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id ?? null;
+
+  const { positioned, totalW, totalH } = useMemo(
+    () => computeLayout(treeNodes, familyUnits, preferredRootId),
+    [treeNodes, familyUnits, preferredRootId]
+  );
   const edges = useMemo(() => buildEdges(positioned, familyUnits), [positioned, familyUnits]);
 
   const containerRef = useRef<HTMLDivElement>(null);
@@ -1085,11 +1214,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const importRef = useRef<HTMLInputElement>(null);
 
   const pedigreeData = useMemo(
-    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
     [treeNodes, treeView],
   );
   const fanData = useMemo(
-    () => treeView === "fan" ? buildFanEntries(treeNodes) : { entries: [], root: null, maxGen: 0 },
+    () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId) : { entries: [], root: null, maxGen: 0 },
     [treeNodes, treeView],
   );
   const fanCanvasSize = useMemo(() => {
@@ -2248,6 +2377,8 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
     setShowEditOwn(true);
   }
 
+  const lifeEvents = Array.isArray(n.lifeEvents) ? sortLifeEventsForDisplay(n.lifeEvents) : [];
+
   return (
     <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300, paddingBottom: 56 }}>
       <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card z-10">
@@ -2320,6 +2451,54 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
               </div>
             )}
           </div>
+
+          {lifeEvents.length > 0 && (
+            <div className="border rounded-md px-3 py-2.5 space-y-2">
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                <Clock className="w-3 h-3" /> Life event evidence records
+              </p>
+              <p className="text-[10px] text-muted-foreground leading-snug">
+                Repeated birth or death entries are separate source mentions and evidence records.
+              </p>
+              <div className="space-y-2">
+                {lifeEvents.map((ev, index) => {
+                  const when = formatLifeEventDate(ev);
+                  const place = ev.event_place ?? ev.place_normalized;
+                  const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
+                  const rawPayload = formatRawPayload(ev.raw_payload);
+                  const authority = classifyLifeEventAuthority(ev);
+                  return (
+                    <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="border-l-2 border-primary/30 pl-2">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-xs font-semibold text-foreground">Source Mention #{index + 1}</span>
+                        {when && <span className="text-[10px] text-muted-foreground">{when}</span>}
+                      </div>
+                      <p className="text-xs text-foreground">{lifeEventLabel(ev.event_type)}</p>
+                      <p className="text-[10px] font-semibold text-primary">{authority}</p>
+                      <div className="mt-0.5 space-y-0.5">
+                        {ev.event_date && <p className="text-[10px] text-muted-foreground">Event date: {ev.event_date}</p>}
+                        {ev.event_year != null && <p className="text-[10px] text-muted-foreground">Event year: {ev.event_year}</p>}
+                      </div>
+                      {place && <p className="text-xs text-muted-foreground">{place}</p>}
+                      {locationParts.length > 0 && <p className="text-[10px] text-muted-foreground">{locationParts.join(", ")}</p>}
+                      {ev.latitude != null && ev.longitude != null && (
+                        <p className="text-[10px] font-mono text-muted-foreground">{ev.latitude.toFixed(5)}, {ev.longitude.toFixed(5)}</p>
+                      )}
+                      {ev.source_type && <p className="text-[10px] text-muted-foreground">Source type: {ev.source_type}</p>}
+                      {ev.source_reference && <p className="text-[10px] text-muted-foreground">Source reference: {ev.source_reference}</p>}
+                      {ev.source_confidence && <p className="text-[10px] text-muted-foreground">Source confidence: {ev.source_confidence}</p>}
+                      {rawPayload && (
+                        <details className="text-[10px] text-muted-foreground">
+                          <summary className="cursor-pointer">Raw payload</summary>
+                          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-muted p-2 font-mono">{rawPayload}</pre>
+                        </details>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
 
           {/* ── "This is me" self-link button ──────────────────────────── */}
           {currentUserId && (!n.linkedProfileUserId || n.linkedProfileUserId === currentUserId) && (

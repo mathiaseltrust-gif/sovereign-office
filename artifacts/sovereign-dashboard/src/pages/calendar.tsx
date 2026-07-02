@@ -9,6 +9,15 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { Plus, X, CalendarHeart, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
+const isVisibleCalendarPerson = (p: any) =>
+  p?.sourceType !== "test" &&
+  p?.source_type !== "test" &&
+  p?.visibility !== "hidden" &&
+  p?.status !== "sandbox" &&
+  p?.isDemo !== true &&
+  p?.is_demo !== true;
+
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 interface CalendarEvent {

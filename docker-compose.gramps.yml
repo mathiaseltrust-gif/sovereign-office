@@ -1,0 +1,67 @@
+# Gramps Web standalone stack for Sovereign Office genealogy engine.
+# Purpose: stop reinventing tree rendering and use Gramps Web for GEDCOM/Gramps genealogy views.
+#
+# Usage on VM:
+#   docker compose -f docker-compose.gramps.yml up -d
+#
+# Direct first-run URL:
+#   http://<server-ip-or-domain>:5010
+#
+# Proxied URL after nginx routing:
+#   https://office.mathiaseltribe.org/gramps/
+#
+# Notes:
+# - This stack is intentionally separate from the production Sovereign Office stack.
+# - Gramps Web stores genealogy data in persistent Docker volumes.
+# - The /gramps/ proxy path is handled by host nginx.
+
+services:
+  grampsweb: &grampsweb
+    image: ghcr.io/gramps-project/grampsweb:latest
+    container_name: sovereign-office-grampsweb
+    restart: unless-stopped
+    ports:
+      - "5010:5000"
+    environment:
+      GRAMPSWEB_TREE: "Mathias El Tribe Lineage"
+      GRAMPSWEB_BASE_URL: "/gramps"
+      BASE_URL: "/gramps"
+      GRAMPSWEB_CELERY_CONFIG__broker_url: "redis://grampsweb_redis:6379/0"
+      GRAMPSWEB_CELERY_CONFIG__result_backend: "redis://grampsweb_redis:6379/0"
+      GRAMPSWEB_RATELIMIT_STORAGE_URI: "redis://grampsweb_redis:6379/1"
+    depends_on:
+      - grampsweb_redis
+    volumes:
+      - gramps_users:/app/users
+      - gramps_index:/app/indexdir
+      - gramps_thumb_cache:/app/thumbnail_cache
+      - gramps_cache:/app/cache
+      - gramps_secret:/app/secret
+      - gramps_db:/root/.gramps/grampsdb
+      - gramps_media:/app/media
+      - gramps_tmp:/tmp
+      - ./data/gramps-import:/import:ro
+
+  grampsweb_celery:
+    <<: *grampsweb
+    container_name: sovereign-office-grampsweb-celery
+    ports: []
+    depends_on:
+      - grampsweb
+      - grampsweb_redis
+    command: celery -A gramps_webapi.celery worker --loglevel=INFO --concurrency=2
+
+  grampsweb_redis:
+    image: docker.io/valkey/valkey:8-alpine
+    container_name: sovereign-office-grampsweb-redis
+    restart: unless-stopped
+
+volumes:
+  gramps_users:
+  gramps_index:
+  gramps_thumb_cache:
+  gramps_cache:
+  gramps_secret:
+  gramps_db:
+  gramps_media:
+  gramps_tmp:
