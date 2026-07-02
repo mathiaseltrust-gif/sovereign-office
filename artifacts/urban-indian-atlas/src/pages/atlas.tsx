@@ -326,7 +326,10 @@ function dbToContextMatch(r: DbContextMatch): AncestorContextMatch {
 }
 
 async function fetchAtlasEvents(): Promise<AtlasEvent[]> {
-  const res = await fetch(`/api/atlas/events`);
+  const tok = getAtlasBearerToken();
+  const headers: Record<string, string> = {};
+  if (tok) headers["Authorization"] = `Bearer ${tok}`;
+  const res = await fetch(`/api/atlas/events`, { headers });
   if (!res.ok) throw new Error("Failed to load atlas events");
   const data = await res.json() as DbAtlasEvent[];
   return data.map(dbToAtlasEvent);

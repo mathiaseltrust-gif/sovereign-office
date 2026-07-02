@@ -100,38 +100,70 @@ function lifeEventRowsToAtlasEvents(
 }
 
 
-router.get("/events", requireAuth, async (_req, res, next) => {
+// Public endpoint — returns historical atlas events for all visitors.
+// When the request carries a valid auth token the response also includes
+// the requesting user's personal life-event records so their ancestor pins
+// appear on the public Atlas map without requiring a separate authenticated call.
+router.get("/events", async (req, res, next) => {
   try {
     const atlasEvents = await db
       .select()
       .from(atlasEventsTable)
       .orderBy(atlasEventsTable.year);
 
-    const lifeEventRows = await db.execute(sql`
-      SELECT
-        ale.id,
-        ale.person_id AS "personId",
-        ale.event_type AS "eventType",
-        ale.event_date AS "eventDate",
-        ale.event_year AS "eventYear",
-        ale.event_place AS "eventPlace",
-        ale.place_normalized AS "placeNormalized",
-        ale.county,
-        ale.state,
-        ale.country,
-        ale.latitude,
-        ale.longitude,
-        ale.source_type AS "sourceType",
-        ale.source_reference AS "sourceReference",
-        fl.full_name AS "fullName"
-      FROM ancestor_life_events ale
-      LEFT JOIN family_lineage fl ON fl.id = ale.person_id
-      WHERE COALESCE(ale.atlas_visible, true) = true
-        AND (ale.event_year IS NOT NULL OR ale.event_date IS NOT NULL)
-      ORDER BY COALESCE(ale.event_year, 9999), ale.event_type
-    `);
+    // Try to identify the requesting user (optional — no 401 if missing/invalid)
+    let userId: number | null = null;
+    try {
+      await new Promise<void>((resolve) => {
+        requireAuth(req, res, (err?: unknown) => {
+          if (!err && req.user?.dbId) userId = req.user.dbId;
+          resolve();
+        });
+      });
+    } catch {
+      // Ignore auth errors — just serve public events
+    }
 
-    const lifeEvents = lifeEventRowsToAtlasEvents(lifeEventRows.rows as LifeEventAtlasRow[]);
+    let lifeEvents: ReturnType<typeof lifeEventRowsToAtlasEvents> = [];
+    if (userId) {
+      const lifeEventRows = await db.execute(sql`
+        SELECT
+          ale.id,
+          ale.person_id AS "personId",
+          ale.event_type AS "eventType",
+          ale.event_date AS "eventDate",
+          ale.event_year AS "eventYear",
+          ale.event_place AS "eventPlace",
+          NULL::text AS "placeNormalized",
+          ale.county,
+          ale.state,
+          ale.country,
+          ale.latitude,
+          ale.longitude,
+          ale.source_type AS "sourceType",
+          ale.source_reference AS "sourceReference",
+          fl.full_name AS "fullName"
+        FROM ancestor_life_events ale
+        LEFT JOIN family_lineage fl ON fl.id = ale.person_id
+        WHERE COALESCE(ale.atlas_visible, true) = true
+          AND (ale.event_year IS NOT NULL OR ale.event_date IS NOT NULL)
+          AND (
+            (fl.is_deceased = true AND (fl.is_ancestor = true OR fl.added_by_member_id = ${userId}))
+            OR (fl.is_deceased = false AND fl.added_by_member_id = ${userId})
+            OR EXISTS (
+              SELECT 1 FROM family_lineage uf
+              WHERE (uf.linked_profile_user_id = ${userId} OR uf.user_id = ${userId})
+                AND (
+                  fl.id = uf.id
+                  OR (uf.spouse_ids IS NOT NULL AND uf.spouse_ids @> jsonb_build_array(fl.id))
+                  OR (uf.children_ids IS NOT NULL AND uf.children_ids @> jsonb_build_array(fl.id))
+                )
+            )
+          )
+        ORDER BY COALESCE(ale.event_year, 9999), ale.event_type
+      `);
+      lifeEvents = lifeEventRowsToAtlasEvents(lifeEventRows.rows as LifeEventAtlasRow[]);
+    }
 
     res.json([...atlasEvents, ...lifeEvents].sort((a, b) => (a.year ?? 9999) - (b.year ?? 9999)));
   } catch (err) {
@@ -155,7 +187,7 @@ router.get("/timeline-events", requireAuth, async (req, res, next) => {
         ale.event_date AS "eventDate",
         ale.event_year AS "eventYear",
         ale.event_place AS "eventPlace",
-        ale.place_normalized AS "placeNormalized",
+        NULL::text AS "placeNormalized",
         ale.county,
         ale.state,
         ale.country,
@@ -303,7 +335,7 @@ router.get("/ancestors", requireAuth, async (req, res, next) => {
           event_date AS "eventDate",
           event_year AS "eventYear",
           event_place AS "eventPlace",
-          place_normalized AS "placeNormalized",
+          NULL::text AS "placeNormalized",
           county,
           state,
           country,

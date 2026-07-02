@@ -13,7 +13,7 @@ import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, getCurrentBea
 import {
   SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
   BookOpen, Clock, ChevronDown, ChevronRight, AlertTriangle, Shield, Scroll,
-  Flame, Star, Info,
+  Flame, Star, Info, Baby, Home, Heart, Cross, FileText, ExternalLink, Globe,
 } from "lucide-react";
 import { MapPickerModal } from "@/components/map-picker-modal";
 
@@ -444,6 +444,43 @@ const LIFE_EVENT_AUTHORITY_RANK: Record<LifeEventAuthority, number> = LIFE_EVENT
 function lifeEventLabel(type: string): string {
   return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
 }
+
+function lifeEventIcon(type: string) {
+  const t = type.toLowerCase();
+  if (t === "birth" || t === "christening" || t === "baptism") return <Baby className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "residence" || t === "immigration" || t === "emigration" || t === "naturalization") return <Home className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "marriage" || t === "divorce" || t === "engagement") return <Heart className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "death") return <Cross className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "burial" || t === "cremation") return <MapPin className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "military" || t === "draft" || t === "military_service") return <Shield className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "census") return <FileText className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "removal" || t === "relocation" || t === "forced_removal") return <AlertTriangle className="w-3.5 h-3.5 shrink-0" />;
+  if (t === "education" || t === "boarding_school") return <BookOpen className="w-3.5 h-3.5 shrink-0" />;
+  return <Clock className="w-3.5 h-3.5 shrink-0" />;
+}
+
+const LIFE_EVENT_ICON_COLOR: Record<string, string> = {
+  birth: "text-green-600 bg-green-50 dark:bg-green-950/40",
+  christening: "text-green-600 bg-green-50 dark:bg-green-950/40",
+  baptism: "text-green-600 bg-green-50 dark:bg-green-950/40",
+  death: "text-slate-600 bg-slate-100 dark:bg-slate-800/60",
+  burial: "text-slate-500 bg-slate-100 dark:bg-slate-800/60",
+  cremation: "text-slate-500 bg-slate-100 dark:bg-slate-800/60",
+  marriage: "text-rose-500 bg-rose-50 dark:bg-rose-950/40",
+  divorce: "text-rose-400 bg-rose-50 dark:bg-rose-950/40",
+  residence: "text-sky-600 bg-sky-50 dark:bg-sky-950/40",
+  immigration: "text-sky-600 bg-sky-50 dark:bg-sky-950/40",
+  emigration: "text-sky-600 bg-sky-50 dark:bg-sky-950/40",
+  military: "text-amber-700 bg-amber-50 dark:bg-amber-950/40",
+  draft: "text-amber-700 bg-amber-50 dark:bg-amber-950/40",
+  military_service: "text-amber-700 bg-amber-50 dark:bg-amber-950/40",
+  census: "text-indigo-600 bg-indigo-50 dark:bg-indigo-950/40",
+  removal: "text-red-600 bg-red-50 dark:bg-red-950/40",
+  relocation: "text-red-600 bg-red-50 dark:bg-red-950/40",
+  forced_removal: "text-red-600 bg-red-50 dark:bg-red-950/40",
+  education: "text-purple-600 bg-purple-50 dark:bg-purple-950/40",
+  boarding_school: "text-purple-600 bg-purple-50 dark:bg-purple-950/40",
+};
 
 function sortLifeEventsForDisplay(events: LineageLifeEvent[]): LineageLifeEvent[] {
   return [...events].sort((a, b) => {
@@ -1788,28 +1825,44 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       node.sourceType === "archived" ? "opacity-40" : "",
                     ].join(" ")}
                   >
-                    {/* Top row: photo/gender dot · name · membership dot */}
-                    <div className="flex items-start gap-1.5">
+                    {/* Top row: avatar · name · membership dot */}
+                    <div className="flex items-start gap-2">
                       {node.photoUrl ? (
                         <img
                           src={node.photoUrl}
                           alt={node.fullName}
-                          className="w-7 h-7 rounded-full object-cover shrink-0 border border-border/60"
+                          className="w-9 h-9 rounded-full object-cover shrink-0 border-2 border-border/60 shadow-sm"
                           onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
                         />
                       ) : (
-                        <span className={`w-1.5 h-1.5 rounded-full mt-1.5 shrink-0 ${genderDot}`} title={node.gender ?? "unknown"} />
+                        <div className={`w-9 h-9 rounded-full shrink-0 flex items-center justify-center text-sm font-bold border-2 ${genderDot === "bg-sky-400" ? "bg-sky-100 border-sky-300 text-sky-700" : genderDot === "bg-pink-400" ? "bg-pink-100 border-pink-300 text-pink-700" : "bg-slate-100 border-slate-300 text-slate-500"}`}>
+                          {node.fullName.trim().charAt(0).toUpperCase()}
+                        </div>
                       )}
-                      <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
-                        {node.fullName}
-                      </span>
-                      {membershipDot(node.membershipStatus)}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start gap-1">
+                          <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
+                            {node.fullName}
+                          </span>
+                          {membershipDot(node.membershipStatus)}
+                        </div>
+                        {node.tribalNation && (
+                          <p className="text-[10px] text-amber-700 dark:text-amber-400 truncate leading-none mt-0.5 font-medium" title={node.tribalNation}>
+                            {node.tribalNation}
+                          </p>
+                        )}
+                      </div>
                     </div>
 
-                    {/* Bottom: dates + badges */}
-                    <div className="mt-1 space-y-1">
+                    {/* Bottom: dates + place + badges */}
+                    <div className="mt-1 space-y-0.5">
                       {dateLabel && (
-                        <p className="text-[11px] text-muted-foreground leading-none">{dateLabel}</p>
+                        <p className="text-[11px] text-muted-foreground leading-none font-mono">{dateLabel}</p>
+                      )}
+                      {node.birthPlace && (
+                        <p className="text-[10px] text-muted-foreground leading-none truncate flex items-center gap-0.5">
+                          <Globe className="w-2.5 h-2.5 shrink-0 opacity-60" />{node.birthPlace}
+                        </p>
                       )}
                       <div className="flex items-center gap-1 flex-wrap">
                         {node.pendingReview && (
@@ -1823,11 +1876,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                                 ? "bg-sky-100 text-sky-800 dark:bg-sky-900/40 dark:text-sky-300"
                                 : "bg-muted text-muted-foreground"
                           }`}>{node.protectionLevel}</span>
-                        )}
-                        {node.tribalNation && !node.pendingReview && (
-                          <span className="text-[9px] text-muted-foreground truncate max-w-[90px]" title={node.tribalNation}>
-                            {node.tribalNation}
-                          </span>
                         )}
                         {node.linkedProfileUserId && (
                           <span className="w-1.5 h-1.5 rounded-full bg-primary shrink-0" title="Linked member profile" />
@@ -2390,11 +2438,60 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
         <div className="p-4 space-y-3">{[...Array(5)].map((_, i) => <Skeleton key={i} className="h-8" />)}</div>
       ) : (
         <div className="p-4 space-y-4 text-sm flex-1">
-          <div className="flex items-center gap-2 flex-wrap">
-            {protectionBadge(n.protectionLevel)}
-            {membershipDot(n.membershipStatus)}
-            <span className="text-xs text-muted-foreground capitalize">{n.membershipStatus ?? "unknown"}</span>
+
+          {/* ── Ancestry-style profile header ── */}
+          <div className="flex items-start gap-3">
+            {n.photoUrl ? (
+              <img
+                src={n.photoUrl}
+                alt={n.fullName}
+                className="w-14 h-14 rounded-full object-cover shrink-0 border-2 border-border shadow"
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.display = "none"; }}
+              />
+            ) : (
+              <div className={`w-14 h-14 rounded-full shrink-0 flex items-center justify-center text-xl font-bold border-2 ${
+                (n.gender ?? "").toLowerCase() === "male"
+                  ? "bg-sky-100 border-sky-300 text-sky-700"
+                  : (n.gender ?? "").toLowerCase() === "female"
+                    ? "bg-pink-100 border-pink-300 text-pink-700"
+                    : "bg-slate-100 border-slate-300 text-slate-500"
+              }`}>
+                {n.fullName.trim().charAt(0).toUpperCase()}
+              </div>
+            )}
+            <div className="flex-1 min-w-0">
+              <h3 className="font-semibold text-base leading-snug">{n.fullName}</h3>
+              {n.tribalNation && (
+                <p className="text-xs text-amber-700 dark:text-amber-400 font-medium mt-0.5">{n.tribalNation}</p>
+              )}
+              {(n.birthYear || n.deathYear) && (
+                <p className="text-xs text-muted-foreground font-mono mt-0.5">
+                  {n.birthYear ?? "?"}{(n.isDeceased || n.deathYear) ? ` – ${n.deathYear ?? "†"}` : ""}
+                </p>
+              )}
+              {n.birthPlace && (
+                <p className="text-[11px] text-muted-foreground flex items-center gap-0.5 mt-0.5">
+                  <Globe className="w-3 h-3 shrink-0 opacity-60" />{n.birthPlace}
+                </p>
+              )}
+              <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
+                {protectionBadge(n.protectionLevel)}
+                {membershipDot(n.membershipStatus)}
+                <span className="text-xs text-muted-foreground capitalize">{n.membershipStatus ?? "unknown"}</span>
+              </div>
+            </div>
           </div>
+
+          {/* ── Atlas sync button ── */}
+          <a
+            href={`/urban-indian-atlas/?person=${n.id}&mode=atlas`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex items-center justify-center gap-1.5 w-full rounded-md border border-primary/40 bg-primary/5 hover:bg-primary/10 text-primary text-xs font-semibold py-1.5 transition-colors"
+          >
+            <ExternalLink className="w-3.5 h-3.5" />
+            View in Atlas — see movements &amp; historical acts
+          </a>
 
           <div className="space-y-1">
             {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
@@ -2455,48 +2552,49 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
           {lifeEvents.length > 0 && (
             <div className="border rounded-md px-3 py-2.5 space-y-2">
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
-                <Clock className="w-3 h-3" /> Life event evidence records
+                <Clock className="w-3 h-3" /> Life Events Timeline
               </p>
-              <p className="text-[10px] text-muted-foreground leading-snug">
-                Repeated birth or death entries are separate source mentions and evidence records.
-              </p>
-              <div className="space-y-2">
-                {lifeEvents.map((ev, index) => {
-                  const when = formatLifeEventDate(ev);
-                  const place = ev.event_place ?? ev.place_normalized;
-                  const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
-                  const rawPayload = formatRawPayload(ev.raw_payload);
-                  const authority = classifyLifeEventAuthority(ev);
-                  return (
-                    <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="border-l-2 border-primary/30 pl-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-semibold text-foreground">Source Mention #{index + 1}</span>
-                        {when && <span className="text-[10px] text-muted-foreground">{when}</span>}
+              <div className="relative">
+                {/* Vertical timeline spine */}
+                <div className="absolute left-3.5 top-0 bottom-0 w-px bg-border/60" />
+                <div className="space-y-2 pl-0">
+                  {lifeEvents.map((ev, index) => {
+                    const when = formatLifeEventDate(ev);
+                    const place = ev.event_place ?? ev.place_normalized;
+                    const locationParts = [ev.county, ev.state, ev.country].filter(Boolean);
+                    const rawPayload = formatRawPayload(ev.raw_payload);
+                    const authority = classifyLifeEventAuthority(ev);
+                    const iconColor = LIFE_EVENT_ICON_COLOR[ev.event_type.toLowerCase()] ?? "text-muted-foreground bg-muted";
+                    return (
+                      <div key={`${ev.event_type}-${when ?? "unknown"}-${place ?? "unknown"}-${index}`} className="flex gap-2.5 items-start">
+                        {/* Icon bubble on the spine */}
+                        <div className={`relative z-10 w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${iconColor} border border-border/40`}>
+                          {lifeEventIcon(ev.event_type)}
+                        </div>
+                        <div className="flex-1 min-w-0 pb-2">
+                          <div className="flex items-center justify-between gap-1 flex-wrap">
+                            <span className="text-xs font-semibold text-foreground">{lifeEventLabel(ev.event_type)}</span>
+                            {when && <span className="text-[10px] text-muted-foreground font-mono shrink-0">{when}</span>}
+                          </div>
+                          <p className="text-[10px] font-medium text-primary/80">{authority}</p>
+                          {place && <p className="text-[10px] text-muted-foreground mt-0.5">{place}</p>}
+                          {locationParts.length > 0 && <p className="text-[10px] text-muted-foreground">{locationParts.join(", ")}</p>}
+                          {ev.source_type && <p className="text-[10px] text-muted-foreground italic">Source: {ev.source_type}{ev.source_reference ? ` · ${ev.source_reference}` : ""}</p>}
+                          {rawPayload && (
+                            <details className="text-[10px] text-muted-foreground mt-0.5">
+                              <summary className="cursor-pointer hover:text-foreground">Raw record</summary>
+                              <pre className="mt-1 max-h-28 overflow-auto whitespace-pre-wrap rounded bg-muted p-1.5 font-mono text-[9px]">{rawPayload}</pre>
+                            </details>
+                          )}
+                        </div>
                       </div>
-                      <p className="text-xs text-foreground">{lifeEventLabel(ev.event_type)}</p>
-                      <p className="text-[10px] font-semibold text-primary">{authority}</p>
-                      <div className="mt-0.5 space-y-0.5">
-                        {ev.event_date && <p className="text-[10px] text-muted-foreground">Event date: {ev.event_date}</p>}
-                        {ev.event_year != null && <p className="text-[10px] text-muted-foreground">Event year: {ev.event_year}</p>}
-                      </div>
-                      {place && <p className="text-xs text-muted-foreground">{place}</p>}
-                      {locationParts.length > 0 && <p className="text-[10px] text-muted-foreground">{locationParts.join(", ")}</p>}
-                      {ev.latitude != null && ev.longitude != null && (
-                        <p className="text-[10px] font-mono text-muted-foreground">{ev.latitude.toFixed(5)}, {ev.longitude.toFixed(5)}</p>
-                      )}
-                      {ev.source_type && <p className="text-[10px] text-muted-foreground">Source type: {ev.source_type}</p>}
-                      {ev.source_reference && <p className="text-[10px] text-muted-foreground">Source reference: {ev.source_reference}</p>}
-                      {ev.source_confidence && <p className="text-[10px] text-muted-foreground">Source confidence: {ev.source_confidence}</p>}
-                      {rawPayload && (
-                        <details className="text-[10px] text-muted-foreground">
-                          <summary className="cursor-pointer">Raw payload</summary>
-                          <pre className="mt-1 max-h-32 overflow-auto whitespace-pre-wrap rounded bg-muted p-2 font-mono">{rawPayload}</pre>
-                        </details>
-                      )}
-                    </div>
-                  );
-                })}
+                    );
+                  })}
+                </div>
               </div>
+              <p className="text-[10px] text-muted-foreground leading-snug border-t pt-1.5">
+                Multiple entries for the same event type are separate source documents confirming the same life event.
+              </p>
             </div>
           )}
 

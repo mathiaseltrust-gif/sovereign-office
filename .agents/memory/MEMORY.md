@@ -1,0 +1,2 @@
+- [Atlas events endpoint](atlas-events-endpoint.md) — /api/atlas/events must stay public; ale.place_normalized column does not exist in DB.
+- [Atlas↔Tree sync](atlas-tree-sync.md) — Atlas already handles ?person=N&mode=atlas URL param to auto-select ancestor.
