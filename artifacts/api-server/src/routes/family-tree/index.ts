@@ -218,17 +218,17 @@ async function loadLifeEventsForPeople(personIds: number[]): Promise<Map<number,
       event_year AS "eventYear",
       event_place AS "eventPlace",
       NULL::text AS "placeNormalized",
-      county,
-      state,
-      country,
-      latitude,
-      longitude,
+      NULL::text AS county,
+      NULL::text AS state,
+      NULL::text AS country,
+      NULL::numeric AS latitude,
+      NULL::numeric AS longitude,
       event_place_confidence AS "eventPlaceConfidence",
       event_source AS "eventSource",
       source_type AS "sourceType",
-      source_reference AS "sourceReference",
-      source_confidence AS "sourceConfidence",
-      raw_payload AS "rawPayload"
+      NULL::text AS "sourceReference",
+      NULL::text AS "sourceConfidence",
+      NULL::jsonb AS "rawPayload"
     FROM ancestor_life_events
     WHERE person_id IN (${sql.raw(ids.join(","))})
   `);

@@ -135,13 +135,13 @@ router.get("/events", async (req, res, next) => {
           ale.event_year AS "eventYear",
           ale.event_place AS "eventPlace",
           NULL::text AS "placeNormalized",
-          ale.county,
-          ale.state,
-          ale.country,
-          ale.latitude,
-          ale.longitude,
+          NULL::text AS county,
+          NULL::text AS state,
+          NULL::text AS country,
+          NULL::numeric AS latitude,
+          NULL::numeric AS longitude,
           ale.source_type AS "sourceType",
-          ale.source_reference AS "sourceReference",
+          NULL::text AS "sourceReference",
           fl.full_name AS "fullName"
         FROM ancestor_life_events ale
         LEFT JOIN family_lineage fl ON fl.id = ale.person_id
@@ -188,13 +188,13 @@ router.get("/timeline-events", requireAuth, async (req, res, next) => {
         ale.event_year AS "eventYear",
         ale.event_place AS "eventPlace",
         NULL::text AS "placeNormalized",
-        ale.county,
-        ale.state,
-        ale.country,
-        ale.latitude,
-        ale.longitude,
+        NULL::text AS county,
+        NULL::text AS state,
+        NULL::text AS country,
+        NULL::numeric AS latitude,
+        NULL::numeric AS longitude,
         ale.source_type AS "sourceType",
-        ale.source_reference AS "sourceReference",
+        NULL::text AS "sourceReference",
         fl.full_name AS "fullName"
       FROM ancestor_life_events ale
       LEFT JOIN family_lineage fl ON fl.id = ale.person_id
