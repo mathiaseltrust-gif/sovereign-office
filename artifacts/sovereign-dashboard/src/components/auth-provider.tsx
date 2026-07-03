@@ -411,7 +411,8 @@ export function useAuth() {
 export function useIsAdmin() { const { activeRole } = useAuth(); return activeRole === "sovereign_admin"; }
 export function useIsTrustee() { const { activeRole } = useAuth(); return activeRole === "trustee" || activeRole === "sovereign_admin"; }
 export function useIsOfficer() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin"].includes(activeRole); }
-export function useCanReviewLineage() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin", "elder"].includes(activeRole); }
+export function useCanReviewLineage() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin", "elder", "chief_justice", "chief_justice_trustee"].includes(activeRole); }
+export function useCanEditLineage() { const { activeRole } = useAuth(); return ["trustee", "sovereign_admin", "chief_justice", "chief_justice_trustee", "officer"].includes(activeRole); }
 
 export function roleLandingPath(_role: Role): string {
   return "/hub";

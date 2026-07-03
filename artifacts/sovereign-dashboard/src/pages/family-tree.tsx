@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, getCurrentBearerToken } from "@/components/auth-provider";
+import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, useCanEditLineage, getCurrentBearerToken } from "@/components/auth-provider";
 import {
   SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
   BookOpen, Clock, ChevronDown, ChevronRight, AlertTriangle, Shield, Scroll,
@@ -566,7 +566,7 @@ function membershipDot(status?: string | null) {
 
 export default function FamilyTreePage() {
   const { user } = useAuth();
-  const canEdit = useIsTrustee();
+  const canEdit = useCanEditLineage();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<Tab>("view-lineage");
@@ -1060,7 +1060,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // 4 = + Great-grandparents
   // 5 = 2× Great-grandparents
   // 99 = Full tree (no depth restriction)
-  const [generationDepth, setGenerationDepth] = useState(2);
+  const [generationDepth, setGenerationDepth] = useState(4);
 
   const DEPTH_MAX = 99;
   const DEPTH_LABELS: Record<number, string> = {
@@ -2107,19 +2107,28 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           )}
         </div>
 
-        {selectedNode && (
-          <NodeDetailPanel
-            node={selectedNode}
-            canEdit={canEdit}
-            canApprove={canApprove}
-            isOfficer={isOfficer}
-            currentUserId={user?.dbId ?? null}
-            onClose={() => setSelectedNodeId(null)}
-            onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
-            onMerge={(n) => setMergingNode(n)}
-            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] })}
-          />
-        )}
+        {selectedNode && (() => {
+          const selParentIds = new Set((selectedNode.parentIds ?? []) as number[]);
+          const siblings = nodes.filter((n) =>
+            n.id !== selectedNode.id &&
+            (n.parentIds ?? []).some((pid) => selParentIds.has(pid as number))
+          );
+          return (
+            <NodeDetailPanel
+              node={selectedNode}
+              siblings={siblings}
+              allNodes={nodes}
+              canEdit={canEdit}
+              canApprove={canApprove}
+              isOfficer={isOfficer}
+              currentUserId={user?.dbId ?? null}
+              onClose={() => setSelectedNodeId(null)}
+              onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
+              onMerge={(n) => setMergingNode(n)}
+              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] })}
+            />
+          );
+        })()}
       </div>
 
       {showAddModal && (
@@ -2168,8 +2177,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   );
 }
 
-function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, siblings, allNodes, canEdit, canApprove, isOfficer, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
   node: PositionedNode;
+  siblings?: LineageNode[];
+  allNodes?: LineageNode[];
   canEdit: boolean;
   canApprove: boolean;
   isOfficer: boolean;
@@ -2665,6 +2676,26 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
                 <div key={p.id} className="flex items-center gap-1.5 py-0.5">
                   {p.photoUrl ? <img src={p.photoUrl} alt="" className="w-5 h-5 rounded-full object-cover shrink-0" /> : <span className="w-5 h-5 rounded-full bg-muted flex items-center justify-center text-[9px] text-muted-foreground shrink-0">👤</span>}
                   <span className="text-xs">{p.fullName}{p.birthYear ? ` (b.${p.birthYear})` : ""}</span>
+                </div>
+              ))}
+            </div>
+          )}
+
+          {siblings && siblings.length > 0 && (
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">
+                Siblings <span className="font-normal normal-case text-muted-foreground/60">({siblings.length})</span>
+              </p>
+              {siblings.map((s) => (
+                <div key={s.id} className="flex items-center gap-1.5 py-0.5">
+                  <span className={`w-5 h-5 rounded-full shrink-0 flex items-center justify-center text-[9px] font-bold ${
+                    (s.gender ?? "").toLowerCase() === "male" ? "bg-sky-100 text-sky-700" :
+                    (s.gender ?? "").toLowerCase() === "female" ? "bg-pink-100 text-pink-700" :
+                    "bg-muted text-muted-foreground"
+                  }`}>
+                    {s.fullName.trim().charAt(0).toUpperCase()}
+                  </span>
+                  <span className="text-xs">{s.fullName}{s.birthYear ? ` (b.${s.birthYear})` : ""}</span>
                 </div>
               ))}
             </div>
