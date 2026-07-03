@@ -36,3 +36,9 @@ id = "BoHNgJqHuOHyLnd1rrRGz"
 uri = "file://attached_assets/tribal-grant-deed-kern-ca-APN-514-364-11-00-1.pdf"
 type = "pdf"
 title = "Tribal Grant Deed — Updated with Tribal Identity Numbers"
+
+[[outputs]]
+id = "jZa5aqTC-Wc64mWOstDsj"
+uri = "file://changes-since-github-sync.txt"
+type = "text"
+title = "Code Changes Since Last GitHub Sync (.diff)"
