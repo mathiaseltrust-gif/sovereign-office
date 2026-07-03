@@ -1,1 +1,2 @@
-- [ancestor_life_events columns](ancestor-life-events-columns.md) — table has only 12 columns; many referenced in SQL do not exist; always NULL-stub missing ones
+- [Role mapping gap — chief_justice_trustee](role-mapping-gap.md) — roleFromStrings must have ALL JWT role strings in both priority and ROLE_MAP or they silently fall to "member"
+- [ancestor-life-events-columns](ancestor-life-events-columns.md) — NULL-stub list for missing columns in ancestor_life_events table (three query sites)

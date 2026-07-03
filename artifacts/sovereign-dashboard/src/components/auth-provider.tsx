@@ -53,13 +53,14 @@ export function getCurrentBearerToken(): string | null {
 
 function roleFromStrings(roles: string[]): Role {
   const priority: Record<string, number> = {
-    chief_justice: 110, admin: 100, sovereign_admin: 90,
+    chief_justice: 110, chief_justice_trustee: 105, admin: 100, sovereign_admin: 90,
     trustee: 80, officer: 70,
     elder: 50, medical_provider: 50,
     member: 30, visitor_media: 10, guest: 5,
   };
   const ROLE_MAP: Record<string, Role> = {
     chief_justice: "sovereign_admin",
+    chief_justice_trustee: "trustee",
     admin: "sovereign_admin",
     sovereign_admin: "sovereign_admin",
     trustee: "trustee",

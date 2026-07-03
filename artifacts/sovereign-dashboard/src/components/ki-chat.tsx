@@ -1443,7 +1443,7 @@ export function KayaChat({ memberPhoto, memberName, pendingTasks, unreadNotifica
                               const isExternal = card.path.startsWith("/") && !card.path.startsWith("/profile") && (
                                 card.path.startsWith("/trace") ||
                                 card.path.startsWith("/trust/") ||
-                                card.path.startsWith("/community/") ||
+                                card.path.startsWith("/community-dashboard/") ||
                                 card.path.startsWith("/authority/") ||
                                 card.path.startsWith("/atlas")
                               );

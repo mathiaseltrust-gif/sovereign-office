@@ -10,6 +10,8 @@ import {
 const POSITION_TITLES: Record<string, string | null> = {
   trustee: "Chief Justice & Trustee",
   sovereign_admin: "Sovereign Administrator",
+  chief_justice: "Chief Justice",
+  chief_justice_trustee: "Chief Justice & Trustee",
   officer: "Duty Officer",
   elder: "Tribal Elder",
   medical_provider: "Medical Provider",
@@ -18,7 +20,7 @@ const POSITION_TITLES: Record<string, string | null> = {
 };
 
 const TRUST_URL = "/trust/";
-const COMMUNITY_URL = "/community/";
+const COMMUNITY_URL = "/community-dashboard/";
 
 function ServiceCard({
   icon: Icon,

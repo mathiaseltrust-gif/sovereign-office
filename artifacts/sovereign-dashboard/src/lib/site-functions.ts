@@ -480,7 +480,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     external: true,
   },
   {
-    path: "/community/",
+    path: "/community-dashboard/",
     label: "Community Dashboard",
     section: "Ecosystem",
     description: "Member-facing community portal for guidance and resources",
