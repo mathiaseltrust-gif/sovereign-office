@@ -14,7 +14,7 @@ import { z } from "zod/v4";
 
 export const ancestorLifeEventsTable = pgTable("ancestor_life_events", {
   id: serial("id").primaryKey(),
-  personId: integer("ancestor_id").notNull(),
+  personId: integer("person_id").notNull(),
   eventType: varchar("event_type", { length: 50 }).notNull(),
   eventDate: varchar("event_date", { length: 100 }),
   eventYear: integer("event_year"),
