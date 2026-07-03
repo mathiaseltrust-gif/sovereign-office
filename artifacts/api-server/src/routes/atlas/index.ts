@@ -111,18 +111,11 @@ router.get("/events", async (req, res, next) => {
       .from(atlasEventsTable)
       .orderBy(atlasEventsTable.year);
 
-    // Try to identify the requesting user (optional — no 401 if missing/invalid)
-    let userId: number | null = null;
-    try {
-      await new Promise<void>((resolve) => {
-        requireAuth(req, res, (err?: unknown) => {
-          if (!err && req.user?.dbId) userId = req.user.dbId;
-          resolve();
-        });
-      });
-    } catch {
-      // Ignore auth errors — just serve public events
-    }
+    // Soft auth — req.user is already populated by JWT middleware if a valid
+    // token was provided. We never call requireAuth here because it sends a 401
+    // response directly, which would close the connection before we can serve
+    // the public events. Unauthenticated requests simply skip personal events.
+    const userId: number | null = req.user?.dbId ?? null;
 
     let lifeEvents: ReturnType<typeof lifeEventRowsToAtlasEvents> = [];
     if (userId) {

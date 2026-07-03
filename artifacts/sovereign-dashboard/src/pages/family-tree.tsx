@@ -1247,7 +1247,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
-  const [treeView, setTreeView] = useState<TreeViewMode>("family");
+  const [treeView, setTreeView] = useState<TreeViewMode>("pedigree");
   const importRef = useRef<HTMLInputElement>(null);
 
   const pedigreeData = useMemo(

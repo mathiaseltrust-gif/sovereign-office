@@ -1,0 +1,178 @@
+Mathew Allen McCaster
+✕
+Member
+verified
+First name
+Mathew Allen
+Last name
+McCaster
+Legal name
+Mathew-Allen: McCaster
+Preferred name
+Chief Mathias El
+Born
+06 FEB 1985 — Detroit, Michigan, Wayne County.
+Gender
+male
+Tribal name
+Chief Mathias El
+Tribal nation
+Mathias El Tribe
+SSMEL No.
+SSMEL01
+Mailing address
+4305 Sun Devils Avenue, Bakersfield, CA 93313
+Generation
+0
+Source
+gedcom
+Linked user
+You
+✓ Lineage verified
+✓ Membership verified
+Life event evidence records
+
+Repeated birth or death entries are separate source mentions and evidence records.
+
+Source Mention #1
+6 Feb 1985
+Birth
+
+Platform / Derived Record
+
+Event date: 6 Feb 1985
+
+Event year: 1985
+
+Detroit, Michigan, USA
+
+Michigan, United States
+
+42.33140, -83.04580
+
+Source type: gedcom
+
+Source confidence: staged_bulk
+
+Raw payload
+Source Mention #2
+2016-2017
+Residence
+
+Platform / Derived Record
+
+Event date: 2016-2017
+
+Event year: 2016
+
+Oak Park, Michigan, USA
+
+Michigan, United States
+
+42.45950, -83.18270
+
+Source type: gedcom
+
+Source confidence: staged_bulk
+
+Raw payload
+Source Mention #3
+2017-2019
+Residence
+
+Platform / Derived Record
+
+Event date: 2017-2019
+
+Event year: 2017
+
+Panorama City, California, USA
+
+California, United States
+
+34.22430, -118.44540
+
+Source type: gedcom
+
+Source confidence: staged_bulk
+
+Raw payload
+Source Mention #4
+2019-2020
+Residence
+
+Platform / Derived Record
+
+Event date: 2019-2020
+
+Event year: 2019
+
+Sherman Oaks, California, USA
+
+California, United States
+
+34.14800, -118.45140
+
+Source type: gedcom
+
+Source confidence: staged_bulk
+
+Raw payload
+This is your node
+
+The Me button centers on this node at 1.8× zoom.
+
+✓
+Eligibility
+
+ICWA: N/A
+Welfare: N/A
+Trust: N/A
+Name variants
+
+Mathew Allen Sr McCaster
+Mathew-Allen: McCaster
+Chief McCaster
+Chief Mathias El
+Mathew Allen McCaster
+Tags
+
+gedcom-import
+Parents
+
+👤
+Milledge McCaster (b.1954)
+👤
+Pamela Denise Ruff McCaster (b.1961)
+Spouse / Partner
+
+👤
+Brenda Carolina Vasquez McCaster (b.1986)
+Children
+
+👤
+Allen Joseph McCaster Jr (b.2019)
+👤
+Mathew Jacob McCaster Jr (b.2012)
+Notes
+
+Birth place: Detroit, Michigan, USA | Canonical profile node reconciled with GEDCOM/Ancestry-derived record #890. GEDCOM identity preserved as source evidence and alias lineage marker.
+
+Likely Ancestral Location
+
+Add pin
+No pin set — click "Add pin" to place this person on the Atlas.
+
+
+Membership Access
+▼
+
+Add to My Household
+▼
+
+Connection Type
+Member
+▼
+Edit
+Merge
+Delete Record
