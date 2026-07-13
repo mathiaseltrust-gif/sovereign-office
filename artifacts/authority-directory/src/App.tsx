@@ -69,7 +69,7 @@ function SessionExpiredPage() {
         />
         <h2 className="text-lg font-semibold text-foreground">Session Expired</h2>
         <p className="text-sm text-muted-foreground">
-          Your Sovereign Office session has expired. Sign in again, then return to this tab and refresh.
+          Your Chief Justice & Trustee Office session has expired. Sign in again, then return to this tab and refresh.
         </p>
         <a
           href={loginUrl}

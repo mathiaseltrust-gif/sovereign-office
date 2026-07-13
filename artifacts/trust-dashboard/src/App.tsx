@@ -37,7 +37,7 @@ function AuthenticatedRouter() {
     window.location.replace(`${OFFICE_LOGIN}?next=${next}`);
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
-        <p className="text-muted-foreground text-sm">Redirecting to Sovereign Office sign in…</p>
+        <p className="text-muted-foreground text-sm">Redirecting to sign in……</p>
       </div>
     );
   }

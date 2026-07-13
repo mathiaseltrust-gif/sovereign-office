@@ -24,7 +24,7 @@ const SITE_FUNCTIONS: SiteFunction[] = [
   { path: "/niac", label: "NIAC Review Queue", section: "TRACE", keywords: ["niac", "review", "indigenous", "rights", "queue"] },
   { path: "/monitoring", label: "Monitoring", section: "TRACE", keywords: ["monitoring", "long-term", "track", "watch"] },
   { path: "/access", label: "Access Management", section: "TRACE", keywords: ["access", "grant", "revoke", "permissions", "users"] },
-  { path: "https://office.mathiaseltribe.org", label: "Sovereign Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
+  { path: "https://office.mathiaseltribe.org", label: "Chief Justice & Trustee Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
   { path: "https://office.mathiaseltribe.org/complaints", label: "Complaints", section: "Ecosystem", keywords: ["complaints", "grievance"], external: true },
 ];
 

@@ -129,7 +129,7 @@ function buildOfficialDocHtml(opts: {
         <img src="${tribalSeal}" alt="Mathias El Tribe" style="width:64px;height:64px;object-fit:contain;flex-shrink:0;" />
         <div style="flex:1;text-align:center;padding:0 16px;">
           <div style="font-size:9pt;letter-spacing:3px;text-transform:uppercase;font-weight:700;color:#8B0000;">Mathias El Tribe</div>
-          <div style="font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:#555;">Sovereign Office &mdash; Chief Justice &amp; Trustee</div>
+          <div style="font-size:8pt;letter-spacing:2px;text-transform:uppercase;color:#555;">Office of the Chief Justice &amp; Trustee</div>
           <div style="font-size:7pt;color:#777;margin-top:2px;">In His Sovereign Trustee Capacity, on Behalf of the Mathias El Tribe</div>
         </div>
         ${stampHtml}
@@ -240,7 +240,7 @@ function DocumentPreview({
             Mathias El Tribe
           </div>
           <div style={{ fontSize: "8pt", letterSpacing: "2px", textTransform: "uppercase", color: "#555" }}>
-            Sovereign Office — Chief Justice &amp; Trustee
+            Office of the Chief Justice &amp; Trustee
           </div>
           <div style={{ fontSize: "7pt", color: "#777", marginTop: "2px" }}>
             In His Sovereign Trustee Capacity, on Behalf of the Mathias El Tribe
@@ -339,7 +339,7 @@ function DelegationPanel() {
           ))}
         </div>
         <p className="text-[10px] text-muted-foreground italic">
-          Additional delegates may be added via sovereign office order.
+          Additional delegates may be added via order of the Office of the Chief Justice and Trustee.
         </p>
       </CardContent>
     </Card>
@@ -370,7 +370,7 @@ export default function OfficialDocumentsPage() {
         <Lock className="h-12 w-12 text-muted-foreground" />
         <h2 className="text-xl font-semibold">Restricted — Chief Justice Office Only</h2>
         <p className="text-muted-foreground max-w-sm text-sm">
-          Official Document printing is restricted to the Office of the Chief Justice &amp; Trustee. Contact the sovereign office to request delegation.
+          Official Document printing is restricted to the Office of the Chief Justice &amp; Trustee. Contact the Office of the Chief Justice and Trustee to request delegation.
         </p>
       </div>
     );
@@ -399,7 +399,7 @@ export default function OfficialDocumentsPage() {
             Official Documents
           </h1>
           <p className="text-muted-foreground mt-1 text-sm">
-            Compose, stamp, and print sovereign office documents with official seal and date block.
+            Compose, stamp, and print official documents with seal and date block.
           </p>
         </div>
         <Button onClick={handlePrint} className="gap-2 bg-[#8B0000] hover:bg-[#6B0000] text-white">

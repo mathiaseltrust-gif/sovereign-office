@@ -3138,7 +3138,7 @@ interface DeedCounty {
 
 const DEED_FORM_DEFAULTS = {
   grantor: "Mathias El Tribe Sovereign Authority",
-  grantorAddress: "Sovereign Office of the Chief Justice & Trustee",
+  grantorAddress: "Office of the Chief Justice and Trustee",
   grantee: "Mathias El Tribe Land Trust",
   granteeAddress: "c/o Office of the Chief Justice",
   parcelId: "", legalDescription: "", consideration: "Sovereign Trust — No Monetary Consideration (Exempt: 25 U.S.C. §177)",

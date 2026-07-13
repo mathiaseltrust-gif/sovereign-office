@@ -641,7 +641,7 @@ export default function InvestigationDetailPage({ params }: { params: { id: stri
       {/* ── Breadcrumb ── */}
       <div>
         <Link href="/dashboard/trustee" className="text-xs text-muted-foreground hover:text-primary">
-          ← Sovereign Office Dashboard
+          ← Office of the Chief Justice and Trustee
         </Link>
       </div>
 

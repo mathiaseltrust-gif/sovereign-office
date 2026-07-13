@@ -24,7 +24,7 @@ const SITE_FUNCTIONS: SiteFunction[] = [
   { path: "/matters", label: "Matter Type Reference", section: "Directory", keywords: ["matter", "type", "reference", "17", "category"] },
   { path: "/legal-map", label: "Legal Authority Map", section: "Directory", keywords: ["legal", "map", "authority", "law", "doctrine", "statute"] },
   { path: "/case-files", label: "Case File Registry", section: "Directory", keywords: ["case", "files", "registry", "SOV", "case number"] },
-  { path: "https://office.mathiaseltribe.org", label: "Sovereign Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
+  { path: "https://office.mathiaseltribe.org", label: "Chief Justice & Trustee Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
   { path: "https://office.mathiaseltribe.org/investigations", label: "Investigations", section: "Ecosystem", keywords: ["investigations", "cases", "open"], external: true },
 ];
 

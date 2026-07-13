@@ -141,7 +141,7 @@ export default function HubPage() {
         </div>
         <div className="px-6 py-3 flex items-center gap-3 border-t border-card-border text-xs text-muted-foreground">
           <Shield className="w-3.5 h-3.5 text-green-500" />
-          <span>Authenticated via Microsoft — Mathias El Tribe Sovereign Office</span>
+          <span>Authenticated via Microsoft — Office of the Chief Justice and Trustee</span>
         </div>
       </div>
 
@@ -273,7 +273,7 @@ export default function HubPage() {
           <div className="space-y-2">
             <ServiceCard
               icon={Gavel}
-              title="Sovereign Office Dashboard"
+              title="Office of the Chief Justice and Trustee"
               description="Full administrative dashboard — instruments, filings, NFR documents, member administration."
               href={`/dashboard/${activeRole === "sovereign_admin" ? "admin" : activeRole}`}
               color="primary"

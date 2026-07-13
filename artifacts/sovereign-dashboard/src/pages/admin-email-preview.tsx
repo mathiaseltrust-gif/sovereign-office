@@ -56,7 +56,7 @@ export default function AdminEmailPreviewPage() {
   const [category, setCategory] = useState("");
   const [severity, setSeverity] = useState("default");
   const [recipientName, setRecipientName] = useState("Jane Doe");
-  const [title, setTitle] = useState("Important Notice from the Sovereign Office");
+  const [title, setTitle] = useState("Important Notice from the Office of the Chief Justice and Trustee");
   const [message, setMessage] = useState(
     "This is a sample message body. It gives you a preview of how notification emails appear to recipients.\n\nYou can change the fields on the left to see how different categories and severities affect the email design.",
   );

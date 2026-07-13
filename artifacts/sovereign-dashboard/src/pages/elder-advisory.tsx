@@ -75,7 +75,7 @@ export default function ElderAdvisoryPage() {
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div className="flex items-start justify-between flex-wrap gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Office</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Office of the Chief Justice and Trustee</p>
           <h1 className="text-3xl font-serif font-bold">Elder Advisory Panel</h1>
           <p className="text-muted-foreground mt-1">{roleLabel} — Cultural &amp; Governance Authority</p>
         </div>

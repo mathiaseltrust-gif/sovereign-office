@@ -27,7 +27,7 @@ const SITE_FUNCTIONS: SiteFunction[] = [
   { path: "/profile", label: "My Profile", section: "Community", keywords: ["profile", "identity", "my account", "settings"] },
   { path: "/admin", label: "Admin", section: "Community", keywords: ["admin", "administration", "manage", "settings"] },
   { path: "/photos", label: "Photo Manager", section: "Community", keywords: ["photos", "images", "gallery", "media"] },
-  { path: "https://office.mathiaseltribe.org", label: "Sovereign Office", section: "Ecosystem", keywords: ["sovereign", "office", "official"], external: true },
+  { path: "https://office.mathiaseltribe.org", label: "Chief Justice & Trustee Office", section: "Ecosystem", keywords: ["sovereign", "office", "official"], external: true },
   { path: "https://office.mathiaseltribe.org/family-tree", label: "Family Tree", section: "Ecosystem", keywords: ["family tree", "lineage", "ancestors"], external: true },
   { path: "https://office.mathiaseltribe.org/ancestral-affiliations", label: "Tribal Heritage", section: "Ecosystem", keywords: ["heritage", "tribal", "affiliations"], external: true },
 ];

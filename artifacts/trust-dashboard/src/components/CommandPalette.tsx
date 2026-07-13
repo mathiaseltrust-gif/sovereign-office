@@ -31,7 +31,7 @@ const SITE_FUNCTIONS: SiteFunction[] = [
   { path: "/charitable-trust", label: "Charitable Trust", section: "Governance", keywords: ["charitable", "501c3", "nonprofit"] },
   { path: "/iee", label: "Indian Economic Enterprises", section: "Governance", keywords: ["iee", "enterprise", "economic", "business"] },
   { path: "/members", label: "Members", section: "Members", keywords: ["members", "roster", "all members"] },
-  { path: "https://office.mathiaseltribe.org", label: "Sovereign Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
+  { path: "https://office.mathiaseltribe.org", label: "Chief Justice & Trustee Office", section: "Ecosystem", keywords: ["sovereign", "office", "dashboard"], external: true },
 ];
 
 const ENTITY_PATHS: Record<string, (id: string) => string> = {

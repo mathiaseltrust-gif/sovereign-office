@@ -215,12 +215,12 @@ export default function Dashboard() {
           <Card className="sm:col-span-2 flex flex-col border border-amber-200/60 dark:border-amber-800/30 bg-amber-50/50 dark:bg-amber-950/10">
             <CardContent className="py-4 px-5">
               <p className="text-xs font-semibold text-amber-800 dark:text-amber-400 uppercase tracking-wide mb-2">
-                Full Intelligence System — Sovereign Office Dashboard
+                Full Intelligence System — Office of the Chief Justice and Trustee
               </p>
               <p className="text-xs text-muted-foreground mb-3 leading-relaxed">
                 COMPANION (AI Rights Guidance), the Law Library, Tribal ID, Membership Verification, Family Tree, 
                 Housing &amp; Land Protection, Healthcare &amp; Benefits, and Business Canvas are available in the 
-                Sovereign Office Dashboard.
+                Office of the Chief Justice and Trustee.
               </p>
               <div className="flex flex-wrap gap-2">
                 <a href="/sovereign-dashboard" target="_blank" rel="noopener noreferrer">

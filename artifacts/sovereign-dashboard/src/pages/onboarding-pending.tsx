@@ -46,7 +46,7 @@ export default function OnboardingPendingPage() {
 
           <p className="text-xs text-muted-foreground text-center">
             If you believe this is an error or have additional documentation, please contact the
-            Sovereign Office directly.
+            Office of the Chief Justice and Trustee directly.
           </p>
         </CardContent>
       </Card>

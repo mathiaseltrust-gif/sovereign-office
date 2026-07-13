@@ -145,7 +145,7 @@ function CreateInstrumentForm({ onSuccess }: { onSuccess: () => void }) {
     child: childName ? { name: childName, age: childAge || "unknown" } : undefined,
     parties: {
       Tribe: tribeName || "Sovereign Tribal Nation",
-      "Issuing Authority": "Sovereign Office of the Chief Justice & Trustee",
+      "Issuing Authority": "Office of the Chief Justice and Trustee",
     },
     requestedRelief: relief
       ? relief.split(",").map((r) => r.trim()).filter(Boolean)

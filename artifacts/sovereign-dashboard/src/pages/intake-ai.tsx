@@ -1138,7 +1138,7 @@ function JurisdictionalWhatNow({ report, actorType }: { report: IntakeAgentRepor
       )}
 
       <div className="rounded-lg border border-muted p-4 text-xs text-muted-foreground">
-        <strong>Legal Notice:</strong> This guidance is generated under the laws of protection and governance of the Mathias El Tribe Sovereign Office and does not constitute legal advice. All responses to enforcement actions should be reviewed by the Chief Justice, designated Trustee, or appointed legal counsel before submission.
+        <strong>Legal Notice:</strong> This guidance is generated under the laws of protection and governance of the Office of the Chief Justice and Trustee, Mathias El Tribe and does not constitute legal advice. All responses to enforcement actions should be reviewed by the Chief Justice, designated Trustee, or appointed legal counsel before submission.
       </div>
     </div>
   );

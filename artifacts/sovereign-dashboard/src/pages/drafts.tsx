@@ -163,7 +163,7 @@ export default function DraftsPage() {
     return (
       <div className="p-6 max-w-2xl mx-auto space-y-8 pt-16">
         <div className="text-center space-y-2">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Sovereign Office</p>
+          <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground">Office of the Chief Justice and Trustee</p>
           <h1 className="text-3xl font-serif font-bold">Document Drafting</h1>
           <p className="text-muted-foreground text-sm max-w-md mx-auto">
             Documents drafted with intake context are more accurate — the AI extracts facts, risk level, and violations from your matter before writing.
@@ -217,7 +217,7 @@ export default function DraftsPage() {
   return (
     <div className="p-6 max-w-4xl mx-auto space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Office</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Office of the Chief Justice and Trustee</p>
         <h1 className="text-3xl font-serif font-bold">AI Document Drafting</h1>
         <p className="text-muted-foreground mt-1">
           Generate sovereign legal documents using the AI drafting engine. All drafts are grounded in your verified identity, lineage, and delegated authorities.

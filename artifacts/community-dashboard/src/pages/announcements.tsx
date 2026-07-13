@@ -29,7 +29,7 @@ const ANNOUNCEMENTS: Announcement[] = [
     category: "governance",
     isPinned: true,
     issuedBy: "Office of the Chief Justice & Trustee",
-    body: "The COMPANION system — the Tribe's AI-powered legal intelligence and rights-protection engine — is now fully operational. COMPANION is trained on all 14 Office Provisions, tribal law, federal Indian law, the Indian Canons of Construction, and each member's personal profile. Members may access COMPANION through the Sovereign Office Dashboard to ask questions about their rights, their status, and their legal standing. COMPANION does not represent external legal definitions as authoritative — it applies the Tribe's own framing first.",
+    body: "The COMPANION system — the Tribe's AI-powered legal intelligence and rights-protection engine — is now fully operational. COMPANION is trained on all 14 Office Provisions, tribal law, federal Indian law, the Indian Canons of Construction, and each member's personal profile. Members may access COMPANION through the Office of the Chief Justice and Trustee to ask questions about their rights, their status, and their legal standing. COMPANION does not represent external legal definitions as authoritative — it applies the Tribe's own framing first.",
   },
   {
     id: 2,
@@ -38,7 +38,7 @@ const ANNOUNCEMENTS: Announcement[] = [
     category: "education",
     isPinned: true,
     issuedBy: "Office of the Chief Justice & Trustee",
-    body: "The Definition Literacy System is now live in the Sovereign Office Dashboard under Tribal Education. Twelve foundational terms — including Tribal Sovereignty, Indian, Trust Responsibility, and Treaty — are now published with four-layer analysis: ordinary meaning, historical meaning, federal administrative meaning, and the Tribe's own protective definition. Members are encouraged to review these definitions before engaging with any external legal or governmental process. Our goal is always to protect our peoples and highlight the distinction between our definitions and external legal definitions.",
+    body: "The Definition Literacy System is now live in the Office of the Chief Justice and Trustee under Tribal Education. Twelve foundational terms — including Tribal Sovereignty, Indian, Trust Responsibility, and Treaty — are now published with four-layer analysis: ordinary meaning, historical meaning, federal administrative meaning, and the Tribe's own protective definition. Members are encouraged to review these definitions before engaging with any external legal or governmental process. Our goal is always to protect our peoples and highlight the distinction between our definitions and external legal definitions.",
   },
   {
     id: 3,
@@ -46,7 +46,7 @@ const ANNOUNCEMENTS: Announcement[] = [
     date: "May 2026",
     category: "governance",
     issuedBy: "Office of the Chief Justice & Trustee",
-    body: "The Family Directory and Family Tree have been aligned. Duplicate and placeholder entries that were holding space during system development have been removed. The directory now reflects enrolled family members with verified enrollment numbers. If you believe your record has an error or is missing, contact the Office of the Chief Justice through the Sovereign Office Dashboard.",
+    body: "The Family Directory and Family Tree have been aligned. Duplicate and placeholder entries that were holding space during system development have been removed. The directory now reflects enrolled family members with verified enrollment numbers. If you believe your record has an error or is missing, contact the Office of the Chief Justice through the Office of the Chief Justice and Trustee.",
   },
   {
     id: 4,
@@ -62,7 +62,7 @@ const ANNOUNCEMENTS: Announcement[] = [
     date: "April 2026",
     category: "community",
     issuedBy: "Office of the Chief Justice & Trustee",
-    body: "Members may now create and develop Business Concepts through the Sovereign Office Dashboard. The Business Canvas walks through entity formation under tribal jurisdiction, mission and structure planning, and governance alignment with tribal law. Business Concepts receive a concept number that connects to the Definition Literacy System — so every entity operates on the Tribe's own legal definitions, not external commercial frameworks. COMPANION is available throughout the process to provide guidance.",
+    body: "Members may now create and develop Business Concepts through the Office of the Chief Justice and Trustee. The Business Canvas walks through entity formation under tribal jurisdiction, mission and structure planning, and governance alignment with tribal law. Business Concepts receive a concept number that connects to the Definition Literacy System — so every entity operates on the Tribe's own legal definitions, not external commercial frameworks. COMPANION is available throughout the process to provide guidance.",
   },
 ];
 

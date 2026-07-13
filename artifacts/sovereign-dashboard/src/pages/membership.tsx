@@ -101,7 +101,7 @@ export default function MembershipPage() {
   return (
     <div className="p-6 max-w-3xl mx-auto space-y-6">
       <div>
-        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Office</p>
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Office of the Chief Justice and Trustee</p>
         <h1 className="text-3xl font-serif font-bold">Membership Verification</h1>
         <p className="text-muted-foreground mt-1">
           Your tribal membership status, benefit eligibility, and delegated authorities under sovereign law.

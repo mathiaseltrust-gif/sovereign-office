@@ -162,9 +162,9 @@ export default function ProfilePage() {
             <div className="rounded-lg border border-border bg-muted/30 px-4 py-3 flex items-start gap-3">
               <ExternalLink className="h-4 w-4 text-muted-foreground shrink-0 mt-0.5" />
               <div>
-                <p className="text-sm font-medium text-foreground">Sign in via the Sovereign Office Dashboard to manage notification preferences</p>
+                <p className="text-sm font-medium text-foreground">Sign in via the Office of the Chief Justice and Trustee to manage notification preferences</p>
                 <p className="text-xs text-muted-foreground mt-1 leading-relaxed">
-                  Full notification settings are available when you access this platform through the Sovereign Office Dashboard. Your session token is required to save preferences securely.
+                  Full notification settings are available when you access this platform through the Office of the Chief Justice and Trustee. Your session token is required to save preferences securely.
                 </p>
               </div>
             </div>

@@ -25,7 +25,7 @@ export function SignInPrompt() {
         />
         <h1 className="text-xl font-semibold text-foreground mb-2">Authentication Required</h1>
         <p className="text-sm text-muted-foreground mb-6">
-          This dashboard requires a valid Sovereign Office session.<br />
+          This dashboard requires a valid Chief Justice & Trustee Office session.<br />
           Sign in via the Sovereign Dashboard, then return here.
         </p>
         <a
@@ -35,7 +35,7 @@ export function SignInPrompt() {
           onClick={handleSignIn}
           className="inline-flex items-center justify-center gap-2 rounded-md bg-primary text-primary-foreground px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
         >
-          Sign In via Sovereign Office
+          Sign In via the Office of the Chief Justice and Trustee
         </a>
         <p className="mt-4 text-xs text-muted-foreground">
           After signing in, return to this tab and refresh.

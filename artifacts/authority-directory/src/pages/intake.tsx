@@ -241,7 +241,7 @@ const MATTER_TYPE_TO_NFR_SIGNAL: Record<string, { signal: string; laws: string[]
   jurisdictional_overreach: {
     signal: "JURISDICTIONAL_OVERREACH",
     laws: ["Worcester v. Georgia, 31 U.S. 515 (1832)", "McClanahan v. Arizona State Tax Commission, 411 U.S. 164 (1973)", "18 U.S.C. § 1151 (definition of Indian country)"],
-    internal: ["Document the overreach and identify the state or county actor", "Verify that Public Law 280 does not apply in this jurisdiction", "Prepare a jurisdictional statement from the Sovereign Office"],
+    internal: ["Document the overreach and identify the state or county actor", "Verify that Public Law 280 does not apply in this jurisdiction", "Prepare a jurisdictional statement from the Office of the Chief Justice and Trustee"],
     external: ["Issue Notice of Federal Review asserting tribal and federal jurisdiction", "File jurisdictional statement in the relevant proceeding", "Notify the overreaching entity of federal preemption obligations"],
     followthrough: ["Identify whether the matter requires a removal petition", "Determine the proper court for jurisdictional challenge"],
   },
@@ -291,7 +291,7 @@ function buildNfrText(result: IntakeAnalysisResult, signal: typeof DEFAULT_NFR_S
     "NOTICE OF FEDERAL REVIEW",
     "================================================",
     `Date: ${date}`,
-    `Issuing Office: Mathias El Tribe — Sovereign Office`,
+    `Issuing Office: Office of the Chief Justice and Trustee, Mathias El Tribe`,
     `Re: Matter Type: ${result.detectedMatterType.replace(/_/g, " ").toUpperCase()}`,
     result.id ? `Intake Record: #${result.id}` : "",
     "",
@@ -300,7 +300,7 @@ function buildNfrText(result: IntakeAnalysisResult, signal: typeof DEFAULT_NFR_S
     recipient?.mailingAddress ?? "",
     recipient?.phone ? `Phone: ${recipient.phone}` : "",
     "",
-    "NOTICE IS HEREBY GIVEN that the Sovereign Office of the Mathias El Tribe",
+    "NOTICE IS HEREBY GIVEN that the Office of the Chief Justice and Trustee, Mathias El Tribe",
     "has identified potential violations of federal Indian law in connection with",
     "the above-referenced matter. This notice is issued pursuant to the federal",
     "trust responsibility and applicable statutes listed below.",
@@ -309,7 +309,7 @@ function buildNfrText(result: IntakeAnalysisResult, signal: typeof DEFAULT_NFR_S
     ...signal.laws.map((l) => `  • ${l}`),
     ...(rr.legalAuthorities.length > 0 ? rr.legalAuthorities.map((la) => `  • ${la.authorityName}${la.uscReference ? ` — ${la.uscReference}` : ""}`) : []),
     "",
-    "REQUIRED INTERNAL ACTIONS (Sovereign Office):",
+    "REQUIRED INTERNAL ACTIONS (Office of the Chief Justice and Trustee):",
     ...signal.internal.map((a, i) => `  ${i + 1}. ${a}`),
     "",
     "REQUIRED EXTERNAL ACTIONS:",
@@ -373,14 +373,14 @@ function NfrNoticeBlock({ result }: { result: IntakeAnalysisResult }) {
   <h1>NOTICE OF FEDERAL REVIEW</h1>
   <div class="rule"></div>
   <p><strong>Date:</strong> ${date}</p>
-  <p><strong>Issuing Office:</strong> Mathias El Tribe — Sovereign Office</p>
+  <p><strong>Issuing Office:</strong> Office of the Chief Justice and Trustee, Mathias El Tribe</p>
   <p><strong>Matter Type:</strong> ${result.detectedMatterType.replace(/_/g, " ").toUpperCase()}</p>
   ${result.id ? `<p><strong>Intake Record:</strong> #${result.id}</p>` : ""}
   <div class="label">TO:</div>
   <p>${rr.primaryRecipient ? `${rr.primaryRecipient.name}<br/>${rr.primaryRecipient.mailingAddress ?? ""}` : "(Party identified — see extracted fields)"}</p>
   <div class="label">LEGAL BASIS:</div>
   <ul>${signal.laws.map((l) => `<li>${l}</li>`).join("")}${rr.legalAuthorities.map((la) => `<li>${la.authorityName}${la.uscReference ? ` — ${la.uscReference}` : ""}</li>`).join("")}</ul>
-  <div class="label">REQUIRED INTERNAL ACTIONS (Sovereign Office):</div>
+  <div class="label">REQUIRED INTERNAL ACTIONS (Office of the Chief Justice and Trustee):</div>
   <ul>${signal.internal.map((a) => `<li>${a}</li>`).join("")}</ul>
   <div class="label">REQUIRED EXTERNAL ACTIONS:</div>
   <ul>${signal.external.map((a) => `<li>${a}</li>`).join("")}</ul>
@@ -426,7 +426,7 @@ function NfrNoticeBlock({ result }: { result: IntakeAnalysisResult }) {
         {/* Notice header fields */}
         <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
           <div><span className="font-medium text-foreground">Date:</span> <span className="text-muted-foreground">{date}</span></div>
-          <div><span className="font-medium text-foreground">Issuing Office:</span> <span className="text-muted-foreground">Mathias El Tribe — Sovereign Office</span></div>
+          <div><span className="font-medium text-foreground">Issuing Office:</span> <span className="text-muted-foreground">Office of the Chief Justice and Trustee, Mathias El Tribe</span></div>
           <div><span className="font-medium text-foreground">Matter Type:</span> <span className="text-muted-foreground">{result.detectedMatterType.replace(/_/g, " ").toUpperCase()}</span></div>
           {result.id && <div><span className="font-medium text-foreground">Intake Record:</span> <span className="text-muted-foreground">#{result.id}</span></div>}
         </div>
@@ -879,7 +879,7 @@ function AnalysisResults({ result, onUseExtracted }: AnalysisResultsProps) {
             </span>
           </TooltipTrigger>
           <TooltipContent side="top" className="max-w-xs text-xs">
-            Final review required before drafting. This action requires Chief authorization — contact the Sovereign Office before proceeding.
+            Final review required before drafting. This action requires Chief authorization — contact the Office of the Chief Justice and Trustee before proceeding.
           </TooltipContent>
         </Tooltip>
       </div>

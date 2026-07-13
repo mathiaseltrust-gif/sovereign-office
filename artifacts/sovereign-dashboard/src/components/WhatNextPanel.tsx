@@ -262,7 +262,7 @@ export function WhatNextPanel({ compact = false }: { compact?: boolean }) {
               "Cultural Authority — represent tribal cultural interests",
               "Lineage Correction Authority — submit lineage corrections",
               "Family Governance Authority — preside over family matters",
-              "Advisory Authority — recognized advisor to the Sovereign Office",
+              "Advisory Authority — recognized advisor to the Office of the Chief Justice and Trustee",
             ].map((auth, i) => (
               <p key={i} className="text-xs text-amber-800 flex gap-1.5"><span>★</span>{auth}</p>
             ))}

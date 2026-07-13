@@ -193,7 +193,7 @@ export default function VisitorDashboard() {
         </div>
         <p className="text-muted-foreground mt-2">
           Welcome to the Mathias El Tribe Visitor Portal. Access is limited to publicly available information only.
-          For tribal member services, please contact the Sovereign Office of the Chief Justice & Trustee.
+          For tribal member services, please contact the Office of the Chief Justice and Trustee.
         </p>
       </div>
 
@@ -249,7 +249,7 @@ export default function VisitorDashboard() {
 
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-sm uppercase tracking-widest">Contact the Sovereign Office</CardTitle>
+          <CardTitle className="text-sm uppercase tracking-widest">Contact the Office of the Chief Justice and Trustee</CardTitle>
         </CardHeader>
         <CardContent className="space-y-2">
           <p className="text-sm text-muted-foreground">For press credentials, official media inquiries, or tribal affairs assistance:</p>

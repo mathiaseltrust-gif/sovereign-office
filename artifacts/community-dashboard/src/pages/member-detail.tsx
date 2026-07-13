@@ -631,7 +631,7 @@ function TribalIdCard({ member, locationAddress }: { member: {
           </div>
         </div>
         <div className="text-right">
-          <p className="text-yellow-300/70 text-[9px] uppercase tracking-widest">Sovereign Office</p>
+          <p className="text-yellow-300/70 text-[9px] uppercase tracking-widest">Office of the Chief Justice and Trustee</p>
           <p className="text-yellow-300/70 text-[9px] uppercase tracking-widest">Chief Justice & Trustee</p>
         </div>
       </div>

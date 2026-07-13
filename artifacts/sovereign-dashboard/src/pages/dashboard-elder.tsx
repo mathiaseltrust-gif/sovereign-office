@@ -26,7 +26,7 @@ const ELDER_DUTIES = [
   { title: "Lineage Correction", desc: "Review and submit corrections to family lineage records in your care.", href: "/family-tree" },
   { title: "Family Governance", desc: "Preside over family governance documents and council decisions.", href: "/family-tree" },
   { title: "Cultural Authority", desc: "Represent cultural interests in filings and court matters.", href: "/complaints" },
-  { title: "Advisory Role", desc: "Submit advisory input to the Sovereign Office on governance matters.", href: "/profile" },
+  { title: "Advisory Role", desc: "Submit advisory input to the Office of the Chief Justice and Trustee on governance matters.", href: "/profile" },
   { title: "Welfare Review", desc: "Review and endorse welfare instrument requests for family members.", href: "/welfare" },
   { title: "Medical Oversight", desc: "Oversee and generate medical notes for dependents in your care.", href: "/medical-notes" },
 ];
@@ -122,7 +122,7 @@ export default function ElderDashboard() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm uppercase tracking-widest">Ancestor Chain</CardTitle>
-            <p className="text-xs text-muted-foreground">Your documented lineage chain on record with the Sovereign Office</p>
+            <p className="text-xs text-muted-foreground">Your documented lineage chain on record with the Office of the Chief Justice and Trustee</p>
           </CardHeader>
           <CardContent>
             <div className="flex flex-wrap gap-2 items-center">

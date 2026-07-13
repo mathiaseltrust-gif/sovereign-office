@@ -286,7 +286,7 @@ export default function Admin() {
         </div>
         <p className="text-muted-foreground">
           Manage members, announcements, and law resources without touching code.
-          Write operations require Sovereign Office authentication.
+          Write operations require Office of the Chief Justice and Trustee authentication.
         </p>
       </div>
 
@@ -296,7 +296,7 @@ export default function Admin() {
           <div>
             <p className="font-medium text-amber-800 dark:text-amber-300 text-sm">Authentication Required for Write Operations</p>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-0.5">
-              To add or remove records, sign in via Azure Entra ID as a Sovereign Office officer.
+              To add or remove records, sign in via Azure Entra ID as an officer of the Office of the Chief Justice and Trustee.
               Read operations are open to all community members.
             </p>
           </div>
