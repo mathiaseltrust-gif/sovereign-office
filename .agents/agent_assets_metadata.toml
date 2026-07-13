@@ -42,3 +42,9 @@ id = "jZa5aqTC-Wc64mWOstDsj"
 uri = "file://changes-since-github-sync.txt"
 type = "text"
 title = "Code Changes Since Last GitHub Sync (.diff)"
+
+[[outputs]]
+id = "C_VjYNPsZHCHkmBO9o9xi"
+uri = "file://tribal-membership-verification.pdf"
+type = "pdf"
+title = "Mathias El Tribe — Membership Verification Certificates"
