@@ -57,3 +57,4 @@ export * from "./historical-exposure";
 export * from "./trace-matters";
 export * from "./trace-analysis";
 export * from "./trace-drafts";
+export * from "./membership-certificates";
