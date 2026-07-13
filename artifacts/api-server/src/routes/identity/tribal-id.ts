@@ -5,8 +5,8 @@ import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway"
 import { buildTribalIdPdf, buildVerificationLetterPdf } from "../../lib/pdf-builder";
 import { logger } from "../../lib/logger";
 import { db } from "@workspace/db";
-import { familyLineageTable, profilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { familyLineageTable, profilesTable, usersTable } from "@workspace/db";
+import { eq, isNotNull } from "drizzle-orm";
 
 const upload = multer({ storage: multer.memoryStorage(), limits: { fileSize: 5 * 1024 * 1024 } });
 
@@ -220,6 +220,43 @@ router.post("/signature", requireAuth, upload.single("signature"), async (req, r
     }
     logger.info({ dbId }, "Digital signature updated");
     res.json({ success: true });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── GET /identity/signatures/officer ──────────────────────────────────────────
+// Returns all user profiles that have a stored signature image, with user name.
+// Used by the frontend SignatureSelector to offer signature choices on any document.
+router.get("/signatures/officer", requireAuth, async (_req, res, next) => {
+  try {
+    const rows = await db
+      .select({
+        userId: profilesTable.userId,
+        signatureUrl: profilesTable.signatureUrl,
+        legalName: profilesTable.legalName,
+        preferredName: profilesTable.preferredName,
+      })
+      .from(profilesTable)
+      .where(isNotNull(profilesTable.signatureUrl));
+
+    const enriched = await Promise.all(
+      rows.map(async (r) => {
+        const [u] = await db
+          .select({ name: usersTable.name, email: usersTable.email })
+          .from(usersTable)
+          .where(eq(usersTable.id, r.userId))
+          .limit(1);
+        return {
+          userId: r.userId,
+          name: r.preferredName ?? r.legalName ?? u?.name ?? u?.email ?? "Officer",
+          email: u?.email ?? "",
+          signatureUrl: r.signatureUrl!,
+        };
+      }),
+    );
+
+    res.json({ signatures: enriched });
   } catch (err) {
     next(err);
   }

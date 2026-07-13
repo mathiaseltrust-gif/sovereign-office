@@ -4,13 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   FileText, Award, Search, Download, CheckCircle2,
-  PenLine, Shield, Plus, RefreshCw, Upload, AlertCircle,
+  PenLine, Shield, Plus, RefreshCw, AlertCircle,
 } from "lucide-react";
+import SignatureSelector, { type SlotAssignment } from "@/components/SignatureSelector";
 
 const BASE = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
 const API = BASE.replace(/\/$/, "").replace(/\/sovereign-dashboard$/, "") + "/api";
@@ -37,15 +37,6 @@ interface Certificate {
   storageObjectPath: string | null;
 }
 
-interface SignatureSlot {
-  id: number;
-  slot: string;
-  signerName: string;
-  signerTitle: string;
-  hasImage: boolean;
-  isActive: boolean;
-}
-
 function slotLabel(slot: string): string {
   return slot === "chief_justice" ? "Chief Justice" : "Trustee";
 }
@@ -69,35 +60,18 @@ export default function CertificatesPage() {
   const [selectedMembers, setSelectedMembers] = useState<Member[]>([]);
   const [searching, setSearching] = useState(false);
 
-  const [sigSlots, setSigSlots] = useState<SignatureSlot[]>([]);
-  const [applySlots, setApplySlots] = useState<string[]>(["chief_justice", "trustee"]);
+  const [signatureAssignments, setSignatureAssignments] = useState<SlotAssignment[]>([]);
 
   const [certs, setCerts] = useState<Certificate[]>([]);
   const [issuing, setIssuing] = useState(false);
   const [lastIssued, setLastIssued] = useState<{ certNumber: string; memberName: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const [editSlot, setEditSlot] = useState<string | null>(null);
-  const [editName, setEditName] = useState("");
-  const [editTitle, setEditTitle] = useState("");
-  const [savingSlot, setSavingSlot] = useState(false);
-
   const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 
   useEffect(() => {
-    loadSigSlots();
     loadCerts();
   }, []);
-
-  async function loadSigSlots() {
-    try {
-      const r = await fetch(`${API}/certificates/signatures/slots`, { headers });
-      if (r.ok) {
-        const d = await r.json();
-        setSigSlots(d.signatures ?? []);
-      }
-    } catch { /* silent */ }
-  }
 
   async function loadCerts() {
     try {
@@ -142,7 +116,7 @@ export default function CertificatesPage() {
         headers,
         body: JSON.stringify({
           memberIds: selectedMembers.map((m) => m.id),
-          applySignatures: applySlots,
+          signatureAssignments: signatureAssignments.length > 0 ? signatureAssignments : undefined,
         }),
       });
       const d = await r.json();
@@ -152,32 +126,11 @@ export default function CertificatesPage() {
       setSearchResults([]);
       setMemberSearch("");
       await loadCerts();
-    } catch (e) {
+    } catch {
       setError("Network error — please try again");
     } finally {
       setIssuing(false);
     }
-  }
-
-  async function saveSlot() {
-    if (!editSlot) return;
-    setSavingSlot(true);
-    try {
-      await fetch(`${API}/certificates/signatures/${editSlot}`, {
-        method: "POST",
-        headers,
-        body: JSON.stringify({ signerName: editName, signerTitle: editTitle }),
-      });
-      setEditSlot(null);
-      await loadSigSlots();
-    } catch { /* silent */ }
-    setSavingSlot(false);
-  }
-
-  function openEdit(slot: SignatureSlot) {
-    setEditSlot(slot.slot);
-    setEditName(slot.signerName);
-    setEditTitle(slot.signerTitle);
   }
 
   async function downloadCert(certNumber: string) {
@@ -277,35 +230,21 @@ export default function CertificatesPage() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {sigSlots.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Loading signature slots…</p>
-              ) : (
-                <div className="space-y-2">
-                  {sigSlots.map((s) => {
-                    const active = applySlots.includes(s.slot);
-                    return (
-                      <div
-                        key={s.slot}
-                        onClick={() =>
-                          setApplySlots((prev) =>
-                            active ? prev.filter((x) => x !== s.slot) : [...prev, s.slot],
-                          )
-                        }
-                        className={`flex items-center justify-between border rounded-lg px-4 py-3 cursor-pointer transition-colors ${active ? "border-amber-700 bg-amber-50 dark:bg-amber-950/20" : "hover:bg-muted/40"}`}
-                      >
-                        <div>
-                          <p className="text-sm font-semibold">{slotLabel(s.slot)} Signature</p>
-                          <p className="text-xs text-muted-foreground">{s.signerName} — {s.signerTitle}</p>
-                          {s.hasImage
-                            ? <p className="text-xs text-green-600 mt-0.5">✓ Signature image on file</p>
-                            : <p className="text-xs text-amber-600 mt-0.5">No image — will use signature line</p>}
-                        </div>
-                        {active
-                          ? <CheckCircle2 className="h-5 w-5 text-amber-700 flex-shrink-0" />
-                          : <div className="h-5 w-5 rounded-full border-2 border-muted-foreground flex-shrink-0" />}
-                      </div>
-                    );
-                  })}
+              <SignatureSelector
+                token={token ?? ""}
+                onChange={setSignatureAssignments}
+                chiefJusticeTitle="Chief Justice and Trustee"
+                trusteeTitle="Office of the Chief Justice and Trustee"
+              />
+              {signatureAssignments.length > 0 && (
+                <div className="mt-3 pt-3 border-t space-y-1">
+                  <p className="text-xs text-muted-foreground font-medium uppercase tracking-wider">Will embed on certificate PDF:</p>
+                  {signatureAssignments.map((a) => (
+                    <div key={a.slot} className="flex items-center gap-2 text-xs text-green-700 dark:text-green-400">
+                      <CheckCircle2 className="h-3 w-3" />
+                      <span>{slotLabel(a.slot)} — {a.signerName}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </CardContent>
@@ -342,70 +281,37 @@ export default function CertificatesPage() {
           </Button>
         </div>
 
-        {/* ── Right: Signature Management ── */}
+        {/* ── Right: Issued Log ── */}
         <div className="space-y-5">
           <Card>
             <CardHeader className="pb-3">
               <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4" /> Signature Slots
+                <Shield className="h-4 w-4" /> Recent Certificates
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
-              {sigSlots.map((s) => (
-                <div key={s.slot} className="border rounded-lg p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <Badge variant="outline" className="text-xs">
-                      {slotLabel(s.slot)}
-                    </Badge>
-                    <button
-                      onClick={() => openEdit(s)}
-                      className="text-xs text-muted-foreground hover:text-foreground underline"
-                    >
-                      edit
-                    </button>
+            <CardContent className="space-y-2">
+              {certs.slice(0, 5).length === 0 ? (
+                <p className="text-sm text-muted-foreground">No certificates yet.</p>
+              ) : (
+                certs.slice(0, 5).map((c) => (
+                  <div key={c.id} className="border rounded-md p-2.5 space-y-0.5">
+                    <p className="text-xs font-mono font-semibold text-amber-800 dark:text-amber-400">{c.certNumber}</p>
+                    <p className="text-xs font-medium leading-tight">{c.memberName}</p>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <Badge variant={c.status === "active" ? "default" : "secondary"} className={`text-[9px] ${c.status === "active" ? "bg-green-700" : ""}`}>
+                        {c.status}
+                      </Badge>
+                      {(c.signaturesApplied as string[] ?? []).map((s) => (
+                        <Badge key={s} variant="outline" className="text-[9px] border-amber-500 text-amber-700 dark:text-amber-400">
+                          {slotLabel(s)}
+                        </Badge>
+                      ))}
+                    </div>
                   </div>
-                  <p className="text-sm font-medium leading-tight">{s.signerName}</p>
-                  <p className="text-xs text-muted-foreground">{s.signerTitle}</p>
-                  <div className="flex items-center gap-1.5 text-xs">
-                    {s.hasImage
-                      ? <><CheckCircle2 className="h-3 w-3 text-green-600" /><span className="text-green-600">Image on file</span></>
-                      : <><Upload className="h-3 w-3 text-amber-600" /><span className="text-amber-600">No image yet</span></>}
-                  </div>
-                </div>
-              ))}
-
-              <p className="text-xs text-muted-foreground pt-1">
-                To upload a signature image, use the file storage system and paste the object path here.
-              </p>
+                ))
+              )}
             </CardContent>
           </Card>
-
-          {/* Edit slot panel */}
-          {editSlot && (
-            <Card className="border-amber-300 dark:border-amber-700">
-              <CardHeader className="pb-3">
-                <CardTitle className="text-base">Edit {slotLabel(editSlot)} Slot</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-1">
-                  <Label className="text-xs">Signer Name</Label>
-                  <Input value={editName} onChange={(e) => setEditName(e.target.value)} />
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Signer Title</Label>
-                  <Input value={editTitle} onChange={(e) => setEditTitle(e.target.value)} />
-                </div>
-                <div className="flex gap-2">
-                  <Button size="sm" onClick={saveSlot} disabled={savingSlot} className="flex-1 bg-amber-700 hover:bg-amber-800 text-white">
-                    {savingSlot ? "Saving…" : "Save"}
-                  </Button>
-                  <Button size="sm" variant="outline" onClick={() => setEditSlot(null)} className="flex-1">
-                    Cancel
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
         </div>
       </div>
 
@@ -416,7 +322,7 @@ export default function CertificatesPage() {
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold flex items-center gap-2">
             <FileText className="h-5 w-5 text-amber-700" />
-            Issued Certificates
+            All Issued Certificates
           </h2>
           <Button variant="outline" size="sm" onClick={loadCerts}>
             <RefreshCw className="h-3.5 w-3.5 mr-1.5" /> Refresh
@@ -442,7 +348,7 @@ export default function CertificatesPage() {
                     <p className="text-sm font-medium">{c.memberName}</p>
                     <p className="text-xs text-muted-foreground">
                       {memberTypeLabel(c.membershipType)} · {new Date(c.issuedAt).toLocaleDateString()}
-                      {c.signaturesApplied?.length > 0
+                      {(c.signaturesApplied as string[] ?? []).length > 0
                         ? ` · Signed: ${(c.signaturesApplied as string[]).map(slotLabel).join(", ")}`
                         : ""}
                     </p>

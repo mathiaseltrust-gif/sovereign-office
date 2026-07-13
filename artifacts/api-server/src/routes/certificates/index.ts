@@ -4,6 +4,7 @@ import {
   membershipCertificatesTable,
   officeSignaturesTable,
   familyLineageTable,
+  profilesTable,
 } from "@workspace/db";
 import { eq, desc, max } from "drizzle-orm";
 import { z } from "zod";
@@ -39,6 +40,37 @@ async function nextSeq(year: number): Promise<number> {
   return (row?.maxSeq ?? 0) + 1;
 }
 
+// Load signatures from the profile-based system (base64 signatureUrl on user profiles)
+async function loadSignaturesFromProfiles(
+  assignments: Array<{ slot: string; userId: number; signerName: string; signerTitle: string }>,
+): Promise<SignatureSlot[]> {
+  const slots: SignatureSlot[] = [];
+  for (const a of assignments) {
+    let imageBuffer: Buffer | undefined;
+    const [profile] = await db
+      .select({ signatureUrl: profilesTable.signatureUrl })
+      .from(profilesTable)
+      .where(eq(profilesTable.userId, a.userId))
+      .limit(1);
+
+    if (profile?.signatureUrl) {
+      try {
+        const base64 = profile.signatureUrl.split(",")[1];
+        if (base64) imageBuffer = Buffer.from(base64, "base64");
+      } catch { /* skip */ }
+    }
+
+    slots.push({
+      slot: a.slot as "chief_justice" | "trustee",
+      signerName: a.signerName,
+      signerTitle: a.signerTitle,
+      imageBuffer,
+    });
+  }
+  return slots;
+}
+
+// Legacy: load from officeSignaturesTable (object-storage based)
 async function loadSignatures(): Promise<SignatureSlot[]> {
   const rows = await db
     .select()
@@ -76,6 +108,12 @@ const IssueCertBody = z.object({
   memberIds: z.array(z.number()).min(1).max(20),
   notes: z.string().optional(),
   applySignatures: z.array(z.enum(["chief_justice", "trustee"])).optional(),
+  signatureAssignments: z.array(z.object({
+    slot: z.enum(["chief_justice", "trustee"]),
+    userId: z.number(),
+    signerName: z.string(),
+    signerTitle: z.string(),
+  })).optional(),
 });
 
 router.post("/membership", requireAuth, requireOfficer, async (req: Request, res: Response) => {
@@ -85,7 +123,7 @@ router.post("/membership", requireAuth, requireOfficer, async (req: Request, res
     return;
   }
 
-  const { memberIds, notes, applySignatures } = parsed.data;
+  const { memberIds, notes, applySignatures, signatureAssignments } = parsed.data;
   const year = new Date().getFullYear();
   const issueDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
 
@@ -106,11 +144,16 @@ router.post("/membership", requireAuth, requireOfficer, async (req: Request, res
       return;
     }
 
-    // Load signature slots
-    const allSigs = await loadSignatures();
-    const sigs = applySignatures && applySignatures.length > 0
-      ? allSigs.filter((s) => applySignatures.includes(s.slot))
-      : allSigs;
+    // Prefer profile-based signature assignments (new system) over the legacy officeSignatures table
+    let sigs: SignatureSlot[];
+    if (signatureAssignments && signatureAssignments.length > 0) {
+      sigs = await loadSignaturesFromProfiles(signatureAssignments);
+    } else {
+      const allSigs = await loadSignatures();
+      sigs = applySignatures && applySignatures.length > 0
+        ? allSigs.filter((s) => applySignatures.includes(s.slot))
+        : allSigs;
+    }
 
     const certMembers: CertMember[] = [];
     const issuedCerts: { certNumber: string; memberId: number; memberName: string }[] = [];

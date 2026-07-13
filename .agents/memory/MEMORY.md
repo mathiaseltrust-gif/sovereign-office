@@ -1,3 +1,4 @@
 - [Role mapping gap — chief_justice_trustee](role-mapping-gap.md) — roleFromStrings must have ALL JWT role strings in both priority and ROLE_MAP or they silently fall to "member"
 - [ancestor-life-events-columns](ancestor-life-events-columns.md) — NULL-stub list for missing columns in ancestor_life_events table (three query sites)
 - [ancestor-life-events schema mismatch](ancestor-life-events-schema.md) — Drizzle schema had personId→"ancestor_id" but real DB column is "person_id"; fixed in lib/db/src/schema/ancestor-life-events.ts
+- [Signature system architecture](signature-system.md) — profile.signatureUrl (base64 data URL) is the single source of truth; GET /api/identity/signatures/officer returns all officers with stored images for document embedding.

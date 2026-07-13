@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState } from "react";
 import { useAuth } from "@/components/auth-provider";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -7,7 +7,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
-import { Printer, Lock, FileText, Shield, UserCheck, Info } from "lucide-react";
+import { Printer, Lock, FileText, Shield, UserCheck, Info, PenLine } from "lucide-react";
+import SignatureSelector, { type SlotAssignment } from "@/components/SignatureSelector";
 
 const BASE = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
 
@@ -80,15 +81,36 @@ function escHtml(s: string): string {
 }
 
 function buildOfficialDocHtml(opts: {
-  stampDate: string; title: string; subject: string; body: string;
-  signerName: string; signerTitle: string; useActualSeal: boolean; showSeal: boolean;
-  certifiedCopy?: boolean; certifyingOfficer?: string; certDate?: string;
+  stampDate: string;
+  title: string;
+  subject: string;
+  body: string;
+  useActualSeal: boolean;
+  showSeal: boolean;
+  certifiedCopy?: boolean;
+  certifyingOfficer?: string;
+  certDate?: string;
+  chiefJusticeAssignment?: SlotAssignment;
+  trusteeAssignment?: SlotAssignment;
 }): string {
-  const { stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal, certifiedCopy, certifyingOfficer, certDate } = opts;
+  const {
+    stampDate, title, subject, body, useActualSeal, showSeal,
+    certifiedCopy, certifyingOfficer, certDate,
+    chiefJusticeAssignment, trusteeAssignment,
+  } = opts;
+
   const origin = window.location.origin;
   const base = import.meta.env.BASE_URL ?? "/sovereign-dashboard/";
   const tribalSeal  = `${origin}${base}tribal-seal.png`;
   const supremeSeal = `${origin}${base}supreme-court-seal.png`;
+
+  const cjName = chiefJusticeAssignment?.signerName ?? "Mathew-Allen McCaster, Chief Mathias El";
+  const cjTitle = chiefJusticeAssignment?.signerTitle ?? "Chief Justice &amp; Trustee";
+  const cjSigUrl = chiefJusticeAssignment?.signatureUrl ?? null;
+
+  const trusteeName = trusteeAssignment?.signerName ?? cjName;
+  const trusteeTitle = trusteeAssignment?.signerTitle ?? "In His Sovereign Trustee Capacity";
+  const trusteeSigUrl = trusteeAssignment?.signatureUrl ?? null;
 
   const stampHtml = `
     <div style="display:inline-flex;flex-direction:column;align-items:center;justify-content:space-between;width:156px;height:96px;border:2.5px solid #0A3A78;padding:8px 7px;background:#fff;box-sizing:border-box;text-align:center;flex-shrink:0;">
@@ -105,8 +127,8 @@ function buildOfficialDocHtml(opts: {
 
   const sealHtml = showSeal
     ? useActualSeal
-      ? `<img src="${supremeSeal}" alt="Mathias El Tribe Supreme Court Seal" style="width:140px;height:140px;object-fit:contain;" />`
-      : `<div style="width:140px;height:140px;border-radius:50%;border:2px dashed #aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="text-align:center;color:#aaa;font-size:10px;padding:20px;"><div style="font-size:22px;margin-bottom:4px;">&#8853;</div>SEAL PLACEMENT</div></div>`
+      ? `<img src="${supremeSeal}" alt="Mathias El Tribe Supreme Court Seal" style="width:120px;height:120px;object-fit:contain;" />`
+      : `<div style="width:120px;height:120px;border-radius:50%;border:2px dashed #aaa;display:flex;align-items:center;justify-content:center;flex-shrink:0;"><div style="text-align:center;color:#aaa;font-size:10px;padding:18px;"><div style="font-size:20px;margin-bottom:4px;">&#8853;</div>SEAL</div></div>`
     : "";
 
   const certifiedStampHtml = certifiedCopy
@@ -117,6 +139,35 @@ function buildOfficialDocHtml(opts: {
         <div style="font-size:6.5pt;color:#777;text-align:center;width:100%;">SOVEREIGN OFFICE — MATHIAS EL TRIBE</div>
       </div>`
     : "";
+
+  // Two-column authorized signature block (mirrors pdf-builder.ts layout)
+  const sigBlockHtml = `
+    <div style="margin-top:48px;display:grid;grid-template-columns:1fr 1fr;gap:32px;">
+      <!-- Chief Justice / Official Capacity -->
+      <div>
+        <div style="font-size:7.5pt;font-weight:700;color:#444;letter-spacing:0.3px;margin-bottom:6px;text-transform:uppercase;">Electronic Signature — Judicial &amp; Official Capacity:</div>
+        ${cjSigUrl ? `<img src="${cjSigUrl}" alt="Chief Justice Signature" style="height:46px;max-width:210px;object-fit:contain;display:block;margin-bottom:4px;opacity:0.87;" />` : `<div style="height:46px;"></div>`}
+        <div style="border-top:1.5px solid #8B0000;width:240px;margin-bottom:5px;"></div>
+        <div style="font-size:9.5pt;font-weight:700;color:#111;">/s/ ${escHtml(cjName)}</div>
+        <div style="font-size:8.5pt;color:#333;margin-top:1px;">${escHtml(cjTitle)}</div>
+        <div style="font-size:8pt;color:#555;font-style:italic;">Office of the Chief Justice &amp; Trustee</div>
+        <div style="margin-top:14px;font-size:7.5pt;color:#777;font-weight:600;">Wet Signature (where required):</div>
+        <div style="border-bottom:0.5px solid #000;width:220px;margin-top:16px;"></div>
+        <div style="font-size:7pt;color:#888;margin-top:3px;">Chief Mathias El &nbsp;/&nbsp; Official Seal</div>
+      </div>
+      <!-- Trustee / Legal Name -->
+      <div>
+        <div style="font-size:7.5pt;font-weight:700;color:#444;letter-spacing:0.3px;margin-bottom:6px;text-transform:uppercase;">Electronic Signature — Legal Name (In Propria Persona):</div>
+        ${trusteeSigUrl ? `<img src="${trusteeSigUrl}" alt="Trustee Signature" style="height:46px;max-width:210px;object-fit:contain;display:block;margin-bottom:4px;opacity:0.87;" />` : `<div style="height:46px;"></div>`}
+        <div style="border-top:1.5px solid #8B0000;width:240px;margin-bottom:5px;"></div>
+        <div style="font-size:9.5pt;font-weight:700;color:#111;">/s/ ${escHtml(trusteeName)}</div>
+        <div style="font-size:8.5pt;color:#333;margin-top:1px;">${escHtml(trusteeTitle)}</div>
+        <div style="font-size:8pt;color:#555;font-style:italic;">Mathias El Tribe — In Propria Persona</div>
+        <div style="margin-top:14px;font-size:7.5pt;color:#777;font-weight:600;">Wet Signature (where required):</div>
+        <div style="border-bottom:0.5px solid #000;width:220px;margin-top:16px;"></div>
+        <div style="font-size:7pt;color:#888;margin-top:3px;">Mathew-Allen: McCaster</div>
+      </div>
+    </div>`;
 
   return `<!DOCTYPE html><html lang="en"><head>
     <meta charset="utf-8">
@@ -138,16 +189,8 @@ function buildOfficialDocHtml(opts: {
       ${title ? `<div style="text-align:center;margin-bottom:20px;"><div style="font-size:13pt;font-weight:700;text-transform:uppercase;letter-spacing:1px;">${escHtml(title)}</div></div>` : ""}
       ${subject ? `<div style="margin-bottom:16px;font-size:11pt;"><strong>RE:</strong> ${escHtml(subject)}</div>` : ""}
       <div style="margin-bottom:32px;font-size:11pt;white-space:pre-wrap;">${escHtml(body || " ")}</div>
-      <div style="margin-top:40px;display:flex;align-items:flex-end;justify-content:space-between;gap:20px;">
-        ${showSeal ? `<div style="display:flex;flex-direction:column;align-items:center;gap:6px;">${sealHtml}<div style="font-size:8pt;color:#777;letter-spacing:0.5px;text-align:center;">${useActualSeal ? "Official Seal" : "[Seal Placement]"}</div></div>` : ""}
-        <div style="flex:1;margin-left:${showSeal ? "40px" : "0"};">
-          <div style="border-top:1px solid #000;width:260px;margin-bottom:4px;"></div>
-          <div style="font-size:11pt;font-weight:700;">${escHtml(signerName || "Mathew-Allen McCaster, Chief Mathias El")}</div>
-          <div style="font-size:10pt;">${escHtml(signerTitle || "Chief Justice & Trustee")}</div>
-          <div style="font-size:10pt;color:#555;">Mathias El Tribe Supreme Court</div>
-          <div style="font-size:9pt;color:#555;">In His Sovereign Trustee Capacity</div>
-        </div>
-      </div>
+      ${showSeal ? `<div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:8px;">${sealHtml}<div style="font-size:8pt;color:#777;letter-spacing:0.5px;align-self:flex-end;">${useActualSeal ? "Official Seal" : "[Seal Placement]"}</div></div>` : ""}
+      ${sigBlockHtml}
       <div style="position:absolute;bottom:0.5in;left:1in;right:1in;border-top:1px solid #ccc;padding-top:6px;">
         <div style="font-size:7.5pt;color:#888;text-align:center;letter-spacing:0.5px;">Issued under inherent sovereign authority of the Mathias El Tribe &mdash; An Identifiable Group of American Indians</div>
       </div>
@@ -163,15 +206,15 @@ function SealPlaceholder({ useActualSeal }: { useActualSeal: boolean }) {
       <img
         src={`${BASE}supreme-court-seal.png`}
         alt="Mathias El Tribe Supreme Court Seal"
-        style={{ width: "140px", height: "140px", objectFit: "contain" }}
+        style={{ width: "120px", height: "120px", objectFit: "contain" }}
       />
     );
   }
   return (
     <div
       style={{
-        width: "140px",
-        height: "140px",
+        width: "120px",
+        height: "120px",
         borderRadius: "50%",
         border: "2px dashed #aaa",
         display: "flex",
@@ -180,9 +223,70 @@ function SealPlaceholder({ useActualSeal }: { useActualSeal: boolean }) {
         flexShrink: 0,
       }}
     >
-      <div style={{ textAlign: "center", color: "#aaa", fontSize: "10px", padding: "20px" }}>
-        <div style={{ fontSize: "22px", marginBottom: "4px" }}>⊕</div>
-        SEAL PLACEMENT
+      <div style={{ textAlign: "center", color: "#aaa", fontSize: "10px", padding: "18px" }}>
+        <div style={{ fontSize: "20px", marginBottom: "4px" }}>⊕</div>
+        SEAL
+      </div>
+    </div>
+  );
+}
+
+// ─── Signature preview row for live document preview ──────────────────────────
+function SigPreviewRow({
+  cjAssignment,
+  trusteeAssignment,
+}: {
+  cjAssignment?: SlotAssignment;
+  trusteeAssignment?: SlotAssignment;
+}) {
+  const cjName = cjAssignment?.signerName ?? "Mathew-Allen McCaster, Chief Mathias El";
+  const cjTitle = cjAssignment?.signerTitle ?? "Chief Justice & Trustee";
+  const trusteeName = trusteeAssignment?.signerName ?? cjName;
+  const trusteeTitle = trusteeAssignment?.signerTitle ?? "In His Sovereign Trustee Capacity";
+
+  return (
+    <div style={{ marginTop: "32px", display: "grid", gridTemplateColumns: "1fr 1fr", gap: "24px" }}>
+      {/* Chief Justice */}
+      <div>
+        <div style={{ fontSize: "7pt", fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: "6px" }}>
+          Electronic Sig — Judicial Capacity:
+        </div>
+        {cjAssignment?.signatureUrl ? (
+          <img
+            src={cjAssignment.signatureUrl}
+            alt="Chief Justice sig"
+            style={{ height: "38px", maxWidth: "180px", objectFit: "contain", display: "block", marginBottom: "4px", opacity: 0.87 }}
+          />
+        ) : (
+          <div style={{ height: "38px" }} />
+        )}
+        <div style={{ borderTop: "1.5px solid #8B0000", width: "210px", marginBottom: "4px" }} />
+        <div style={{ fontSize: "9.5pt", fontWeight: 700 }}>/s/ {cjName}</div>
+        <div style={{ fontSize: "8pt", color: "#333" }}>{cjTitle}</div>
+        <div style={{ fontSize: "7.5pt", color: "#777", fontStyle: "italic" }}>Office of the Chief Justice &amp; Trustee</div>
+        <div style={{ marginTop: "12px", borderBottom: "0.5px solid #000", width: "190px" }} />
+        <div style={{ fontSize: "7pt", color: "#aaa", marginTop: "2px" }}>Wet signature line</div>
+      </div>
+      {/* Trustee / Legal Name */}
+      <div>
+        <div style={{ fontSize: "7pt", fontWeight: 700, color: "#555", textTransform: "uppercase", letterSpacing: "0.3px", marginBottom: "6px" }}>
+          Electronic Sig — Legal Name:
+        </div>
+        {trusteeAssignment?.signatureUrl ? (
+          <img
+            src={trusteeAssignment.signatureUrl}
+            alt="Trustee sig"
+            style={{ height: "38px", maxWidth: "180px", objectFit: "contain", display: "block", marginBottom: "4px", opacity: 0.87 }}
+          />
+        ) : (
+          <div style={{ height: "38px" }} />
+        )}
+        <div style={{ borderTop: "1.5px solid #8B0000", width: "210px", marginBottom: "4px" }} />
+        <div style={{ fontSize: "9.5pt", fontWeight: 700 }}>/s/ {trusteeName}</div>
+        <div style={{ fontSize: "8pt", color: "#333" }}>{trusteeTitle}</div>
+        <div style={{ fontSize: "7.5pt", color: "#777", fontStyle: "italic" }}>In Propria Persona — Mathias El Tribe</div>
+        <div style={{ marginTop: "12px", borderBottom: "0.5px solid #000", width: "190px" }} />
+        <div style={{ fontSize: "7pt", color: "#aaa", marginTop: "2px" }}>Wet signature line</div>
       </div>
     </div>
   );
@@ -194,19 +298,19 @@ function DocumentPreview({
   title,
   subject,
   body,
-  signerName,
-  signerTitle,
   useActualSeal,
   showSeal,
+  cjAssignment,
+  trusteeAssignment,
 }: {
   stampDate: string;
   title: string;
   subject: string;
   body: string;
-  signerName: string;
-  signerTitle: string;
   useActualSeal: boolean;
   showSeal: boolean;
+  cjAssignment?: SlotAssignment;
+  trusteeAssignment?: SlotAssignment;
 }) {
   return (
     <div
@@ -227,14 +331,11 @@ function DocumentPreview({
     >
       {/* Header row: seal + title + stamp */}
       <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", marginBottom: "24px" }}>
-        {/* Left: seal */}
         <img
           src={`${BASE}tribal-seal.png`}
           alt="Mathias El Tribe"
           style={{ width: "64px", height: "64px", objectFit: "contain" }}
         />
-
-        {/* Center: letterhead */}
         <div style={{ flex: 1, textAlign: "center", padding: "0 16px" }}>
           <div style={{ fontSize: "9pt", letterSpacing: "3px", textTransform: "uppercase", fontWeight: 700, color: "#8B0000" }}>
             Mathias El Tribe
@@ -246,14 +347,11 @@ function DocumentPreview({
             In His Sovereign Trustee Capacity, on Behalf of the Mathias El Tribe
           </div>
         </div>
-
-        {/* Right: date stamp */}
         <OfficialStamp date={stampDate} />
       </div>
 
       <hr style={{ borderTop: "2px solid #000", marginBottom: "24px" }} />
 
-      {/* Document title */}
       {title && (
         <div style={{ textAlign: "center", marginBottom: "20px" }}>
           <div style={{ fontSize: "13pt", fontWeight: 700, textTransform: "uppercase", letterSpacing: "1px" }}>
@@ -262,39 +360,28 @@ function DocumentPreview({
         </div>
       )}
 
-      {/* Subject */}
       {subject && (
         <div style={{ marginBottom: "16px", fontSize: "11pt" }}>
           <strong>RE:</strong> {subject}
         </div>
       )}
 
-      {/* Body */}
       <div style={{ marginBottom: "32px", fontSize: "11pt", whiteSpace: "pre-wrap" }}>
         {body || " "}
       </div>
 
-      {/* Seal + Signature block */}
-      <div style={{ marginTop: "40px", display: "flex", alignItems: "flex-end", justifyContent: "space-between" }}>
-        {/* Seal (left side, like the photo) */}
-        {showSeal && (
-          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "6px" }}>
-            <SealPlaceholder useActualSeal={useActualSeal} />
-            <div style={{ fontSize: "8pt", color: "#777", letterSpacing: "0.5px", textAlign: "center" }}>
-              {useActualSeal ? "Official Seal" : "[Seal Placement]"}
-            </div>
+      {/* Seal */}
+      {showSeal && (
+        <div style={{ display: "flex", alignItems: "flex-end", gap: "12px", marginBottom: "8px" }}>
+          <SealPlaceholder useActualSeal={useActualSeal} />
+          <div style={{ fontSize: "8pt", color: "#777", letterSpacing: "0.5px", alignSelf: "flex-end" }}>
+            {useActualSeal ? "Official Seal" : "[Seal Placement]"}
           </div>
-        )}
-
-        {/* Signature block (right side) */}
-        <div style={{ flex: 1, marginLeft: "40px" }}>
-          <div style={{ borderTop: "1px solid #000", width: "260px", marginBottom: "4px" }} />
-          <div style={{ fontSize: "11pt", fontWeight: 700 }}>{signerName || "Mathew-Allen McCaster, Chief Mathias El"}</div>
-          <div style={{ fontSize: "10pt" }}>{signerTitle || "Chief Justice & Trustee"}</div>
-          <div style={{ fontSize: "10pt", color: "#555" }}>Mathias El Tribe Supreme Court</div>
-          <div style={{ fontSize: "9pt", color: "#555" }}>In His Sovereign Trustee Capacity</div>
         </div>
-      </div>
+      )}
+
+      {/* Two-column signature block */}
+      <SigPreviewRow cjAssignment={cjAssignment} trusteeAssignment={trusteeAssignment} />
 
       {/* Footer */}
       <div style={{ position: "absolute", bottom: "0.5in", left: "1in", right: "1in", borderTop: "1px solid #ccc", paddingTop: "6px" }}>
@@ -348,21 +435,22 @@ function DelegationPanel() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function OfficialDocumentsPage() {
-  const { activeRole, user } = useAuth();
+  const { activeRole, user, token } = useAuth();
   const canAccess = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
 
   const today = new Date();
   const [stampDate, setStampDate] = useState(formatStampDate(today));
   const [title, setTitle] = useState("SOVEREIGN ORDER");
   const [subject, setSubject] = useState("");
-  const [body, setBody] = useState(
-    "To Whom It May Concern:\n\n\n\n\n\n"
-  );
-  const [signerName, setSignerName] = useState("Mathew-Allen McCaster, Chief Mathias El");
-  const [signerTitle, setSignerTitle] = useState("Chief Justice & Trustee");
+  const [body, setBody] = useState("To Whom It May Concern:\n\n\n\n\n\n");
   const [useActualSeal, setUseActualSeal] = useState(true);
   const [showSeal, setShowSeal] = useState(true);
   const [certifiedCopy, setCertifiedCopy] = useState(false);
+
+  const [signatureAssignments, setSignatureAssignments] = useState<SlotAssignment[]>([]);
+
+  const cjAssignment = signatureAssignments.find((a) => a.slot === "chief_justice");
+  const trusteeAssignment = signatureAssignments.find((a) => a.slot === "trustee");
 
   if (!canAccess) {
     return (
@@ -379,8 +467,9 @@ export default function OfficialDocumentsPage() {
   const handlePrint = () => {
     const certDate = new Date().toLocaleDateString("en-US", { month: "long", day: "numeric", year: "numeric" });
     const html = buildOfficialDocHtml({
-      stampDate, title, subject, body, signerName, signerTitle, useActualSeal, showSeal,
-      certifiedCopy, certifyingOfficer: user?.name ?? signerName, certDate,
+      stampDate, title, subject, body, useActualSeal, showSeal,
+      certifiedCopy, certifyingOfficer: user?.name ?? cjAssignment?.signerName,
+      certDate, chiefJusticeAssignment: cjAssignment, trusteeAssignment,
     });
     const w = window.open("", "_blank", "width=1000,height=820");
     if (!w) { alert("Pop-up blocked — please allow pop-ups for this site."); return; }
@@ -408,145 +497,150 @@ export default function OfficialDocumentsPage() {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-6">
-          {/* Left: controls */}
-          <div className="space-y-4">
-            <Card>
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Document Fields</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Document Title</Label>
-                  <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. SOVEREIGN ORDER" className="font-serif" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">RE: Subject</Label>
-                  <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject matter..." />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Body</Label>
-                  <Textarea
-                    value={body}
-                    onChange={e => setBody(e.target.value)}
-                    rows={10}
-                    className="font-serif text-sm resize-y"
-                    placeholder="Document body text..."
-                  />
-                </div>
-              </CardContent>
-            </Card>
+        {/* Left: controls */}
+        <div className="space-y-4">
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Document Fields</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Document Title</Label>
+                <Input value={title} onChange={e => setTitle(e.target.value)} placeholder="e.g. SOVEREIGN ORDER" className="font-serif" />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">RE: Subject</Label>
+                <Input value={subject} onChange={e => setSubject(e.target.value)} placeholder="Subject matter..." />
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Body</Label>
+                <Textarea
+                  value={body}
+                  onChange={e => setBody(e.target.value)}
+                  rows={10}
+                  className="font-serif text-sm resize-y"
+                  placeholder="Document body text..."
+                />
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card>
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Stamp &amp; Seal</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-4">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Stamp Date</Label>
-                  <Input
-                    value={stampDate}
-                    onChange={e => setStampDate(e.target.value.toUpperCase())}
-                    placeholder="SEP 11 2025"
-                    className="font-mono"
-                  />
-                  <p className="text-[10px] text-muted-foreground">Format: MON DD YYYY (e.g. SEP 11 2025)</p>
-                </div>
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Stamp &amp; Seal</CardTitle>
+            </CardHeader>
+            <CardContent className="p-4 space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Stamp Date</Label>
+                <Input
+                  value={stampDate}
+                  onChange={e => setStampDate(e.target.value.toUpperCase())}
+                  placeholder="SEP 11 2025"
+                  className="font-mono"
+                />
+                <p className="text-[10px] text-muted-foreground">Format: MON DD YYYY (e.g. JUL 13 2026)</p>
+              </div>
 
-                <Separator />
+              <Separator />
 
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Court Seal</Label>
-                  <div className="flex flex-col gap-2">
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="seal" checked={!showSeal} onChange={() => setShowSeal(false)} />
-                      <span className="text-sm text-muted-foreground">No seal (text only)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="seal" checked={showSeal && !useActualSeal} onChange={() => { setShowSeal(true); setUseActualSeal(false); }} />
-                      <span className="text-sm">Seal placement outline</span>
-                      <span className="text-[9px] text-muted-foreground">(physical stamp)</span>
-                    </label>
-                    <label className="flex items-center gap-2 cursor-pointer">
-                      <input type="radio" name="seal" checked={showSeal && useActualSeal} onChange={() => { setShowSeal(true); setUseActualSeal(true); }} />
-                      <span className="text-sm font-medium">Official court seal</span>
-                      <span className="text-[9px] text-muted-foreground">(digital)</span>
-                    </label>
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Reproduction</Label>
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Court Seal</Label>
+                <div className="flex flex-col gap-2">
                   <label className="flex items-center gap-2 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={certifiedCopy}
-                      onChange={(e) => setCertifiedCopy(e.target.checked)}
-                    />
-                    <span className="text-sm font-medium">This is a reproduction</span>
+                    <input type="radio" name="seal" checked={!showSeal} onChange={() => setShowSeal(false)} />
+                    <span className="text-sm text-muted-foreground">No seal (text only)</span>
                   </label>
-                  {certifiedCopy && (
-                    <p className="text-[10px] text-blue-700 dark:text-blue-400 leading-snug">
-                      A "TRUE AND CERTIFIED COPY" block will appear on the printed document, attributed to {user?.name ?? signerName}.
-                    </p>
-                  )}
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="seal" checked={showSeal && !useActualSeal} onChange={() => { setShowSeal(true); setUseActualSeal(false); }} />
+                    <span className="text-sm">Seal placement outline</span>
+                    <span className="text-[9px] text-muted-foreground">(physical stamp)</span>
+                  </label>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input type="radio" name="seal" checked={showSeal && useActualSeal} onChange={() => { setShowSeal(true); setUseActualSeal(true); }} />
+                    <span className="text-sm font-medium">Official court seal</span>
+                    <span className="text-[9px] text-muted-foreground">(digital)</span>
+                  </label>
                 </div>
-              </CardContent>
-            </Card>
+              </div>
 
-            <Card>
-              <CardHeader className="pb-3 border-b">
-                <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground">Signature Block</CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 space-y-3">
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Signer Name</Label>
-                  <Input value={signerName} onChange={e => setSignerName(e.target.value)} className="font-serif text-sm" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label className="text-xs font-semibold uppercase tracking-wider">Title</Label>
-                  <Input value={signerTitle} onChange={e => setSignerTitle(e.target.value)} className="text-sm" />
-                </div>
-              </CardContent>
-            </Card>
+              <Separator />
 
-            <DelegationPanel />
+              <div className="space-y-1.5">
+                <Label className="text-xs font-semibold uppercase tracking-wider">Reproduction</Label>
+                <label className="flex items-center gap-2 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={certifiedCopy}
+                    onChange={(e) => setCertifiedCopy(e.target.checked)}
+                  />
+                  <span className="text-sm font-medium">This is a reproduction</span>
+                </label>
+                {certifiedCopy && (
+                  <p className="text-[10px] text-blue-700 dark:text-blue-400 leading-snug">
+                    A "TRUE AND CERTIFIED COPY" block will appear on the printed document.
+                  </p>
+                )}
+              </div>
+            </CardContent>
+          </Card>
 
-            <Card className="border-blue-200 dark:border-blue-800 no-print">
-              <CardContent className="p-4">
-                <div className="flex gap-2 text-xs text-blue-700 dark:text-blue-300">
-                  <Info className="h-4 w-4 shrink-0 mt-0.5" />
-                  <span>
-                    The stamp block and seal are printed in color on electronic documents. For physical seal placement, select "Seal placement outline" — a dashed circle will appear where you place your official stamp.
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-
-          {/* Right: live document preview */}
-          <div className="xl:col-span-2">
-            <div className="mb-3 flex items-center justify-between">
-              <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Live Preview</p>
-              <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 text-xs">
-                <Printer className="h-3 w-3" /> Print
-              </Button>
-            </div>
-            <div className="shadow-xl border rounded-sm overflow-auto" style={{ background: "#f5f5f5", padding: "16px" }}>
-              <DocumentPreview
-                stampDate={stampDate}
-                title={title}
-                subject={subject}
-                body={body}
-                signerName={signerName}
-                signerTitle={signerTitle}
-                useActualSeal={useActualSeal}
-                showSeal={showSeal}
+          {/* Signature selector */}
+          <Card>
+            <CardHeader className="pb-3 border-b">
+              <CardTitle className="text-sm font-semibold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <PenLine className="h-3.5 w-3.5" /> Authorized Signatures
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="p-4">
+              <p className="text-[10px] text-muted-foreground mb-3 leading-relaxed">
+                Select the officer signature for each slot. The actual signature image (uploaded on the Tribal ID page) is embedded in both the live preview and the printed document.
+              </p>
+              <SignatureSelector
+                token={token ?? ""}
+                onChange={setSignatureAssignments}
+                chiefJusticeTitle="Chief Justice and Trustee"
+                trusteeTitle="In His Sovereign Trustee Capacity"
+                compact
               />
-            </div>
+            </CardContent>
+          </Card>
+
+          <DelegationPanel />
+
+          <Card className="border-blue-200 dark:border-blue-800 no-print">
+            <CardContent className="p-4">
+              <div className="flex gap-2 text-xs text-blue-700 dark:text-blue-300">
+                <Info className="h-4 w-4 shrink-0 mt-0.5" />
+                <span>
+                  The stamp block and seal print in color on electronic documents. For physical seal placement, select "Seal placement outline". Signature images are embedded directly from the Tribal ID page upload.
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Right: live document preview */}
+        <div className="xl:col-span-2">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider font-semibold">Live Preview</p>
+            <Button variant="outline" size="sm" onClick={handlePrint} className="gap-2 text-xs">
+              <Printer className="h-3 w-3" /> Print
+            </Button>
+          </div>
+          <div className="shadow-xl border rounded-sm overflow-auto" style={{ background: "#f5f5f5", padding: "16px" }}>
+            <DocumentPreview
+              stampDate={stampDate}
+              title={title}
+              subject={subject}
+              body={body}
+              useActualSeal={useActualSeal}
+              showSeal={showSeal}
+              cjAssignment={cjAssignment}
+              trusteeAssignment={trusteeAssignment}
+            />
           </div>
         </div>
+      </div>
     </div>
   );
 }
