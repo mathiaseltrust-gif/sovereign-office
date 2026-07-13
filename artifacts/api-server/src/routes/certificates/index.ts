@@ -245,7 +245,7 @@ router.get("/:certNumber", requireAuth, async (req: Request, res: Response) => {
     const [cert] = await db
       .select()
       .from(membershipCertificatesTable)
-      .where(eq(membershipCertificatesTable.certNumber, req.params.certNumber));
+      .where(eq(membershipCertificatesTable.certNumber, String(req.params.certNumber)));
     if (!cert) {
       res.status(404).json({ error: "Certificate not found" });
       return;
@@ -272,7 +272,7 @@ router.get("/:certNumber/pdf", requireAuth, async (req: Request, res: Response) 
     const [cert] = await db
       .select()
       .from(membershipCertificatesTable)
-      .where(eq(membershipCertificatesTable.certNumber, req.params.certNumber));
+      .where(eq(membershipCertificatesTable.certNumber, String(req.params.certNumber)));
     if (!cert || !cert.storageObjectPath) {
       res.status(404).json({ error: "Certificate PDF not found" });
       return;
@@ -326,7 +326,7 @@ const SaveSignatureBody = z.object({
 });
 
 router.post("/signatures/:slot", requireAuth, requireOfficer, async (req: Request, res: Response) => {
-  const slot = req.params.slot;
+  const slot = String(req.params.slot);
   if (!["chief_justice", "trustee"].includes(slot)) {
     res.status(400).json({ error: "Slot must be 'chief_justice' or 'trustee'" });
     return;
