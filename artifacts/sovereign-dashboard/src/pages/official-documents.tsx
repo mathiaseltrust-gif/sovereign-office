@@ -435,7 +435,7 @@ function DelegationPanel() {
 
 // ─── Page ─────────────────────────────────────────────────────────────────────
 export default function OfficialDocumentsPage() {
-  const { activeRole, user, token } = useAuth();
+  const { activeRole, user, sessionToken } = useAuth();
   const canAccess = ["officer", "trustee", "admin", "sovereign_admin", "elder"].includes(activeRole);
 
   const today = new Date();
@@ -596,7 +596,7 @@ export default function OfficialDocumentsPage() {
                 Select the officer signature for each slot. The actual signature image (uploaded on the Tribal ID page) is embedded in both the live preview and the printed document.
               </p>
               <SignatureSelector
-                token={token ?? ""}
+                token={sessionToken ?? ""}
                 onChange={setSignatureAssignments}
                 chiefJusticeTitle="Chief Justice and Trustee"
                 trusteeTitle="In His Sovereign Trustee Capacity"

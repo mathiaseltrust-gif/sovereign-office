@@ -53,7 +53,7 @@ function memberTypeLabel(t: string): string {
 }
 
 export default function CertificatesPage() {
-  const { token } = useAuth();
+  const { sessionToken } = useAuth();
 
   const [memberSearch, setMemberSearch] = useState("");
   const [searchResults, setSearchResults] = useState<Member[]>([]);
@@ -67,7 +67,7 @@ export default function CertificatesPage() {
   const [lastIssued, setLastIssued] = useState<{ certNumber: string; memberName: string }[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
-  const headers = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
+  const headers = { Authorization: `Bearer ${sessionToken}`, "Content-Type": "application/json" };
 
   useEffect(() => {
     loadCerts();
@@ -231,7 +231,7 @@ export default function CertificatesPage() {
             </CardHeader>
             <CardContent>
               <SignatureSelector
-                token={token ?? ""}
+                token={sessionToken ?? ""}
                 onChange={setSignatureAssignments}
                 chiefJusticeTitle="Chief Justice and Trustee"
                 trusteeTitle="Office of the Chief Justice and Trustee"
