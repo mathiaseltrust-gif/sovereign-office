@@ -244,6 +244,7 @@ jobs:
           build-args: |
             BASE_PATH=/atlas/
             VITE_API_URL=${{ env.VITE_API_URL }}
+            VITE_CARTO_BASEMAP_KEY=${{ secrets.CARTO_BASEMAP_API_KEY }}
           tags: |
             ${{ env.REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ env.REGISTRY }}/urban-indian-atlas:latest
@@ -824,6 +825,7 @@ jobs:
           build-args: |
             BASE_PATH=/urban-indian-atlas/
             VITE_API_URL=${{ vars.VITE_API_URL || 'https://api-staging.sovereignoffice.org' }}
+            VITE_CARTO_BASEMAP_KEY=${{ secrets.CARTO_BASEMAP_API_KEY }}
           tags: |
             ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:${{ steps.meta.outputs.sha_tag }}
             ${{ secrets.ACR_REGISTRY }}/urban-indian-atlas:staging
