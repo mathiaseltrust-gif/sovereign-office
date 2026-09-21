@@ -77,12 +77,14 @@ env:
   #   ATLAS_URL       │ https://office.mathiaseltribe.org/atlas/
   #   AUTHORITY_URL   │ https://office.mathiaseltribe.org/authority/
   # ─────────────────────────────────────────────────────────────────────────
-  VITE_API_URL:    ${{ vars.VITE_API_URL    || 'https://office.mathiaseltribe.org/api' }}
-  SOVEREIGN_URL:   ${{ vars.SOVEREIGN_URL   || 'https://office.mathiaseltribe.org' }}
-  TRUST_URL:       ${{ vars.TRUST_URL       || 'https://office.mathiaseltribe.org/trust/' }}
-  COMMUNITY_URL:   ${{ vars.COMMUNITY_URL   || 'https://office.mathiaseltribe.org/community/' }}
-  ATLAS_URL:       ${{ vars.ATLAS_URL       || 'https://office.mathiaseltribe.org/atlas/' }}
-  AUTHORITY_URL:   ${{ vars.AUTHORITY_URL   || 'https://office.mathiaseltribe.org/authority/' }}
+  # Production is path-based under one host. Keep these canonical here so stale
+  # repository variables cannot redirect smoke tests to unused subdomains.
+  VITE_API_URL:    https://office.mathiaseltribe.org
+  SOVEREIGN_URL:   https://office.mathiaseltribe.org
+  TRUST_URL:       https://office.mathiaseltribe.org/trust/
+  COMMUNITY_URL:   https://office.mathiaseltribe.org/community/
+  ATLAS_URL:       https://office.mathiaseltribe.org/atlas/
+  AUTHORITY_URL:   https://office.mathiaseltribe.org/authority/
 
 jobs:
   # ════════════════════════════════════════════════════════════════════════════
