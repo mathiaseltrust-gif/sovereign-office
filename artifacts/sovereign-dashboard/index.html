@@ -14,20 +14,6 @@
     <meta name="twitter:description" content="Office of the Chief Justice and Trustee — Sovereign governance, trust instruments, welfare, and court services." />
     <link rel="icon" type="image/png" href="/tribal-seal.png?v=20260921c" />
     <link rel="shortcut icon" type="image/png" href="/tribal-seal.png?v=20260921c" />
-    <script>
-      // Direct cold loads of authenticated SPA routes have intermittently blanked
-      // while "/" cold-loads reliably. Preserve the requested route, boot from "/",
-      // then let the client router restore the route after React is initialized.
-      (() => {
-        const path = window.location.pathname;
-        const exempt = path === "/" || path === "/login" || path === "/microsoft/callback";
-        if (!exempt) {
-          const target = path + window.location.search + window.location.hash;
-          sessionStorage.setItem("sovereign_cold_boot_target", target);
-          history.replaceState({}, "", "/");
-        }
-      })();
-    </script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Cinzel:wght@400;600;700&family=Great+Vibes&display=swap" rel="stylesheet">
