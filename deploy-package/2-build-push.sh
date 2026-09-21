@@ -90,7 +90,7 @@ build_and_push "community-dashboard" \
 echo "Step 6/7 — Urban Indian Continuity Atlas..."
 build_and_push "urban-indian-atlas" \
   "artifacts/urban-indian-atlas/Dockerfile" \
-  "--build-arg VITE_API_URL=${APP_URL:-http://localhost:8080}"
+  "--build-arg VITE_API_URL=${APP_URL:-http://localhost:8080} --build-arg VITE_CARTO_BASEMAP_KEY=${CARTO_BASEMAP_API_KEY:-}"
 
 echo "Step 7/8 — Authority Directory & Oversight Routing..."
 build_and_push "authority-directory" \
