@@ -85,6 +85,7 @@ const LandPage = lazy(() => import("@/pages/land"));
 const AncestralExposurePage = lazy(() => import("@/pages/ancestral-exposure"));
 const GedcomImportPage = lazy(() => import("@/pages/gedcom-import"));
 const AdminEmailPreviewPage = lazy(() => import("@/pages/admin-email-preview"));
+const AdminOperationsPage = lazy(() => import("@/pages/admin-operations"));
 const AtlasAdminPage = lazy(() => import("@/pages/atlas-admin"));
 const InvestigationsListPage = lazy(() => import("@/pages/investigations-list"));
 const GitHubIntakePreviewPage = lazy(() => import("@/pages/github-intake-preview"));
@@ -514,6 +515,9 @@ function AppRouter() {
       </Route>
       <Route path="/admin/email-preview">
         {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
+      </Route>
+      <Route path="/admin/operations">
+        {() => <ProtectedRoute component={AdminOperationsPage} />}
       </Route>
       <Route path="/atlas-admin">
         {() => <ProtectedRoute component={AtlasAdminPage} />}
