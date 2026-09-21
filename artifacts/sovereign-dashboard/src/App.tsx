@@ -8,11 +8,11 @@ import { Layout } from "@/components/layout";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { ClipToCompanion } from "@/components/ClipToCompanion";
+import MicrosoftCallback from "@/pages/MicrosoftCallback";
 
 const CreativeStudioPage = lazy(() => import("@/pages/creative-studio"));
 const CreativeStudioProjectPage = lazy(() => import("@/pages/creative-studio-project"));
 const Login = lazy(() => import("@/pages/login"));
-const MicrosoftCallback = lazy(() => import("@/pages/MicrosoftCallback"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const TrusteeDashboard = lazy(() => import("@/pages/dashboard-trustee"));
 const OfficerDashboard = lazy(() => import("@/pages/dashboard-officer"));
