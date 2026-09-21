@@ -436,24 +436,38 @@ jobs:
               echo "  ✗ api (http :8080) — health check FAILED"
               SMOKE_FAIL=1
             fi
-            # All dashboard modules via SSL gateway on port 3001 (self-signed cert — skip verify)
+            # All dashboard modules via SSL gateway on port 3001.
+            # Use the production Host header because sub-app proxying is host-aware,
+            # and allow a short warm-up window after all containers are recreated.
             for PATH_NAME in "/:sovereign" "/trust/:trust" "/community/:community" "/atlas/:atlas" "/authority/:authority" "/trace/:trace"; do
               PATH_PREFIX="${PATH_NAME%%:*}"
               NAME="${PATH_NAME##*:}"
-              CODE=$(curl -sfk --max-time 15 -o /dev/null -w "%{http_code}" "https://localhost:3001${PATH_PREFIX}" || echo "000")
-              if [ "$CODE" = "200" ]; then
-                echo "  ✓ $NAME (https :3001${PATH_PREFIX})"
-              else
-                echo "  ✗ $NAME (https :3001${PATH_PREFIX}) — HTTP $CODE"
-                SMOKE_FAIL=1
-              fi
+              CODE="000"
+              for ATTEMPT in 1 2 3 4 5 6; do
+                CODE=$(curl -sk --max-time 15 -o /dev/null -w "%{http_code}" \
+                  -H "Host: office.mathiaseltribe.org" \
+                  "https://localhost:3001${PATH_PREFIX}" || true)
+                case "$CODE" in
+                  2??|3??) break ;;
+                esac
+                sleep 5
+              done
+              case "$CODE" in
+                2??|3??)
+                  echo "  ✓ $NAME (https :3001${PATH_PREFIX}) — HTTP $CODE"
+                  ;;
+                *)
+                  echo "  ✗ $NAME (https :3001${PATH_PREFIX}) — HTTP $CODE after warm-up"
+                  SMOKE_FAIL=1
+                  ;;
+              esac
             done
             if [ "$SMOKE_FAIL" -ne 0 ]; then
               echo "ERROR: One or more services failed the on-VM smoke test — deploy aborted." >&2
               echo "--- docker ps ---"
               docker compose -f docker-compose.prod.yml ps
-              echo "--- api logs (last 30 lines) ---"
-              docker compose -f docker-compose.prod.yml logs --tail=30 api || true
+              echo "--- service logs (last 30 lines) ---"
+              docker compose -f docker-compose.prod.yml logs --tail=30 api sovereign trust community atlas authority trace gateway || true
               exit 1
             fi
 
