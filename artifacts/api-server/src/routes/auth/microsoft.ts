@@ -28,6 +28,28 @@ function extractAadstsCode(body: string): string | null {
   return match ? match[0] : null;
 }
 
+function popupHtml(payload: Record<string, unknown>, fallbackUrl: string): string {
+  const safePayload = JSON.stringify(payload).replace(/</g, "\\u003c");
+  const safeOrigin = JSON.stringify("https://office.mathiaseltribe.org");
+  const safeFallback = JSON.stringify(fallbackUrl);
+  return `<!doctype html>
+<html><head><meta charset="utf-8"><title>Signing in…</title></head>
+<body>
+<script>
+(function () {
+  var payload = ${safePayload};
+  if (window.opener && !window.opener.closed) {
+    window.opener.postMessage(payload, ${safeOrigin});
+    window.close();
+    setTimeout(function () { window.location.replace(${safeFallback}); }, 500);
+  } else {
+    window.location.replace(${safeFallback});
+  }
+})();
+</script>
+</body></html>`;
+}
+
 function signSessionJwt(payload: object): string {
   const header = Buffer.from(JSON.stringify({ alg: "HS256", typ: "JWT" })).toString("base64url");
   const body = Buffer.from(JSON.stringify({
@@ -92,13 +114,16 @@ router.get("/callback", async (req, res) => {
 
     if (error) {
       const aadsts = extractAadstsCode(error_description ?? error);
+      const message = error_description ?? error;
       logger.warn({ error, error_description, aadsts }, "Microsoft OAuth error returned");
-      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=${encodeURIComponent(error_description ?? error)}`);
+      const fallback = `${SOVEREIGN_DASHBOARD_URL()}/login?auth_error=${encodeURIComponent(message)}`;
+      res.type("html").send(popupHtml({ type: "OAUTH_ERROR", error: message }, fallback));
       return;
     }
 
     if (!code) {
-      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=no_code`);
+      const fallback = `${SOVEREIGN_DASHBOARD_URL()}/login?auth_error=no_code`;
+      res.type("html").send(popupHtml({ type: "OAUTH_ERROR", error: "No authorization code received from Microsoft." }, fallback));
       return;
     }
 
@@ -123,7 +148,9 @@ router.get("/callback", async (req, res) => {
       const errBody = await tokenRes.text();
       const aadsts = extractAadstsCode(errBody);
       logger.error({ status: tokenRes.status, aadsts, body: errBody }, "Token exchange failed (callback)");
-      res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=token_exchange_failed`);
+      const message = aadsts ? `Microsoft token exchange failed (${aadsts}).` : "Microsoft token exchange failed.";
+      const fallback = `${SOVEREIGN_DASHBOARD_URL()}/login?auth_error=token_exchange_failed`;
+      res.type("html").send(popupHtml({ type: "OAUTH_ERROR", error: message }, fallback));
       return;
     }
 
@@ -188,8 +215,19 @@ router.get("/callback", async (req, res) => {
 
     const encoded = encodeURIComponent(sessionJwt);
     const dashboardUrl = SOVEREIGN_DASHBOARD_URL();
-    logger.info({ email, dashboardUrl }, "Microsoft login successful — redirecting to dashboard");
-    res.redirect(`${dashboardUrl}/?session_token=${encoded}`);
+    const roles = [dbUser.role];
+    const fallback = `${dashboardUrl}/hub?session_token=${encoded}`;
+    logger.info({ email, dashboardUrl }, "Microsoft login successful — returning session to opener");
+    res.type("html").send(popupHtml({
+      type: "OAUTH_SUCCESS",
+      sessionToken: sessionJwt,
+      user: {
+        id: dbUser.id,
+        email: dbUser.email,
+        name: dbUser.name,
+        roles,
+      },
+    }, fallback));
   } catch (err) {
     logger.error({ err }, "Microsoft OAuth callback error");
     res.redirect(`${SOVEREIGN_DASHBOARD_URL()}/?auth_error=server_error`);
