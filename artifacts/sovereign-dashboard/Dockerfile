@@ -60,6 +60,20 @@ RUN printf "server {\n\
     gzip on;\n\
     gzip_types text/plain text/css application/javascript application/json;\n\
 \n\
+    # Microsoft OAuth callback is handled server-side so sign-in does not depend\n\
+    # on the SPA callback bundle loading successfully in the popup.\n\
+    location = /microsoft/callback {\n\
+        proxy_pass         ${API_SCHEME}://${API_HOST}/api/auth/microsoft/callback;\n\
+        proxy_ssl_verify   off;\n\
+        proxy_ssl_server_name on;\n\
+        proxy_http_version 1.1;\n\
+        proxy_set_header   Host \$host;\n\
+        proxy_set_header   X-Real-IP \$remote_addr;\n\
+        proxy_set_header   X-Forwarded-For \$proxy_add_x_forwarded_for;\n\
+        proxy_set_header   X-Forwarded-Proto \$scheme;\n\
+        proxy_read_timeout 60s;\n\
+    }\n\
+\n\
     location /api/ {\n\
         proxy_pass         ${API_SCHEME}://${API_HOST}/api/;\n\
         proxy_ssl_verify   off;\n\
