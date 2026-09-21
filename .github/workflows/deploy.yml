@@ -394,8 +394,9 @@ jobs:
             # Fails fast and aborts the deploy if any migration returns a real error
             # (non-idempotency failures are treated as fatal inside migrate.mjs).
             echo "==> Running database schema migrations..."
+            # The api service already has entrypoint: ["node"], so pass only the script path.
             docker compose -f docker-compose.prod.yml run --rm --no-deps \
-              api node /app/dist/migrate.mjs
+              api /app/dist/migrate.mjs
             echo "==> Migrations complete."
 
             echo "==> Starting / restarting all services"
