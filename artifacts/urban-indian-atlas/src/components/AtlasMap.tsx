@@ -789,12 +789,26 @@ export function AtlasMap({
         style={{ height: "100%", width: "100%" }}
         zoomControl={false}
       >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
-          url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png"
-          subdomains="abcd"
-          maxZoom={20}
-        />
+        {(() => {
+          const cartoKey = (import.meta.env.VITE_CARTO_BASEMAP_KEY as string | undefined)?.trim();
+          const useCarto = !!cartoKey;
+          return (
+            <TileLayer
+              attribution={
+                useCarto
+                  ? '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>'
+                  : '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              }
+              url={
+                useCarto
+                  ? `https://{s}.basemaps.cartocdn.com/rastertiles/dark_all/{z}/{x}/{y}.png?key=${encodeURIComponent(cartoKey!)}`
+                  : "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              }
+              subdomains={useCarto ? "abcd" : undefined}
+              maxZoom={useCarto ? 20 : 19}
+            />
+          );
+        })()}
 
         <MapInstanceGrabber onReady={handleMapReady} />
         <ZoomTracker onZoomChange={handleZoomChange} />
