@@ -125,7 +125,21 @@ const queryClient = new QueryClient({
 
 function RootRedirect() {
   const { user, activeRole } = useAuth();
-  if (!user) return <Redirect to="/login" />;
+  const coldBootTarget = sessionStorage.getItem("sovereign_cold_boot_target");
+
+  if (!user) {
+    if (coldBootTarget) {
+      sessionStorage.removeItem("sovereign_cold_boot_target");
+      return <Redirect to={`/login?next=${encodeURIComponent(coldBootTarget)}`} />;
+    }
+    return <Redirect to="/login" />;
+  }
+
+  if (coldBootTarget && coldBootTarget.startsWith("/")) {
+    sessionStorage.removeItem("sovereign_cold_boot_target");
+    return <Redirect to={coldBootTarget} />;
+  }
+
   return <Redirect to={roleLandingPath(activeRole)} />;
 }
 
