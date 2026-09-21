@@ -28,12 +28,14 @@ RUN --mount=type=cache,id=pnpm-store,target=/pnpm/store \
 FROM deps AS builder
 
 ARG VITE_API_URL=http://localhost:8080
+ARG VITE_CARTO_BASEMAP_KEY=""
 # BASE_PATH must match the path prefix where the app is served.
 # Canonical path is /atlas/ (short alias). /urban-indian-atlas/ is kept as a
 # backward-compat alias in sovereign-dashboard's nginx.
 ARG BASE_PATH=/atlas/
 
 ENV VITE_API_URL=${VITE_API_URL}
+ENV VITE_CARTO_BASEMAP_KEY=${VITE_CARTO_BASEMAP_KEY}
 ENV BASE_PATH=${BASE_PATH}
 ENV NODE_ENV=production
 ENV PORT=5173
