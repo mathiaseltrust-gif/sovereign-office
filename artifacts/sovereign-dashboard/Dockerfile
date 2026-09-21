@@ -134,12 +134,12 @@ RUN printf "server {\n\
 \n\
     location = /index.html {\n\
         expires -1;\n\
-        add_header Cache-Control "no-store, no-cache, must-revalidate";\n\
+        add_header Cache-Control \"no-store, no-cache, must-revalidate\";\n\
     }\n\
 \n\
     location / {\n\
         try_files \$uri \$uri/ /index.html;\n\
-        add_header Cache-Control "no-store, no-cache, must-revalidate";\n\
+        add_header Cache-Control \"no-store, no-cache, must-revalidate\";\n\
     }\n\
 \n\
     location ~* \\.(js|css|png|jpg|jpeg|svg|ico|woff2?)$ {\n\
