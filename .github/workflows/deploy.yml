@@ -332,7 +332,10 @@ jobs:
           script: |
             set -euo pipefail
             DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
-            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
+            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/home/azureuser/sovereign-office" ]; then
+              echo "Configured DEPLOY_PATH not found; using /home/azureuser/sovereign-office"
+              DEPLOY_DIR="/home/azureuser/sovereign-office"
+            elif [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
               echo "Configured DEPLOY_PATH not found; using /opt/sovereign-office"
               DEPLOY_DIR="/opt/sovereign-office"
             fi
@@ -642,7 +645,10 @@ jobs:
           script: |
             set -euo pipefail
             DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
-            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
+            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/home/azureuser/sovereign-office" ]; then
+              echo "Configured DEPLOY_PATH not found; using /home/azureuser/sovereign-office"
+              DEPLOY_DIR="/home/azureuser/sovereign-office"
+            elif [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
               echo "Configured DEPLOY_PATH not found; using /opt/sovereign-office"
               DEPLOY_DIR="/opt/sovereign-office"
             fi
