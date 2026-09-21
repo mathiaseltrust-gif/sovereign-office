@@ -331,7 +331,12 @@ jobs:
           command_timeout: 10m
           script: |
             set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
+            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
+            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
+              echo "Configured DEPLOY_PATH not found; using /opt/sovereign-office"
+              DEPLOY_DIR="/opt/sovereign-office"
+            fi
+            cd "$DEPLOY_DIR"
 
             # ── Inject/update runtime secrets in .env ─────────────────────────────
             # Writes or overwrites a single KEY=VALUE line in .env, creating the
@@ -636,7 +641,12 @@ jobs:
           command_timeout: 5m
           script: |
             set -euo pipefail
-            cd "${{ secrets.DEPLOY_PATH }}"
+            DEPLOY_DIR="${{ secrets.DEPLOY_PATH }}"
+            if [ ! -d "$DEPLOY_DIR" ] && [ -d "/opt/sovereign-office" ]; then
+              echo "Configured DEPLOY_PATH not found; using /opt/sovereign-office"
+              DEPLOY_DIR="/opt/sovereign-office"
+            fi
+            cd "$DEPLOY_DIR"
 
             ROLLBACK_TAG=$(cat .last_good_tag 2>/dev/null | tr -d '[:space:]' || echo "")
             if [ -z "$ROLLBACK_TAG" ]; then
