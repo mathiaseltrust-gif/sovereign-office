@@ -107,6 +107,7 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Communications & System",
       defaultOpen: false,
       items: [
+        { href: "/admin/operations",   label: "Office Operations",   highlight: true, icon: Monitor },
         { href: "/admin/email-preview", label: "Email Preview",        icon: Mail },
       ],
     },
