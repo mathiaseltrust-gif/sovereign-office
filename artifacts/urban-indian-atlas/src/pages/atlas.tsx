@@ -845,8 +845,9 @@ export default function Atlas() {
         </div>
       </header>
 
-      {/* Main Content Area */}
-      <div className="flex-1 flex overflow-hidden relative">
+      {/* Main Content Area — map/panels above, timeline in its own bottom row */}
+      <div className="flex-1 flex flex-col overflow-hidden relative min-h-0">
+        <div className="flex-1 flex overflow-hidden relative min-h-0">
         <AtlasSidebar
           events={atlasEvents}
           activeEras={activeEras}
@@ -891,7 +892,7 @@ export default function Atlas() {
           onSelectAncestor={handleSelectPerson}
         />
 
-        <div className="flex-1 flex flex-col relative h-full">
+        <div className="flex-1 flex flex-col relative h-full min-w-0 min-h-0">
           <AtlasMap
             events={atlasEvents}
             filteredEvents={filteredEvents}
@@ -914,14 +915,6 @@ export default function Atlas() {
             activeLifeEventTypes={activeLifeEventTypes}
           />
 
-          <AtlasTimeline
-            events={atlasEvents}
-            filteredEvents={filteredEvents}
-            yearRange={yearRange}
-            setYearRange={setYearRange}
-            selectedEventId={selectedEventId}
-            onSelectEvent={handleSelectEvent}
-          />
 
           {/* Cluster Results Panel — absolutely positioned overlay, slides up from bottom of map */}
           {clusterResultsMembers && clusterResultsMembers.length > 0 && (
@@ -953,6 +946,16 @@ export default function Atlas() {
             onEventFocus={(coords) => setFocusedEventCoords(coords)}
           />
         )}
+        </div>
+
+        <AtlasTimeline
+          events={atlasEvents}
+          filteredEvents={filteredEvents}
+          yearRange={yearRange}
+          setYearRange={setYearRange}
+          selectedEventId={selectedEventId}
+          onSelectEvent={handleSelectEvent}
+        />
       </div>
 
       <SourcesModal
