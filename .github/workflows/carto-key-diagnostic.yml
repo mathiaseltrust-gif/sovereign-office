@@ -1,0 +1,74 @@
+name: CARTO Basemap Key Diagnostic
+
+on:
+  push:
+    branches:
+      - diagnostic/carto-key
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate-carto-key:
+    runs-on: ubuntu-latest
+    env:
+      CARTO_KEY: ${{ secrets.CARTO_BASEMAP_API_KEY }}
+    steps:
+      - name: Validate configured CARTO basemap key without exposing it
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ -z "${CARTO_KEY:-}" ]; then
+            echo "RESULT=SECRET_MISSING"
+            exit 1
+          fi
+
+          TILE='https://a.basemaps.cartocdn.com/rastertiles/dark_all/4/4/6.png'
+
+          fetch_tile() {
+            local label="$1"
+            local referer="$2"
+            local use_key="$3"
+            local output="/tmp/${label}.png"
+            local url="$TILE"
+
+            if [ "$use_key" = "yes" ]; then
+              url="$TILE?key=$CARTO_KEY"
+            fi
+
+            if [ -n "$referer" ]; then
+              code=$(curl -sS -L --max-time 20 -H "Referer: $referer" -o "$output" -w '%{http_code}' "$url")
+            else
+              code=$(curl -sS -L --max-time 20 -o "$output" -w '%{http_code}' "$url")
+            fi
+
+            bytes=$(wc -c < "$output" | tr -d ' ')
+            sha=$(sha256sum "$output" | awk '{print $1}')
+            mime=$(file -b --mime-type "$output" || true)
+            echo "$label HTTP=$code BYTES=$bytes MIME=$mime SHA=$sha"
+          }
+
+          fetch_tile unkeyed "" no
+          fetch_tile keyed_no_referer "" yes
+          fetch_tile keyed_office "https://office.mathiaseltribe.org/atlas/" yes
+          fetch_tile keyed_atlas "https://atlas.mathiaseltribe.org/" yes
+
+          U=$(sha256sum /tmp/unkeyed.png | awk '{print $1}')
+          O=$(sha256sum /tmp/keyed_office.png | awk '{print $1}')
+          A=$(sha256sum /tmp/keyed_atlas.png | awk '{print $1}')
+
+          if [ "$O" = "$U" ] && [ "$A" = "$U" ]; then
+            echo "RESULT=KEYED_TILES_MATCH_UNKEYED_WATERMARK_RESPONSE"
+            exit 2
+          fi
+
+          if [ "$O" != "$U" ]; then
+            echo "OFFICE_REFERER_RESULT=DIFFERENT_FROM_UNKEYED"
+          fi
+          if [ "$A" != "$U" ]; then
+            echo "ATLAS_REFERER_RESULT=DIFFERENT_FROM_UNKEYED"
+          fi
+
+          echo "RESULT=KEY_CHANGES_TILE_RESPONSE"
