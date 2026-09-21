@@ -10,7 +10,7 @@ import {
   Database, Monitor, ShieldCheck, Bell, CalendarDays, Search,
   UserCircle, CreditCard, Stethoscope, ClipboardList, LayoutDashboard,
   Settings, FilePen, Globe, BadgeCheck, ChevronDown, BookMarked, PenLine,
-  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map,
+  GraduationCap, BookOpenCheck, Landmark, Fingerprint, GitMerge, Map, Palette,
 } from "lucide-react";
 import { useState, useEffect, useCallback } from "react";
 import { CommandPalette } from "./CommandPalette";
