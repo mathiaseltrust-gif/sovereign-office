@@ -9,6 +9,7 @@ import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
 import { ClipToCompanion } from "@/components/ClipToCompanion";
 import MicrosoftCallback from "@/pages/MicrosoftCallback";
+import HubPage from "@/pages/hub";
 
 const CreativeStudioPage = lazy(() => import("@/pages/creative-studio"));
 const CreativeStudioProjectPage = lazy(() => import("@/pages/creative-studio-project"));
@@ -64,7 +65,6 @@ const BusinessConceptDetail = lazy(() => import("@/pages/business-canvas-detail"
 const OnboardingLineagePage = lazy(() => import("@/pages/onboarding-lineage"));
 const OnboardingPendingPage = lazy(() => import("@/pages/onboarding-pending"));
 const OnboardingCompanionPage = lazy(() => import("@/pages/onboarding-companion"));
-const HubPage = lazy(() => import("@/pages/hub"));
 const GweLetterPage = lazy(() => import("@/pages/gwe-letter"));
 const MembershipPage = lazy(() => import("@/pages/membership"));
 const ElderAdvisoryPage = lazy(() => import("@/pages/elder-advisory"));
