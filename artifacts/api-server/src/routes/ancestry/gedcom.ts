@@ -517,7 +517,6 @@ function buildFamilyGroupsFromStaged(staged: StagedRow[], gToL: Map<string, numb
       const wifeId = row.gender === "female" ? row.matchedAncestorId : spouseId;
       const key = `${husbandId ?? "none"}:${wifeId ?? "none"}`;
       if (!familyGroups.has(key)) familyGroups.set(key, { key, husbandId, wifeId, childIds: new Set<number>() });
-      if (!familyGroups.has(key)) familyGroups.set(key, { husbandId, wifeId, childIds: new Set<number>() });
     }
   }
 
