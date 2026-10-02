@@ -15,7 +15,7 @@ const FILING_CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_a
 
 const router = Router();
 
-router.get("/stats", requireAuth, async (_req, res, next) => {
+router.get("/stats", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const [totals] = await db
       .select({
@@ -31,7 +31,7 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/", requireAuth, async (_req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const filings = await db
       .select()
@@ -43,7 +43,7 @@ router.get("/", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db
@@ -61,7 +61,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const { instrumentId, county, state, documentType, notes } = req.body as {
       instrumentId?: number;
