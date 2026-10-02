@@ -89,6 +89,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { activeRole } = useAuth();
+  const canSearchRecords = ["sovereign_admin", "trustee", "officer"].includes(activeRole);
   const [, navigate] = useLocation();
 
   const functions = searchFunctions(query, activeRole);
@@ -119,6 +120,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
 
   useEffect(() => {
     if (!open) return;
+    if (!canSearchRecords) { setRecords([]); return; }
     if (debounceRef.current) clearTimeout(debounceRef.current);
     if (!query.trim()) {
       setRecords([]);
@@ -149,7 +151,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [query, open]);
+  }, [query, open, canSearchRecords]);
 
   useEffect(() => {
     setActiveIdx(0);
@@ -219,7 +221,7 @@ export function CommandPalette({ open, onClose }: CommandPaletteProps) {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={onKeyDown}
-            placeholder="Search pages, records, members, cases…"
+            placeholder={canSearchRecords ? "Search pages, records, members, cases…" : "Search pages and features…"}
             className="flex-1 bg-transparent text-sm text-foreground placeholder:text-muted-foreground outline-none"
           />
           {recordsLoading && <Loader2 className="w-3.5 h-3.5 text-muted-foreground animate-spin shrink-0" />}
