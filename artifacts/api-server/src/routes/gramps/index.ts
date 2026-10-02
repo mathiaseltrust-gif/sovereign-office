@@ -57,9 +57,17 @@ async function proxy(req: Request, res: Response) {
   }
 
   const token = await getToken();
-  const query = new URLSearchParams(req.query as Record<string, string>).toString();
-  const handle = req.params.handle ? `/${encodeURIComponent(req.params.handle)}` : "";
-  const url = `${baseUrl()}/api/${resource}/${handle}${query ? `?${query}` : ""}`;
+  const queryParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(req.query)) {
+    if (Array.isArray(value)) {
+      for (const item of value) queryParams.append(key, String(item));
+    } else if (value != null) {
+      queryParams.append(key, String(value));
+    }
+  }
+  const query = queryParams.toString();
+  const handlePath = req.params.handle ? `/${encodeURIComponent(String(req.params.handle))}` : "";
+  const url = `${baseUrl()}/api/${resource}${handlePath}${query ? `?${query}` : ""}`;
 
   const r = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },

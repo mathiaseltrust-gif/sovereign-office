@@ -134,7 +134,7 @@ export function parsePlaceString(place: string | null | undefined): ParsedPlace 
 
   if (country === "United Kingdom" && parts.length > 0) {
     const nation = normalizeCountry(parts[parts.length - 1]);
-    if (["England", "Scotland", "Wales", "Ireland"].includes(nation)) {
+    if (nation && ["England", "Scotland", "Wales", "Ireland"].includes(nation)) {
       country = nation;
       parts.pop();
     }

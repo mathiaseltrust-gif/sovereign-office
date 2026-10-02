@@ -1,14 +1,9 @@
-name: Restore Family Tree Route
+name: Manual Repair — Restore Family Tree Route
 
 on:
+  # Manual repair only. This workflow previously rewrote App.tsx/layout.tsx
+  # after normal main-branch pushes, which could undo deliberate UI cleanup.
   workflow_dispatch:
-  push:
-    branches:
-      - main
-    paths:
-      - '.github/workflows/restore-family-tree-route.yml'
-      - 'artifacts/sovereign-dashboard/src/App.tsx'
-      - 'artifacts/sovereign-dashboard/src/components/layout.tsx'
 
 permissions:
   contents: write
