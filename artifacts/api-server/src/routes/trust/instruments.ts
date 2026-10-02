@@ -129,7 +129,7 @@ router.get("/templates", requireAuth, requireRole("officer"), async (_req, res, 
 
 router.get("/templates/:key", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
-    const tpl = getBuiltInTemplate(req.params.key);
+    const tpl = getBuiltInTemplate(String(req.params.key));
     if (!tpl) {
       res.status(404).json({ error: "Template not found" });
       return;
