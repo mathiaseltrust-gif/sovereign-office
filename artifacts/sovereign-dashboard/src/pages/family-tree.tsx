@@ -119,6 +119,44 @@ interface FamilyUnit {
   sourceType?: string | null;
 }
 
+interface RelationshipAuditPersonRef {
+  id: number;
+  fullName: string;
+  birthYear?: number | null;
+  deathYear?: number | null;
+}
+
+interface RelationshipAuditFamily {
+  id: number;
+  gedcomFamId?: string | null;
+  relationshipType?: string | null;
+  sourceType?: string | null;
+  adults: Array<RelationshipAuditPersonRef | null>;
+  children: Array<RelationshipAuditPersonRef | null>;
+}
+
+interface RelationshipAudit {
+  readOnly: boolean;
+  person: RelationshipAuditPersonRef & { gender?: string | null; sourceType?: string | null };
+  summary: {
+    familyUnits: number;
+    birthFamilyUnits: number;
+    partnerHouseholds: number;
+    flatParentLinks: number;
+    flatSpouseLinks: number;
+    flatChildLinks: number;
+    issues: number;
+    grampsConfigured: boolean;
+  };
+  birthFamilies: RelationshipAuditFamily[];
+  partnerHouseholds: RelationshipAuditFamily[];
+  coverage: {
+    linkedOnlyInFlatArrays: Array<RelationshipAuditPersonRef | null>;
+    linkedOnlyInFamilyUnits: Array<RelationshipAuditPersonRef | null>;
+  };
+  issues: Array<{ type: string; relatedId?: number; detail: string }>;
+}
+
 interface LineageRecord {
   id: number;
   fullName: string;
@@ -2143,6 +2181,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
   const [householdRel, setHouseholdRel] = useState<"spouse" | "child" | "dependent">("child");
   const [showReclassify, setShowReclassify] = useState(false);
   const [reclassifyLevel, setReclassifyLevel] = useState<string>("");
+  const [showRelationshipAudit, setShowRelationshipAudit] = useState(false);
 
   const reclassifyMutation = useMutation({
     mutationFn: async (level: string) => {
@@ -2208,6 +2247,22 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
       if (!r.ok) throw new Error("Failed to load node detail");
       return r.json();
     },
+  });
+
+  const { data: relationshipAudit, isLoading: relationshipAuditLoading, error: relationshipAuditError } = useQuery<RelationshipAudit>({
+    queryKey: ["lineage-family-unit-audit", node.id],
+    queryFn: async () => {
+      const r = await fetch(`/api/lineage/family-units/audit?personId=${node.id}`, {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Failed to audit household relationships");
+      }
+      return r.json();
+    },
+    enabled: isOfficer && showRelationshipAudit,
+    staleTime: 15_000,
   });
 
   const n = detail ?? node;
@@ -2600,6 +2655,111 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             <div>
               <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Notes</p>
               <p className="text-xs text-muted-foreground italic">{n.notes}</p>
+            </div>
+          )}
+
+          {isOfficer && (
+            <div className="border rounded-md overflow-hidden">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between px-3 py-2 bg-muted/30 hover:bg-muted/60 transition-colors text-left"
+                onClick={() => setShowRelationshipAudit((value) => !value)}
+              >
+                <div>
+                  <p className="text-xs font-semibold uppercase tracking-widest text-foreground">Household Relationship Audit</p>
+                  <p className="text-[10px] text-muted-foreground mt-0.5">Read-only comparison of family units and flat lineage links</p>
+                </div>
+                <span className="text-xs text-muted-foreground">{showRelationshipAudit ? "▲" : "▼"}</span>
+              </button>
+
+              {showRelationshipAudit && (
+                <div className="p-3 space-y-3 bg-card">
+                  {relationshipAuditLoading && <Skeleton className="h-20" />}
+                  {relationshipAuditError && (
+                    <p className="text-xs text-destructive">{relationshipAuditError instanceof Error ? relationshipAuditError.message : "Audit unavailable"}</p>
+                  )}
+                  {relationshipAudit && (
+                    <>
+                      <div className="grid grid-cols-2 gap-2 text-xs">
+                        <div className="rounded border bg-muted/20 p-2">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Partner households</p>
+                          <p className="text-lg font-semibold">{relationshipAudit.summary.partnerHouseholds}</p>
+                        </div>
+                        <div className="rounded border bg-muted/20 p-2">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Birth families</p>
+                          <p className="text-lg font-semibold">{relationshipAudit.summary.birthFamilyUnits}</p>
+                        </div>
+                        <div className="rounded border bg-muted/20 p-2">
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Flat child links</p>
+                          <p className="text-lg font-semibold">{relationshipAudit.summary.flatChildLinks}</p>
+                        </div>
+                        <div className={`rounded border p-2 ${relationshipAudit.summary.issues > 0 ? "border-amber-300 bg-amber-50 dark:bg-amber-950/20" : "bg-muted/20"}`}>
+                          <p className="text-[10px] uppercase tracking-wider text-muted-foreground">Issues found</p>
+                          <p className="text-lg font-semibold">{relationshipAudit.summary.issues}</p>
+                        </div>
+                      </div>
+
+                      {relationshipAudit.partnerHouseholds.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Partner households</p>
+                          {relationshipAudit.partnerHouseholds.map((family, index) => (
+                            <div key={family.id} className="rounded border p-2 text-xs space-y-1">
+                              <div className="flex items-center justify-between gap-2">
+                                <span className="font-semibold">Household {index + 1}</span>
+                                <span className="text-[10px] text-muted-foreground">{family.sourceType ?? "unknown source"}</span>
+                              </div>
+                              <p><span className="text-muted-foreground">Adults:</span> {family.adults.filter(Boolean).map((person) => person!.fullName).join(" + ") || "Not recorded"}</p>
+                              <p><span className="text-muted-foreground">Children:</span> {family.children.filter(Boolean).map((person) => person!.fullName).join(", ") || "None assigned"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {relationshipAudit.birthFamilies.length > 0 && (
+                        <div className="space-y-2">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Birth household</p>
+                          {relationshipAudit.birthFamilies.map((family) => (
+                            <div key={family.id} className="rounded border p-2 text-xs space-y-1">
+                              <p><span className="text-muted-foreground">Parents:</span> {family.adults.filter(Boolean).map((person) => person!.fullName).join(" + ") || "Not recorded"}</p>
+                              <p><span className="text-muted-foreground">Children in unit:</span> {family.children.filter(Boolean).map((person) => person!.fullName).join(", ") || "None assigned"}</p>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {(relationshipAudit.coverage.linkedOnlyInFlatArrays.length > 0 || relationshipAudit.coverage.linkedOnlyInFamilyUnits.length > 0) && (
+                        <div className="rounded border border-amber-300 bg-amber-50 dark:bg-amber-950/20 p-2 text-xs space-y-1">
+                          <p className="font-semibold text-amber-900 dark:text-amber-300">Relationship sources disagree</p>
+                          {relationshipAudit.coverage.linkedOnlyInFlatArrays.length > 0 && (
+                            <p>Only in flat links: {relationshipAudit.coverage.linkedOnlyInFlatArrays.filter(Boolean).map((person) => person!.fullName).join(", ")}</p>
+                          )}
+                          {relationshipAudit.coverage.linkedOnlyInFamilyUnits.length > 0 && (
+                            <p>Only in family units: {relationshipAudit.coverage.linkedOnlyInFamilyUnits.filter(Boolean).map((person) => person!.fullName).join(", ")}</p>
+                          )}
+                        </div>
+                      )}
+
+                      {relationshipAudit.issues.length > 0 ? (
+                        <div className="space-y-1">
+                          <p className="text-[10px] font-semibold uppercase tracking-widest text-muted-foreground">Repair findings</p>
+                          {relationshipAudit.issues.map((issue, index) => (
+                            <div key={`${issue.type}-${issue.relatedId ?? index}-${index}`} className="rounded border border-amber-200 px-2 py-1.5 text-[11px]">
+                              <span className="font-semibold">{issue.type.replace(/_/g, " ")}</span>
+                              <p className="text-muted-foreground mt-0.5">{issue.detail}</p>
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="text-xs text-green-700 dark:text-green-400">Family-unit and flat relationship links agree for this person.</p>
+                      )}
+
+                      <p className="text-[10px] text-muted-foreground">
+                        Gramps integration: {relationshipAudit.summary.grampsConfigured ? "configured" : "not configured"} · This audit never changes lineage data.
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           )}
 
