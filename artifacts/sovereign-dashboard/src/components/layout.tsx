@@ -351,6 +351,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
   const sections = getNavSections(activeRole);
   const showOrgs = activeRole !== "visitor_media" && activeRole !== "medical_provider";
   const showPersonal = activeRole !== "visitor_media";
+  const isFamilyTreeWorkspace = location === "/family-tree";
 
   return (
     <div className="flex h-screen bg-background overflow-hidden font-sans">
@@ -477,8 +478,8 @@ export function Layout({ children }: { children: React.ReactNode }) {
       </aside>
 
       {/* ── Main content ── */}
-      <main className="flex-1 overflow-y-auto bg-background">
-        <div className="max-w-6xl mx-auto p-6">
+      <main className={`flex-1 bg-background ${isFamilyTreeWorkspace ? "overflow-hidden" : "overflow-y-auto"}`}>
+        <div className={isFamilyTreeWorkspace ? "w-full h-full p-3" : "max-w-6xl mx-auto p-6"}>
           {children}
         </div>
       </main>
