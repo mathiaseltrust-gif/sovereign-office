@@ -845,50 +845,46 @@ export default function FamilyTreePage() {
   });
 
   return (
-    <div data-testid="page-family-tree" className="h-full min-h-0 flex flex-col">
-      <div className="shrink-0 px-1 pt-1">
-        <div className="mb-3">
-          <h1 className="text-2xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            Interactive family workspace — focus a person, pan freely, zoom, and follow household branches.
-          </p>
-        </div>
-
-        <div className="flex gap-1 mb-3 flex-wrap border-b pb-2">
-          {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
-            <button
-              key={tab}
-              onClick={() => setActiveTab(tab)}
-              className={[
-                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                activeTab === tab
-                  ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-              ].join(" ")}
-            >
-              {TAB_LABELS[tab]}
-            </button>
-          ))}
-        </div>
+    <div data-testid="page-family-tree">
+      <div className="mb-6">
+        <h1 className="text-3xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
+        <p className="text-muted-foreground mt-1">
+          Interactive visual family tree — ancestors, descendants, and protected lineage lines
+        </p>
       </div>
 
-      <div className={activeTab === "view-lineage" ? "flex-1 min-h-0" : "flex-1 min-h-0 overflow-y-auto px-1 pb-3"}>
-        {activeTab === "view-lineage" && (
-          <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-        )}
-        {activeTab === "my-submissions" && (
-          <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
-        )}
-        {activeTab === "edit-ancestors" && (
-          <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
-        )}
-        {activeTab === "knowledge-of-self" && (
-          <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
-        )}
-        {activeTab === "deduplicate" && (
-          <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-        )}
+      <div className="flex gap-1 mb-6 flex-wrap border-b pb-3">
+        {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
+          <button
+            key={tab}
+            onClick={() => setActiveTab(tab)}
+            className={[
+              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
+              activeTab === tab
+                ? "bg-primary text-primary-foreground"
+                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+            ].join(" ")}
+          >
+            {TAB_LABELS[tab]}
+          </button>
+        ))}
       </div>
+
+      {activeTab === "view-lineage" && (
+        <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+      )}
+      {activeTab === "my-submissions" && (
+        <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
+      )}
+      {activeTab === "edit-ancestors" && (
+        <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
+      )}
+      {activeTab === "knowledge-of-self" && (
+        <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
+      )}
+      {activeTab === "deduplicate" && (
+        <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+      )}
     </div>
   );
 }
@@ -1741,30 +1737,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     });
   }, []);
 
-  const zoomBy = useCallback((factor: number) => {
-    if (!containerRef.current) return;
-    const { clientWidth, clientHeight } = containerRef.current;
-    const anchorX = clientWidth / 2;
-    const anchorY = clientHeight / 2;
-    setTransform((prev) => {
-      const newScale = Math.min(3, Math.max(0.15, prev.scale * factor));
-      const scaleRatio = newScale / prev.scale;
-      return {
-        scale: newScale,
-        x: anchorX - scaleRatio * (anchorX - prev.x),
-        y: anchorY - scaleRatio * (anchorY - prev.y),
-      };
-    });
-  }, []);
-
-  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handleMouseDown = useCallback((e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest("[data-node]")) return;
-    e.currentTarget.setPointerCapture(e.pointerId);
     setIsDragging(true);
     dragStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
   }, [transform]);
 
-  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+  const handleMouseMove = useCallback((e: React.MouseEvent) => {
     if (!isDragging || !dragStart.current) return;
     setTransform((prev) => ({
       ...prev,
@@ -1773,10 +1752,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     }));
   }, [isDragging]);
 
-  const handlePointerUp = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId);
-    }
+  const handleMouseUp = useCallback(() => {
     setIsDragging(false);
     dragStart.current = null;
   }, []);
@@ -1805,7 +1781,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   return (
-    <div className="flex flex-col h-full min-h-0">
+    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -2042,50 +2018,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         </div>
       )}
 
-      <div className="relative flex flex-1 min-h-0">
+      <div className="flex flex-1 gap-0 min-h-0">
         <div
           ref={containerRef}
           className={`flex-1 border rounded-lg bg-muted/20 overflow-hidden relative select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-          style={{ touchAction: "none" }}
           onWheel={handleWheel}
-          onPointerDown={handlePointerDown}
-          onPointerMove={handlePointerMove}
-          onPointerUp={handlePointerUp}
-          onPointerCancel={handlePointerUp}
+          onMouseDown={handleMouseDown}
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp}
           onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null); }}
         >
-          <div className="absolute top-3 left-3 z-30 flex items-center rounded-lg border bg-card/95 backdrop-blur-sm shadow-sm overflow-hidden">
-            <button
-              type="button"
-              className="h-8 w-8 flex items-center justify-center hover:bg-muted transition-colors"
-              onClick={(e) => { e.stopPropagation(); zoomBy(0.82); }}
-              title="Zoom out"
-              aria-label="Zoom out"
-            >
-              <Minus className="h-4 w-4" />
-            </button>
-            <span className="min-w-[52px] px-2 text-center text-[11px] font-medium border-x text-muted-foreground">
-              {Math.round(transform.scale * 100)}%
-            </span>
-            <button
-              type="button"
-              className="h-8 w-8 flex items-center justify-center hover:bg-muted transition-colors"
-              onClick={(e) => { e.stopPropagation(); zoomBy(1.22); }}
-              title="Zoom in"
-              aria-label="Zoom in"
-            >
-              <Plus className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              className="h-8 px-2.5 flex items-center gap-1 border-l text-[11px] hover:bg-muted transition-colors"
-              onClick={(e) => { e.stopPropagation(); fitToScreen(); }}
-              title="Fit tree to workspace"
-            >
-              <Maximize2 className="h-3.5 w-3.5" /> Fit
-            </button>
-          </div>
-
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
               <div className="space-y-3 w-64">
@@ -2471,19 +2414,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         </div>
 
         {selectedNode && (
-          <div className="absolute inset-y-0 right-0 z-40 w-[340px] max-w-[38%] min-w-[300px] shadow-2xl">
-            <NodeDetailPanel
-              node={selectedNode}
-              canEdit={canEdit}
-              canApprove={canApprove}
-              isOfficer={isOfficer}
-              currentUserId={user?.dbId ?? null}
-              onClose={() => setSelectedNodeId(null)}
-              onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
-              onMerge={(n) => setMergingNode(n)}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] })}
-            />
-          </div>
+          <NodeDetailPanel
+            node={selectedNode}
+            canEdit={canEdit}
+            canApprove={canApprove}
+            isOfficer={isOfficer}
+            currentUserId={user?.dbId ?? null}
+            onClose={() => setSelectedNodeId(null)}
+            onEdit={(n) => { setEditingNode(n); setShowAddModal(true); }}
+            onMerge={(n) => setMergingNode(n)}
+            onRefresh={() => queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] })}
+          />
         )}
       </div>
 
@@ -2810,7 +2751,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
   const lifeEvents = Array.isArray(n.lifeEvents) ? sortLifeEventsForDisplay(n.lifeEvents) : [];
 
   return (
-    <div className="w-full h-full border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300, paddingBottom: 56 }}>
+    <div className="w-80 border-l bg-card flex flex-col overflow-y-auto" style={{ minWidth: 300, paddingBottom: 56 }}>
       <div className="flex items-center justify-between px-4 py-3 border-b sticky top-0 bg-card z-10">
         <span className="font-semibold text-sm truncate">{n.fullName}</span>
         <button onClick={onClose} className="text-muted-foreground hover:text-foreground text-lg leading-none ml-2">✕</button>
