@@ -1546,14 +1546,15 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   const q = searchQuery.trim().toLowerCase();
   const allMatchingNodes = useMemo(() => {
-    if (!q) return [] as PositionedNode[];
-    return positioned.filter(
+    if (!q) return [] as LineageNode[];
+    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : positioned;
+    return searchPool.filter(
       (n) =>
         n.fullName.toLowerCase().includes(q) ||
         (n.tribalNation ?? "").toLowerCase().includes(q) ||
         (n.nameVariants ?? []).some((v) => v.toLowerCase().includes(q))
     );
-  }, [q, positioned]);
+  }, [q, treeView, familyViewNodes, positioned]);
 
   const matchingNodes = useMemo(() => allMatchingNodes.slice(0, 8), [allMatchingNodes]);
   const matchingIdSet = useMemo(() => new Set(allMatchingNodes.map((n) => n.id)), [allMatchingNodes]);
@@ -1579,11 +1580,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setSelectedNodeId(node.id);
   }, [transform.scale]);
 
-  const handleSuggestionClick = useCallback((node: PositionedNode) => {
-    panToNode(node);
+  const handleSuggestionClick = useCallback((node: LineageNode) => {
+    if (treeView === "family") {
+      setFocusedPersonId(node.id);
+      setSelectedNodeId(node.id);
+    } else {
+      const placed = positioned.find((candidate) => candidate.id === node.id);
+      if (placed) panToNode(placed);
+    }
     setDropdownOpen(false);
     setActiveIdx(-1);
-  }, [panToNode]);
+  }, [treeView, positioned, panToNode]);
 
   const handleSearchKey = useCallback((e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key === "Escape") {
@@ -1637,55 +1644,68 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setTransform({ x, y, scale });
   }, [totalW, totalH, treeView, pedigreeData.totalW, pedigreeData.totalH, fanCanvasSize]);
 
-  // Default: zoom in on the current user's node (or root) and their direct connections
+  // "Me" means "make my lineage node the focal person" in Family view.
+  // In Pedigree/Fan it returns the camera to the logged-in member/root.
   const centerOnSelf = useCallback(() => {
-    if (!containerRef.current || positioned.length === 0) return;
-    // 1. Node linked to the current logged-in user (most reliable)
-    // 2. Fallback: layout root node — same logic as computeLayout (id=20 first, then min-gen reduce)
-    // 3. Fallback: first positioned node
-    const selfNode =
-      positioned.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId) ??
-      positioned.find((n) => n.id === 20) ??
-      positioned.reduce((a, b) => ((a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b)) ??
-      positioned[0];
-    if (!selfNode) return;
-    const { clientWidth, clientHeight } = containerRef.current;
-    // 1.2× shows self + direct parents above + children below in the viewport
-    const scale = 1.2;
-    const x = clientWidth  / 2 - (selfNode.x + NODE_W / 2) * scale;
-    const y = clientHeight / 2 - (selfNode.y + NODE_H / 2) * scale;
-    setTransform({ x, y, scale });
-    setSelectedNodeId(selfNode.id);
-  }, [positioned, user?.dbId]);
+    if (treeView === "family") {
+      if (!preferredRootId) return;
+      setFocusedPersonId(preferredRootId);
+      setSelectedNodeId(preferredRootId);
+      return;
+    }
 
-  // "Show My Family" — bird's-eye view of 2–3 generations:
-  // grandparents → parents → self + siblings → children → grandchildren
-  // showMyFamilyView: reset depth to household (Level 1) and fit to screen
-  const showMyFamilyView = useCallback(() => {
-    setGenerationDepth(1);
-    // fitToScreen is called by the generationDepth useEffect below
+    const selfNode =
+      (treeView === "pedigree"
+        ? pedigreeData.placed.find((n) => n.id === preferredRootId)
+        : null);
+    if (selfNode && containerRef.current) {
+      const { clientWidth, clientHeight } = containerRef.current;
+      const scale = 1.1;
+      const x = clientWidth / 2 - (selfNode.px + PDIG_W / 2) * scale;
+      const y = clientHeight / 2 - (selfNode.py + PDIG_H / 2) * scale;
+      setTransform({ x, y, scale });
+      setSelectedNodeId(selfNode.id);
+      return;
+    }
+
+    setSelectedNodeId(preferredRootId);
+    setTimeout(() => fitToScreen(), 0);
+  }, [treeView, preferredRootId, pedigreeData.placed, fitToScreen]);
+
+  const focusOnPerson = useCallback((personId: number) => {
+    setFocusedPersonId(personId);
+    setSelectedNodeId(personId);
   }, []);
 
+  // Every new Family session starts with the logged-in member as the focal
+  // person. We intentionally do not restore an old person's focus from session
+  // storage; "my family tree" should open on me.
   useEffect(() => {
-    if (positioned.length > 0) {
-      if (hasRestoredSession.current) {
-        hasRestoredSession.current = false;
-      } else {
-        // Default: center on the current user's node and open their detail panel.
-        // centerOnSelf both pans the viewport to self and selects that node.
-        centerOnSelf();
-      }
+    if (treeView !== "family" || !preferredRootId) return;
+    if (focusedPersonId == null || !familyViewNodes.some((node) => node.id === focusedPersonId)) {
+      setFocusedPersonId(preferredRootId);
+      setSelectedNodeId(preferredRootId);
     }
-  }, [positioned.length > 0]);
+  }, [treeView, preferredRootId, focusedPersonId, familyViewNodes]);
 
-  // Auto-fit viewport whenever the generation depth changes so the view snaps to the
-  // newly visible set of nodes without the user having to press "Fit" manually.
+  // Recenter the viewport after the focal person's household layout changes.
   useEffect(() => {
-    if (positioned.length === 0) return;
-    // Small delay ensures the layout has settled after the depth filter re-renders
+    if (treeView !== "family" || !containerRef.current || familyLayout.focalId == null) return;
+    const focalNode = positioned.find((node) => node.id === familyLayout.focalId);
+    if (!focalNode) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const scale = 1.05;
+    const x = clientWidth / 2 - (focalNode.x + NODE_W / 2) * scale;
+    const y = clientHeight * 0.42 - (focalNode.y + NODE_H / 2) * scale;
+    setTransform({ x, y, scale });
+  }, [treeView, familyLayout.focalId, positioned]);
+
+  // Pedigree/Fan retain the existing generational-depth behavior.
+  useEffect(() => {
+    if (treeView === "family" || treeNodes.length === 0) return;
     const id = setTimeout(() => fitToScreen(), 60);
     return () => clearTimeout(id);
-  }, [generationDepth]);
+  }, [generationDepth, treeView, treeNodes.length, fitToScreen]);
 
   useEffect(() => {
     const id = setTimeout(() => {
