@@ -8,6 +8,7 @@ import { resolveSovereignIdentityGateway } from "../../engines/identity-gateway"
 import { getGovernorByRole, getSessionGovernor, normalizeRoleKey, buildGovernorSystemPromptPrefix } from "../../engines/role-governor";
 import { accumulateIntelligence, getCompanionIntelContext } from "../../engines/intelligence-accumulator";
 import { getOpenInvestigationsForKaya } from "../../engines/nfr-review-engine";
+import { hasRole } from "../../engines/authority";
 import { logger } from "../../lib/logger";
 import { FUNCTION_REGISTRY_PROMPT, NAVIGATE_INSTRUCTION } from "../../lib/function-registry";
 
@@ -149,6 +150,7 @@ BEST EVIDENCE STACK FOR DETROIT CONTINUITY (in priority order):
 `.trim();
 
 async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string; name: string; roles: string[] }): Promise<string> {
+  const canSeeInstitutionalContext = hasRole(tokenUser.roles, "officer");
   let name = tokenUser.name;
   let tribalName = "";
   let title = "";
@@ -252,8 +254,10 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
   }
 
   // ── Tribal Land Registry ──────────────────────────────────────────────────
+  // Office-wide land, lease, and encumbrance records are institutional context.
+  // They must never be injected into a general member Companion session.
   let tribalLandRegistryContext = "";
-  try {
+  if (canSeeInstitutionalContext) try {
     const [parcelsResult, leasesResult, encResult] = await Promise.all([
       db.execute(sql`SELECT parcel_id, tract_number, legal_description, acreage, classification,
         status, county, state, internal_tribal_status, jurisdictional_status,
@@ -327,7 +331,9 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
     // Non-fatal — land registry is supplemental context
   }
 
-  const openInvestigationsContext = await getOpenInvestigationsForKaya(10).catch(() => "");
+  const openInvestigationsContext = canSeeInstitutionalContext
+    ? await getOpenInvestigationsForKaya(10).catch(() => "")
+    : "";
 
   const now30 = new Date(Date.now() + 30 * 86400000);
   const [recentDiary, savedKnowledge, intelContext, upcomingEvents, memberImportantDates, memberLineage, memberVault, activeProvisions] = await Promise.all([
@@ -345,12 +351,14 @@ async function buildKayaSystemPrompt(userId: number, tokenUser: { email: string;
       .orderBy(desc(kiConversationsTable.createdAt))
       .limit(KNOWLEDGE_LIMIT + 5),
     getCompanionIntelContext(userId).catch(() => ""),
-    // Upcoming calendar events (next 30 days)
-    db.select({ title: calendarEventsTable.title, date: calendarEventsTable.date, type: calendarEventsTable.type, description: calendarEventsTable.description })
-      .from(calendarEventsTable)
-      .where(and(gte(calendarEventsTable.date, new Date()), lte(calendarEventsTable.date, now30)))
-      .orderBy(calendarEventsTable.date)
-      .limit(8),
+    // Office-wide calendar events are only visible to officer-level Companion sessions.
+    canSeeInstitutionalContext
+      ? db.select({ title: calendarEventsTable.title, date: calendarEventsTable.date, type: calendarEventsTable.type, description: calendarEventsTable.description })
+          .from(calendarEventsTable)
+          .where(and(gte(calendarEventsTable.date, new Date()), lte(calendarEventsTable.date, now30)))
+          .orderBy(calendarEventsTable.date)
+          .limit(8)
+      : Promise.resolve([] as Array<{ title: string; date: Date; type: string | null; description: string | null }>),
     // Member's personal important dates
     db.select({ personName: importantDatesTable.personName, relation: importantDatesTable.relation, dateType: importantDatesTable.dateType, month: importantDatesTable.month, day: importantDatesTable.day, year: importantDatesTable.year })
       .from(importantDatesTable)
@@ -770,7 +778,7 @@ router.post("/chat", requireAuth, async (req, res, next) => {
     let inlineSearchResults: Array<{ entityType: string; entityId: string; content: string }> = [];
     let searchResultsContext = "";
 
-    if (searchIntentMatch) {
+    if (searchIntentMatch && hasRole(req.user!.roles ?? [], "officer")) {
       const searchQuery = searchIntentMatch[1].trim().replace(/[?.!]+$/, "").trim();
       if (searchQuery.length >= 2) {
         try {
