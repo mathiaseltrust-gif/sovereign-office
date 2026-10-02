@@ -1097,6 +1097,53 @@ interface PedigreeNode extends LineageNode {
   px: number; py: number; gen: number; ahnNum: number;
 }
 
+function normalizedGenderRole(value: unknown): "male" | "female" | null {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v === "m" || v === "male" || v === "man" || v.startsWith("male")) return "male";
+  if (v === "f" || v === "female" || v === "woman" || v.startsWith("female")) return "female";
+  return null;
+}
+
+function resolveParentSlots(node: LineageNode, byId: Map<number, LineageNode>): { fatherId: number | null; motherId: number | null; extras: number[] } {
+  const pids = Array.isArray(node.parentIds)
+    ? (node.parentIds as number[]).map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+
+  if (pids.length === 0) return { fatherId: null, motherId: null, extras: [] };
+
+  let fatherId: number | null = null;
+  let motherId: number | null = null;
+  const unmatched: number[] = [];
+
+  for (const id of pids) {
+    const role = normalizedGenderRole(byId.get(id)?.gender);
+    if (role === "male" && fatherId == null) {
+      fatherId = id;
+    } else if (role === "female" && motherId == null) {
+      motherId = id;
+    } else {
+      unmatched.push(id);
+    }
+  }
+
+  // Fall back to historical array order only for unresolved slots.
+  for (const id of unmatched) {
+    if (fatherId == null) {
+      fatherId = id;
+      continue;
+    }
+    if (motherId == null) {
+      motherId = id;
+      continue;
+    }
+  }
+
+  const used = new Set([fatherId, motherId].filter((id): id is number => id != null));
+  const extras = pids.filter((id) => !used.has(id));
+  return { fatherId, motherId, extras };
+}
+
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
@@ -1123,10 +1170,10 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
     const n = byId.get(id);
     if (!n) return null;
     seen.add(id);
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    const { fatherId, motherId } = resolveParentSlots(n, byId);
     const kids: HierDatum[] = [];
-    if (pids[0]) { const c = buildHier(pids[0], gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
-    if (pids[1]) { const c = buildHier(pids[1], gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
+    if (fatherId) { const c = buildHier(fatherId, gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
+    if (motherId) { const c = buildHier(motherId, gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
     return { node: n, ahnNum, children: kids.length ? kids : undefined };
   }
 
@@ -1237,9 +1284,9 @@ function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null):
       entries.push({ id, node: n, gen, ahnNum, a1, a2, isPat });
     }
 
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
-    if (pids[0] && !seen.has(pids[0])) q.push({ id: pids[0], gen: gen + 1, ahnNum: ahnNum * 2 });
-    if (pids[1] && !seen.has(pids[1])) q.push({ id: pids[1], gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
+    const { fatherId, motherId } = resolveParentSlots(n, byId);
+    if (fatherId && !seen.has(fatherId)) q.push({ id: fatherId, gen: gen + 1, ahnNum: ahnNum * 2 });
+    if (motherId && !seen.has(motherId)) q.push({ id: motherId, gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
   }
 
   return { entries, root, maxGen };
@@ -2437,6 +2484,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             setShowAddModal(false);
             setEditingNode(null);
             queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+            queryClient.invalidateQueries({ queryKey: ["lineage-nodes-self"] });
+            queryClient.invalidateQueries({ queryKey: ["family-units"] });
             onDataChange();
             toast({ title: editingNode ? "Person updated" : "Person added" });
           }}
