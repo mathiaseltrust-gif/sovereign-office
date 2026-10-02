@@ -408,6 +408,260 @@ function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], pre
   return { positioned, totalW, totalH };
 }
 
+interface FocusedFamilyLayout {
+  positioned: PositionedNode[];
+  edges: Edge[];
+  totalW: number;
+  totalH: number;
+  focalId: number | null;
+  householdCount: number;
+}
+
+function numericIds(value: unknown): number[] {
+  return Array.isArray(value)
+    ? value.map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+}
+
+/**
+ * Person-centered Family view.
+ *
+ * The focal person is the visual root. Parents sit above the focal person.
+ * Each partner/FAM record becomes its own household branch, and only the
+ * children assigned to that household are placed beneath that branch.
+ * Clicking another person changes the focal person and recomputes the view.
+ */
+function computeFocusedFamilyLayout(
+  nodes: LineageNode[],
+  familyUnits: FamilyUnit[] = [],
+  requestedFocalId?: number | null,
+): FocusedFamilyLayout {
+  if (nodes.length === 0) {
+    return { positioned: [], edges: [], totalW: 0, totalH: 0, focalId: null, householdCount: 0 };
+  }
+
+  const byId = new Map(nodes.map((node) => [node.id, node]));
+  const focal =
+    (requestedFocalId ? byId.get(requestedFocalId) : null)
+    ?? nodes.find((node) => node.linkedProfileUserId != null)
+    ?? nodes[0];
+
+  if (!focal) {
+    return { positioned: [], edges: [], totalW: 0, totalH: 0, focalId: null, householdCount: 0 };
+  }
+
+  const adultsFor = (unit: FamilyUnit): number[] =>
+    [unit.husbandId, unit.wifeId, ...numericIds(unit.spouseIds)]
+      .filter((id): id is number => id != null && byId.has(id))
+      .filter((id, index, arr) => arr.indexOf(id) === index);
+
+  const childrenFor = (unit: FamilyUnit): number[] =>
+    numericIds(unit.childIds).filter((id) => byId.has(id));
+
+  const adultUnits = familyUnits.filter((unit) => adultsFor(unit).includes(focal.id));
+  const birthUnits = familyUnits.filter((unit) => childrenFor(unit).includes(focal.id));
+
+  // Legacy relationship arrays remain a fallback for records that pre-date FAM
+  // persistence. They are not allowed to collapse separate FAM households.
+  const flatSpouseIds = numericIds(focal.spouseIds).filter((id) => byId.has(id));
+  const flatChildIds = new Set<number>([
+    ...numericIds(focal.childrenIds).filter((id) => byId.has(id)),
+    ...nodes
+      .filter((node) => numericIds(node.parentIds).includes(focal.id))
+      .map((node) => node.id),
+  ]);
+
+  const representedSpouses = new Set(
+    adultUnits.flatMap((unit) => adultsFor(unit).filter((id) => id !== focal.id)),
+  );
+  const representedChildren = new Set(adultUnits.flatMap(childrenFor));
+
+  type FocusHousehold = {
+    id: number;
+    adults: number[];
+    children: number[];
+    sourceType?: string | null;
+  };
+
+  const households: FocusHousehold[] = adultUnits.map((unit) => ({
+    id: unit.id,
+    adults: adultsFor(unit).filter((id) => id !== focal.id),
+    children: childrenFor(unit),
+    sourceType: unit.sourceType,
+  }));
+
+  // Preserve visible legacy spouse links that do not yet have a family unit.
+  for (const spouseId of flatSpouseIds) {
+    if (!representedSpouses.has(spouseId)) {
+      households.push({
+        id: -100000 - spouseId,
+        adults: [spouseId],
+        children: [],
+        sourceType: "legacy relationship",
+      });
+    }
+  }
+
+  // Preserve visible child links not yet assigned to a FAM record. Keep them in
+  // a separate unassigned household branch rather than guessing a co-parent.
+  const unassignedChildren = [...flatChildIds].filter((id) => !representedChildren.has(id));
+  if (unassignedChildren.length > 0) {
+    households.push({
+      id: -200000 - focal.id,
+      adults: [],
+      children: unassignedChildren,
+      sourceType: "unassigned child links",
+    });
+  }
+
+  const birthParentIds = birthUnits
+    .flatMap(adultsFor)
+    .filter((id, index, arr) => id !== focal.id && arr.indexOf(id) === index);
+  const fallbackParentIds = numericIds(focal.parentIds).filter((id) => byId.has(id));
+  const parentIds = birthParentIds.length > 0 ? birthParentIds : fallbackParentIds;
+
+  const FOCUS_PAD = 100;
+  const ROW_GAP = 105;
+  const SLOT = NODE_W + 70;
+  const parentBlockW = Math.max(NODE_W, parentIds.length * SLOT - 70);
+
+  const branchWidths = households.map((household) => {
+    const visibleAdults = Math.max(1, household.adults.length);
+    const visibleChildren = Math.max(1, household.children.length);
+    return Math.max(visibleAdults, visibleChildren) * SLOT - 70;
+  });
+  const householdsW = branchWidths.length > 0
+    ? branchWidths.reduce((sum, width) => sum + width, 0) + Math.max(0, branchWidths.length - 1) * 90
+    : NODE_W;
+
+  const totalW = Math.max(900, FOCUS_PAD * 2 + parentBlockW, FOCUS_PAD * 2 + householdsW);
+  const parentY = FOCUS_PAD;
+  const focalY = parentY + NODE_H + ROW_GAP;
+  const partnerY = focalY;
+  const childY = focalY + NODE_H + ROW_GAP;
+  const totalH = childY + NODE_H + FOCUS_PAD;
+
+  const centerX = totalW / 2 - NODE_W / 2;
+  const positioned: PositionedNode[] = [{ ...focal, x: centerX, y: focalY }];
+  const positionById = new Map<number, PositionedNode>([[focal.id, positioned[0]]]);
+
+  const placeUnique = (id: number, x: number, y: number) => {
+    if (positionById.has(id)) return;
+    const node = byId.get(id);
+    if (!node) return;
+    const placed = { ...node, x, y };
+    positioned.push(placed);
+    positionById.set(id, placed);
+  };
+
+  if (parentIds.length > 0) {
+    const startX = totalW / 2 - parentBlockW / 2;
+    parentIds.forEach((id, index) => placeUnique(id, startX + index * SLOT, parentY));
+  }
+
+  // Household branches are distributed around the focal person. The focal
+  // person is rendered only once; each distinct partner/FAM record gets its
+  // own partner lane and child group.
+  const branchCenters: Array<{ household: FocusHousehold; center: number }> = [];
+  if (households.length > 0) {
+    const startX = totalW / 2 - householdsW / 2;
+    let cursor = startX;
+    households.forEach((household, index) => {
+      const width = branchWidths[index];
+      branchCenters.push({ household, center: cursor + width / 2 });
+      cursor += width + 90;
+    });
+  }
+
+  branchCenters.forEach(({ household, center }) => {
+    if (household.adults.length > 0) {
+      const adultsW = household.adults.length * SLOT - 70;
+      const start = center - adultsW / 2;
+      household.adults.forEach((id, index) => {
+        let x = start + index * SLOT;
+        // Do not place a partner card directly over the focal card.
+        if (Math.abs(x - centerX) < NODE_W * 0.8) {
+          x += center >= totalW / 2 ? SLOT : -SLOT;
+        }
+        placeUnique(id, Math.max(FOCUS_PAD / 2, Math.min(totalW - NODE_W - FOCUS_PAD / 2, x)), partnerY);
+      });
+    }
+
+    if (household.children.length > 0) {
+      const childrenW = household.children.length * SLOT - 70;
+      const start = center - childrenW / 2;
+      household.children.forEach((id, index) => {
+        placeUnique(id, Math.max(FOCUS_PAD / 2, Math.min(totalW - NODE_W - FOCUS_PAD / 2, start + index * SLOT)), childY);
+      });
+    }
+  });
+
+  const edges: Edge[] = [];
+  const edgeKeys = new Set<string>();
+  const addEdge = (key: string, x1: number, y1: number, x2: number, y2: number, isAncestorLine: boolean) => {
+    if (edgeKeys.has(key)) return;
+    edgeKeys.add(key);
+    edges.push({ key, x1, y1, x2, y2, isAncestorLine });
+  };
+
+  // Parents -> focal person.
+  for (const parentId of parentIds) {
+    const parent = positionById.get(parentId);
+    if (!parent) continue;
+    addEdge(
+      `parent-${parentId}-${focal.id}`,
+      parent.x + NODE_W / 2,
+      parent.y + NODE_H,
+      centerX + NODE_W / 2,
+      focalY,
+      true,
+    );
+  }
+
+  // Focal <-> partner and each household's adults -> children.
+  branchCenters.forEach(({ household }) => {
+    const adultIds = [focal.id, ...household.adults];
+    for (const adultId of household.adults) {
+      const partner = positionById.get(adultId);
+      if (!partner) continue;
+      addEdge(
+        `partner-${focal.id}-${adultId}-${household.id}`,
+        centerX + NODE_W / 2,
+        focalY + NODE_H / 2,
+        partner.x + NODE_W / 2,
+        partner.y + NODE_H / 2,
+        false,
+      );
+    }
+
+    for (const childId of household.children) {
+      const child = positionById.get(childId);
+      if (!child) continue;
+      for (const adultId of adultIds) {
+        const adult = positionById.get(adultId);
+        if (!adult) continue;
+        addEdge(
+          `household-${household.id}-${adultId}-${childId}`,
+          adult.x + NODE_W / 2,
+          adult.y + NODE_H,
+          child.x + NODE_W / 2,
+          child.y,
+          false,
+        );
+      }
+    }
+  });
+
+  return {
+    positioned,
+    edges,
+    totalW,
+    totalH,
+    focalId: focal.id,
+    householdCount: households.length,
+  };
+}
+
 function buildEdges(positioned: PositionedNode[], familyUnits: FamilyUnit[] = []): Edge[] {
   const nodeMap = new Map(positioned.map((n) => [n.id, n]));
   const edges: Edge[] = [];
