@@ -99,7 +99,6 @@ const DOC_TYPE_TARGETS: Record<string, string[]> = {
   complaint:                 ["court_document", "nfr_investigation"],
   icwa_notice:               ["court_document", "nfr_investigation"],
   identity_document:         ["court_document"],
-  trust_declaration:         ["court_document"],
   nfr:                       ["court_document"],
   jurisdictional_statement:  ["court_document"],
   other:                     ["court_document"],
