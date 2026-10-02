@@ -118,18 +118,15 @@ jobs:
         run: pnpm run typecheck
 
       - name: Build production services
-        env:
-          PORT: 4173
         run: |
-          pnpm -r \
-            --filter @workspace/api-server \
-            --filter @workspace/sovereign-dashboard \
-            --filter @workspace/trust-dashboard \
-            --filter @workspace/community-dashboard \
-            --filter @workspace/urban-indian-atlas \
-            --filter @workspace/trace \
-            --filter @workspace/authority-directory \
-            --if-present run build
+          set -euo pipefail
+          pnpm --filter @workspace/api-server run build
+          BASE_PATH=/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/sovereign-dashboard run build
+          BASE_PATH=/trust/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/trust-dashboard run build
+          BASE_PATH=/community/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/community-dashboard run build
+          BASE_PATH=/atlas/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/urban-indian-atlas run build
+          BASE_PATH=/trace/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/trace run build
+          PORT=4173 BASE_PATH=/authority/ VITE_API_URL="$VITE_API_URL" pnpm --filter @workspace/authority-directory run build
 
   # ════════════════════════════════════════════════════════════════════════════
   # PRODUCTION  (main branch only)
