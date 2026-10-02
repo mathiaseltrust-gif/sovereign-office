@@ -36,7 +36,7 @@ import { nextDocRef } from "../../lib/doc-ref";
 
 const router = Router();
 
-router.get("/", requireAuth, async (req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (req, res, next) => {
   if (req.user?.roles?.includes("visitor_media")) {
     res.status(403).json({ error: "Access denied. Trust instruments are restricted to registered tribal members and officers." });
     return;
@@ -65,7 +65,7 @@ router.get("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/stats", requireAuth, async (_req, res, next) => {
+router.get("/stats", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const [totals] = await db
       .select({
@@ -93,7 +93,7 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.post("/render-template", requireAuth, async (req, res, next) => {
+router.post("/render-template", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const { templateKey, variables, recorderMetadata } = req.body as {
       templateKey: string;
@@ -119,7 +119,7 @@ router.post("/render-template", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/templates", async (_req, res, next) => {
+router.get("/templates", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     res.json({ templates: listBuiltInTemplates() });
   } catch (err) {
@@ -127,7 +127,7 @@ router.get("/templates", async (_req, res, next) => {
   }
 });
 
-router.get("/templates/:key", async (req, res, next) => {
+router.get("/templates/:key", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const tpl = getBuiltInTemplate(req.params.key);
     if (!tpl) {
@@ -140,7 +140,7 @@ router.get("/templates/:key", async (req, res, next) => {
   }
 });
 
-router.get("/:id", async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db
@@ -179,7 +179,7 @@ router.get("/:id", async (req, res, next) => {
   }
 });
 
-router.get("/:id/pdf", async (req, res, next) => {
+router.get("/:id/pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db
@@ -249,7 +249,7 @@ router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/:id/filings", async (req, res, next) => {
+router.get("/:id/filings", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const filings = await db
