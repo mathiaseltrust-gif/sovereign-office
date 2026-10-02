@@ -36,6 +36,10 @@ function isElevated(req: Request): boolean {
 }
 
 router.get("/:orgId/profile", requireAuth, async (req: Request, res: Response, next) => {
+  if (!isElevated(req)) {
+    res.status(403).json({ error: "Trustee or officer access required." });
+    return;
+  }
   try {
     const { orgId } = req.params;
     if (!VALID_ORG_IDS.has(orgId as string)) {
@@ -89,6 +93,10 @@ router.patch("/:orgId/profile", requireAuth, async (req: Request, res: Response,
 });
 
 router.get("/:orgId/documents", requireAuth, async (req: Request, res: Response, next) => {
+  if (!isElevated(req)) {
+    res.status(403).json({ error: "Trustee or officer access required." });
+    return;
+  }
   try {
     const { orgId } = req.params;
     if (!VALID_ORG_IDS.has(orgId as string)) {
@@ -168,6 +176,10 @@ router.delete("/:orgId/documents/:docId", requireAuth, async (req: Request, res:
 });
 
 router.get("/:orgId/documents/:docId/download", requireAuth, async (req: Request, res: Response, next) => {
+  if (!isElevated(req)) {
+    res.status(403).json({ error: "Trustee or officer access required." });
+    return;
+  }
   try {
     const { orgId, docId } = req.params;
     const id = parseInt(String(docId), 10);
