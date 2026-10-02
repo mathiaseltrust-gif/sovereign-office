@@ -1845,31 +1845,34 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           )}
         </div>
 
-        {/* Filters toggle */}
-        <Button
-          size="sm"
-          variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
-          onClick={() => setShowFilters((v) => !v)}
-          className="gap-1.5 h-8"
-        >
-          <SlidersHorizontal className="h-3.5 w-3.5" />
-          Filters
-          {activeFilterCount > 0 && (
-            <span className="ml-0.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">
-              {activeFilterCount}
-            </span>
-          )}
-        </Button>
-
-        {/* Divider */}
-        <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
+        {/* Filters apply to the record-wide Pedigree/Fan views. Family is a
+            focused relationship view and always preserves the focal person. */}
+        {treeView !== "family" && (
+          <>
+            <Button
+              size="sm"
+              variant={showFilters || activeFilterCount > 0 ? "default" : "outline"}
+              onClick={() => setShowFilters((v) => !v)}
+              className="gap-1.5 h-8"
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              Filters
+              {activeFilterCount > 0 && (
+                <span className="ml-0.5 rounded-full bg-white/25 px-1.5 text-[10px] font-bold">
+                  {activeFilterCount}
+                </span>
+              )}
+            </Button>
+            <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
+          </>
+        )}
 
         {/* View mode switcher */}
         <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
           {(["family", "pedigree", "fan"] as TreeViewMode[]).map((mode) => {
             const labels: Record<TreeViewMode, string> = { family: "Family", pedigree: "Pedigree", fan: "Fan" };
             const titles: Record<TreeViewMode, string> = {
-              family: "Family tree — vertical layout with all connections",
+              family: "Person-centered family tree — click a person to make them the focus",
               pedigree: "Pedigree chart — horizontal, direct ancestors only",
               fan: "Fan chart — radial ancestor wheel",
             };
@@ -1899,32 +1902,39 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
 
-        {/* Generational depth stepper — + shows more generations (zoom out), – shows fewer (zoom in) */}
-        <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
-          <button
-            className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            title="Show more generations"
-            disabled={generationDepth >= DEPTH_MAX}
-            onClick={() => setGenerationDepth((d) => Math.min(DEPTH_MAX, d + 1))}
-          >
-            <Plus className="h-3.5 w-3.5" />
-          </button>
-          <span
-            className="px-2 h-8 flex items-center text-xs font-medium min-w-[110px] justify-center cursor-pointer select-none"
-            title="Click to show full tree"
-            onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? 1 : DEPTH_MAX)}
-          >
-            {depthLabel}
-          </span>
-          <button
-            className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-            title="Show fewer generations"
-            disabled={generationDepth <= 1}
-            onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
-          >
-            <Minus className="h-3.5 w-3.5" />
-          </button>
-        </div>
+        {treeView === "family" ? (
+          <div className="h-8 max-w-[280px] flex items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2.5 text-xs">
+            <span className="text-muted-foreground shrink-0">Focused:</span>
+            <span className="font-semibold truncate">{focusedPerson?.fullName ?? "My family"}</span>
+            <span className="text-muted-foreground shrink-0">· {familyLayout.householdCount} household{familyLayout.householdCount === 1 ? "" : "s"}</span>
+          </div>
+        ) : (
+          <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
+            <button
+              className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              title="Show more generations"
+              disabled={generationDepth >= DEPTH_MAX}
+              onClick={() => setGenerationDepth((d) => Math.min(DEPTH_MAX, d + 1))}
+            >
+              <Plus className="h-3.5 w-3.5" />
+            </button>
+            <span
+              className="px-2 h-8 flex items-center text-xs font-medium min-w-[110px] justify-center cursor-pointer select-none"
+              title="Click to show full tree"
+              onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? 1 : DEPTH_MAX)}
+            >
+              {depthLabel}
+            </span>
+            <button
+              className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
+              title="Show fewer generations"
+              disabled={generationDepth <= 1}
+              onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
+            >
+              <Minus className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        )}
 
         {/* Divider */}
         <div className="h-5 w-px bg-border mx-0.5 hidden sm:block" />
@@ -1958,16 +1968,18 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* Record count */}
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
-          {activeFilterCount > 0
-            ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
-            : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
+          {treeView === "family"
+            ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
+            : activeFilterCount > 0
+              ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
+              : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
           }
           <span className="hidden sm:inline opacity-50"> · scroll to zoom</span>
         </span>
       </div>
 
       {/* ── Filter panel ─────────────────────────────────────────────────────── */}
-      {showFilters && (
+      {showFilters && treeView !== "family" && (
         <div className="mb-2 rounded-lg border bg-muted/20 px-3 py-2.5 space-y-2">
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {[
