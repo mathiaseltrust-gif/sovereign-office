@@ -421,7 +421,30 @@ jobs:
               echo "==> No previous tag found — first deploy, rollback will not be available"
             fi
 
-            echo "==> Pulling new images (all seven services)"
+            # ── Reclaim VM Docker space before pulling the candidate release ───
+            # The currently running release is retained because Docker will not
+            # prune images referenced by running containers. This removes stale
+            # historical images, stopped containers, and unused build cache that
+            # can otherwise exhaust /var/lib/docker during image extraction.
+            echo "==> Docker disk usage before cleanup"
+            docker system df || true
+            df -h /var/lib/docker 2>/dev/null || df -h /
+
+            docker container prune -f || true
+            docker image prune -af || true
+            docker builder prune -af || true
+
+            echo "==> Docker disk usage after cleanup"
+            docker system df || true
+            df -h /var/lib/docker 2>/dev/null || df -h /
+
+            FREE_KB=$(df -Pk /var/lib/docker 2>/dev/null | awk 'NR==2 {print $4}' || true)
+            if [ -n "$FREE_KB" ] && [ "$FREE_KB" -lt 2097152 ]; then
+              echo "ERROR: Less than 2 GiB is free on the Docker filesystem after cleanup; refusing to pull a new release." >&2
+              exit 1
+            fi
+
+            echo "==> Pulling new images (all eight services)"
             docker compose -f docker-compose.prod.yml pull api sovereign trust community atlas authority trace gateway
 
             # ── Run database schema migrations BEFORE starting the api ────────────
