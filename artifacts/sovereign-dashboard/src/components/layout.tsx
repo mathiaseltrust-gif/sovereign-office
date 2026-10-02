@@ -18,8 +18,8 @@ import { useCommandPalette } from "@/hooks/useCommandPalette";
 import { recordPageVisit } from "@/hooks/useRecentPages";
 
 const POSITION_TITLES: Partial<Record<Role, string>> = {
-  trustee:          "Chief Justice & Trustee",
-  sovereign_admin:  "Tribal Administrator",
+  trustee:          "Trustee",
+  sovereign_admin:  "Chief Justice & Trustee",
   officer:          "Duty Officer",
   elder:            "Tribal Elder",
   medical_provider: "Medical Provider",
@@ -50,7 +50,7 @@ function getTrusteeNav(): NavSectionDef[] {
       label: "Chief's Office",
       defaultOpen: true,
       items: [
-        { href: "/profile",             label: "Office & Profile",    highlight: true, icon: Archive },
+        { href: "/hub",                 label: "Office Home",         highlight: true, icon: LayoutDashboard },
         { href: "/sovereign-pipeline",  label: "AI Intake & Pipeline", highlight: true, icon: Zap },
         { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
         { href: "/documents",           label: "Court Documents",     icon: Gavel },
@@ -161,7 +161,6 @@ function getMemberNav(): NavSectionDef[] {
       items: [
         { href: "/dashboard/member",  label: "Dashboard",            icon: LayoutDashboard },
         { href: "/membership",        label: "Membership Status",    icon: BadgeCheck },
-        { href: "/filings",           label: "Filings",              icon: FileText },
         { href: "/welfare",           label: "Welfare Instruments",  icon: Heart },
         { href: "/family-governance", label: "Family Governance",    icon: Users },
         { href: "/family-tree",          label: "Family Tree & Lineage", icon: TreePine },
@@ -377,7 +376,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             Mathias El Tribe
           </p>
           <h1 className="font-serif text-xs font-bold text-primary leading-tight">
-            Supreme Court
+            Sovereign Office
           </h1>
           {POSITION_TITLES[activeRole] && (
             <p className="mt-1 text-[9px] text-muted-foreground leading-tight">
