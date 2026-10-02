@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
-import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, ne, or, and, inArray, notInArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../engines/authority";
 import { logger } from "../../lib/logger";
