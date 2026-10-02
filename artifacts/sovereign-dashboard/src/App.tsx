@@ -105,8 +105,10 @@ const queryClient = new QueryClient({
 });
 
 function RootRedirect() {
-  const { user, activeRole } = useAuth();
+  const { user, activeRole, firstLogin, lineagePending } = useAuth();
   if (!user) return <Redirect to="/login" />;
+  if (firstLogin) return <Redirect to="/onboarding/lineage" />;
+  if (lineagePending) return <Redirect to="/onboarding/pending" />;
   return <Redirect to={roleLandingPath(activeRole)} />;
 }
 
@@ -124,12 +126,16 @@ function AuthGatedChatWidget() {
 const PENDING_ALLOWED_PATHS = new Set(["/onboarding/lineage", "/onboarding/pending", "/onboarding/companion", "/notifications", "/dashboard/visitor", "/profile", "/login", "/hub"]);
 
 function ProtectedRoute({ component: Component }: { component: React.ComponentType }) {
-  const { user, lineagePending } = useAuth();
+  const { user, firstLogin, lineagePending } = useAuth();
   const [location] = useLocation();
 
   if (!user) {
     const returnTo = encodeURIComponent(location);
     return <Redirect to={`/login?next=${returnTo}`} />;
+  }
+
+  if (firstLogin && location !== "/onboarding/lineage") {
+    return <Redirect to="/onboarding/lineage" />;
   }
 
   if (lineagePending && !PENDING_ALLOWED_PATHS.has(location)) {
@@ -140,12 +146,16 @@ function ProtectedRoute({ component: Component }: { component: React.ComponentTy
 }
 
 function ProtectedParamRoute({ children }: { children: React.ReactNode }) {
-  const { user, lineagePending } = useAuth();
+  const { user, firstLogin, lineagePending } = useAuth();
   const [location] = useLocation();
 
   if (!user) {
     const returnTo = encodeURIComponent(location);
     return <Redirect to={`/login?next=${returnTo}`} />;
+  }
+
+  if (firstLogin && location !== "/onboarding/lineage") {
+    return <Redirect to="/onboarding/lineage" />;
   }
 
   if (lineagePending && !PENDING_ALLOWED_PATHS.has(location)) {
@@ -164,7 +174,7 @@ const ONBOARDING_EXEMPT_PATHS = new Set([
 ]);
 
 function CompanionOnboardingGuard({ children }: { children: React.ReactNode }) {
-  const { user, lineagePending } = useAuth();
+  const { user, firstLogin, lineagePending } = useAuth();
   const [location] = useLocation();
 
   const { data: onboardingStatus } = useQuery({
@@ -183,12 +193,12 @@ function CompanionOnboardingGuard({ children }: { children: React.ReactNode }) {
         return { completed: true };
       }
     },
-    enabled: !!user && !lineagePending,
+    enabled: !!user && !firstLogin && !lineagePending,
     staleTime: 15 * 60_000,
     retry: false,
   });
 
-  if (!user || lineagePending || ONBOARDING_EXEMPT_PATHS.has(location)) {
+  if (!user || firstLogin || lineagePending || ONBOARDING_EXEMPT_PATHS.has(location)) {
     return <>{children}</>;
   }
   if (onboardingStatus && !onboardingStatus.completed) {
