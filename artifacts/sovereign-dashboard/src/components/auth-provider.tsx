@@ -19,7 +19,9 @@ interface AuthContextType {
   mode: AuthMode | null;
   sessionToken: string | null;
   tokenExpiry: number | null;
+  firstLogin: boolean;
   lineagePending: boolean;
+  setFirstLoginFlag: (pending: boolean) => void;
   setLineagePendingFlag: (pending: boolean) => void;
   switchRole: (role: Role) => void;
   loginWithToken: (token: string) => boolean;
@@ -53,13 +55,14 @@ export function getCurrentBearerToken(): string | null {
 
 function roleFromStrings(roles: string[]): Role {
   const priority: Record<string, number> = {
-    chief_justice: 110, admin: 100, sovereign_admin: 90,
-    trustee: 80, officer: 70,
-    elder: 50, medical_provider: 50,
-    member: 30, visitor_media: 10, guest: 5,
+    chief_justice: 110, chief_justice_trustee: 110,
+    sovereign_admin: 108, trustee: 105, admin: 100,
+    officer: 60, elder: 55, medical_provider: 50,
+    member: 40, visitor_media: 10, guest: 10,
   };
   const ROLE_MAP: Record<string, Role> = {
     chief_justice: "sovereign_admin",
+    chief_justice_trustee: "sovereign_admin",
     admin: "sovereign_admin",
     sovereign_admin: "sovereign_admin",
     trustee: "trustee",
@@ -86,12 +89,30 @@ function parseJwtExpiry(token: string): number | null {
   }
 }
 
+function parseSessionFlags(token: string): { firstLogin: boolean; lineagePending: boolean } {
+  try {
+    const parts = token.split(".");
+    if (parts.length !== 3) return { firstLogin: false, lineagePending: false };
+    const payload = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as {
+      firstLogin?: boolean;
+      lineagePending?: boolean;
+    };
+    return {
+      firstLogin: payload.firstLogin === true,
+      lineagePending: payload.lineagePending === true,
+    };
+  } catch {
+    return { firstLogin: false, lineagePending: false };
+  }
+}
+
 interface StoredSession {
   user: User;
   mode: AuthMode;
   activeRole: Role;
   sessionToken?: string;
   tokenExpiry?: number;
+  firstLogin?: boolean;
   lineagePending?: boolean;
 }
 
@@ -122,6 +143,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [activeRole, setActiveRole] = useState<Role>(saved?.activeRole ?? "member");
   const [sessionToken, setSessionToken] = useState<string | null>(saved?.sessionToken ?? null);
   const [tokenExpiry, setTokenExpiry] = useState<number | null>(saved?.tokenExpiry ?? null);
+  const [firstLogin, setFirstLogin] = useState<boolean>(saved?.firstLogin ?? false);
   const [lineagePending, setLineagePending] = useState<boolean>(saved?.lineagePending ?? false);
 
   const sessionTokenRef = useRef<string | null>(saved?.sessionToken ?? null);
@@ -140,23 +162,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     const expiry = parseJwtExpiry(newToken) ?? Math.floor(Date.now() / 1000) + 60 * 60 * 8;
     const role = roleFromStrings(newUser.roles);
 
-    let pendingFromToken = false;
-    try {
-      const parts = newToken.split(".");
-      if (parts.length === 3) {
-        const p = JSON.parse(atob(parts[1].replace(/-/g, "+").replace(/_/g, "/"))) as { lineagePending?: boolean };
-        pendingFromToken = p.lineagePending === true;
-      }
-    } catch { /* ignore */ }
+    const flags = parseSessionFlags(newToken);
 
     sessionTokenRef.current = newToken;
     setSessionToken(newToken);
     setTokenExpiry(expiry);
     setUser(newUser);
     setActiveRole(role);
-    setLineagePending(pendingFromToken);
+    setFirstLogin(flags.firstLogin);
+    setLineagePending(flags.lineagePending);
     const currentMode = modeRef.current ?? "password";
-    saveSession({ user: newUser, mode: currentMode, activeRole: role, sessionToken: newToken, tokenExpiry: expiry, lineagePending: pendingFromToken });
+    saveSession({
+      user: newUser,
+      mode: currentMode,
+      activeRole: role,
+      sessionToken: newToken,
+      tokenExpiry: expiry,
+      firstLogin: flags.firstLogin,
+      lineagePending: flags.lineagePending,
+    });
     const getter = () => newToken;
     _currentTokenGetter = getter;
     setAuthTokenGetter(getter);
@@ -296,8 +320,17 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             setActiveRole(role);
             setSessionToken(st);
             setTokenExpiry(expiry);
+            setFirstLogin(isFirstLogin);
             setLineagePending(pendingFlag);
-            saveSession({ user: u, mode: "microsoft", activeRole: role, sessionToken: st, tokenExpiry: expiry ?? undefined, lineagePending: pendingFlag });
+            saveSession({
+              user: u,
+              mode: "microsoft",
+              activeRole: role,
+              sessionToken: st,
+              tokenExpiry: expiry ?? undefined,
+              firstLogin: isFirstLogin,
+              lineagePending: pendingFlag,
+            });
             if (!isFirstLogin && !pendingFlag) {
               redirectNext = sessionStorage.getItem("oauth_next");
               sessionStorage.removeItem("oauth_next");
@@ -332,12 +365,25 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const loginWithSessionToken = useCallback((st: string, u: User, authMode: AuthMode = "password") => {
     const role = roleFromStrings(u.roles);
     const expiry = parseJwtExpiry(st) ?? undefined;
+    const flags = parseSessionFlags(st);
+    sessionTokenRef.current = st;
+    modeRef.current = authMode;
     setUser(u);
     setMode(authMode);
     setActiveRole(role);
     setSessionToken(st);
     setTokenExpiry(expiry ?? null);
-    saveSession({ user: u, mode: authMode, activeRole: role, sessionToken: st, tokenExpiry: expiry });
+    setFirstLogin(flags.firstLogin);
+    setLineagePending(flags.lineagePending);
+    saveSession({
+      user: u,
+      mode: authMode,
+      activeRole: role,
+      sessionToken: st,
+      tokenExpiry: expiry,
+      firstLogin: flags.firstLogin,
+      lineagePending: flags.lineagePending,
+    });
   }, []);
 
   const loginWithToken = useCallback((rawToken: string): boolean => {
@@ -369,7 +415,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     modeRef.current = null;
     refreshPromiseRef.current = null;
     clearSession();
-    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null); setTokenExpiry(null); setLineagePending(false);
+    setUser(null); setMode(null); setActiveRole("member"); setSessionToken(null); setTokenExpiry(null); setFirstLogin(false); setLineagePending(false);
     setAuthTokenGetter(null);
   }, []);
 
@@ -389,6 +435,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [mode, user]);
 
+  const setFirstLoginFlag = useCallback((pending: boolean) => {
+    setFirstLogin(pending);
+    const existing = loadSession();
+    if (existing) saveSession({ ...existing, firstLogin: pending });
+  }, []);
+
   const setLineagePendingFlag = useCallback((pending: boolean) => {
     setLineagePending(pending);
     const existing = loadSession();
@@ -396,7 +448,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, tokenExpiry, lineagePending, setLineagePendingFlag, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout, renewSession }}>
+    <AuthContext.Provider value={{ user, activeRole, mode, sessionToken, tokenExpiry, firstLogin, lineagePending, setFirstLoginFlag, setLineagePendingFlag, switchRole, loginWithToken, loginWithSessionToken, loginWithDevRole, logout, renewSession }}>
       {children}
     </AuthContext.Provider>
   );
@@ -413,6 +465,16 @@ export function useIsTrustee() { const { activeRole } = useAuth(); return active
 export function useIsOfficer() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin"].includes(activeRole); }
 export function useCanReviewLineage() { const { activeRole } = useAuth(); return ["officer", "trustee", "sovereign_admin", "elder"].includes(activeRole); }
 
-export function roleLandingPath(_role: Role): string {
-  return "/hub";
+export function roleLandingPath(role: Role): string {
+  switch (role) {
+    case "sovereign_admin": return "/hub";
+    case "trustee": return "/dashboard/trustee";
+    case "officer": return "/dashboard/officer";
+    case "elder": return "/dashboard/elder";
+    case "medical_provider": return "/dashboard/medical-provider";
+    case "visitor_media": return "/dashboard/visitor";
+    case "member":
+    default:
+      return "/dashboard/member";
+  }
 }
