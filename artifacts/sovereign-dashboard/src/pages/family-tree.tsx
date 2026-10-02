@@ -2054,7 +2054,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
 
-          {!isLoading && nodes.length > 0 && filteredNodes.length === 0 && (
+          {!isLoading && treeView !== "family" && nodes.length > 0 && filteredNodes.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <SlidersHorizontal className="h-8 w-8 opacity-30" />
               <p className="text-sm font-medium">No people match the current filters.</p>
@@ -2076,19 +2076,23 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                 style={{ position: "absolute", top: 0, left: 0, width: totalW, height: totalH, pointerEvents: "none", overflow: "visible" }}
               >
                 {edges.map((edge) => {
+                  const isPartner = edge.key.startsWith("partner-");
                   const cx1 = edge.x1;
                   const cy1 = edge.y1 + V_GAP * 0.4;
                   const cx2 = edge.x2;
                   const cy2 = edge.y2 - V_GAP * 0.4;
+                  const path = isPartner
+                    ? `M${edge.x1},${edge.y1} H${edge.x2}`
+                    : `M${edge.x1},${edge.y1} C${cx1},${cy1} ${cx2},${cy2} ${edge.x2},${edge.y2}`;
                   return (
                     <path
                       key={edge.key}
-                      d={`M${edge.x1},${edge.y1} C${cx1},${cy1} ${cx2},${cy2} ${edge.x2},${edge.y2}`}
+                      d={path}
                       fill="none"
-                      stroke={edge.isAncestorLine ? "#ca8a04" : "#94a3b8"}
-                      strokeWidth={edge.isAncestorLine ? 2.5 : 1.5}
-                      strokeDasharray={edge.isAncestorLine ? undefined : "4 3"}
-                      opacity={0.75}
+                      stroke={edge.isAncestorLine ? "#ca8a04" : isPartner ? "#64748b" : "#94a3b8"}
+                      strokeWidth={edge.isAncestorLine ? 2.5 : isPartner ? 2 : 1.5}
+                      strokeDasharray={edge.isAncestorLine || isPartner ? undefined : "4 3"}
+                      opacity={0.78}
                     />
                   );
                 })}
@@ -2097,6 +2101,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               {positioned.map((node) => {
                 const { border, bg } = nodeCardClasses(node);
                 const isSelected = node.id === selectedNodeId;
+                const isFocal = node.id === familyLayout.focalId;
+                const isCurrentUser = user?.dbId != null && node.linkedProfileUserId === user.dbId;
                 const isMatch = hasSearch && matchingIdSet.has(node.id);
                 const isDimmed = hasSearch && !matchingIdSet.has(node.id);
                 const g = (node.gender ?? "").toLowerCase();
@@ -2113,19 +2119,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <div
                     key={node.id}
                     data-node="1"
-                    onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
+                    onClick={(e) => { e.stopPropagation(); focusOnPerson(node.id); }}
                     style={{
                       position: "absolute",
                       left: node.x,
                       top: node.y,
                       width: NODE_W,
                       height: NODE_H,
-                      zIndex: isSelected ? 20 : 1,
+                      zIndex: isFocal ? 25 : isSelected ? 20 : 1,
                     }}
                     className={[
                       "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:z-10",
                       bg, border,
-                      isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
+                      isFocal ? "ring-4 ring-primary/70 shadow-xl scale-[1.04]" : isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
                       isMatch ? "ring-2 ring-amber-400 shadow-amber-200/60 shadow-md" : "",
                       isDimmed ? "opacity-20 pointer-events-none" : "",
                       node.sourceType === "archived" ? "opacity-40" : "",
@@ -2146,7 +2152,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
                         {node.fullName}
                       </span>
-                      {membershipDot(node.membershipStatus)}
+                      {isFocal && (
+                        <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground shrink-0">
+                          {isCurrentUser ? "You" : "Focus"}
+                        </span>
+                      )}
+                      {!isFocal && membershipDot(node.membershipStatus)}
                     </div>
 
                     {/* Bottom: dates + badges */}
