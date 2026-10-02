@@ -10,7 +10,7 @@ import { openCaseFile } from "../../lib/case-file-service";
 
 const router = Router();
 
-router.get("/templates", requireAuth, async (_req, res, next) => {
+router.get("/templates", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     res.json(listTemplates());
   } catch (err) {
@@ -45,7 +45,7 @@ const ACTION_TEMPLATE_SUGGESTIONS: Record<string, Array<{ templateId: string; la
   ],
 };
 
-router.get("/suggested", requireAuth, async (req, res, next) => {
+router.get("/suggested", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
     if (!userId) { res.json([]); return; }
@@ -84,7 +84,7 @@ router.get("/suggested", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.get("/", requireAuth, async (_req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const docs = await listCourtDocuments();
     res.json(docs);
@@ -93,7 +93,7 @@ router.get("/", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const doc = await getCourtDocument(id);
@@ -107,7 +107,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/:id/pdf", async (req, res, next) => {
+router.get("/:id/pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const doc = await getCourtDocument(id);
@@ -146,7 +146,7 @@ router.get("/:id/pdf", async (req, res, next) => {
 
 const CERTIFIED_COPY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "elder"];
 
-router.post("/:id/certified-copy", requireAuth, async (req, res, next) => {
+router.post("/:id/certified-copy", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const userRoles: string[] = req.user?.roles ?? [];
     if (!userRoles.some((r) => CERTIFIED_COPY_ROLES.includes(r))) {
