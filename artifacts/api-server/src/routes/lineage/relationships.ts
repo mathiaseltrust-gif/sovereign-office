@@ -50,6 +50,39 @@ function ids(value: unknown): number[] {
     : [];
 }
 
+function genderRole(node?: NodeLike): "male" | "female" | null {
+  const value = String(node?.gender ?? "").trim().toLowerCase();
+  if (!value) return null;
+  if (value === "m" || value === "male" || value === "man" || value.startsWith("male")) return "male";
+  if (value === "f" || value === "female" || value === "woman" || value.startsWith("female")) return "female";
+  return null;
+}
+
+function resolveParentRoles(root: NodeLike, byId: Map<number, NodeLike>): { father?: NodeLike; mother?: NodeLike } {
+  const parentIds = ids(root.parentIds);
+  let father: NodeLike | undefined;
+  let mother: NodeLike | undefined;
+  const unmatched: NodeLike[] = [];
+
+  for (const id of parentIds) {
+    const parent = byId.get(id);
+    if (!parent) continue;
+    const role = genderRole(parent);
+    if (role === "male" && !father) father = parent;
+    else if (role === "female" && !mother) mother = parent;
+    else unmatched.push(parent);
+  }
+
+  // Historical records did not always preserve role semantics. Only use array
+  // order as a fallback after explicit gender has been considered.
+  for (const parent of unmatched) {
+    if (!father) father = parent;
+    else if (!mother) mother = parent;
+  }
+
+  return { father, mother };
+}
+
 function sameIdSet(a: number[], b: number[]): boolean {
   if (a.length === 0 || b.length === 0 || a.length !== b.length) return false;
   const aa = [...a].sort((x, y) => x - y).join(",");
@@ -139,8 +172,7 @@ function inferRelationships(rootId: number, nodes: NodeLike[], familyUnits: any[
     }
   }
 
-  const father = rootParents[0] ? byId.get(rootParents[0]) : undefined;
-  const mother = rootParents[1] ? byId.get(rootParents[1]) : undefined;
+  const { father, mother } = resolveParentRoles(root, byId);
 
   for (const parent of [father, mother].filter(Boolean) as NodeLike[]) {
     const parentParents = ids(parent.parentIds);
