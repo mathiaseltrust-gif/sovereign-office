@@ -124,13 +124,13 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
   const { data: profile, isLoading: profileLoading } = useQuery<OrgProfile>({
     queryKey: profileKey,
     queryFn: () => apiFetch(`/api/org/${orgId}/profile`),
-    enabled: expanded,
+    enabled: expanded && isElevated,
   });
 
   const { data: docs, isLoading: docsLoading } = useQuery<OrgDocument[]>({
     queryKey: docsKey,
     queryFn: () => apiFetch(`/api/org/${orgId}/documents`),
-    enabled: expanded,
+    enabled: expanded && isElevated,
   });
 
   const patchProfile = useMutation({
@@ -198,6 +198,8 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
       setUploading(false);
     }
   };
+
+  if (!isElevated) return null;
 
   return (
     <Card className="border-zinc-200">
