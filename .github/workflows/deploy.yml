@@ -114,8 +114,20 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck and build workspace
-        run: pnpm run build
+      - name: Typecheck workspace
+        run: pnpm run typecheck
+
+      - name: Build production services
+        run: |
+          pnpm -r \
+            --filter @workspace/api-server \
+            --filter @workspace/sovereign-dashboard \
+            --filter @workspace/trust-dashboard \
+            --filter @workspace/community-dashboard \
+            --filter @workspace/urban-indian-atlas \
+            --filter @workspace/trace \
+            --filter @workspace/authority-directory \
+            --if-present run build
 
   # ════════════════════════════════════════════════════════════════════════════
   # PRODUCTION  (main branch only)
