@@ -1691,6 +1691,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setTransform({ x, y, scale });
   }, [totalW, totalH, treeView, pedigreeData.totalW, pedigreeData.totalH, fanCanvasSize]);
 
+  const zoomBy = useCallback((factor: number) => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const anchorX = clientWidth / 2;
+    const anchorY = clientHeight / 2;
+    setTransform((prev) => {
+      const nextScale = Math.min(3, Math.max(0.15, prev.scale * factor));
+      const ratio = nextScale / prev.scale;
+      return {
+        scale: nextScale,
+        x: anchorX - ratio * (anchorX - prev.x),
+        y: anchorY - ratio * (anchorY - prev.y),
+      };
+    });
+  }, []);
+
   // "Me" means "make my lineage node the focal person" in Family view.
   // In Pedigree/Fan it returns the camera to the logged-in member/root.
   const centerOnSelf = useCallback(() => {
@@ -1767,21 +1783,29 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     return () => clearTimeout(id);
   }, [transform, selectedNodeId]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    setTransform((prev) => {
-      const newScale = Math.min(3, Math.max(0.15, prev.scale + delta * prev.scale));
-      const rect = containerRef.current!.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const scaleRatio = newScale / prev.scale;
-      return {
-        scale: newScale,
-        x: mouseX - scaleRatio * (mouseX - prev.x),
-        y: mouseY - scaleRatio * (mouseY - prev.y),
-      };
-    });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0015;
+      setTransform((prev) => {
+        const nextScale = Math.min(3, Math.max(0.15, prev.scale * Math.exp(delta)));
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const ratio = nextScale / prev.scale;
+        return {
+          scale: nextScale,
+          x: mouseX - ratio * (mouseX - prev.x),
+          y: mouseY - ratio * (mouseY - prev.y),
+        };
+      });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -1790,19 +1814,30 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     dragStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
   }, [transform]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !dragStart.current) return;
-    setTransform((prev) => ({
-      ...prev,
-      x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
-      y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
-    }));
-  }, [isDragging]);
+  useEffect(() => {
+    if (!isDragging) return;
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    dragStart.current = null;
-  }, []);
+    const onMove = (e: MouseEvent) => {
+      if (!dragStart.current) return;
+      setTransform((prev) => ({
+        ...prev,
+        x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
+        y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
+      }));
+    };
+
+    const onUp = () => {
+      setIsDragging(false);
+      dragStart.current = null;
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   const importMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1828,7 +1863,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
+    <div className="flex flex-col" style={{ height: "calc(100vh - 215px)", minHeight: 520 }}>
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -1948,6 +1983,29 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit current view to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
+        <div className="flex items-center rounded-md border border-input overflow-hidden h-8">
+          <button
+            type="button"
+            className="h-full w-8 flex items-center justify-center hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+            onClick={() => zoomBy(0.82)}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="h-full min-w-[52px] px-2 flex items-center justify-center text-[11px] border-x text-muted-foreground">
+            {Math.round(transform.scale * 100)}%
+          </span>
+          <button
+            type="button"
+            className="h-full w-8 flex items-center justify-center hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+            onClick={() => zoomBy(1.22)}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         {treeView === "family" ? (
           <div className="h-8 max-w-[280px] flex items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2.5 text-xs">
@@ -2069,11 +2127,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <div
           ref={containerRef}
           className={`flex-1 border rounded-lg bg-muted/20 overflow-hidden relative select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null); }}
         >
           {isLoading && (
