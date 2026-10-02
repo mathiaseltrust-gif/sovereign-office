@@ -7,7 +7,7 @@ import { sendNotificationEmail } from "../../services/mailer";
 
 const router = Router();
 
-const VALID_ROLES = ["admin", "trustee", "officer", "member", "guest"] as const;
+const VALID_ROLES = ["admin", "trustee", "officer", "elder", "member", "guest"] as const;
 type ValidRole = (typeof VALID_ROLES)[number];
 
 router.post(
@@ -298,20 +298,74 @@ router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, require
 
 router.post("/create-user", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
   try {
-    const { email, name, role, entraId } = req.body as {
-      email: string;
-      name: string;
+    const { email, name, role, entraId, password, entraRequired } = req.body as {
+      email?: string;
+      name?: string;
       role?: string;
       entraId?: string;
+      password?: string;
+      entraRequired?: boolean;
     };
-    if (!email || !name) {
-      res.status(400).json({ error: "email and name are required" });
+
+    const normalizedEmail = email?.trim().toLowerCase() ?? "";
+    const normalizedName = name?.trim() ?? "";
+    const requestedRole = role ?? "member";
+
+    if (!normalizedEmail || !normalizedEmail.includes("@") || !normalizedName) {
+      res.status(400).json({ error: "A valid email and name are required." });
       return;
     }
+    if (!VALID_ROLES.includes(requestedRole as ValidRole)) {
+      res.status(400).json({ error: `Invalid role. Valid roles: ${VALID_ROLES.join(", ")}` });
+      return;
+    }
+    if (password && password.length < 8) {
+      res.status(400).json({ error: "Password must be at least 8 characters." });
+      return;
+    }
+
+    const [existing] = await db
+      .select({ id: usersTable.id })
+      .from(usersTable)
+      .where(eq(usersTable.email, normalizedEmail))
+      .limit(1);
+    if (existing) {
+      res.status(409).json({ error: "An account with that email already exists." });
+      return;
+    }
+
+    let passwordHash: string | undefined;
+    let passwordSalt: string | undefined;
+    if (password) {
+      const { randomBytes, createHash } = await import("crypto");
+      const SESSION_SECRET = process.env.SESSION_SECRET ?? "dev-secret-change-me";
+      passwordSalt = randomBytes(16).toString("hex");
+      passwordHash = createHash("sha256")
+        .update(`${passwordSalt}:${password}:${SESSION_SECRET}`)
+        .digest("hex");
+    }
+
     const [created] = await db
       .insert(usersTable)
-      .values({ email, name, role: role ?? "member", entraId })
-      .returning();
+      .values({
+        email: normalizedEmail,
+        name: normalizedName,
+        role: requestedRole,
+        entraId: entraId?.trim() || undefined,
+        entraRequired: entraRequired ?? Boolean(entraId),
+        passwordHash,
+        passwordSalt,
+      })
+      .returning({
+        id: usersTable.id,
+        email: usersTable.email,
+        name: usersTable.name,
+        role: usersTable.role,
+        entraRequired: usersTable.entraRequired,
+        trustPrivileges: usersTable.trustPrivileges,
+        createdAt: usersTable.createdAt,
+      });
+
     res.status(201).json(created);
   } catch (err) {
     next(err);

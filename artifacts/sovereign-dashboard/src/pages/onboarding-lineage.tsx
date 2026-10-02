@@ -22,7 +22,7 @@ interface MatchResult {
 
 export default function OnboardingLineagePage() {
   const [, setLocation] = useLocation();
-  const { activeRole, setLineagePendingFlag } = useAuth();
+  const { activeRole, setFirstLoginFlag, setLineagePendingFlag } = useAuth();
   const { toast } = useToast();
 
   const [fullName, setFullName] = useState("");
@@ -59,6 +59,7 @@ export default function OnboardingLineagePage() {
       }
 
       const data = await res.json() as MatchResult;
+      setFirstLoginFlag(false);
       if (data.membershipStatus === "pending") {
         setLineagePendingFlag(true);
       }

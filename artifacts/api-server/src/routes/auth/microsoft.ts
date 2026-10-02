@@ -1,9 +1,10 @@
 import { Router } from "express";
 import { createHmac } from "crypto";
 import { db } from "@workspace/db";
-import { usersTable, familyLineageTable, profilesTable } from "@workspace/db";
+import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { logger } from "../../lib/logger";
+import { resolveAuthOnboardingState } from "../../auth/onboarding-state";
 
 const router = Router();
 
@@ -182,25 +183,7 @@ router.get("/callback", async (req, res) => {
       dbUser = { ...dbUser, entraId };
     }
 
-    const [lineageNode, profileRow] = await Promise.all([
-      db
-        .select({ id: familyLineageTable.id, membershipStatus: familyLineageTable.membershipStatus })
-        .from(familyLineageTable)
-        .where(eq(familyLineageTable.entraObjectId, entraId))
-        .limit(1)
-        .then(r => r[0] ?? null),
-      db
-        .select({ lineageVerified: profilesTable.lineageVerified })
-        .from(profilesTable)
-        .where(eq(profilesTable.userId, dbUser.id))
-        .limit(1)
-        .then(r => r[0] ?? null),
-    ]);
-
-    const lineageVerified = profileRow?.lineageVerified === true;
-    const lineageLinked = lineageNode !== null;
-    const lineagePending = lineageLinked && lineageNode.membershipStatus === "pending";
-    const firstLogin = !lineageLinked && !lineageVerified;
+    const { firstLogin, lineagePending } = await resolveAuthOnboardingState(dbUser.id, entraId);
 
     const sessionJwt = signSessionJwt({
       sub: String(dbUser.id),
@@ -309,6 +292,8 @@ router.post("/exchange", async (req, res) => {
       dbUser = { ...dbUser, entraId };
     }
 
+    const { firstLogin, lineagePending } = await resolveAuthOnboardingState(dbUser.id, entraId);
+
     const sessionJwt = signSessionJwt({
       sub: String(dbUser.id),
       email: dbUser.email,
@@ -316,6 +301,8 @@ router.post("/exchange", async (req, res) => {
       role: dbUser.role,
       entraId,
       type: "session",
+      firstLogin,
+      lineagePending,
     });
 
     logger.info({ email }, "Microsoft exchange succeeded");

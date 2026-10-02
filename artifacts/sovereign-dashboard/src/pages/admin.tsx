@@ -248,6 +248,166 @@ function EditEmailDialog({ open, onOpenChange, userName, userId, currentEmail, o
   );
 }
 
+
+interface CreateMemberDialogProps {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSuccess: () => void;
+}
+
+function CreateMemberDialog({ open, onOpenChange, onSuccess }: CreateMemberDialogProps) {
+  const [name, setName] = useState("");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [confirm, setConfirm] = useState("");
+  const { toast } = useToast();
+
+  const mutation = useMutation({
+    mutationFn: async () => {
+      const base = (import.meta.env.BASE_URL as string).replace(/\/$/, "");
+      const apiBase = base.replace(/\/sovereign-dashboard$/, "");
+      const res = await fetch(`${apiBase}/api/admin/entra/create-user`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+        },
+        body: JSON.stringify({
+          name: name.trim(),
+          email: email.trim().toLowerCase(),
+          role: "member",
+          password,
+          entraRequired: false,
+        }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Failed to create member account.");
+      }
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Member account created",
+        description: `${name.trim()} can sign in with the email and temporary password you set.`,
+      });
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirm("");
+      onOpenChange(false);
+      onSuccess();
+    },
+    onError: (err: unknown) => {
+      const message = err instanceof Error ? err.message : "Failed to create member account.";
+      toast({ title: "Account not created", description: message, variant: "destructive" });
+    },
+  });
+
+  const validEmail = email.trim().includes("@");
+  const canSubmit =
+    name.trim().length > 1 &&
+    validEmail &&
+    password.length >= 8 &&
+    password === confirm &&
+    !mutation.isPending;
+
+  const handleOpenChange = (next: boolean) => {
+    if (!next) {
+      setName("");
+      setEmail("");
+      setPassword("");
+      setConfirm("");
+    }
+    onOpenChange(next);
+  };
+
+  return (
+    <Dialog open={open} onOpenChange={handleOpenChange}>
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Create Member Account</DialogTitle>
+          <DialogDescription>
+            Create a local Sovereign Office account. On first sign-in, the member will be routed through lineage verification before reaching the member dashboard.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4 py-2">
+          <div className="space-y-1.5">
+            <Label htmlFor="create-member-name">Member name</Label>
+            <Input
+              id="create-member-name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Full name"
+              autoComplete="name"
+              data-testid="input-create-member-name"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-member-email">Login email</Label>
+            <Input
+              id="create-member-email"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="member@mathiaseltribe.org"
+              autoComplete="email"
+              data-testid="input-create-member-email"
+            />
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-member-password">Temporary password</Label>
+            <Input
+              id="create-member-password"
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="At least 8 characters"
+              autoComplete="new-password"
+              data-testid="input-create-member-password"
+            />
+            {password.length > 0 && password.length < 8 && (
+              <p className="text-xs text-destructive">Password must be at least 8 characters.</p>
+            )}
+          </div>
+          <div className="space-y-1.5">
+            <Label htmlFor="create-member-confirm">Confirm temporary password</Label>
+            <Input
+              id="create-member-confirm"
+              type="password"
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              placeholder="Re-enter password"
+              autoComplete="new-password"
+              data-testid="input-create-member-confirm"
+            />
+            {confirm.length > 0 && confirm !== password && (
+              <p className="text-xs text-destructive">Passwords do not match.</p>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground">
+            New accounts start as Member accounts with Microsoft/Entra not required. Their access remains limited by member permissions and onboarding status.
+          </p>
+        </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={() => handleOpenChange(false)} disabled={mutation.isPending}>
+            Cancel
+          </Button>
+          <Button
+            onClick={() => mutation.mutate()}
+            disabled={!canSubmit}
+            data-testid="button-confirm-create-member"
+          >
+            {mutation.isPending ? "Creating…" : "Create Member Account"}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 export default function AdminPage() {
   const { activeRole, user } = useAuth();
   const { data: users, isLoading } = useListAdminUsers();
@@ -257,6 +417,7 @@ export default function AdminPage() {
   const [roleOverrides, setRoleOverrides] = useState<Record<number, string>>({});
   const [passwordDialogUser, setPasswordDialogUser] = useState<{ id: number; name: string } | null>(null);
   const [emailDialogUser, setEmailDialogUser] = useState<{ id: number; name: string; email: string } | null>(null);
+  const [createMemberOpen, setCreateMemberOpen] = useState(false);
 
   const isSovereignAdmin = activeRole === "sovereign_admin" || (user?.roles ?? []).includes("sovereign_admin");
 
@@ -290,9 +451,14 @@ export default function AdminPage() {
 
   return (
     <div data-testid="page-admin">
-      <div className="mb-8">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Administration</h1>
-        <p className="text-muted-foreground mt-1">User management, role overrides, and trust privileges</p>
+      <div className="mb-8 flex items-start justify-between gap-4 flex-wrap">
+        <div>
+          <h1 className="text-3xl font-serif font-bold text-foreground">Administration</h1>
+          <p className="text-muted-foreground mt-1">User management, role overrides, and trust privileges</p>
+        </div>
+        <Button onClick={() => setCreateMemberOpen(true)} data-testid="button-create-member">
+          Create Member Account
+        </Button>
       </div>
 
       {isLoading ? (
@@ -327,7 +493,7 @@ export default function AdminPage() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {["admin", "trustee", "officer", "member"].map((r) => (
+                        {["admin", "trustee", "officer", "elder", "member"].map((r) => (
                           <SelectItem key={r} value={r}>{r}</SelectItem>
                         ))}
                       </SelectContent>
@@ -382,6 +548,14 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      <CreateMemberDialog
+        open={createMemberOpen}
+        onOpenChange={setCreateMemberOpen}
+        onSuccess={() => {
+          queryClient.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
+        }}
+      />
 
       {passwordDialogUser && (
         <SetPasswordDialog

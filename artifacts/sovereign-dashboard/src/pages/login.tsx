@@ -20,7 +20,7 @@ const DEV_ROLES: Array<{ role: Role; label: string; desc: string }> = [
 const API_BASE = "/api";
 
 export default function Login() {
-  const { loginWithSessionToken, loginWithDevRole, user, activeRole } = useAuth();
+  const { loginWithSessionToken, loginWithDevRole, user, activeRole, firstLogin, lineagePending } = useAuth();
   const { toast } = useToast();
   const [, navigate] = useLocation();
 
@@ -29,11 +29,18 @@ export default function Login() {
   const isExpired = params.get("expired") === "1";
 
   useEffect(() => {
-    if (user) {
-      const dest = nextPath ?? roleLandingPath(activeRole);
-      navigate(dest, { replace: true });
+    if (!user) return;
+    if (firstLogin) {
+      navigate("/onboarding/lineage", { replace: true });
+      return;
     }
-  }, [user, activeRole, nextPath, navigate]);
+    if (lineagePending) {
+      navigate("/onboarding/pending", { replace: true });
+      return;
+    }
+    const dest = nextPath ?? roleLandingPath(activeRole);
+    navigate(dest, { replace: true });
+  }, [user, activeRole, firstLogin, lineagePending, nextPath, navigate]);
 
   const sessionExpired = new URLSearchParams(window.location.search).get("expired") === "1";
 
@@ -101,7 +108,7 @@ export default function Login() {
           email: user.email,
           name: user.name,
           roles: user.roles,
-        });
+        }, "microsoft");
         setMicrosoftLoading(false);
       };
       window.addEventListener("message", messageHandler);
