@@ -66,8 +66,8 @@ async function proxy(req: Request, res: Response) {
     }
   }
   const query = queryParams.toString();
-  const handle = req.params.handle ? `/${encodeURIComponent(req.params.handle)}` : "";
-  const url = `${baseUrl()}/api/${resource}/${handle}${query ? `?${query}` : ""}`;
+  const handlePath = req.params.handle ? `/${encodeURIComponent(String(req.params.handle))}` : "";
+  const url = `${baseUrl()}/api/${resource}${handlePath}${query ? `?${query}` : ""}`;
 
   const r = await fetch(url, {
     headers: { Authorization: `Bearer ${token}` },
