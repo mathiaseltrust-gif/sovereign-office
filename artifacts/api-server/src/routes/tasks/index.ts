@@ -2,11 +2,11 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { tasksTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireRole } from "../../auth/entra-guard";
 
 const router = Router();
 
-router.get("/", requireAuth, async (_req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const tasks = await db.select().from(tasksTable).orderBy(tasksTable.createdAt);
     res.json(tasks);
@@ -15,7 +15,7 @@ router.get("/", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db.select().from(tasksTable).where(eq(tasksTable.id, id)).limit(1);
@@ -29,7 +29,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const { title, description, dueDate, assignedTo, complaintId, nfrId } = req.body as {
       title: string;
@@ -63,7 +63,7 @@ router.post("/", requireAuth, async (req, res, next) => {
   }
 });
 
-router.put("/:id", requireAuth, async (req, res, next) => {
+router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { title, description, status, dueDate, assignedTo } = req.body as Partial<{
@@ -97,7 +97,7 @@ router.put("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.delete("/:id", requireAuth, async (req, res, next) => {
+router.delete("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     await db.delete(tasksTable).where(eq(tasksTable.id, id));
