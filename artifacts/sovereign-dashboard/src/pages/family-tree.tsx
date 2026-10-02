@@ -1097,6 +1097,53 @@ interface PedigreeNode extends LineageNode {
   px: number; py: number; gen: number; ahnNum: number;
 }
 
+function normalizedGenderRole(value: unknown): "male" | "female" | null {
+  const v = String(value ?? "").trim().toLowerCase();
+  if (!v) return null;
+  if (v === "m" || v === "male" || v === "man" || v.startsWith("male")) return "male";
+  if (v === "f" || v === "female" || v === "woman" || v.startsWith("female")) return "female";
+  return null;
+}
+
+function resolveParentSlots(node: LineageNode, byId: Map<number, LineageNode>): { fatherId: number | null; motherId: number | null; extras: number[] } {
+  const pids = Array.isArray(node.parentIds)
+    ? (node.parentIds as number[]).map(Number).filter((id) => Number.isFinite(id) && id > 0)
+    : [];
+
+  if (pids.length === 0) return { fatherId: null, motherId: null, extras: [] };
+
+  let fatherId: number | null = null;
+  let motherId: number | null = null;
+  const unmatched: number[] = [];
+
+  for (const id of pids) {
+    const role = normalizedGenderRole(byId.get(id)?.gender);
+    if (role === "male" && fatherId == null) {
+      fatherId = id;
+    } else if (role === "female" && motherId == null) {
+      motherId = id;
+    } else {
+      unmatched.push(id);
+    }
+  }
+
+  // Fall back to historical array order only for unresolved slots.
+  for (const id of unmatched) {
+    if (fatherId == null) {
+      fatherId = id;
+      continue;
+    }
+    if (motherId == null) {
+      motherId = id;
+      continue;
+    }
+  }
+
+  const used = new Set([fatherId, motherId].filter((id): id is number => id != null));
+  const extras = pids.filter((id) => !used.has(id));
+  return { fatherId, motherId, extras };
+}
+
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
@@ -1123,10 +1170,10 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
     const n = byId.get(id);
     if (!n) return null;
     seen.add(id);
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+    const { fatherId, motherId } = resolveParentSlots(n, byId);
     const kids: HierDatum[] = [];
-    if (pids[0]) { const c = buildHier(pids[0], gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
-    if (pids[1]) { const c = buildHier(pids[1], gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
+    if (fatherId) { const c = buildHier(fatherId, gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
+    if (motherId) { const c = buildHier(motherId, gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
     return { node: n, ahnNum, children: kids.length ? kids : undefined };
   }
 
@@ -1237,9 +1284,9 @@ function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null):
       entries.push({ id, node: n, gen, ahnNum, a1, a2, isPat });
     }
 
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
-    if (pids[0] && !seen.has(pids[0])) q.push({ id: pids[0], gen: gen + 1, ahnNum: ahnNum * 2 });
-    if (pids[1] && !seen.has(pids[1])) q.push({ id: pids[1], gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
+    const { fatherId, motherId } = resolveParentSlots(n, byId);
+    if (fatherId && !seen.has(fatherId)) q.push({ id: fatherId, gen: gen + 1, ahnNum: ahnNum * 2 });
+    if (motherId && !seen.has(motherId)) q.push({ id: motherId, gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
   }
 
   return { entries, root, maxGen };
@@ -1547,7 +1594,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const q = searchQuery.trim().toLowerCase();
   const allMatchingNodes = useMemo(() => {
     if (!q) return [] as LineageNode[];
-    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : positioned;
+    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : treeNodes;
     return searchPool.filter(
       (n) =>
         n.fullName.toLowerCase().includes(q) ||
@@ -1585,6 +1632,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       setFocusedPersonId(node.id);
       setSelectedNodeId(node.id);
     } else {
+      setSelectedNodeId(node.id);
       const placed = positioned.find((candidate) => candidate.id === node.id);
       if (placed) panToNode(placed);
     }
@@ -1628,7 +1676,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  const selectedNode = positioned.find((n) => n.id === selectedNodeId) ?? null;
+  const selectedNode = useMemo<PositionedNode | null>(() => {
+    if (selectedNodeId == null) return null;
+    const placed = positioned.find((n) => n.id === selectedNodeId);
+    if (placed) return placed;
+    const base = nodes.find((n) => n.id === selectedNodeId);
+    return base ? { ...base, x: 0, y: 0 } : null;
+  }, [selectedNodeId, positioned, nodes]);
 
   const fitToScreen = useCallback(() => {
     if (!containerRef.current) return;
@@ -1643,6 +1697,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     const y = (clientHeight - h * scale) / 2;
     setTransform({ x, y, scale });
   }, [totalW, totalH, treeView, pedigreeData.totalW, pedigreeData.totalH, fanCanvasSize]);
+
+  const zoomBy = useCallback((factor: number) => {
+    if (!containerRef.current) return;
+    const { clientWidth, clientHeight } = containerRef.current;
+    const anchorX = clientWidth / 2;
+    const anchorY = clientHeight / 2;
+    setTransform((prev) => {
+      const nextScale = Math.min(3, Math.max(0.15, prev.scale * factor));
+      const ratio = nextScale / prev.scale;
+      return {
+        scale: nextScale,
+        x: anchorX - ratio * (anchorX - prev.x),
+        y: anchorY - ratio * (anchorY - prev.y),
+      };
+    });
+  }, []);
 
   // "Me" means "make my lineage node the focal person" in Family view.
   // In Pedigree/Fan it returns the camera to the logged-in member/root.
@@ -1720,21 +1790,29 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     return () => clearTimeout(id);
   }, [transform, selectedNodeId]);
 
-  const handleWheel = useCallback((e: React.WheelEvent) => {
-    e.preventDefault();
-    const delta = -e.deltaY * 0.001;
-    setTransform((prev) => {
-      const newScale = Math.min(3, Math.max(0.15, prev.scale + delta * prev.scale));
-      const rect = containerRef.current!.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const scaleRatio = newScale / prev.scale;
-      return {
-        scale: newScale,
-        x: mouseX - scaleRatio * (mouseX - prev.x),
-        y: mouseY - scaleRatio * (mouseY - prev.y),
-      };
-    });
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const delta = -e.deltaY * 0.0015;
+      setTransform((prev) => {
+        const nextScale = Math.min(3, Math.max(0.15, prev.scale * Math.exp(delta)));
+        const rect = el.getBoundingClientRect();
+        const mouseX = e.clientX - rect.left;
+        const mouseY = e.clientY - rect.top;
+        const ratio = nextScale / prev.scale;
+        return {
+          scale: nextScale,
+          x: mouseX - ratio * (mouseX - prev.x),
+          y: mouseY - ratio * (mouseY - prev.y),
+        };
+      });
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+    return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
   const handleMouseDown = useCallback((e: React.MouseEvent) => {
@@ -1743,19 +1821,30 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     dragStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
   }, [transform]);
 
-  const handleMouseMove = useCallback((e: React.MouseEvent) => {
-    if (!isDragging || !dragStart.current) return;
-    setTransform((prev) => ({
-      ...prev,
-      x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
-      y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
-    }));
-  }, [isDragging]);
+  useEffect(() => {
+    if (!isDragging) return;
 
-  const handleMouseUp = useCallback(() => {
-    setIsDragging(false);
-    dragStart.current = null;
-  }, []);
+    const onMove = (e: MouseEvent) => {
+      if (!dragStart.current) return;
+      setTransform((prev) => ({
+        ...prev,
+        x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
+        y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
+      }));
+    };
+
+    const onUp = () => {
+      setIsDragging(false);
+      dragStart.current = null;
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [isDragging]);
 
   const importMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1781,7 +1870,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
+    <div className="flex flex-col" style={{ height: "calc(100vh - 215px)", minHeight: 520 }}>
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -1901,6 +1990,29 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit current view to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
         </Button>
+        <div className="flex items-center rounded-md border border-input overflow-hidden h-8">
+          <button
+            type="button"
+            className="h-full w-8 flex items-center justify-center hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+            onClick={() => zoomBy(0.82)}
+            title="Zoom out"
+            aria-label="Zoom out"
+          >
+            <Minus className="h-3.5 w-3.5" />
+          </button>
+          <span className="h-full min-w-[52px] px-2 flex items-center justify-center text-[11px] border-x text-muted-foreground">
+            {Math.round(transform.scale * 100)}%
+          </span>
+          <button
+            type="button"
+            className="h-full w-8 flex items-center justify-center hover:bg-muted/60 text-muted-foreground hover:text-foreground"
+            onClick={() => zoomBy(1.22)}
+            title="Zoom in"
+            aria-label="Zoom in"
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
+        </div>
 
         {treeView === "family" ? (
           <div className="h-8 max-w-[280px] flex items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2.5 text-xs">
@@ -2022,11 +2134,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <div
           ref={containerRef}
           className={`flex-1 border rounded-lg bg-muted/20 overflow-hidden relative select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp}
           onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null); }}
         >
           {isLoading && (
@@ -2437,6 +2545,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             setShowAddModal(false);
             setEditingNode(null);
             queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+            queryClient.invalidateQueries({ queryKey: ["lineage-nodes-self"] });
+            queryClient.invalidateQueries({ queryKey: ["family-units"] });
             onDataChange();
             toast({ title: editingNode ? "Person updated" : "Person added" });
           }}
