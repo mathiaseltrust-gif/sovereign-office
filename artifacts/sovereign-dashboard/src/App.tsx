@@ -352,7 +352,7 @@ function AppRouter() {
         {() => <RoleProtectedRoute component={FilesPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/search">
-        {() => <ProtectedRoute component={SearchPage} />}
+        {() => <RoleProtectedRoute component={SearchPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/admin">
         {() => <RoleProtectedRoute component={AdminPage} allowedRoles={CHIEF_ONLY} />}
