@@ -845,46 +845,50 @@ export default function FamilyTreePage() {
   });
 
   return (
-    <div data-testid="page-family-tree">
-      <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
-        <p className="text-muted-foreground mt-1">
-          Interactive visual family tree — ancestors, descendants, and protected lineage lines
-        </p>
+    <div data-testid="page-family-tree" className="h-full min-h-0 flex flex-col">
+      <div className="shrink-0 px-1 pt-1">
+        <div className="mb-3">
+          <h1 className="text-2xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Interactive family workspace — focus a person, pan freely, zoom, and follow household branches.
+          </p>
+        </div>
+
+        <div className="flex gap-1 mb-3 flex-wrap border-b pb-2">
+          {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                activeTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+              ].join(" ")}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex gap-1 mb-6 flex-wrap border-b pb-3">
-        {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={[
-              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-              activeTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-            ].join(" ")}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
+      <div className={activeTab === "view-lineage" ? "flex-1 min-h-0" : "flex-1 min-h-0 overflow-y-auto px-1 pb-3"}>
+        {activeTab === "view-lineage" && (
+          <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        )}
+        {activeTab === "my-submissions" && (
+          <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
+        )}
+        {activeTab === "edit-ancestors" && (
+          <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
+        )}
+        {activeTab === "knowledge-of-self" && (
+          <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
+        )}
+        {activeTab === "deduplicate" && (
+          <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        )}
       </div>
-
-      {activeTab === "view-lineage" && (
-        <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-      )}
-      {activeTab === "my-submissions" && (
-        <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
-      )}
-      {activeTab === "edit-ancestors" && (
-        <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
-      )}
-      {activeTab === "knowledge-of-self" && (
-        <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
-      )}
-      {activeTab === "deduplicate" && (
-        <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-      )}
     </div>
   );
 }
@@ -1781,7 +1785,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 260px)", minHeight: 480 }}>
+    <div className="flex flex-col h-full min-h-0">
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
