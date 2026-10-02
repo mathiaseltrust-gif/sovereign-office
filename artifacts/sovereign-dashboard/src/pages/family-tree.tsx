@@ -1594,7 +1594,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const q = searchQuery.trim().toLowerCase();
   const allMatchingNodes = useMemo(() => {
     if (!q) return [] as LineageNode[];
-    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : positioned;
+    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : treeNodes;
     return searchPool.filter(
       (n) =>
         n.fullName.toLowerCase().includes(q) ||
@@ -1632,6 +1632,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       setFocusedPersonId(node.id);
       setSelectedNodeId(node.id);
     } else {
+      setSelectedNodeId(node.id);
       const placed = positioned.find((candidate) => candidate.id === node.id);
       if (placed) panToNode(placed);
     }
@@ -1675,7 +1676,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   // ─────────────────────────────────────────────────────────────────────────
 
-  const selectedNode = positioned.find((n) => n.id === selectedNodeId) ?? null;
+  const selectedNode = useMemo<PositionedNode | null>(() => {
+    if (selectedNodeId == null) return null;
+    const placed = positioned.find((n) => n.id === selectedNodeId);
+    if (placed) return placed;
+    const base = nodes.find((n) => n.id === selectedNodeId);
+    return base ? { ...base, x: 0, y: 0 } : null;
+  }, [selectedNodeId, positioned, nodes]);
 
   const fitToScreen = useCallback(() => {
     if (!containerRef.current) return;
