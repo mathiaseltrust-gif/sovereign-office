@@ -118,6 +118,8 @@ jobs:
         run: pnpm run typecheck
 
       - name: Build production services
+        env:
+          PORT: 4173
         run: |
           pnpm -r \
             --filter @workspace/api-server \
