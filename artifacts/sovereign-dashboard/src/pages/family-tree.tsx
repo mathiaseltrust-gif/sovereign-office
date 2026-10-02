@@ -1481,14 +1481,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   const treeNodes = connectedNodes;
 
-  const preferredRootId =
-    treeNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id ?? null;
-
-  const { positioned, totalW, totalH } = useMemo(
-    () => computeLayout(treeNodes, familyUnits, preferredRootId),
-    [treeNodes, familyUnits, preferredRootId]
+  // Family view is intentionally not constrained by the generational-depth
+  // filter. The focused layout itself decides which immediate relatives are
+  // visible. Member-access boundaries still apply.
+  const familyViewNodes = useMemo(
+    () => nodes.filter((node) => memberAccessFilter === null || memberAccessFilter.has(node.id)),
+    [nodes, memberAccessFilter],
   );
-  const edges = useMemo(() => buildEdges(positioned, familyUnits), [positioned, familyUnits]);
+
+  const preferredRootId =
+    selfNodeRaw?.id
+    ?? familyViewNodes.find((n) => user?.dbId != null && n.linkedProfileUserId === user.dbId)?.id
+    ?? familyViewNodes[0]?.id
+    ?? null;
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -1496,14 +1501,28 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [transform, setTransform] = useState(_savedSession?.transform ?? { x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
   const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
-  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(_savedSession?.selectedNodeId ?? null);
-  const hasRestoredSession = useRef(!!_savedSession);
+  const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
+  const [focusedPersonId, setFocusedPersonId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const [treeView, setTreeView] = useState<TreeViewMode>("family");
   const importRef = useRef<HTMLInputElement>(null);
+
+  const effectiveFocusId = focusedPersonId ?? preferredRootId;
+  const familyLayout = useMemo(
+    () => computeFocusedFamilyLayout(familyViewNodes, familyUnits, effectiveFocusId),
+    [familyViewNodes, familyUnits, effectiveFocusId],
+  );
+  const positioned = familyLayout.positioned;
+  const totalW = familyLayout.totalW;
+  const totalH = familyLayout.totalH;
+  const edges = familyLayout.edges;
+  const focusedPerson =
+    familyViewNodes.find((node) => node.id === familyLayout.focalId)
+    ?? familyViewNodes.find((node) => node.id === preferredRootId)
+    ?? null;
 
   const pedigreeData = useMemo(
     () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
