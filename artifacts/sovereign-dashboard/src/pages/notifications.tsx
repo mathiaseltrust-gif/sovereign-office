@@ -129,6 +129,9 @@ function NotificationCard({
 export default function NotificationsPage() {
   const { toast } = useToast();
   const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [broadcastReadIds, setBroadcastReadIds] = useState<number[]>(() => {
+    try { return JSON.parse(localStorage.getItem("sovereign_broadcast_read_ids") ?? "[]"); } catch { return []; }
+  });
   const [isLoading, setIsLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "unread" | "red_flag" | "tro">("all");
 
@@ -137,8 +140,10 @@ export default function NotificationsPage() {
     try {
       const r = await fetch("/api/notifications", { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } });
       if (r.ok) {
-        const data = await r.json();
-        setNotifications(data);
+        const data = await r.json() as Notification[];
+        setNotifications(data.map((n) =>
+          n.userId === null && broadcastReadIds.includes(n.id) ? { ...n, read: true } : n
+        ));
       }
     } catch {
       toast({ title: "Error", description: "Could not load notifications.", variant: "destructive" });
@@ -152,11 +157,20 @@ export default function NotificationsPage() {
   }, []);
 
   const markRead = async (id: number) => {
+    const target = notifications.find((n) => n.id === id);
+    if (target?.userId === null) {
+      const next = [...new Set([...broadcastReadIds, id])];
+      setBroadcastReadIds(next);
+      localStorage.setItem("sovereign_broadcast_read_ids", JSON.stringify(next));
+      setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+      return;
+    }
     try {
-      await fetch(`/api/notifications/${id}/read`, {
+      const res = await fetch(`/api/notifications/${id}/read`, {
         method: "PUT",
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
     } catch {
       toast({ title: "Error", description: "Could not mark notification as read.", variant: "destructive" });
@@ -169,6 +183,10 @@ export default function NotificationsPage() {
         method: "PUT",
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
+      const broadcastIds = notifications.filter((n) => n.userId === null).map((n) => n.id);
+      const next = [...new Set([...broadcastReadIds, ...broadcastIds])];
+      setBroadcastReadIds(next);
+      localStorage.setItem("sovereign_broadcast_read_ids", JSON.stringify(next));
       setNotifications((prev) => prev.map((n) => ({ ...n, read: true })));
       toast({ title: "All marked as read" });
     } catch {
@@ -177,7 +195,14 @@ export default function NotificationsPage() {
   };
 
   const dismissNotification = async (id: number) => {
+    const target = notifications.find((n) => n.id === id);
     setNotifications((prev) => prev.filter((n) => n.id !== id));
+    if (target?.userId === null) {
+      const next = [...new Set([...broadcastReadIds, id])];
+      setBroadcastReadIds(next);
+      localStorage.setItem("sovereign_broadcast_read_ids", JSON.stringify(next));
+      return;
+    }
     try {
       await fetch(`/api/notifications/${id}/read`, {
         method: "PUT",

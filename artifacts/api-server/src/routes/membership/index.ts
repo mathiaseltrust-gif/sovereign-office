@@ -65,7 +65,8 @@ router.get("/verify", requireAuth, async (req, res, next) => {
       .limit(1);
 
     const entraVerified = !!(user?.entraId);
-    const lineageVerified = lineageData.lineage.length > 0;
+    const lineageVerified = profile?.lineageVerified === true;
+    const membershipVerified = profile?.membershipVerified === true;
 
     const familyGroup =
       narrative?.familyGroup ??
@@ -77,12 +78,6 @@ router.get("/verify", requireAuth, async (req, res, next) => {
       ...((narrative?.identityTags as string[]) ?? []),
       ...((profile?.welfareTags as string[]) ?? []),
     ].filter((v, i, a) => a.indexOf(v) === i);
-
-    const hasFamilyGroupInTags = identityTags.some((t) =>
-      t.toLowerCase().includes("family") || t.toLowerCase().includes("tribal")
-    ) || !!familyGroup;
-
-    const membershipVerified = lineageVerified && hasFamilyGroupInTags;
 
     const icwaEligible = narrative?.icwaEligible ?? lineageData.lineage.some((l) => l.icwaEligible) ?? false;
     const welfareEligible = narrative?.welfareEligible ?? lineageData.lineage.some((l) => l.welfareEligible) ?? false;
@@ -122,9 +117,7 @@ router.get("/verify", requireAuth, async (req, res, next) => {
     const existingProfile = profile;
     if (existingProfile) {
       await db.update(profilesTable).set({
-        membershipVerified,
         entraVerified,
-        lineageVerified,
         delegatedAuthorities: authorities,
         updatedAt: new Date(),
       }).where(eq(profilesTable.userId, dbId));

@@ -16,9 +16,9 @@ import { triggerReviewEngine, auditLog } from "../../engines/nfr-review-engine";
 
 const router = Router();
 
-// Land write access: trustee, officer, sovereign_admin, admin, chief_justice
+// Land management access: trustee, officer, sovereign_admin, admin, chief_justice
 const LAND_WRITE_ROLES = new Set(["trustee", "officer", "sovereign_admin", "admin", "chief_justice"]);
-function requireLandWrite(req: Request, res: Response, next: NextFunction): void {
+function requireLandAccess(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) { res.status(401).json({ error: "Authentication required." }); return; }
   const roles: string[] = req.user.roles ?? [];
   if (!roles.some(r => LAND_WRITE_ROLES.has(r))) {
@@ -47,7 +47,7 @@ function bool(v: unknown): boolean {
 
 // ── GET /api/land/stats ────────────────────────────────────────────────────────
 
-router.get("/stats", requireAuth, async (_req, res, next) => {
+router.get("/stats", requireAuth, requireLandAccess, async (_req, res, next) => {
   try {
     const [parcels, leases, pipeline, enc, notices] = await Promise.all([
       db.execute(sql`
@@ -128,7 +128,7 @@ router.get("/stats", requireAuth, async (_req, res, next) => {
 
 // ── PARCELS ───────────────────────────────────────────────────────────────────
 
-router.get("/parcels", requireAuth, async (req, res, next) => {
+router.get("/parcels", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { classification, status, county, internalStatus, jurisdictionalStatus } = req.query as Record<string, string>;
     let q = sql`SELECT * FROM land_parcels WHERE 1=1`;
@@ -144,7 +144,7 @@ router.get("/parcels", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/parcels", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const {
       tractNumber, parcelId, legalDescription, acreage, classification,
@@ -196,7 +196,7 @@ router.post("/parcels", requireAuth, requireLandWrite, async (req, res, next) =>
   } catch (err) { next(err); }
 });
 
-router.get("/parcels/:id", requireAuth, async (req, res, next) => {
+router.get("/parcels/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const [parcel, leases, assets, enc, notices] = await Promise.all([
@@ -215,7 +215,7 @@ router.get("/parcels/:id", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put("/parcels/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/parcels/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const {
@@ -272,7 +272,7 @@ router.put("/parcels/:id", requireAuth, requireLandWrite, async (req, res, next)
   } catch (err) { next(err); }
 });
 
-router.delete("/parcels/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/parcels/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_parcels WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -281,7 +281,7 @@ router.delete("/parcels/:id", requireAuth, requireLandWrite, async (req, res, ne
 
 // ── LEASES ────────────────────────────────────────────────────────────────────
 
-router.get("/leases", requireAuth, async (req, res, next) => {
+router.get("/leases", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, status, type } = req.query as Record<string, string>;
     let q = sql`
@@ -299,7 +299,7 @@ router.get("/leases", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/leases", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/leases", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const {
       parcelId, leaseType, lesseeName, lesseeContact, startDate, endDate,
@@ -323,7 +323,7 @@ router.post("/leases", requireAuth, requireLandWrite, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-router.put("/leases/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/leases/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const {
@@ -350,7 +350,7 @@ router.put("/leases/:id", requireAuth, requireLandWrite, async (req, res, next) 
   } catch (err) { next(err); }
 });
 
-router.delete("/leases/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/leases/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_leases WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -359,7 +359,7 @@ router.delete("/leases/:id", requireAuth, requireLandWrite, async (req, res, nex
 
 // ── ASSETS ────────────────────────────────────────────────────────────────────
 
-router.get("/assets", requireAuth, async (req, res, next) => {
+router.get("/assets", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, assetType } = req.query as Record<string, string>;
     let q = sql`
@@ -376,7 +376,7 @@ router.get("/assets", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/assets", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/assets", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, assetType, name, description, estimatedValue, conditionRating, yearBuilt, notes } = req.body as Record<string, unknown>;
     const result = await db.execute(sql`
@@ -388,7 +388,7 @@ router.post("/assets", requireAuth, requireLandWrite, async (req, res, next) => 
   } catch (err) { next(err); }
 });
 
-router.put("/assets/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/assets/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { assetType, name, description, estimatedValue, conditionRating, yearBuilt, notes } = req.body as Record<string, unknown>;
@@ -404,7 +404,7 @@ router.put("/assets/:id", requireAuth, requireLandWrite, async (req, res, next) 
   } catch (err) { next(err); }
 });
 
-router.delete("/assets/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/assets/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_assets WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -413,7 +413,7 @@ router.delete("/assets/:id", requireAuth, requireLandWrite, async (req, res, nex
 
 // ── ENCUMBRANCES ──────────────────────────────────────────────────────────────
 
-router.get("/encumbrances", requireAuth, async (req, res, next) => {
+router.get("/encumbrances", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, status, type, voidAbInitio } = req.query as Record<string, string>;
     let q = sql`
@@ -432,7 +432,7 @@ router.get("/encumbrances", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/encumbrances", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/encumbrances", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, encumbranceType, title, description, source, dateIdentified,
       status, federalLawImplicated, tribalCodeRef, voidAbInitio, resolutionNotes } = req.body as Record<string, unknown>;
@@ -483,7 +483,7 @@ router.post("/encumbrances", requireAuth, requireLandWrite, async (req, res, nex
   } catch (err) { next(err); }
 });
 
-router.put("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/encumbrances/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { encumbranceType, title, description, source, dateIdentified,
@@ -516,7 +516,7 @@ router.put("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, 
   } catch (err) { next(err); }
 });
 
-router.delete("/encumbrances/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/encumbrances/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_encumbrances WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -525,7 +525,7 @@ router.delete("/encumbrances/:id", requireAuth, requireLandWrite, async (req, re
 
 // ── NOTICES ───────────────────────────────────────────────────────────────────
 
-router.get("/notices", requireAuth, async (req, res, next) => {
+router.get("/notices", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, status, type } = req.query as Record<string, string>;
     let q = sql`
@@ -543,7 +543,7 @@ router.get("/notices", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/notices", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/notices", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, noticeType, title, content, issuedDate, effectiveDate,
       servedTo, serviceMethod, status, tribalCodeRef, federalLawRef,
@@ -566,7 +566,7 @@ router.post("/notices", requireAuth, requireLandWrite, async (req, res, next) =>
   } catch (err) { next(err); }
 });
 
-router.put("/notices/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/notices/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { noticeType, title, content, issuedDate, effectiveDate,
@@ -587,7 +587,7 @@ router.put("/notices/:id", requireAuth, requireLandWrite, async (req, res, next)
   } catch (err) { next(err); }
 });
 
-router.delete("/notices/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/notices/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_notices WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -596,14 +596,14 @@ router.delete("/notices/:id", requireAuth, requireLandWrite, async (req, res, ne
 
 // ── STEWARDSHIP PIPELINE ──────────────────────────────────────────────────────
 
-router.get("/pipeline", requireAuth, async (_req, res, next) => {
+router.get("/pipeline", requireAuth, requireLandAccess, async (_req, res, next) => {
   try {
     const result = await db.execute(sql`SELECT * FROM land_acquisition_pipeline ORDER BY priority DESC, created_at DESC`);
     res.json(result.rows);
   } catch (err) { next(err); }
 });
 
-router.post("/pipeline", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/pipeline", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { name, description, acreage, county, state, estimatedCost, acquisitionType, stage,
       biaCaseNumber, priority, targetDate, notes, stewardshipPurpose, culturalNotes,
@@ -627,7 +627,7 @@ router.post("/pipeline", requireAuth, requireLandWrite, async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-router.put("/pipeline/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/pipeline/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { name, description, acreage, county, state, estimatedCost, acquisitionType, stage,
@@ -650,7 +650,7 @@ router.put("/pipeline/:id", requireAuth, requireLandWrite, async (req, res, next
   } catch (err) { next(err); }
 });
 
-router.delete("/pipeline/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/pipeline/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_acquisition_pipeline WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -659,7 +659,7 @@ router.delete("/pipeline/:id", requireAuth, requireLandWrite, async (req, res, n
 
 // ── DEEDS ─────────────────────────────────────────────────────────────────────
 
-router.get("/deeds", requireAuth, async (req, res, next) => {
+router.get("/deeds", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId } = req.query as Record<string, string>;
     let q = sql`
@@ -675,7 +675,7 @@ router.get("/deeds", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/deeds", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/deeds", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const {
       parcelId, deedType, grantor, grantee, recordingDate, recordingNumber,
@@ -706,7 +706,7 @@ router.post("/deeds", requireAuth, requireLandWrite, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.put("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/deeds/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const {
@@ -744,7 +744,7 @@ router.put("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next) =
   } catch (err) { next(err); }
 });
 
-router.delete("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/deeds/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_deeds WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -753,7 +753,7 @@ router.delete("/deeds/:id", requireAuth, requireLandWrite, async (req, res, next
 
 // ── TAX COMPLIANCE ────────────────────────────────────────────────────────────
 
-router.get("/tax-compliance", requireAuth, async (req, res, next) => {
+router.get("/tax-compliance", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, status } = req.query as Record<string, string>;
     let q = sql`
@@ -770,7 +770,7 @@ router.get("/tax-compliance", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/tax-compliance", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/tax-compliance", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const {
       parcelId, complianceType, jurisdiction, taxYear, deadlineDate,
@@ -807,7 +807,7 @@ router.post("/tax-compliance", requireAuth, requireLandWrite, async (req, res, n
   } catch (err) { next(err); }
 });
 
-router.put("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/tax-compliance/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const {
@@ -847,7 +847,7 @@ router.put("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, res
   } catch (err) { next(err); }
 });
 
-router.delete("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/tax-compliance/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_tax_compliance WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -856,7 +856,7 @@ router.delete("/tax-compliance/:id", requireAuth, requireLandWrite, async (req, 
 
 // ── MEMBER ASSIGNMENTS ────────────────────────────────────────────────────────
 
-router.get("/assignments", requireAuth, async (req, res, next) => {
+router.get("/assignments", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const { parcelId, status } = req.query as Record<string, string>;
     let q = sql`
@@ -873,7 +873,7 @@ router.get("/assignments", requireAuth, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
-router.post("/assignments", requireAuth, requireLandWrite, async (req, res, next) => {
+router.post("/assignments", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const {
       parcelId, memberId, memberName, memberEmail, assignmentRole, familyName,
@@ -899,7 +899,7 @@ router.post("/assignments", requireAuth, requireLandWrite, async (req, res, next
   } catch (err) { next(err); }
 });
 
-router.put("/assignments/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.put("/assignments/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const {
@@ -931,7 +931,7 @@ router.put("/assignments/:id", requireAuth, requireLandWrite, async (req, res, n
   } catch (err) { next(err); }
 });
 
-router.delete("/assignments/:id", requireAuth, requireLandWrite, async (req, res, next) => {
+router.delete("/assignments/:id", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     await db.execute(sql`DELETE FROM land_member_assignments WHERE id = ${Number(req.params.id)}`);
     res.json({ ok: true });
@@ -957,7 +957,7 @@ router.get("/eligibility", requireAuth, async (req, res, next) => {
  * Check eligibility for any member.
  * Members may only check themselves; trustees/officers may check anyone.
  */
-router.get("/eligibility/:userId", requireAuth, async (req, res, next) => {
+router.get("/eligibility/:userId", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     if (!req.user?.dbId) { res.status(401).json({ error: "Authentication required." }); return; }
     const targetId = Number(req.params.userId);
@@ -977,7 +977,7 @@ router.get("/eligibility/:userId", requireAuth, async (req, res, next) => {
  * Preview what land code would be assigned for a given location — no save.
  * Query params: county, city, address
  */
-router.get("/land-code/preview", requireAuth, async (req, res, next) => {
+router.get("/land-code/preview", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const county  = String(req.query.county  ?? "").trim() || null;
     const city    = String(req.query.city    ?? "").trim() || null;
@@ -995,7 +995,7 @@ router.get("/land-code/preview", requireAuth, async (req, res, next) => {
  * Body: { userId, county?, city?, address?, dryRun? }
  * Trustees/officers may assign for any user; members may assign for themselves.
  */
-router.post("/land-code/assign", requireAuth, async (req, res, next) => {
+router.post("/land-code/assign", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     if (!req.user?.dbId) { res.status(401).json({ error: "Authentication required." }); return; }
     const { userId, county, city, address, dryRun } = req.body as {
@@ -1019,7 +1019,7 @@ router.post("/land-code/assign", requireAuth, async (req, res, next) => {
  * GET /api/land/land-code/:userId
  * Look up the current tribal land code for a user.
  */
-router.get("/land-code/:userId", requireAuth, async (req, res, next) => {
+router.get("/land-code/:userId", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
     const targetId = Number(req.params.userId);
     const roles: string[] = req.user?.roles ?? [];

@@ -8,7 +8,7 @@ import {
   usersTable,
   searchIndexTable,
 } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { classifyText } from "../../lib/doctrine";
 import { runIntakeFilter } from "../../engines/intake-filter";
@@ -47,6 +47,7 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
         tribalRef,
         classification: {
           ...classification,
+          submitterUserId: req.user?.dbId ?? null,
           intakeFilter: {
             indianStatusViolation: intakeFilter.indianStatusViolation,
             redFlag: intakeFilter.redFlag,
@@ -167,7 +168,7 @@ router.post("/", requireAuth, upload.single("pdf"), async (req, res, next) => {
   }
 });
 
-router.get("/officers", requireAuth, async (_req, res, next) => {
+router.get("/officers", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const officers = await db
       .select({ id: usersTable.id, name: usersTable.name, email: usersTable.email })
@@ -189,6 +190,21 @@ router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => 
   }
 });
 
+router.get("/mine", requireAuth, async (req, res, next) => {
+  try {
+    const userId = req.user?.dbId;
+    if (!userId) { res.json([]); return; }
+    const complaints = await db
+      .select()
+      .from(complaintsTable)
+      .where(sql`${complaintsTable.classification}->>'submitterUserId' = ${String(userId)}`)
+      .orderBy(complaintsTable.createdAt);
+    res.json(complaints);
+  } catch (err) {
+    next(err);
+  }
+});
+
 router.get("/:id", requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
@@ -196,6 +212,17 @@ router.get("/:id", requireAuth, async (req, res, next) => {
     if (!results[0]) {
       res.status(404).json({ error: "Complaint not found" });
       return;
+    }
+    const canReviewAll = (req.user?.roles ?? []).some((role) =>
+      ["officer", "trustee", "admin", "sovereign_admin", "chief_justice", "chief_justice_trustee"].includes(role)
+    );
+    if (!canReviewAll) {
+      const stored = (results[0].classification ?? {}) as Record<string, unknown>;
+      const submitterUserId = Number(stored.submitterUserId);
+      if (!req.user?.dbId || !Number.isFinite(submitterUserId) || submitterUserId !== req.user.dbId) {
+        res.status(403).json({ error: "You may only view your own complaint." });
+        return;
+      }
     }
     res.json(results[0]);
   } catch (err) {

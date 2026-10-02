@@ -17,7 +17,7 @@ export default function TrusteeDashboard() {
     <div data-testid="page-trustee-dashboard" className="space-y-6">
       <div>
         <h1 className="text-3xl font-serif font-bold text-foreground">Dashboard</h1>
-        <p className="text-muted-foreground mt-1">Fast load mode. Open a module to load its records.</p>
+        <p className="text-muted-foreground mt-1">Trustee work queue, filings, land records, deadlines, and institutional review.</p>
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-4">
@@ -28,7 +28,7 @@ export default function TrusteeDashboard() {
                 <CardTitle className="text-sm font-semibold">{item.label}</CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs text-muted-foreground">Open module</p>
+                <p className="text-xs text-muted-foreground">Open workspace</p>
               </CardContent>
             </Card>
           </Link>

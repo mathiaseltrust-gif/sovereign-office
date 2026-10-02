@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
 import { Plus, X, CalendarHeart, Sparkles, ChevronDown, ChevronUp } from "lucide-react";
 
 const isVisibleCalendarPerson = (p: any) =>
@@ -558,6 +558,7 @@ function ImportantDatesPanel() {
 
 export default function CalendarPage() {
   const qc = useQueryClient();
+  const isOfficer = useIsOfficer();
   const today = new Date();
   const [viewYear, setViewYear] = useState(today.getFullYear());
   const [viewMonth, setViewMonth] = useState(today.getMonth());
@@ -640,15 +641,19 @@ export default function CalendarPage() {
       <div className="mb-6 flex items-center justify-between flex-wrap gap-3">
         <div>
           <h1 className="text-3xl font-serif font-bold text-foreground">Calendar</h1>
-          <p className="text-muted-foreground mt-1">Schedule events, set deadlines, track important dates</p>
+          <p className="text-muted-foreground mt-1">
+            {isOfficer
+              ? "Institutional deadlines and your personal important dates."
+              : "Your birthdays, memorials, anniversaries, and personal important dates."}
+          </p>
         </div>
         <div className="flex gap-2">
           <Button size="sm" variant="outline" onClick={goToday}>Today</Button>
-          <Button size="sm" onClick={() => openAddForm()}>+ Add Event</Button>
+          {isOfficer && <Button size="sm" onClick={() => openAddForm()}>+ Add Event</Button>}
         </div>
       </div>
 
-      {showForm && (
+      {showForm && isOfficer && (
         <Card className="mb-6 border-primary/30 bg-primary/5">
           <CardHeader className="pb-3">
             <CardTitle className="text-sm uppercase tracking-widest">New Calendar Event</CardTitle>
@@ -775,9 +780,11 @@ export default function CalendarPage() {
                   <CardTitle className="text-sm uppercase tracking-widest">
                     {MONTHS[viewMonth]} {selectedDay}, {viewYear}
                   </CardTitle>
-                  <Button size="sm" variant="outline" className="text-xs" onClick={() => openAddForm(selectedDay)}>
-                    + Add to this day
-                  </Button>
+                  {isOfficer && (
+                    <Button size="sm" variant="outline" className="text-xs" onClick={() => openAddForm(selectedDay)}>
+                      + Add institutional event
+                    </Button>
+                  )}
                 </div>
               </CardHeader>
               <CardContent>
@@ -800,7 +807,7 @@ export default function CalendarPage() {
                             <p className="text-[10px] text-rose-500 mt-0.5">Recurring annually</p>
                           )}
                         </div>
-                        {e.type !== "important_date" && (
+                        {isOfficer && e.type !== "important_date" && (
                           <button
                             onClick={() => { if (confirm("Delete this event?")) deleteMutation.mutate(e.id); }}
                             className="text-xs text-muted-foreground hover:text-destructive shrink-0 mt-0.5"

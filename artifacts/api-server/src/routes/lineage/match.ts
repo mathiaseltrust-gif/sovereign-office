@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, profilesTable, usersTable } from "@workspace/db";
+import { familyLineageTable, usersTable } from "@workspace/db";
 import { eq, ne, and, inArray, notInArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
@@ -158,129 +158,26 @@ router.post("/", requireAuth, async (req, res, next) => {
 
     const { matchType, matchedNodeId } = await runLineageMatch(fullName, familyName, parentName);
 
-    let result: MatchResult;
+    const inheritedFlags = matchedNodeId !== null
+      ? await traverseAncestorFlags(matchedNodeId)
+      : { icwaEligible: false, welfareEligible: false, trustBeneficiary: false };
 
-    if (matchType === "exact" || matchType === "family_name") {
-      if (matchedNodeId !== null) {
-        const [existingNode] = await db.select({
-            entraObjectId: familyLineageTable.entraObjectId,
-            membershipStatus: familyLineageTable.membershipStatus,
-          })
-          .from(familyLineageTable)
-          .where(eq(familyLineageTable.id, matchedNodeId))
-          .limit(1);
+    const [existingClaim] = await db
+      .select({ id: familyLineageTable.id })
+      .from(familyLineageTable)
+      .where(and(
+        eq(familyLineageTable.linkedProfileUserId, userId),
+        eq(familyLineageTable.membershipStatus, "pending"),
+        eq(familyLineageTable.sourceType, "lineage_claim"),
+      ))
+      .limit(1);
 
-        if (existingNode?.membershipStatus === "pending" || existingNode?.membershipStatus === "rejected") {
-          result = {
-            matchType: "none",
-            matchedNodeId: null,
-            membershipStatus: "pending",
-            protectionLevel: "pending",
-            inheritedFlags: { icwaEligible: false, welfareEligible: false, trustBeneficiary: false },
-          };
-        } else if (existingNode?.entraObjectId && existingNode.entraObjectId !== entraId) {
-          const [pendingNode] = await db.insert(familyLineageTable).values({
-            fullName,
-            firstName: fullName.split(" ")[0] ?? fullName,
-            lastName: familyName,
-            entraObjectId: entraId ?? null,
-            membershipStatus: "pending",
-            protectionLevel: "pending",
-            sourceType: "lineage_claim",
-            isAncestor: false,
-            linkedProfileUserId: userId,
-            notes: `Conflict: matched node #${matchedNodeId} is already linked to another account.`,
-          }).returning();
+    let pendingNodeId = existingClaim?.id ?? null;
+    if (!pendingNodeId) {
+      const candidateNote = matchedNodeId !== null
+        ? `Automated lineage match candidate: ${matchType} to existing node #${matchedNodeId}. Human review is required before membership verification.`
+        : "No automatic lineage match was found. Human review is required before membership verification.";
 
-          if (pendingNode) {
-            await notifyAdmins(pendingNode.id, fullName, userId);
-          }
-
-          result = {
-            matchType: "none",
-            matchedNodeId: pendingNode?.id ?? null,
-            membershipStatus: "pending",
-            protectionLevel: "pending",
-            inheritedFlags: { icwaEligible: false, welfareEligible: false, trustBeneficiary: false },
-          };
-        } else {
-          const flags = await traverseAncestorFlags(matchedNodeId);
-
-          await db.update(familyLineageTable)
-            .set({
-              entraObjectId: entraId ?? null,
-              membershipStatus: "verified",
-              protectionLevel: "descendant",
-              ...(flags.icwaEligible !== false ? { icwaEligible: true } : {}),
-              ...(flags.welfareEligible !== false ? { welfareEligible: true } : {}),
-              ...(flags.trustBeneficiary !== false ? { trustBeneficiary: true } : {}),
-              updatedAt: new Date(),
-            })
-            .where(eq(familyLineageTable.id, matchedNodeId));
-
-          await db
-            .insert(profilesTable)
-            .values({ userId, lineageVerified: true, membershipVerified: true })
-            .onConflictDoUpdate({
-              target: profilesTable.userId,
-              set: { lineageVerified: true, membershipVerified: true, updatedAt: new Date() },
-            });
-
-          result = {
-            matchType,
-            matchedNodeId,
-            membershipStatus: "verified",
-            protectionLevel: "descendant",
-            inheritedFlags: flags,
-          };
-        }
-      } else {
-        result = { matchType: "none", matchedNodeId: null, membershipStatus: "pending", protectionLevel: "pending", inheritedFlags: { icwaEligible: false, welfareEligible: false, trustBeneficiary: false } };
-      }
-    } else if (matchType === "parent_only" && matchedNodeId !== null) {
-      const parentNode = await db.select().from(familyLineageTable).where(eq(familyLineageTable.id, matchedNodeId)).limit(1).then(r => r[0]);
-      const existingChildren = (parentNode?.childrenIds as number[] | null) ?? [];
-
-      const flags = await traverseAncestorFlags(matchedNodeId);
-
-      const [newNode] = await db.insert(familyLineageTable).values({
-        fullName,
-        firstName: fullName.split(" ")[0] ?? fullName,
-        lastName: familyName,
-        entraObjectId: entraId ?? null,
-        membershipStatus: "verified",
-        protectionLevel: "descendant",
-        parentIds: [matchedNodeId],
-        sourceType: "lineage_match",
-        isAncestor: false,
-        linkedProfileUserId: userId,
-        ...(flags.icwaEligible ? { icwaEligible: true } : {}),
-        ...(flags.welfareEligible ? { welfareEligible: true } : {}),
-        ...(flags.trustBeneficiary ? { trustBeneficiary: true } : {}),
-      }).returning();
-
-      if (parentNode && newNode) {
-        await db.update(familyLineageTable)
-          .set({ childrenIds: [...existingChildren, newNode.id], updatedAt: new Date() })
-          .where(eq(familyLineageTable.id, matchedNodeId));
-      }
-
-      await db
-        .insert(profilesTable)
-        .values({ userId, lineageVerified: true, membershipVerified: true })
-        .onConflictDoUpdate({
-          target: profilesTable.userId,
-          set: { lineageVerified: true, membershipVerified: true, updatedAt: new Date() },
-        });
-
-      result = {
-        matchType: "parent_only",
-        matchedNodeId: newNode?.id ?? null,
-        membershipStatus: "verified",
-        protectionLevel: "descendant",
-        inheritedFlags: flags,
-      };
-    } else {
       const [pendingNode] = await db.insert(familyLineageTable).values({
         fullName,
         firstName: fullName.split(" ")[0] ?? fullName,
@@ -291,20 +188,25 @@ router.post("/", requireAuth, async (req, res, next) => {
         sourceType: "lineage_claim",
         isAncestor: false,
         linkedProfileUserId: userId,
+        addedByMemberId: userId,
+        pendingReview: true,
+        parentIds: matchType === "parent_only" && matchedNodeId !== null ? [matchedNodeId] : [],
+        notes: candidateNote,
       }).returning();
 
-      if (pendingNode) {
-        await notifyAdmins(pendingNode.id, fullName, userId);
+      pendingNodeId = pendingNode?.id ?? null;
+      if (pendingNodeId) {
+        await notifyAdmins(pendingNodeId, fullName, userId);
       }
-
-      result = {
-        matchType: "none",
-        matchedNodeId: pendingNode?.id ?? null,
-        membershipStatus: "pending",
-        protectionLevel: "pending",
-        inheritedFlags: { icwaEligible: false, welfareEligible: false, trustBeneficiary: false },
-      };
     }
+
+    const result: MatchResult = {
+      matchType,
+      matchedNodeId: pendingNodeId,
+      membershipStatus: "pending",
+      protectionLevel: "pending",
+      inheritedFlags,
+    };
 
     logger.info({ userId, matchType, matchedNodeId: result.matchedNodeId }, "Lineage match completed");
     res.json(result);

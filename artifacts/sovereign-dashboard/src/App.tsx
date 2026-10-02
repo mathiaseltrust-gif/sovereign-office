@@ -3,7 +3,7 @@ import { Switch, Route, Router as WouterRouter, Redirect, useLocation } from "wo
 import { QueryClient, QueryClientProvider, useQuery } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { AuthProvider, useAuth, roleLandingPath, getCurrentBearerToken } from "@/components/auth-provider";
+import { AuthProvider, useAuth, roleLandingPath, getCurrentBearerToken, type Role } from "@/components/auth-provider";
 import { Layout } from "@/components/layout";
 import { ChatWidget } from "@/components/ChatWidget";
 import { SessionExpiryWarning } from "@/components/SessionExpiryWarning";
@@ -165,6 +165,38 @@ function ProtectedParamRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+const OFFICE_ROLES: Role[] = ["sovereign_admin", "trustee", "officer"];
+const TRUSTEE_ROLES: Role[] = ["sovereign_admin", "trustee"];
+const CHIEF_ONLY: Role[] = ["sovereign_admin"];
+
+function RoleProtectedRoute({
+  component: Component,
+  allowedRoles,
+}: {
+  component: React.ComponentType;
+  allowedRoles: Role[];
+}) {
+  const { activeRole } = useAuth();
+  if (!allowedRoles.includes(activeRole)) {
+    return <Redirect to={roleLandingPath(activeRole)} />;
+  }
+  return <ProtectedRoute component={Component} />;
+}
+
+function RoleProtectedParamRoute({
+  children,
+  allowedRoles,
+}: {
+  children: React.ReactNode;
+  allowedRoles: Role[];
+}) {
+  const { activeRole } = useAuth();
+  if (!allowedRoles.includes(activeRole)) {
+    return <Redirect to={roleLandingPath(activeRole)} />;
+  }
+  return <ProtectedParamRoute>{children}</ProtectedParamRoute>;
+}
+
 const ONBOARDING_EXEMPT_PATHS = new Set([
   "/onboarding/companion",
   "/onboarding/lineage",
@@ -241,30 +273,30 @@ function AppRouter() {
       </Route>
 
       <Route path="/instrument-wizard">
-        {() => <ProtectedRoute component={InstrumentWizardPage} />}
+        {() => <RoleProtectedRoute component={InstrumentWizardPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/instruments">
-        {() => <ProtectedRoute component={InstrumentsPage} />}
+        {() => <RoleProtectedRoute component={InstrumentsPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/instruments/:id">
         {(params) => (
-          <ProtectedParamRoute>
+          <RoleProtectedParamRoute allowedRoles={OFFICE_ROLES}>
             <InstrumentDetail params={params} />
-          </ProtectedParamRoute>
+          </RoleProtectedParamRoute>
         )}
       </Route>
       <Route path="/filings">
-        {() => <ProtectedRoute component={FilingsListPage} />}
+        {() => <RoleProtectedRoute component={FilingsListPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/filings/:id">
         {(params) => (
-          <ProtectedParamRoute>
+          <RoleProtectedParamRoute allowedRoles={OFFICE_ROLES}>
             <FilingDetailPage params={params} />
-          </ProtectedParamRoute>
+          </RoleProtectedParamRoute>
         )}
       </Route>
       <Route path="/nfr">
-        {() => <ProtectedRoute component={NfrPage} />}
+        {() => <RoleProtectedRoute component={NfrPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/investigations/:id">
         {(params) => (
@@ -274,7 +306,7 @@ function AppRouter() {
         )}
       </Route>
       <Route path="/classify">
-        {() => <ProtectedRoute component={ClassifyPage} />}
+        {() => <RoleProtectedRoute component={ClassifyPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/complaints">
         {() => <ProtectedRoute component={ComplaintsListPage} />}
@@ -287,7 +319,7 @@ function AppRouter() {
         )}
       </Route>
       <Route path="/tasks">
-        {() => <ProtectedRoute component={TasksPage} />}
+        {() => <RoleProtectedRoute component={TasksPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/calendar">
         {() => <ProtectedRoute component={CalendarPage} />}
@@ -305,37 +337,37 @@ function AppRouter() {
         {() => <ProtectedRoute component={IntakeAiPage} />}
       </Route>
       <Route path="/documents">
-        {() => <ProtectedRoute component={CourtDocumentsPage} />}
+        {() => <RoleProtectedRoute component={CourtDocumentsPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/official-documents">
-        {() => <ProtectedRoute component={OfficialDocumentsPage} />}
+        {() => <RoleProtectedRoute component={OfficialDocumentsPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/sovereign-pipeline">
-        {() => <ProtectedRoute component={SovereignPipelinePage} />}
+        {() => <RoleProtectedRoute component={SovereignPipelinePage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/my-office">
-        {() => <ProtectedRoute component={MyOfficePage} />}
+        {() => <RoleProtectedRoute component={MyOfficePage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/files">
-        {() => <ProtectedRoute component={FilesPage} />}
+        {() => <RoleProtectedRoute component={FilesPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/search">
-        {() => <ProtectedRoute component={SearchPage} />}
+        {() => <RoleProtectedRoute component={SearchPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/admin">
-        {() => <ProtectedRoute component={AdminPage} />}
+        {() => <RoleProtectedRoute component={AdminPage} allowedRoles={CHIEF_ONLY} />}
       </Route>
       <Route path="/profile">
         {() => <ProtectedRoute component={ProfilePage} />}
       </Route>
       <Route path="/templates">
-        {() => <ProtectedRoute component={TemplatesPage} />}
+        {() => <RoleProtectedRoute component={TemplatesPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/welfare">
         {() => <ProtectedRoute component={WelfarePage} />}
       </Route>
       <Route path="/lineage">
-        {() => <ProtectedRoute component={GedcomImportPage} />}
+        {() => <RoleProtectedRoute component={GedcomImportPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/family-tree">
         {() => <ProtectedRoute component={FamilyTreePage} />}
@@ -403,7 +435,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={TribalIdPage} />}
       </Route>
       <Route path="/m365">
-        {() => <ProtectedRoute component={M365IntegrationPage} />}
+        {() => <RoleProtectedRoute component={M365IntegrationPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/admin/lineage-import">
         {() => <Redirect to="/lineage" />}
@@ -440,7 +472,7 @@ function AppRouter() {
         {() => <ProtectedRoute component={OrgOverviewPage} />}
       </Route>
       <Route path="/drafts">
-        {() => <ProtectedRoute component={DraftsPage} />}
+        {() => <RoleProtectedRoute component={DraftsPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/onboarding/lineage">
         {() => <ProtectedRoute component={OnboardingLineagePage} />}
@@ -512,10 +544,10 @@ function AppRouter() {
         )}
       </Route>
       <Route path="/role-governors">
-        {() => <ProtectedRoute component={RoleGovernorsPage} />}
+        {() => <RoleProtectedRoute component={RoleGovernorsPage} allowedRoles={CHIEF_ONLY} />}
       </Route>
       <Route path="/land">
-        {() => <ProtectedRoute component={LandPage} />}
+        {() => <RoleProtectedRoute component={LandPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/ancestral-exposure">
         {() => <ProtectedRoute component={AncestralExposurePage} />}
@@ -524,19 +556,19 @@ function AppRouter() {
         {() => <Redirect to="/lineage" />}
       </Route>
       <Route path="/admin/email-preview">
-        {() => <ProtectedRoute component={AdminEmailPreviewPage} />}
+        {() => <RoleProtectedRoute component={AdminEmailPreviewPage} allowedRoles={CHIEF_ONLY} />}
       </Route>
       <Route path="/admin/operations">
-        {() => <ProtectedRoute component={AdminOperationsPage} />}
+        {() => <RoleProtectedRoute component={AdminOperationsPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/atlas-admin">
-        {() => <ProtectedRoute component={AtlasAdminPage} />}
+        {() => <RoleProtectedRoute component={AtlasAdminPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/investigations">
-        {() => <ProtectedRoute component={InvestigationsListPage} />}
+        {() => <RoleProtectedRoute component={InvestigationsListPage} allowedRoles={OFFICE_ROLES} />}
       </Route>
       <Route path="/github-intake-preview">
-        {() => <ProtectedRoute component={GitHubIntakePreviewPage} />}
+        {() => <RoleProtectedRoute component={GitHubIntakePreviewPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
       <Route path="/creative-studio/projects/:id">
         {() => <ProtectedRoute component={CreativeStudioProjectPage} />}

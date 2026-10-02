@@ -8,7 +8,7 @@ import {
   familyLineageTable,
 } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireRole } from "../../auth/entra-guard";
 import {
   buildNfrPdfBuffer,
   buildInstrumentPdfBuffer,
@@ -72,7 +72,7 @@ async function resolveMemberContext(
 
 // ── GET /nfr/:id/pdf ─────────────────────────────────────────────────────────
 
-router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
+router.get("/nfr/:id/pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) {
@@ -130,7 +130,7 @@ router.get("/nfr/:id/pdf", requireAuth, async (req, res, next) => {
 
 // ── PATCH /nfr/:id/cmrn ──────────────────────────────────────────────────────
 
-router.patch("/nfr/:id/cmrn", requireAuth, async (req, res, next) => {
+router.patch("/nfr/:id/cmrn", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid document ID" }); return; }
@@ -165,7 +165,7 @@ router.patch("/nfr/:id/cmrn", requireAuth, async (req, res, next) => {
 
 // ── GET /instrument/:id/pdf ───────────────────────────────────────────────────
 
-router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
+router.get("/instrument/:id/pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) {
@@ -258,7 +258,7 @@ router.get("/instrument/:id/pdf", requireAuth, async (req, res, next) => {
 
 // ── PATCH /instrument/:id/cmrn ────────────────────────────────────────────────
 
-router.patch("/instrument/:id/cmrn", requireAuth, async (req, res, next) => {
+router.patch("/instrument/:id/cmrn", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid instrument ID" }); return; }

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useListComplaints, useGetComplaint, getGetComplaintQueryKey, useCreateComplaint, getListComplaintsQueryKey } from "@workspace/api-client-react";
+import { useGetComplaint, getGetComplaintQueryKey, useCreateComplaint } from "@workspace/api-client-react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { getCurrentBearerToken, useIsOfficer } from "@/components/auth-provider";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,18 @@ function statusVariant(status: string) {
 }
 
 export function ComplaintsListPage() {
-  const { data: complaints, isLoading } = useListComplaints();
+  const isOfficer = useIsOfficer();
+  const { data: complaints = [], isLoading } = useQuery<any[]>({
+    queryKey: ["complaints", isOfficer ? "queue" : "mine"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const res = await fetch(isOfficer ? "/api/complaints" : "/api/complaints/mine", {
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      return res.json();
+    },
+  });
   const createComplaint = useCreateComplaint();
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -35,7 +46,7 @@ export function ComplaintsListPage() {
     createComplaint.mutate({ data: { text } }, {
       onSuccess: () => {
         toast({ title: "Complaint submitted", description: "Auto-classified and task created." });
-        queryClient.invalidateQueries({ queryKey: getListComplaintsQueryKey() });
+        queryClient.invalidateQueries({ queryKey: ["complaints"] });
         setOpen(false);
         setText("");
       },
@@ -47,8 +58,12 @@ export function ComplaintsListPage() {
     <div data-testid="page-complaints">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-serif font-bold text-foreground">Complaints</h1>
-          <p className="text-muted-foreground mt-1">Citizen complaints — auto-classified and tasked</p>
+          <h1 className="text-3xl font-serif font-bold text-foreground">{isOfficer ? "Complaint Queue" : "My Complaints"}</h1>
+          <p className="text-muted-foreground mt-1">
+            {isOfficer
+              ? "Review, assign, and manage submitted matters."
+              : "Submit a matter for Office review and follow the status of your own submissions."}
+          </p>
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
@@ -144,6 +159,7 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
       return r.json();
     },
     staleTime: 120_000,
+    enabled: isOfficer,
   });
 
   if (isLoading) return <div data-testid="page-complaint-detail"><Skeleton className="h-48" /></div>;
@@ -165,7 +181,7 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
       });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       await refetch();
-      queryClient.invalidateQueries({ queryKey: getListComplaintsQueryKey() });
+      queryClient.invalidateQueries({ queryKey: ["complaints"] });
       toast({ title: "Complaint updated" });
     } catch (err) {
       toast({ title: "Update failed", description: err instanceof Error ? err.message : String(err), variant: "destructive" });
@@ -212,27 +228,27 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
         </Card>
       )}
 
-      <Card className="mb-4">
-        <CardHeader><CardTitle className="text-sm">Officer Actions</CardTitle></CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-2 flex-wrap">
-            <Button
-              size="sm"
-              variant={complaint.status === "open" ? "default" : "outline"}
-              disabled={updating || complaint.status === "closed"}
-              onClick={() => updateComplaint({ status: "closed" })}
-            >
-              Close Complaint
-            </Button>
-            <Button
-              size="sm"
-              variant="outline"
-              disabled={updating || complaint.status === "open"}
-              onClick={() => updateComplaint({ status: "open" })}
-            >
-              Reopen
-            </Button>
-            {isOfficer && (
+      {isOfficer && (
+        <Card className="mb-4">
+          <CardHeader><CardTitle className="text-sm">Officer Actions</CardTitle></CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center gap-2 flex-wrap">
+              <Button
+                size="sm"
+                variant={complaint.status === "open" ? "default" : "outline"}
+                disabled={updating || complaint.status === "closed"}
+                onClick={() => updateComplaint({ status: "closed" })}
+              >
+                Close Complaint
+              </Button>
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={updating || complaint.status === "open"}
+                onClick={() => updateComplaint({ status: "open" })}
+              >
+                Reopen
+              </Button>
               <Button
                 size="sm"
                 variant="outline"
@@ -242,42 +258,42 @@ export function ComplaintDetailPage({ params }: { params: { id: string } }) {
               >
                 <Gavel className="w-3.5 h-3.5 mr-1.5" /> Open Investigation
               </Button>
-            )}
-          </div>
-          <form onSubmit={handleAssignOfficer} className="flex items-end gap-2">
-            <div className="flex-1">
-              <Label className="text-xs mb-1 block">Assign Officer</Label>
-              {officers.length > 0 ? (
-                <Select value={officerId} onValueChange={setOfficerId}>
-                  <SelectTrigger data-testid="input-officer-id" className="h-9 text-sm">
-                    <SelectValue placeholder="Select an officer…" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {officers.map((o) => (
-                      <SelectItem key={o.id} value={String(o.id)}>
-                        {o.name || o.email} <span className="text-muted-foreground text-xs ml-1">#{o.id}</span>
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              ) : (
-                <input
-                  data-testid="input-officer-id"
-                  type="number"
-                  min="1"
-                  value={officerId}
-                  onChange={(e) => setOfficerId(e.target.value)}
-                  placeholder="Officer ID"
-                  className="w-full border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
-                />
-              )}
             </div>
-            <Button type="submit" size="sm" disabled={updating || !officerId.trim()}>
-              Assign
-            </Button>
-          </form>
-        </CardContent>
-      </Card>
+            <form onSubmit={handleAssignOfficer} className="flex items-end gap-2">
+              <div className="flex-1">
+                <Label className="text-xs mb-1 block">Assign Officer</Label>
+                {officers.length > 0 ? (
+                  <Select value={officerId} onValueChange={setOfficerId}>
+                    <SelectTrigger data-testid="input-officer-id" className="h-9 text-sm">
+                      <SelectValue placeholder="Select an officer…" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {officers.map((o) => (
+                        <SelectItem key={o.id} value={String(o.id)}>
+                          {o.name || o.email} <span className="text-muted-foreground text-xs ml-1">#{o.id}</span>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                ) : (
+                  <input
+                    data-testid="input-officer-id"
+                    type="number"
+                    min="1"
+                    value={officerId}
+                    onChange={(e) => setOfficerId(e.target.value)}
+                    placeholder="Officer ID"
+                    className="w-full border rounded-md px-3 py-1.5 text-sm bg-background focus:outline-none focus:ring-1 focus:ring-primary"
+                  />
+                )}
+              </div>
+              <Button type="submit" size="sm" disabled={updating || !officerId.trim()}>
+                Assign
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+      )}
 
       {investigationOpen && complaint && (
         <OpenInvestigationModal

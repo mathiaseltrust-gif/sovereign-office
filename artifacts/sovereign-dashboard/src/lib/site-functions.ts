@@ -93,7 +93,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     section: "Governance",
     description: "Manage and track formal filings with tribal and federal agencies",
     icon: FileText,
-    roles: MEMBER_ROLES,
+    roles: OFFICER_ROLES,
     keywords: ["filings", "filed", "submit", "agency", "BIA", "federal"],
   },
   {
@@ -407,7 +407,7 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
     section: "Personal",
     description: "Search across all tribal records, cases, members, and documents",
     icon: Search,
-    roles: MEMBER_ROLES,
+    roles: OFFICER_ROLES,
     keywords: ["search", "find", "look up", "records", "query"],
   },
 
@@ -432,9 +432,9 @@ export const SITE_FUNCTIONS: SiteFunction[] = [
   },
   {
     path: "/charitable-trust",
-    label: "Charitable Trust (501c3)",
+    label: "Charitable Trust",
     section: "Organizations",
-    description: "Charitable trust organization for community welfare programs",
+    description: "Charitable trust workspace for community welfare programs",
     icon: Heart,
     roles: OFFICER_ROLES,
     keywords: ["charitable", "501c3", "nonprofit", "trust", "welfare"],

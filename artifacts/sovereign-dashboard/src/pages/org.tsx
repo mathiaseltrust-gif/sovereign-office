@@ -45,12 +45,12 @@ interface OrgData {
 
 const TYPE_LABELS: Record<OrgType, string> = {
   court: "Tribal Court",
-  trust: "Federal Indian Trust",
-  charitable_trust: "Charitable Trust (501c3)",
-  political: "§527 Political Organization",
-  enterprise: "Indian Economic Enterprise",
-  medical: "Tribal Health Facility",
-  education: "Nonprofit Education System",
+  trust: "Tribal Trust",
+  charitable_trust: "Charitable Trust",
+  political: "Political Organization",
+  enterprise: "Business Enterprise",
+  medical: "Tribal Health Program",
+  education: "Education Initiative",
 };
 
 const ACCESS_COLORS: Record<AccessLevel, string> = {
@@ -129,7 +129,7 @@ export default function OrgOverviewPage() {
           <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-1">Sovereign Office</p>
           <h1 className="text-3xl font-serif font-bold">Organization Overview</h1>
           <p className="text-muted-foreground mt-1">
-            All sovereign entities of the Mathias El Tribe — your access level for each.
+            Organization and program registry — your current access level for each workspace.
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">

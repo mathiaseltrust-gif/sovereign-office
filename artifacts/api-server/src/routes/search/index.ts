@@ -10,7 +10,7 @@ import {
   profilesTable,
 } from "@workspace/db";
 import { ilike, or, eq } from "drizzle-orm";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireRole } from "../../auth/entra-guard";
 
 const router = Router();
 
@@ -34,7 +34,7 @@ async function recordSearchHistory(dbId: number, query: string): Promise<void> {
   }
 }
 
-router.get("/", requireAuth, async (req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const { q, type, date, officer, complaintId, actorType, landStatus, actionType } = req.query as {
       q?: string;

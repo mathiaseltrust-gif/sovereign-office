@@ -8,8 +8,8 @@ import {
 } from "lucide-react";
 
 const POSITION_TITLES: Record<string, string | null> = {
-  trustee: "Chief Justice & Trustee",
-  sovereign_admin: "Sovereign Administrator",
+  trustee: "Trustee",
+  sovereign_admin: "Chief Justice & Trustee",
   officer: "Duty Officer",
   elder: "Tribal Elder",
   medical_provider: "Medical Provider",
@@ -89,7 +89,7 @@ function SectionHeader({ title, sub }: { title: string; sub?: string }) {
 }
 
 export default function HubPage() {
-  const { user, activeRole, logout, sessionToken } = useAuth();
+  const { user, activeRole, logout, sessionToken, mode } = useAuth();
 
   const initials = user?.name
     ?.split(" ")
@@ -139,7 +139,7 @@ export default function HubPage() {
         </div>
         <div className="px-6 py-3 flex items-center gap-3 border-t border-card-border text-xs text-muted-foreground">
           <Shield className="w-3.5 h-3.5 text-green-500" />
-          <span>Authenticated via Microsoft — Mathias El Tribe Sovereign Office</span>
+          <span>Authenticated via {mode === "microsoft" ? "Microsoft" : mode === "password" ? "Sovereign Office password" : mode === "token" ? "secure token" : "Sovereign Office session"} — Mathias El Tribe Sovereign Office</span>
         </div>
       </div>
 

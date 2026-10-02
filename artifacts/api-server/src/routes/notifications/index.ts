@@ -58,13 +58,10 @@ router.get("/unread-count", requireAuth, async (req, res, next) => {
           .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)))
       : [];
 
-    const broadcastUnread = await db
-      .select()
-      .from(notificationsTable)
-      .where(and(isNull(notificationsTable.userId), eq(notificationsTable.read, false)))
-      .limit(100);
-
-    res.json({ count: userUnread.length + broadcastUnread.length });
+    // Broadcast read state is handled per-user in the client until a
+    // dedicated acknowledgement table is introduced. Do not use the shared
+    // broadcast row's read flag as a global unread count.
+    res.json({ count: userUnread.length });
   } catch (err) {
     next(err);
   }
@@ -73,16 +70,31 @@ router.get("/unread-count", requireAuth, async (req, res, next) => {
 router.put("/:id/read", requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    const updated = await db
+    const [existing] = await db.select().from(notificationsTable)
+      .where(eq(notificationsTable.id, id)).limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Notification not found" });
+      return;
+    }
+
+    // Broadcast rows are shared. A member reading one must never mark it read
+    // for every other user. The client stores that acknowledgement locally.
+    if (existing.userId === null) {
+      res.json({ ...existing, read: true, broadcast: true, persisted: false });
+      return;
+    }
+
+    if (!req.user?.dbId || existing.userId !== req.user.dbId) {
+      res.status(403).json({ error: "You may only update your own notifications." });
+      return;
+    }
+
+    const [updated] = await db
       .update(notificationsTable)
       .set({ read: true })
       .where(eq(notificationsTable.id, id))
       .returning();
-    if (!updated[0]) {
-      res.status(404).json({ error: "Notification not found" });
-      return;
-    }
-    res.json(updated[0]);
+    res.json(updated);
   } catch (err) {
     next(err);
   }
@@ -97,10 +109,8 @@ router.put("/read-all", requireAuth, async (req, res, next) => {
         .set({ read: true })
         .where(and(eq(notificationsTable.userId, userId), eq(notificationsTable.read, false)));
     }
-    await db
-      .update(notificationsTable)
-      .set({ read: true })
-      .where(and(isNull(notificationsTable.userId), eq(notificationsTable.read, false)));
+    // Broadcast acknowledgements are per-user in the client; do not mutate
+    // the shared broadcast row here.
     res.json({ success: true });
   } catch (err) {
     next(err);

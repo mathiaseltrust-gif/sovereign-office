@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
-import { eq, desc, ne, or, and, inArray, sql } from "drizzle-orm";
+import { eq, desc, ne, or, and, inArray, notInArray, sql } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../engines/authority";
 import { logger } from "../../lib/logger";
@@ -1032,9 +1032,43 @@ router.post("/:id/approve", requireAuth, async (req, res, next) => {
     const approvedMembershipStatus = isSpouseRelation ? "confirmed" : "descendant";
 
     const [updated] = await db.update(familyLineageTable)
-      .set({ pendingReview: false, membershipStatus: approvedMembershipStatus, protectionLevel: approvedProtectionLevel, updatedAt: new Date() })
+      .set({
+        pendingReview: false,
+        membershipStatus: approvedMembershipStatus,
+        protectionLevel: approvedProtectionLevel,
+        sourceType: existing.sourceType === "lineage_claim" ? "lineage_match" : existing.sourceType,
+        updatedAt: new Date(),
+      })
       .where(eq(familyLineageTable.id, id))
       .returning();
+
+    if (existing.linkedProfileUserId) {
+      await db
+        .insert(profilesTable)
+        .values({
+          userId: existing.linkedProfileUserId,
+          lineageVerified: true,
+          membershipVerified: true,
+        })
+        .onConflictDoUpdate({
+          target: profilesTable.userId,
+          set: {
+            lineageVerified: true,
+            membershipVerified: true,
+            updatedAt: new Date(),
+          },
+        });
+
+      await createNotification({
+        userId: existing.linkedProfileUserId,
+        category: "lineage_approved",
+        title: "Membership Verification Approved",
+        message: "Your lineage review has been approved and your membership profile is now verified.",
+        severity: "info",
+        relatedId: id,
+        relatedType: "family_lineage",
+      });
+    }
 
     res.json({ approved: true, node: updated });
   } catch (err) {
@@ -1063,11 +1097,54 @@ router.post("/:id/reject", requireAuth, async (req, res, next) => {
       .set({
         sourceType: "archived",
         pendingReview: false,
+        membershipStatus: "rejected",
+        protectionLevel: "pending",
         notes: `${existing.notes ?? ""}\n[Rejected: ${rejectionNote}]`.trim(),
         updatedAt: new Date(),
       })
       .where(eq(familyLineageTable.id, id))
       .returning();
+
+    if (existing.linkedProfileUserId) {
+      const [otherApproved] = await db
+        .select({ id: familyLineageTable.id })
+        .from(familyLineageTable)
+        .where(and(
+          eq(familyLineageTable.linkedProfileUserId, existing.linkedProfileUserId),
+          ne(familyLineageTable.id, id),
+          notInArray(familyLineageTable.membershipStatus, ["pending", "rejected"]),
+          ne(familyLineageTable.sourceType, "archived"),
+        ))
+        .limit(1);
+
+      if (!otherApproved) {
+        await db
+          .insert(profilesTable)
+          .values({
+            userId: existing.linkedProfileUserId,
+            lineageVerified: false,
+            membershipVerified: false,
+          })
+          .onConflictDoUpdate({
+            target: profilesTable.userId,
+            set: {
+              lineageVerified: false,
+              membershipVerified: false,
+              updatedAt: new Date(),
+            },
+          });
+      }
+
+      await createNotification({
+        userId: existing.linkedProfileUserId,
+        category: "lineage_rejected",
+        title: "Lineage Review Update",
+        message: `Your lineage submission could not be verified at this time. ${rejectionNote}`,
+        severity: "warning",
+        relatedId: id,
+        relatedType: "family_lineage",
+      });
+    }
 
     res.json({ rejected: true, node: updated });
   } catch (err) {

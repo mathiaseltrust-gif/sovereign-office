@@ -1,8 +1,9 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
 import { calendarEventsTable, importantDatesTable, familyLineageTable, profileVaultTable } from "@workspace/db";
-import { eq, isNotNull } from "drizzle-orm";
-import { requireAuth } from "../../auth/entra-guard";
+import { eq, isNotNull, and } from "drizzle-orm";
+import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { hasRole } from "../../engines/authority";
 
 const router = Router();
 
@@ -31,11 +32,19 @@ function getDateTypeLabel(dateType: string, customLabel?: string | null): string
 }
 
 // ── GET /calendar — merged regular events + recurring important dates ──────────
-router.get("/", requireAuth, async (_req, res, next) => {
+router.get("/", requireAuth, async (req, res, next) => {
   try {
+    const userId = req.user?.dbId ?? null;
+    const canSeeInstitutionalCalendar = hasRole(req.user?.roles ?? [], "officer");
     const [events, importantDates] = await Promise.all([
-      db.select().from(calendarEventsTable).orderBy(calendarEventsTable.date),
-      db.select().from(importantDatesTable).orderBy(importantDatesTable.personName),
+      canSeeInstitutionalCalendar
+        ? db.select().from(calendarEventsTable).orderBy(calendarEventsTable.date)
+        : Promise.resolve([]),
+      userId
+        ? db.select().from(importantDatesTable)
+            .where(eq(importantDatesTable.addedByUserId, userId))
+            .orderBy(importantDatesTable.personName)
+        : Promise.resolve([]),
     ]);
 
     const now = new Date();
@@ -76,9 +85,13 @@ router.get("/", requireAuth, async (_req, res, next) => {
 });
 
 // ── GET /calendar/important-dates — raw list ──────────────────────────────────
-router.get("/important-dates", requireAuth, async (_req, res, next) => {
+router.get("/important-dates", requireAuth, async (req, res, next) => {
   try {
-    const dates = await db.select().from(importantDatesTable).orderBy(importantDatesTable.personName);
+    const userId = req.user?.dbId;
+    if (!userId) { res.json([]); return; }
+    const dates = await db.select().from(importantDatesTable)
+      .where(eq(importantDatesTable.addedByUserId, userId))
+      .orderBy(importantDatesTable.personName);
     res.json(dates);
   } catch (err) {
     next(err);
@@ -115,7 +128,10 @@ router.get("/suggested-dates", requireAuth, async (req, res, next) => {
       }).from(familyLineageTable).where(eq(familyLineageTable.addedByMemberId, userId)),
       db.select({ sourceKey: importantDatesTable.sourceKey })
         .from(importantDatesTable)
-        .where(isNotNull(importantDatesTable.sourceKey)),
+        .where(and(
+          isNotNull(importantDatesTable.sourceKey),
+          eq(importantDatesTable.addedByUserId, userId),
+        )),
     ]);
 
     const addedKeys = new Set(existingDates.map(e => e.sourceKey).filter(Boolean) as string[]);
@@ -168,6 +184,10 @@ router.get("/suggested-dates", requireAuth, async (req, res, next) => {
 router.post("/important-dates", requireAuth, async (req, res, next) => {
   try {
     const user = req.user;
+    if (!user?.dbId) {
+      res.status(403).json({ error: "Registered user account required." });
+      return;
+    }
     const { personName, relation, dateType, month, day, year, customLabel, notes, sourceKey } = req.body as {
       personName: string;
       relation?: string;
@@ -196,7 +216,7 @@ router.post("/important-dates", requireAuth, async (req, res, next) => {
         year: year ?? null,
         customLabel: customLabel ?? null,
         notes: notes ?? null,
-        addedByUserId: user?.dbId ?? null,
+        addedByUserId: user.dbId,
         sourceKey: sourceKey ?? null,
       })
       .returning();
@@ -211,7 +231,12 @@ router.post("/important-dates", requireAuth, async (req, res, next) => {
 router.delete("/important-dates/:id", requireAuth, async (req, res, next) => {
   try {
     const id = Number(req.params.id);
-    await db.delete(importantDatesTable).where(eq(importantDatesTable.id, id));
+    const userId = req.user?.dbId;
+    if (!userId) { res.status(403).json({ error: "Registered user account required." }); return; }
+    const deleted = await db.delete(importantDatesTable)
+      .where(and(eq(importantDatesTable.id, id), eq(importantDatesTable.addedByUserId, userId)))
+      .returning({ id: importantDatesTable.id });
+    if (!deleted[0]) { res.status(404).json({ error: "Important date not found." }); return; }
     res.json({ success: true });
   } catch (err) {
     next(err);
@@ -219,7 +244,7 @@ router.delete("/important-dates/:id", requireAuth, async (req, res, next) => {
 });
 
 // ── GET /calendar/:id ─────────────────────────────────────────────────────────
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db.select().from(calendarEventsTable).where(eq(calendarEventsTable.id, id)).limit(1);
@@ -234,7 +259,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
 });
 
 // ── POST /calendar ─────────────────────────────────────────────────────────────
-router.post("/", requireAuth, async (req, res, next) => {
+router.post("/", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const { title, description, date, type, relatedId, relatedType } = req.body as {
       title: string;
@@ -268,7 +293,7 @@ router.post("/", requireAuth, async (req, res, next) => {
 });
 
 // ── PUT /calendar/:id ─────────────────────────────────────────────────────────
-router.put("/:id", requireAuth, async (req, res, next) => {
+router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const { title, description, date, type } = req.body as Partial<{
@@ -300,7 +325,7 @@ router.put("/:id", requireAuth, async (req, res, next) => {
 });
 
 // ── DELETE /calendar/:id ──────────────────────────────────────────────────────
-router.delete("/:id", requireAuth, async (req, res, next) => {
+router.delete("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     await db.delete(calendarEventsTable).where(eq(calendarEventsTable.id, id));

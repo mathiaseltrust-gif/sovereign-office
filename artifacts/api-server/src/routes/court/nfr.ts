@@ -8,7 +8,7 @@ import { auditLog } from "../../engines/nfr-review-engine";
 
 const router = Router();
 
-router.get("/", requireAuth, async (_req, res, next) => {
+router.get("/", requireAuth, requireRole("officer"), async (_req, res, next) => {
   try {
     const docs = await db.select().from(nfrDocumentsTable).orderBy(nfrDocumentsTable.createdAt);
     res.json(docs);
@@ -17,7 +17,7 @@ router.get("/", requireAuth, async (_req, res, next) => {
   }
 });
 
-router.get("/:id", requireAuth, async (req, res, next) => {
+router.get("/:id", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db.select().from(nfrDocumentsTable).where(eq(nfrDocumentsTable.id, id)).limit(1);
@@ -31,7 +31,7 @@ router.get("/:id", requireAuth, async (req, res, next) => {
   }
 });
 
-router.get("/:id/pdf", async (req, res, next) => {
+router.get("/:id/pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db
@@ -118,7 +118,7 @@ router.put("/:id", requireAuth, requireRole("officer"), async (req, res, next) =
   }
 });
 
-router.post("/:id/export-pdf", requireAuth, async (req, res, next) => {
+router.post("/:id/export-pdf", requireAuth, requireRole("officer"), async (req, res, next) => {
   try {
     const id = Number(req.params.id);
     const results = await db.select().from(nfrDocumentsTable).where(eq(nfrDocumentsTable.id, id)).limit(1);

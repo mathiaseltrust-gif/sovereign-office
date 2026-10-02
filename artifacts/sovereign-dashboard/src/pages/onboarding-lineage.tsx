@@ -80,40 +80,37 @@ export default function OnboardingLineagePage() {
   }
 
   if (result) {
-    const verified = result.membershipStatus === "verified";
+    const candidateFound = result.matchType !== "none";
     return (
       <div className="min-h-screen flex items-center justify-center bg-muted/30 p-4">
         <Card className="max-w-lg w-full">
           <CardHeader className="text-center">
-            <div className="text-4xl mb-3">{verified ? "✓" : "⏳"}</div>
+            <div className="text-4xl mb-3">⏳</div>
             <CardTitle className="text-xl font-serif">
-              {verified ? "Lineage Verified" : "Lineage Submitted for Review"}
+              {candidateFound ? "Lineage Match Found — Review Required" : "Lineage Submitted for Review"}
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            {verified ? (
-              <>
-                <p className="text-sm text-muted-foreground text-center">
-                  Your descendant status has been confirmed. You now have verified membership
-                  {result.matchType === "exact" ? " through an exact name match" : result.matchType === "family_name" ? " through family and parent name verification" : " as a child of a recognized ancestor"}.
+            <p className="text-sm text-muted-foreground text-center">
+              {candidateFound
+                ? "The Office found a possible match in the lineage record. The match has been routed for human review before membership status is changed."
+                : "No automatic match was confirmed. Your information has been routed for human lineage review."}
+            </p>
+            {(result.inheritedFlags.icwaEligible || result.inheritedFlags.welfareEligible || result.inheritedFlags.trustBeneficiary) && (
+              <div className="bg-muted rounded-lg p-3 space-y-1">
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">
+                  Record Flags for Reviewer
                 </p>
-                {(result.inheritedFlags.icwaEligible || result.inheritedFlags.welfareEligible || result.inheritedFlags.trustBeneficiary) && (
-                  <div className="bg-muted rounded-lg p-3 space-y-1">
-                    <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground mb-2">Inherited Eligibility Flags</p>
-                    {result.inheritedFlags.icwaEligible && <p className="text-sm">• ICWA Eligible</p>}
-                    {result.inheritedFlags.welfareEligible && <p className="text-sm">• Welfare Eligible</p>}
-                    {result.inheritedFlags.trustBeneficiary && <p className="text-sm">• Trust Beneficiary</p>}
-                  </div>
-                )}
-              </>
-            ) : (
-              <p className="text-sm text-muted-foreground text-center">
-                Your lineage claim has been submitted and is under review by our administration team.
-                You will be notified once your claim is processed — typically within 5–10 business days.
-              </p>
+                {result.inheritedFlags.icwaEligible && <p className="text-sm">• ICWA-related lineage flag present</p>}
+                {result.inheritedFlags.welfareEligible && <p className="text-sm">• Welfare-related lineage flag present</p>}
+                {result.inheritedFlags.trustBeneficiary && <p className="text-sm">• Trust-beneficiary lineage flag present</p>}
+              </div>
             )}
+            <p className="text-xs text-muted-foreground text-center">
+              Automated matching is a routing aid only. Membership verification and any external legal or program eligibility are determined separately through the applicable review process.
+            </p>
             <Button className="w-full" onClick={handleContinue}>
-              {verified ? "Continue to Dashboard" : "View Pending Status"}
+              View Pending Status
             </Button>
           </CardContent>
         </Card>
@@ -134,9 +131,8 @@ export default function OnboardingLineagePage() {
         <CardHeader>
           <CardTitle className="text-xl font-serif">Lineage Verification</CardTitle>
           <p className="text-sm text-muted-foreground mt-1">
-            To confirm your status as a protected descendant, please provide your name information below.
-            This is matched against our family lineage records to determine your eligibility for membership,
-            ICWA protections, and trust benefits — no enrollment form required.
+            Provide your name information so the Office can compare it with existing family-lineage records.
+            A possible match is routed for human review before membership status is changed.
           </p>
         </CardHeader>
         <CardContent>
@@ -177,7 +173,7 @@ export default function OnboardingLineagePage() {
             </div>
 
             <Button type="submit" className="w-full" disabled={submitting}>
-              {submitting ? "Checking lineage records…" : "Verify My Lineage"}
+              {submitting ? "Checking lineage records…" : "Submit for Lineage Review"}
             </Button>
           </form>
 
