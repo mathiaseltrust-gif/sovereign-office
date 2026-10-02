@@ -5,7 +5,7 @@ import {
   identityNarrativesTable,
   profilesTable,
 } from "@workspace/db";
-import { eq, and, or } from "drizzle-orm";
+import { eq, and, or, ne, notInArray } from "drizzle-orm";
 import { logger } from "../lib/logger";
 
 export interface ParsedPerson {
@@ -611,9 +611,13 @@ export async function getLineageForUser(userId: number) {
     .select()
     .from(familyLineageTable)
     .where(
-      or(
-        eq(familyLineageTable.linkedProfileUserId, userId),
-        eq(familyLineageTable.addedByMemberId, userId),
+      and(
+        or(
+          eq(familyLineageTable.linkedProfileUserId, userId),
+          eq(familyLineageTable.addedByMemberId, userId),
+        ),
+        notInArray(familyLineageTable.membershipStatus, ["pending", "rejected"]),
+        ne(familyLineageTable.sourceType, "archived"),
       )
     );
   const narratives = await db
