@@ -24,9 +24,9 @@ describe("machine service principal boundary", () => {
   });
 
   it("authenticates the M365 credential as a service principal, never as an Office user", () => {
-    process.env.M365_SERVICE_KEY = "test-secret";
+    process.env.M365_SERVICE_KEY = "x";
     const req: any = {
-      headers: { "x-api-key": "test-secret" },
+      headers: { "x-api-key": "x" },
       path: "/api/m365/webhook",
       ip: "127.0.0.1",
     };
@@ -42,9 +42,9 @@ describe("machine service principal boundary", () => {
   });
 
   it("does not authenticate an invalid service credential", () => {
-    process.env.M365_SERVICE_KEY = "expected-secret";
+    process.env.M365_SERVICE_KEY = "x";
     const req: any = {
-      headers: { "x-api-key": "wrong-secret" },
+      headers: { "x-api-key": "y" },
       path: "/api/m365/webhook",
       ip: "127.0.0.1",
     };
