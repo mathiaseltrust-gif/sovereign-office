@@ -77,6 +77,27 @@ const BOARD_ENTITIES = [
   ["charitable_trust", "Mathias El Tribe Charitable Trust"],
 ] as const;
 
+const TRUST_ENTITY_FALLBACKS: OrgSummary[] = [
+  {
+    id: "tribal_trust",
+    name: "Mathias El Tribe Trust",
+    shortName: "Tribal Trust",
+    type: "trust",
+    legalStatus: "Tribal Trust — internal trust administration",
+    description: "Primary trust-administration record for assets, land, instruments, beneficiary matters, entity identification, and governing documents.",
+    navPath: "/tribal-trust",
+  },
+  {
+    id: "charitable_trust",
+    name: "Mathias El Tribe Charitable Trust",
+    shortName: "Charitable Trust",
+    type: "charitable_trust",
+    legalStatus: "Charitable Trust — external tax status tracked in its entity record",
+    description: "Charitable-trust record for programs, tax and entity documentation, grants, donor administration, and trustee oversight.",
+    navPath: "/charitable-trust",
+  },
+];
+
 const ENTITY_LABELS: Record<string, string> = Object.fromEntries(BOARD_ENTITIES);
 
 const MATTER_TYPES = [
@@ -238,10 +259,24 @@ export default function BoardPage() {
     [matters, entityFilter],
   );
 
-  const trustEntities = useMemo(
-    () => (orgOverview?.orgs ?? []).filter((org) => ["tribal_trust", "charitable_trust"].includes(org.id)),
-    [orgOverview],
-  );
+  const trustEntities = useMemo(() => {
+    const loaded = new Map((orgOverview?.orgs ?? []).map((org) => [org.id, org]));
+    return TRUST_ENTITY_FALLBACKS.map((fallback) => ({
+      ...fallback,
+      ...(loaded.get(fallback.id) ?? {}),
+    }));
+  }, [orgOverview]);
+
+  const selectedRecordEntities = useMemo(() => {
+    if (entityFilter === "board_of_trustees") {
+      return [{ id: "board_of_trustees", name: "Board of Trustees / Independent Accountability & Stewardship" }];
+    }
+    if (entityFilter === "tribal_trust" || entityFilter === "charitable_trust") {
+      const selected = trustEntities.find((org) => org.id === entityFilter);
+      return selected ? [{ id: selected.id, name: selected.name }] : [];
+    }
+    return trustEntities.map((org) => ({ id: org.id, name: org.name }));
+  }, [entityFilter, trustEntities]);
 
   const stats = useMemo(() => {
     const openCount = filteredMatters.filter((m) => m.status !== "closed").length;
@@ -549,6 +584,16 @@ export default function BoardPage() {
                   <div className="flex gap-2 flex-wrap">
                     <Link href={org.navPath}><Button size="sm" variant="outline">Open Trust Workspace</Button></Link>
                     <Button size="sm" variant="outline" onClick={() => setEntityFilter(org.id)}>View Board Matters</Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => {
+                        setEntityFilter(org.id);
+                        window.setTimeout(() => document.getElementById("entity-records")?.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+                      }}
+                    >
+                      Entity ID & Documents
+                    </Button>
                   </div>
                 </CardContent>
               </Card>
@@ -635,11 +680,26 @@ export default function BoardPage() {
         </div>
       )}
 
-      <OrgDocumentsPanel
-        orgId="board_of_trustees"
-        orgName="Board of Trustees / Independent Accountability & Stewardship"
-        defaultExpanded
-      />
+      <div id="entity-records" className="space-y-3 scroll-mt-6">
+        <div>
+          <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Entity Records &amp; Organization Documents</h2>
+          <p className="text-xs text-muted-foreground mt-1">
+            {entityFilter === "all"
+              ? "Each trust keeps its own entity ID, EIN record, organizing documents, and exempt-status records. Select a trust above to work in one record, or maintain both here."
+              : `Showing the entity record for ${ENTITY_LABELS[entityFilter] ?? entityFilter}.`}
+          </p>
+        </div>
+        <div className="space-y-4">
+          {selectedRecordEntities.map((entity) => (
+            <OrgDocumentsPanel
+              key={entity.id}
+              orgId={entity.id}
+              orgName={entity.name}
+              defaultExpanded={selectedRecordEntities.length === 1}
+            />
+          ))}
+        </div>
+      </div>
     </div>
   );
 }

@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 import { useAuth } from "@/components/auth-provider";
 
 const TRUST_AUTHORITIES = [
@@ -53,6 +54,10 @@ export default function TribalTrustPage() {
             <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">Treaty-Based Fiduciary</Badge>
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <OrgDocumentsPanel orgId="tribal_trust" orgName="Mathias El Tribe Trust" defaultExpanded />
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">

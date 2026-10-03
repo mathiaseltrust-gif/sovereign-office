@@ -146,6 +146,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
   const [uploadLabel, setUploadLabel] = useState("");
   const [uploadDocType, setUploadDocType] = useState<string>("general");
   const [showUploadForm, setShowUploadForm] = useState(false);
+  const [showLinkExisting, setShowLinkExisting] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -155,6 +156,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
 
   const profileKey = ["org-profile", orgId];
   const docsKey = ["org-documents", orgId];
+  const catalogKey = ["org-document-catalog"];
 
   const { data: profile, isLoading: profileLoading } = useQuery<OrgProfile>({
     queryKey: profileKey,
@@ -167,6 +169,15 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
     queryFn: () => apiFetch(`/api/org/${orgId}/documents`),
     enabled: expanded && isElevated,
   });
+
+  const { data: catalogDocs = [], isLoading: catalogLoading } = useQuery<OrgDocument[]>({
+    queryKey: catalogKey,
+    queryFn: () => apiFetch("/api/org/_documents/catalog"),
+    enabled: expanded && isElevated && showLinkExisting,
+    staleTime: 30_000,
+  });
+
+  const linkableDocs = catalogDocs.filter((doc) => doc.orgId !== orgId);
 
   const patchProfile = useMutation({
     mutationFn: (data: Partial<OrgProfile>) =>
@@ -191,6 +202,22 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
       toast({ title: "Document removed" });
     },
     onError: (e: Error) => toast({ title: "Delete failed", description: e.message, variant: "destructive" }),
+  });
+
+  const linkExisting = useMutation({
+    mutationFn: (sourceDocumentId: number) =>
+      apiFetch(`/api/org/${orgId}/documents/link`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ sourceDocumentId }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: docsKey });
+      queryClient.invalidateQueries({ queryKey: catalogKey });
+      setShowLinkExisting(false);
+      toast({ title: "Existing document linked", description: `The document is now part of ${orgName} without uploading another copy.` });
+    },
+    onError: (e: Error) => toast({ title: "Link failed", description: e.message, variant: "destructive" }),
   });
 
   const handleUpload = async (file: File) => {
@@ -243,7 +270,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle>
+          <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-0.5">{orgName}</p><CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle></div>
           <span className="text-xs text-muted-foreground">{expanded ? "▲ collapse" : "▼ expand"}</span>
         </div>
       </CardHeader>
@@ -306,16 +333,62 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                 Exempt Status &amp; Organization Documents
               </Label>
               {isElevated && (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="h-7 text-xs"
-                  onClick={() => setShowUploadForm((v) => !v)}
-                >
-                  {showUploadForm ? "Cancel" : "+ Upload Document"}
-                </Button>
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => { setShowUploadForm((v) => !v); setShowLinkExisting(false); }}
+                  >
+                    {showUploadForm ? "Cancel" : "+ Upload Document"}
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-7 text-xs"
+                    onClick={() => { setShowLinkExisting((v) => !v); setShowUploadForm(false); }}
+                  >
+                    {showLinkExisting ? "Close Existing" : "Link Existing"}
+                  </Button>
+                </div>
               )}
             </div>
+
+            {showLinkExisting && isElevated && (
+              <div className="p-3 rounded-md border bg-muted/30 space-y-2">
+                <div>
+                  <p className="text-xs font-semibold">Link a document already stored in another organization record</p>
+                  <p className="text-[11px] text-muted-foreground mt-0.5">This reuses the existing stored file instead of uploading a duplicate.</p>
+                </div>
+                {catalogLoading ? (
+                  <Skeleton className="h-16 w-full" />
+                ) : linkableDocs.length === 0 ? (
+                  <p className="text-xs text-muted-foreground py-2">No other uploaded organization documents are available to link.</p>
+                ) : (
+                  <div className="space-y-2 max-h-64 overflow-y-auto">
+                    {linkableDocs.map((doc) => (
+                      <div key={doc.id} className="flex items-center justify-between gap-3 rounded border bg-background p-2">
+                        <div className="min-w-0">
+                          <p className="text-xs font-medium truncate">{doc.label}</p>
+                          <p className="text-[10px] text-muted-foreground truncate">
+                            {doc.orgId.replace(/_/g, " ")} · {doc.filename}
+                          </p>
+                        </div>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="h-7 text-xs shrink-0"
+                          disabled={linkExisting.isPending}
+                          onClick={() => linkExisting.mutate(doc.id)}
+                        >
+                          Link
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
 
             {showUploadForm && isElevated && (
               <div className="p-3 rounded-md border bg-muted/30 space-y-3">

@@ -7,6 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 import { getCurrentBearerToken, useAuth } from "@/components/auth-provider";
 import { Heart, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 
@@ -493,6 +494,10 @@ export default function CharitableTrustPage() {
             <Badge variant="outline" className="text-xs">IRS Tax-Exempt</Badge>
           </div>
         </div>
+      </div>
+
+      <div className="mb-6">
+        <OrgDocumentsPanel orgId="charitable_trust" orgName="Mathias El Tribe Charitable Trust" defaultExpanded />
       </div>
 
       <WelfareExclusionPanel />
