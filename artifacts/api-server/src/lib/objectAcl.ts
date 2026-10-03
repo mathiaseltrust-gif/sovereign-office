@@ -10,6 +10,7 @@ export enum ObjectPermission {
 export interface ObjectAclPolicy {
   owner: string;
   visibility: "public" | "private";
+  readers?: string[];
 }
 
 export async function setObjectAclPolicy(
@@ -38,10 +39,12 @@ export async function getObjectAclPolicy(
 
 export async function canAccessObject({
   userId,
+  principalIds,
   objectFile,
   requestedPermission,
 }: {
   userId?: string;
+  principalIds?: string[];
   objectFile: File;
   requestedPermission: ObjectPermission;
 }): Promise<boolean> {
@@ -50,6 +53,15 @@ export async function canAccessObject({
   if (aclPolicy.visibility === "public" && requestedPermission === ObjectPermission.READ) {
     return true;
   }
-  if (!userId) return false;
-  return aclPolicy.owner === userId;
+  const principals = new Set([
+    ...(userId ? [userId] : []),
+    ...(principalIds ?? []),
+  ]);
+  if (principals.size === 0) return false;
+
+  if (principals.has(aclPolicy.owner)) return true;
+  if (requestedPermission === ObjectPermission.READ) {
+    return (aclPolicy.readers ?? []).some((principal) => principals.has(principal));
+  }
+  return false;
 }
