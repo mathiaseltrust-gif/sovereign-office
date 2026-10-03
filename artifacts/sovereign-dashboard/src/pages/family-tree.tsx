@@ -1705,13 +1705,15 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [pedigreeExpandedIds, setPedigreeExpandedIds] = useState<Set<number>>(() => new Set());
 
   const DEPTH_MIN = 1;
-  const DEPTH_MAX = 5;
+  const DEPTH_MAX = 7;
   const DEPTH_LABELS: Record<number, string> = {
     1: "Parents",
     2: "Grandparents",
     3: "Great-grandparents",
     4: "2× Great-grandparents",
     5: "3× Great-grandparents",
+    6: "4× Great-grandparents",
+    7: "5× Great-grandparents",
   };
   const depthLabel = DEPTH_LABELS[generationDepth] ?? "Ancestors";
 
@@ -1747,34 +1749,51 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
     // Ancestor BFS — each level adds one generation up.
     // generationDepth=1 means parents, 2 means grandparents, etc.
-    // Start from self + all spouses for ancestor traversal.
+    //
+    // Visibility and traversal are deliberately separate. A parent can already
+    // be visible because they were added as the spouse/adult in a family unit,
+    // but that must NOT prevent us from traversing that parent's own parents.
+    // The previous implementation used `included` as both concepts, which
+    // caused the second parent in each couple to appear but never continue.
     let upFrontier: number[] = [selfNodeRaw.id, ...selfSpouseIds];
+    const traversedAncestorIds = new Set<number>();
+
     for (let lvl = 1; lvl <= generationDepth; lvl++) {
-      const nextFrontier: number[] = [];
+      const nextFrontier = new Set<number>();
+
       for (const uid of upFrontier) {
+        if (traversedAncestorIds.has(uid)) continue;
+        traversedAncestorIds.add(uid);
+
         const node = byId.get(uid);
         if (!node) continue;
+
         for (const pid of resolveAncestorIds(node, byId, familyUnits)) {
-          if (!included.has(pid)) {
-            included.add(pid);
-            nextFrontier.push(pid);
-            // Include this ancestor's spouse(s), plus adults sharing a FAM unit.
-            const parent = byId.get(pid);
-            if (parent) {
-              (parent.spouseIds ?? []).forEach((sid) => included.add(sid as number));
-            }
-            for (const unit of familyUnits) {
-              const adults = [
-                unit.husbandId,
-                unit.wifeId,
-                ...numericIds(unit.spouseIds),
-              ].filter((id): id is number => id != null);
-              if (adults.includes(pid)) adults.forEach((sid) => included.add(sid));
-            }
+          included.add(pid);
+
+          // Queue every actual parent for upward traversal even if that person
+          // was already visible as a spouse/family-unit adult.
+          if (!traversedAncestorIds.has(pid)) nextFrontier.add(pid);
+
+          // Include this ancestor's spouse(s), plus adults sharing a FAM unit,
+          // for display only. They will still be queued if they are also an
+          // explicit parent encountered through resolveAncestorIds().
+          const parent = byId.get(pid);
+          if (parent) {
+            (parent.spouseIds ?? []).forEach((sid) => included.add(sid as number));
+          }
+          for (const unit of familyUnits) {
+            const adults = [
+              unit.husbandId,
+              unit.wifeId,
+              ...numericIds(unit.spouseIds),
+            ].filter((id): id is number => id != null);
+            if (adults.includes(pid)) adults.forEach((sid) => included.add(sid));
           }
         }
       }
-      upFrontier = nextFrontier;
+
+      upFrontier = [...nextFrontier];
     }
 
     // Branch-by-branch continuation beyond the global baseline.
@@ -1981,8 +2000,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     [familyViewNodes, familyUnits, effectiveFocusId],
   );
   const fullTreeLayout = useMemo(
-    () => computeLayout(treeNodes, familyUnits, preferredRootId),
-    [treeNodes, familyUnits, preferredRootId],
+    () => computeLayout(fullTreeNodes, familyUnits, preferredRootId),
+    [fullTreeNodes, familyUnits, preferredRootId],
   );
   const fullTreeEdges = useMemo(
     () => buildEdges(fullTreeLayout.positioned, familyUnits),
@@ -1992,13 +2011,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const treeHiddenParentIds = useMemo(() => {
     const hidden = new Set<number>();
     const allById = new Map(familyViewNodes.map((node) => [node.id, node]));
-    const visibleIds = new Set(treeNodes.map((node) => node.id));
-    for (const node of treeNodes) {
+    const visibleIds = new Set(fullTreeNodes.map((node) => node.id));
+    for (const node of fullTreeNodes) {
       const parentIds = resolveAncestorIds(node, allById, familyUnits);
       if (parentIds.some((parentId) => !visibleIds.has(parentId))) hidden.add(node.id);
     }
     return hidden;
-  }, [familyViewNodes, treeNodes, familyUnits]);
+  }, [familyViewNodes, fullTreeNodes, familyUnits]);
 
   const positioned = treeView === "tree" ? fullTreeLayout.positioned : familyLayout.positioned;
   const totalW = treeView === "tree" ? fullTreeLayout.totalW : familyLayout.totalW;
@@ -2855,7 +2874,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           {treeView === "family"
             ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
             : treeView === "tree"
-              ? <>{treeNodes.length} visible <span className="opacity-60">at {depthLabel.toLowerCase()} depth</span></>
+              ? <>{fullTreeNodes.length} connected <span className="opacity-60">in the full lineage tree</span></>
             : treeView === "pedigree"
               ? <>{pedigreeData.placed.length} ancestor card{pedigreeData.placed.length === 1 ? "" : "s"} <span className="opacity-60">shown · {pedigreeEffectivePresentation === "compact" ? "overview" : "horizontal"}</span></>
             : treeView === "fan"

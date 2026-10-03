@@ -232,6 +232,13 @@
       "when": 1791014460000,
       "tag": "0031_repair_duplicate_maternal_chain",
       "breakpoints": true
+    },
+    {
+      "idx": 33,
+      "version": "7",
+      "when": 1791018060000,
+      "tag": "0032_ensure_full_known_ancestor_chain",
+      "breakpoints": true
     }
   ]
 }
