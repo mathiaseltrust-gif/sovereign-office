@@ -1929,7 +1929,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     const anchorX = clientWidth / 2;
     const anchorY = clientHeight / 2;
     setTransform((prev) => {
-      const nextScale = Math.min(3, Math.max(0.15, prev.scale * factor));
+      const nextScale = Math.min(3, Math.max(0.03, prev.scale * factor));
       const ratio = nextScale / prev.scale;
       return {
         scale: nextScale,
@@ -2040,7 +2040,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       e.preventDefault();
       const delta = -e.deltaY * 0.0015;
       setTransform((prev) => {
-        const nextScale = Math.min(3, Math.max(0.15, prev.scale * Math.exp(delta)));
+        const nextScale = Math.min(3, Math.max(0.03, prev.scale * Math.exp(delta)));
         const rect = el.getBoundingClientRect();
         const mouseX = e.clientX - rect.left;
         const mouseY = e.clientY - rect.top;
@@ -2121,7 +2121,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       const midX = (a.x + b.x) / 2 - rect.left;
       const midY = (a.y + b.y) / 2 - rect.top;
       const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
-      const nextScale = Math.min(3, Math.max(0.15, start.startScale * (distance / start.startDistance)));
+      const nextScale = Math.min(3, Math.max(0.03, start.startScale * (distance / start.startDistance)));
       if (Math.abs(distance - start.startDistance) > 3) start.moved = true;
       if (start.moved) suppressNodeClickUntil.current = Date.now() + 250;
 
@@ -2324,7 +2324,9 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <Minus className="h-3.5 w-3.5" />
           </button>
           <span className="h-full min-w-[52px] px-2 flex items-center justify-center text-[11px] border-x text-muted-foreground">
-            {Math.round(transform.scale * 100)}%
+            {transform.scale < 0.1
+              ? `${(transform.scale * 100).toFixed(1)}%`
+              : `${Math.round(transform.scale * 100)}%`}
           </span>
           <button
             type="button"
