@@ -19,6 +19,22 @@ export interface EntityCandidate {
   metadata?: Record<string, unknown>;
 }
 
+
+export function isProtectedLevel(value: unknown): boolean {
+  const protectionLevel = String(value ?? "").trim().toLowerCase();
+  return Boolean(
+    protectionLevel &&
+    !["pending", "standard", "none", "null"].includes(protectionLevel),
+  );
+}
+
+export function shouldEscalateProtectedAssociation(
+  protectionLevel: unknown,
+  associationStatus: unknown,
+): boolean {
+  return isProtectedLevel(protectionLevel) && String(associationStatus) === "active";
+}
+
 function textValue(value: unknown): string | null {
   if (typeof value !== "string") return null;
   const trimmed = value.trim();
@@ -462,11 +478,8 @@ export async function persistResolvedAssociations(input: {
     });
 
     const protectionLevel = String(candidate.metadata?.protectionLevel ?? "").toLowerCase();
-    const protectedMatch =
-      protectionLevel &&
-      !["pending", "standard", "none", "null"].includes(protectionLevel);
 
-    if (protectedMatch) {
+    if (isProtectedLevel(protectionLevel)) {
       const activeResult = await db.execute(sql`
         SELECT status
         FROM document_associations
@@ -480,7 +493,7 @@ export async function persistResolvedAssociations(input: {
         (activeResult.rows[0] as Record<string, unknown> | undefined)?.status ?? "",
       );
 
-      if (activeStatus === "active") {
+      if (shouldEscalateProtectedAssociation(protectionLevel, activeStatus)) {
         await db.execute(sql`
           UPDATE document_registry
           SET sensitivity_level = 'protected',
