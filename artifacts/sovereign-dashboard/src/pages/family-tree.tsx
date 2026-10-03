@@ -1941,6 +1941,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const [treeView, setTreeView] = useState<TreeViewMode>("tree");
+  const [pedigreePreference, setPedigreePreference] = useState<PedigreePreference>("auto");
   const [selectedHistoricalEvent, setSelectedHistoricalEvent] = useState<FamilyTimelineAtlasEvent | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
@@ -2055,11 +2056,68 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     Math.max(0, Math.min(timelineTrackWidth, (year - timelineBounds.minYear) * timelineYearPx)),
   [timelineBounds.minYear, timelineTrackWidth]);
 
-  const pedigreeData = useMemo(
+  const pedigreeHorizontalData = useMemo(
     () => treeView === "pedigree"
-      ? computePedigreeLayout(familyViewNodes, preferredRootId, familyUnits, Math.max(1, generationDepth), pedigreeExpandedIds)
-      : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+      ? computePedigreeLayout(
+          familyViewNodes,
+          preferredRootId,
+          familyUnits,
+          Math.max(1, generationDepth),
+          pedigreeExpandedIds,
+          "horizontal",
+        )
+      : {
+          placed: [],
+          totalW: 0,
+          totalH: 0,
+          cardW: PDIG_W,
+          cardH: PDIG_H,
+          presentation: "horizontal" as PedigreePresentation,
+          pEdges: [],
+        },
     [familyViewNodes, treeView, preferredRootId, familyUnits, generationDepth, pedigreeExpandedIds],
+  );
+
+  // Auto switches to the compact root-at-bottom overview when the horizontal
+  // pedigree becomes crowded. Manual preference always wins.
+  const pedigreeEffectivePresentation: PedigreePresentation =
+    pedigreePreference === "auto"
+      ? (pedigreeHorizontalData.placed.length > 24 ? "compact" : "horizontal")
+      : pedigreePreference;
+
+  const pedigreeData = useMemo(
+    () => {
+      if (treeView !== "pedigree") {
+        return {
+          placed: [],
+          totalW: 0,
+          totalH: 0,
+          cardW: PDIG_W,
+          cardH: PDIG_H,
+          presentation: "horizontal" as PedigreePresentation,
+          pEdges: [],
+        };
+      }
+      if (pedigreeEffectivePresentation === "horizontal") return pedigreeHorizontalData;
+      return computePedigreeLayout(
+        familyViewNodes,
+        preferredRootId,
+        familyUnits,
+        Math.max(1, generationDepth),
+        pedigreeExpandedIds,
+        "compact",
+      );
+    },
+    [
+      treeView,
+      pedigreeEffectivePresentation,
+      pedigreeHorizontalData,
+      familyViewNodes,
+      preferredRootId,
+      familyUnits,
+      generationDepth,
+      pedigreeExpandedIds,
+    ],
   );
   const fanData = useMemo(
     () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId, familyUnits) : { entries: [], root: null, maxGen: 0 },
@@ -2235,8 +2293,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     if (selfNode && containerRef.current) {
       const { clientWidth, clientHeight } = containerRef.current;
       const scale = 1.1;
-      const x = clientWidth / 2 - (selfNode.px + PDIG_W / 2) * scale;
-      const y = clientHeight / 2 - (selfNode.py + PDIG_H / 2) * scale;
+      const x = clientWidth / 2 - (selfNode.px + pedigreeData.cardW / 2) * scale;
+      const y = clientHeight / 2 - (selfNode.py + pedigreeData.cardH / 2) * scale;
       setTransform({ x, y, scale });
       setSelectedNodeId(selfNode.id);
       return;
@@ -2244,7 +2302,16 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
     setSelectedNodeId(preferredRootId);
     setTimeout(() => fitToScreen(), 0);
-  }, [treeView, preferredRootId, pedigreeData.placed, fitToScreen, positioned, transform.scale]);
+  }, [
+    treeView,
+    preferredRootId,
+    pedigreeData.placed,
+    pedigreeData.cardW,
+    pedigreeData.cardH,
+    fitToScreen,
+    positioned,
+    transform.scale,
+  ]);
 
   const focusOnPerson = useCallback((personId: number) => {
     setFocusedPersonId(personId);
