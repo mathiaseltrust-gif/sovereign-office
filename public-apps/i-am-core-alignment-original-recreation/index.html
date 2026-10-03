@@ -274,6 +274,8 @@ async function animateAnswerOut(){
 }
 
 function setCard(n){
+  promptEl.getAnimations().forEach(a=>a.cancel());
+  answerEl.getAnimations().forEach(a=>a.cancel());
   index=(n+cards.length)%cards.length;
   promptEl.textContent=cards[index].prompt;
   promptEl.style.opacity="0";
