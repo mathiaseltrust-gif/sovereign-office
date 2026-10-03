@@ -2,7 +2,7 @@ import { Router } from "express";
 import { db } from "@workspace/db";
 import { usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { requireAuth, requireAdmin, requireRegisteredUser } from "../../auth/entra-guard";
+import { requireAuth, requireIdentityAdmin, requireRegisteredUser } from "../../auth/entra-guard";
 import { sendNotificationEmail } from "../../services/mailer";
 
 const router = Router();
@@ -14,7 +14,7 @@ router.post(
   "/",
   requireAuth,
   requireRegisteredUser,
-  requireAdmin,
+  requireIdentityAdmin,
   async (req, res, next) => {
     try {
       const { action, userId, entraRequired, role } = req.body as {
@@ -127,7 +127,7 @@ router.post(
   },
 );
 
-router.get("/users", requireAuth, requireRegisteredUser, requireAdmin, async (_req, res, next) => {
+router.get("/users", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (_req, res, next) => {
   try {
     const users = await db.select().from(usersTable).orderBy(usersTable.createdAt);
     res.json(users);
@@ -136,7 +136,7 @@ router.get("/users", requireAuth, requireRegisteredUser, requireAdmin, async (_r
   }
 });
 
-router.post("/toggle", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/toggle", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { userId, entraRequired } = req.body as { userId: number; entraRequired: boolean };
     if (userId === undefined || entraRequired === undefined) {
@@ -158,7 +158,7 @@ router.post("/toggle", requireAuth, requireRegisteredUser, requireAdmin, async (
   }
 });
 
-router.post("/override-role", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/override-role", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { userId, role } = req.body as { userId: number; role: string };
     if (!userId || !role) {
@@ -184,7 +184,7 @@ router.post("/override-role", requireAuth, requireRegisteredUser, requireAdmin, 
   }
 });
 
-router.post("/revoke-trust", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/revoke-trust", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { userId } = req.body as { userId: number };
     if (!userId) {
@@ -206,7 +206,7 @@ router.post("/revoke-trust", requireAuth, requireRegisteredUser, requireAdmin, a
   }
 });
 
-router.post("/grant-trust", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/grant-trust", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { userId } = req.body as { userId: number };
     if (!userId) {
@@ -230,7 +230,7 @@ router.post("/grant-trust", requireAuth, requireRegisteredUser, requireAdmin, as
 
 // Separate from /api/auth/set-password (self-service) — this endpoint lets admins
 // set a password for *any* user by userId and requires admin privileges.
-router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/set-password", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { userId, password } = req.body as { userId?: number; password?: string };
     if (!userId) {
@@ -273,7 +273,7 @@ router.post("/set-password", requireAuth, requireRegisteredUser, requireAdmin, a
   }
 });
 
-router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const userId = parseInt(Array.isArray(req.params.userId) ? req.params.userId[0] : req.params.userId);
     const { email } = req.body as { email?: string };
@@ -296,7 +296,7 @@ router.patch("/users/:userId/email", requireAuth, requireRegisteredUser, require
   }
 });
 
-router.post("/create-user", requireAuth, requireRegisteredUser, requireAdmin, async (req, res, next) => {
+router.post("/create-user", requireAuth, requireRegisteredUser, requireIdentityAdmin, async (req, res, next) => {
   try {
     const { email, name, role, entraId, password, entraRequired } = req.body as {
       email?: string;
