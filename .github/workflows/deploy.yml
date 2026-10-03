@@ -631,7 +631,99 @@ jobs:
             echo "The rollback job will now attempt to revert to the last known-good images."
             exit 1
           fi
-          echo "==> All six endpoints returned 200 — release is healthy."
+          echo "==> All seven endpoints returned 200 — release is healthy."
+
+      - name: Verify production security boundaries
+        env:
+          API_URL: ${{ env.VITE_API_URL }}
+        run: |
+          set -euo pipefail
+          BASE="${API_URL%/}"
+          TMP_DIR="$(mktemp -d)"
+          trap 'rm -rf "$TMP_DIR"' EXIT
+
+          expect_denied() {
+            local label="$1"
+            shift
+            local code
+            code=$(curl -sS --max-time 15 -o "$TMP_DIR/denied.json" -w "%{http_code}" "$@" || true)
+            case "$code" in
+              401|403)
+                echo "  ✓ $label — denied with HTTP $code"
+                ;;
+              *)
+                echo "  ✗ $label — expected 401/403, got HTTP $code"
+                cat "$TMP_DIR/denied.json" 2>/dev/null || true
+                exit 1
+                ;;
+            esac
+          }
+
+          echo "==> Verifying public MCP identity and least-privilege surface..."
+          curl -fsS --max-time 15 "$BASE/api/mcp/status" -o "$TMP_DIR/mcp-status.json"
+          python - "$TMP_DIR/mcp-status.json" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          assert data.get("online") is True, data
+          profile = data.get("profile") or {}
+          assert profile.get("roleKey") == "visitor_media", profile
+          assert profile.get("accessClass") == "public", profile
+          tools = data.get("tools") or []
+          assert tools and all(str(name).startswith("public.") for name in tools), tools
+          forbidden = {"trust.issue_directive", "document.send", "record.delete", "member.get", "medical.get"}
+          assert forbidden.isdisjoint(tools), tools
+          print("  ✓ public MCP status exposes only the Visitor / Media public profile")
+          PY
+
+          curl -fsS --max-time 15 \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/list' \
+            --data '{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}' \
+            "$BASE/api/mcp" -o "$TMP_DIR/mcp-tools.json"
+          python - "$TMP_DIR/mcp-tools.json" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          tools = ((data.get("result") or {}).get("tools") or [])
+          names = [tool.get("name") for tool in tools]
+          assert names and all(isinstance(name, str) and name.startswith("public.") for name in names), names
+          print("  ✓ MCP tools/list contains only public.* tools")
+          PY
+
+          hostile_code=$(curl -sS --max-time 15 -o "$TMP_DIR/mcp-hostile.json" -w "%{http_code}" \
+            -H 'Content-Type: application/json' \
+            -H 'MCP-Protocol-Version: 2026-07-28' \
+            -H 'Mcp-Method: tools/call' \
+            -H 'Mcp-Name: trust.issue_directive' \
+            --data '{"jsonrpc":"2.0","id":2,"method":"tools/call","params":{"name":"trust.issue_directive","arguments":{}}}' \
+            "$BASE/api/mcp" || true)
+          if [ "$hostile_code" != "400" ]; then
+            echo "  ✗ unadvertised MCP action — expected HTTP 400, got $hostile_code"
+            cat "$TMP_DIR/mcp-hostile.json" || true
+            exit 1
+          fi
+          python - "$TMP_DIR/mcp-hostile.json" <<'PY'
+          import json, sys
+          data = json.load(open(sys.argv[1]))
+          assert "error" in data and "Unknown public MCP tool" in str(data["error"].get("message", "")), data
+          print("  ✓ unadvertised internal MCP tool is not executable")
+          PY
+
+          echo "==> Verifying unauthenticated/private API denial..."
+          expect_denied "Board Matters" "$BASE/api/board/matters"
+          expect_denied "private object route" "$BASE/api/storage/objects/security-probe"
+          expect_denied "document association review" "$BASE/api/documents/registry/DOC-SECURITY-PROBE/associations"
+          expect_denied "M365 fact extraction without service capability" \
+            -H 'Content-Type: application/json' \
+            --data '{"text":"security probe only"}' \
+            "$BASE/api/facts/extract"
+          expect_denied "GitHub intake with unverified raw Bearer text" \
+            -H 'Content-Type: application/json' \
+            -H 'Authorization: Bearer not-a-verified-session' \
+            --data '{"issueTitle":"security probe","issueBody":"security probe","dryRun":true}' \
+            "$BASE/api/github/intake"
+
+          echo "==> Production security boundary smoke checks passed."
 
       - name: Notify Slack — smoke test failed
         if: failure()
