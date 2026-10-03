@@ -57,6 +57,34 @@ interface ClassifyResult {
   filename: string;
 }
 
+interface AssociationRow {
+  id: number;
+  entity_type: string;
+  entity_id: string;
+  relationship_type: string;
+  confidence: string;
+  resolution_method: string;
+  status: "active" | "proposed" | "unresolved" | "rejected";
+  metadata?: {
+    displayLabel?: string;
+    matchedField?: string;
+    matchedValue?: string;
+    protectionLevel?: string;
+  } | null;
+}
+
+interface AssociationDetail {
+  summary: {
+    total: number;
+    active: number;
+    proposed: number;
+    unresolved: number;
+    rejected: number;
+    reviewRequired: boolean;
+  };
+  associations: AssociationRow[];
+}
+
 interface ApplyResult {
   success: boolean;
   documentType: string;
@@ -137,6 +165,8 @@ export function DocumentIntakePanel() {
   const [classifyResult, setClassifyResult] = useState<ClassifyResult | null>(null);
   const [applyResult, setApplyResult] = useState<ApplyResult | null>(null);
   const [applying, setApplying] = useState(false);
+  const [associationDetail, setAssociationDetail] = useState<AssociationDetail | null>(null);
+  const [reviewingAssociationId, setReviewingAssociationId] = useState<number | null>(null);
   const [step, setStep] = useState<Step>("idle");
 
   const authHeader = { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` };
@@ -152,6 +182,8 @@ export function DocumentIntakePanel() {
     setKayaExplanation(null);
     setClassifyResult(null);
     setApplyResult(null);
+    setAssociationDetail(null);
+    setReviewingAssociationId(null);
     setApplying(false);
     setStep("idle");
   }
@@ -251,6 +283,42 @@ export function DocumentIntakePanel() {
     }
   }
 
+  async function loadAssociations(ref: string) {
+    const res = await fetch(`/api/documents/registry/${encodeURIComponent(ref)}/associations`, {
+      headers: authHeader,
+    });
+    if (!res.ok) return;
+    setAssociationDetail(await res.json() as AssociationDetail);
+  }
+
+  async function reviewAssociation(associationId: number, decision: "approve" | "reject") {
+    if (!documentRef) return;
+    setReviewingAssociationId(associationId);
+    try {
+      const res = await fetch(
+        `/api/documents/registry/${encodeURIComponent(documentRef)}/associations/${associationId}`,
+        {
+          method: "PATCH",
+          headers: { ...authHeader, "Content-Type": "application/json" },
+          body: JSON.stringify({ decision }),
+        },
+      );
+      if (!res.ok) {
+        const e = await res.json().catch(() => ({}));
+        throw new Error((e as Record<string, string>).error ?? "Association review failed");
+      }
+      await loadAssociations(documentRef);
+      toast({
+        title: decision === "approve" ? "Association approved" : "Association rejected",
+        description: "The document relationship ledger was updated.",
+      });
+    } catch (err) {
+      toast({ title: "Review failed", description: (err as Error).message, variant: "destructive" });
+    } finally {
+      setReviewingAssociationId(null);
+    }
+  }
+
   async function applyFiling() {
     if (!classifyResult || !extractedText) return;
     setApplying(true);
@@ -271,6 +339,8 @@ export function DocumentIntakePanel() {
       }
       const result = await res.json() as ApplyResult;
       setApplyResult(result);
+      const appliedRef = result.documentRef ?? documentRef;
+      if (appliedRef) await loadAssociations(appliedRef);
       qc.invalidateQueries({ queryKey: ["land-parcels"] });
       qc.invalidateQueries({ queryKey: ["court-documents"] });
       qc.invalidateQueries({ queryKey: ["active-matters"] });
@@ -672,6 +742,62 @@ export function DocumentIntakePanel() {
                     <p className="text-[10px] text-emerald-400/50 mt-1">
                       Original stored once. Linked records now reference the canonical document.
                     </p>
+                    {associationDetail && associationDetail.associations.some(
+                      (a) => a.status === "proposed" || a.status === "unresolved",
+                    ) && (
+                      <div className="space-y-2 mt-2">
+                        <p className="text-[9px] tracking-widest uppercase text-amber-300/60 font-semibold">
+                          Review Proposed Relationships
+                        </p>
+                        {associationDetail.associations
+                          .filter((a) => a.status === "proposed" || a.status === "unresolved")
+                          .map((a) => (
+                            <div
+                              key={a.id}
+                              className="rounded-lg p-2.5"
+                              style={{ background: "rgba(160,100,0,0.08)", border: "1px solid rgba(200,140,30,0.16)" }}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-[11px] text-white/80 font-medium truncate">
+                                    {a.metadata?.displayLabel ?? `${a.entity_type} #${a.entity_id}`}
+                                  </p>
+                                  <p className="text-[9px] text-white/35 mt-0.5">
+                                    {a.entity_type} · {a.relationship_type} · {a.confidence} confidence
+                                  </p>
+                                  {a.metadata?.matchedField && (
+                                    <p className="text-[9px] text-white/30 mt-0.5 truncate">
+                                      Matched by {a.metadata.matchedField}: {a.metadata.matchedValue}
+                                    </p>
+                                  )}
+                                </div>
+                                <Badge className="bg-amber-950/70 text-amber-300 border border-amber-700/30 text-[8px]">
+                                  {a.status.toUpperCase()}
+                                </Badge>
+                              </div>
+                              <div className="flex gap-1.5 mt-2">
+                                <Button
+                                  size="sm"
+                                  className="h-6 px-2 text-[9px] bg-emerald-800 hover:bg-emerald-700"
+                                  disabled={reviewingAssociationId === a.id}
+                                  onClick={() => reviewAssociation(a.id, "approve")}
+                                >
+                                  Approve Link
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-6 px-2 text-[9px]"
+                                  disabled={reviewingAssociationId === a.id}
+                                  onClick={() => reviewAssociation(a.id, "reject")}
+                                >
+                                  Reject
+                                </Button>
+                              </div>
+                            </div>
+                          ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
