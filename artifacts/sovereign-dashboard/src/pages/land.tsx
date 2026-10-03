@@ -80,6 +80,22 @@ type Deed = {
   notes: string; status: string; tract_number?: string;
 };
 
+type RepositoryDeedDocument = {
+  id: string;
+  title: string;
+  filename: string;
+  parcelIdentifier: string;
+  tractNumber: string | null;
+  deedType: string;
+  grantor: string;
+  grantee: string;
+  recordingJurisdiction: string;
+  defaultStatus: string;
+  note: string;
+  linkedParcelIds: number[];
+  downloadUrl: string;
+};
+
 type TaxCompliance = {
   id: number; parcel_id: number; compliance_type: string; jurisdiction: string;
   tax_year: number; deadline_date: string; amount_assessed: string; amount_paid: string;
@@ -2442,9 +2458,71 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
   const [editing, setEditing] = useState<Deed | null>(null);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [filterParcel, setFilterParcel] = useState("");
+  const [linkModal, setLinkModal] = useState(false);
+  const [linkParcelId, setLinkParcelId] = useState("");
+  const [linkingDocumentId, setLinkingDocumentId] = useState<string | null>(null);
+  const [linkError, setLinkError] = useState<string | null>(null);
+
+  const repositoryDocsQ = useQuery<RepositoryDeedDocument[]>({
+    queryKey: ["land-repository-deed-documents"],
+    queryFn: async () => {
+      const res = await authFetch("/api/land/repository-documents");
+      if (!res.ok) throw new Error(await res.text());
+      return res.json();
+    },
+    enabled: linkModal,
+    staleTime: 30_000,
+  });
 
   const filtered = filterParcel ? deeds.filter(d => String(d.parcel_id) === filterParcel) : deeds;
   const immunityCount = deeds.filter(d => d.sovereign_immunity_claim).length;
+
+  function defaultParcelFor(doc: RepositoryDeedDocument): string {
+    const match = parcels.find((p) =>
+      p.parcel_id === doc.parcelIdentifier ||
+      (doc.tractNumber && p.tract_number === doc.tractNumber)
+    );
+    return match ? String(match.id) : "";
+  }
+
+  async function openRepositoryFile(url: string) {
+    const res = await authFetch(url, { headers: {} });
+    if (!res.ok) throw new Error(`Open failed (${res.status})`);
+    const blob = await res.blob();
+    window.open(URL.createObjectURL(blob), "_blank", "noopener,noreferrer");
+  }
+
+  async function linkRepositoryDocument(doc: RepositoryDeedDocument) {
+    const parcelId = linkParcelId || defaultParcelFor(doc);
+    if (!parcelId) {
+      setLinkError("Select the parcel this deed belongs to before linking it.");
+      return;
+    }
+    setLinkError(null);
+    setLinkingDocumentId(doc.id);
+    try {
+      const res = await authFetch(`/api/land/repository-documents/${doc.id}/link`, {
+        method: "POST",
+        body: JSON.stringify({ parcelId }),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Link failed (${res.status})`);
+      }
+      const linked = await res.json();
+      onRefresh();
+      await repositoryDocsQ.refetch();
+      setLinkModal(false);
+      setLinkParcelId("");
+      if (linked.parcelMismatch) {
+        alert("The document was linked, but its parcel identifier differs from the selected parcel. Review the deed record before relying on the association.");
+      }
+    } catch (e) {
+      setLinkError(e instanceof Error ? e.message : "Unable to link repository document.");
+    } finally {
+      setLinkingDocumentId(null);
+    }
+  }
 
   async function del(id: number) {
     if (!confirm("Remove this deed record?")) return;
@@ -2464,7 +2542,14 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
         <Sel value={filterParcel} onChange={setFilterParcel}
           options={parcels.map(p => ({ value: String(p.id), label: p.tract_number || p.parcel_id || `#${p.id}` }))}
           placeholder="All Parcels" />
-        <div className="ml-auto">
+        <div className="ml-auto flex items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => { setLinkError(null); setLinkParcelId(filterParcel); setLinkModal(true); }}
+            className="text-sm"
+          >
+            <Link2 className="w-3.5 h-3.5 mr-1.5" /> Link Existing
+          </Button>
           <Button onClick={() => { setEditing(null); setModal(true); }} className="bg-amber-600 hover:bg-amber-700 text-white text-sm">
             <Plus className="w-3.5 h-3.5 mr-1.5" /> Add Deed
           </Button>
@@ -2512,11 +2597,19 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
                   <div className="flex flex-col gap-0.5">
                     {d.sovereign_immunity_claim && <Badge label="Sovereign Immunity" className="bg-amber-800 text-amber-100" />}
                     {d.conservation_easement && <Badge label="Conservation" className="bg-emerald-800 text-emerald-100" />}
-                    {d.file_url && (
+                    {d.file_url && d.file_key?.startsWith("repository:") ? (
+                      <button
+                        type="button"
+                        onClick={() => openRepositoryFile(d.file_url).catch((e) => alert(e instanceof Error ? e.message : "Unable to open deed file."))}
+                        className="inline-flex items-center gap-1 text-[10px] text-blue-500 hover:text-blue-700"
+                      >
+                        <ExternalLink className="w-2.5 h-2.5" />{d.file_name || "View Deed"}
+                      </button>
+                    ) : d.file_url ? (
                       <a href={d.file_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-[10px] text-blue-400 hover:text-blue-300">
                         <ExternalLink className="w-2.5 h-2.5" />{d.file_name || "View Deed"}
                       </a>
-                    )}
+                    ) : null}
                   </div>
                 </td>
                 <td className="px-4 py-3">
@@ -2533,6 +2626,91 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
         </table>
       </div>
       <p className="text-xs text-muted-foreground">{filtered.length} deed record{filtered.length !== 1 ? "s" : ""}</p>
+
+      {linkModal && (
+        <Modal
+          title="Link Existing Deed"
+          subtitle="Connect a document already stored in the Sovereign Office repository to the Land Registry without uploading another copy."
+          onClose={() => { setLinkModal(false); setLinkParcelId(""); setLinkError(null); }}
+        >
+          <div className="space-y-4">
+            <Field label="Parcel">
+              <Sel
+                value={linkParcelId}
+                onChange={setLinkParcelId}
+                options={parcels.map(p => ({ value: String(p.id), label: `${p.tract_number || p.parcel_id || "#" + p.id} — ${p.legal_description?.slice(0, 50) ?? ""}` }))}
+                placeholder="Select parcel, or use the document's matching parcel"
+              />
+            </Field>
+
+            {repositoryDocsQ.isLoading ? (
+              <div className="flex items-center gap-2 text-sm text-muted-foreground py-6">
+                <Loader2 className="w-4 h-4 animate-spin" /> Loading repository documents…
+              </div>
+            ) : repositoryDocsQ.isError ? (
+              <p className="text-sm text-red-600">Could not load existing repository documents.</p>
+            ) : (repositoryDocsQ.data ?? []).length === 0 ? (
+              <p className="text-sm text-muted-foreground">No curated deed documents are available to link yet.</p>
+            ) : (
+              <div className="space-y-3">
+                {(repositoryDocsQ.data ?? []).map((doc) => {
+                  const autoParcelId = defaultParcelFor(doc);
+                  const targetParcelId = linkParcelId || autoParcelId;
+                  const alreadyLinked = targetParcelId ? doc.linkedParcelIds.includes(Number(targetParcelId)) : false;
+                  return (
+                    <div key={doc.id} className="rounded-lg border border-border p-4 bg-background">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="min-w-0">
+                          <p className="text-sm font-semibold text-foreground">{doc.title}</p>
+                          <p className="text-xs text-muted-foreground mt-1">{doc.filename}</p>
+                          <div className="mt-2 flex flex-wrap gap-2 text-[10px]">
+                            <span className="rounded border px-2 py-0.5">APN {doc.parcelIdentifier}</span>
+                            {doc.tractNumber && <span className="rounded border px-2 py-0.5">{doc.tractNumber}</span>}
+                            <span className="rounded border px-2 py-0.5 capitalize">{doc.defaultStatus}</span>
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-2">{doc.note}</p>
+                          {!linkParcelId && autoParcelId && (
+                            <p className="text-xs text-emerald-700 mt-2">Matching registered parcel found automatically.</p>
+                          )}
+                        </div>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            onClick={() => openRepositoryFile(doc.downloadUrl).catch((e) => setLinkError(e instanceof Error ? e.message : "Unable to open repository file."))}
+                          >
+                            <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Open
+                          </Button>
+                          <Button
+                            size="sm"
+                            disabled={alreadyLinked || linkingDocumentId === doc.id || !targetParcelId}
+                            onClick={() => {
+                              if (!linkParcelId && autoParcelId) setLinkParcelId(autoParcelId);
+                              linkRepositoryDocument(doc);
+                            }}
+                            className="bg-amber-600 hover:bg-amber-700 text-white"
+                          >
+                            {linkingDocumentId === doc.id ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5 mr-1.5" />}
+                            {alreadyLinked ? "Already Linked" : "Link to Parcel"}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {parcels.length === 0 && (
+              <p className="text-xs text-amber-700 border border-amber-300 bg-amber-50 rounded p-3">
+                Register the parcel in the Land Registry first. A deed record must be attached to a parcel.
+              </p>
+            )}
+            {linkError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">{linkError}</p>}
+          </div>
+        </Modal>
+      )}
+
       {modal && <DeedModal deed={editing ?? undefined} parcels={parcels} onClose={() => { setModal(false); setEditing(null); }} onSaved={() => { setModal(false); setEditing(null); onRefresh(); }} />}
     </div>
   );
