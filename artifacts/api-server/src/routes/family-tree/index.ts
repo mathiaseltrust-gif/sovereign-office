@@ -342,7 +342,7 @@ router.get("/full", requireAuth, async (_req, res, next) => {
           createdAt: familyLineageTable.createdAt,
         })
         .from(familyLineageTable)
-        .where(sql`COALESCE(${familyLineageTable.pendingReview}, false) = false AND COALESCE(${familyLineageTable.membershipStatus}, '') <> 'rejected'`)
+        .where(sql`COALESCE(${familyLineageTable.pendingReview}, false) = false AND COALESCE(${familyLineageTable.membershipStatus}, '') <> 'rejected' AND COALESCE(${familyLineageTable.sourceType}, '') <> 'archived'`)
         .orderBy(sql`${familyLineageTable.generationalPosition} DESC NULLS LAST`, familyLineageTable.id),
       db
         .select({
