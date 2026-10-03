@@ -456,9 +456,11 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
     if (targets.includes("encumbrance") && parcelDbId) {
       try {
         const encType =
-          documentType === "tax_lien"    ? "tax_lien"
+          documentType === "tax_lien" ? "tax_lien"
           : documentType === "foreclosure" ? "foreclosure_notice"
-          : "tax_lien";
+          : documentType === "deed_of_trust" ? "deed_of_trust_encumbrance"
+          : documentType === "mortgage_security_instrument" ? "mortgage_security_instrument"
+          : "other_encumbrance";
 
         const encRow = await db.execute(sql`
           INSERT INTO land_encumbrances (
