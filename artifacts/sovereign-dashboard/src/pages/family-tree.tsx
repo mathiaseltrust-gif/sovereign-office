@@ -1909,6 +1909,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     };
   }, [timelinePeople, atlasTimelineEvents]);
 
+  const timelineYearPx = 12;
+  const timelineLabelWidth = 220;
+  const timelineTrackWidth = Math.max(1200, (timelineBounds.maxYear - timelineBounds.minYear) * timelineYearPx);
+  const timelineTicks = useMemo(() => {
+    const ticks: number[] = [];
+    const step = timelineBounds.maxYear - timelineBounds.minYear > 250 ? 25 : 10;
+    for (let year = timelineBounds.minYear; year <= timelineBounds.maxYear; year += step) ticks.push(year);
+    return ticks;
+  }, [timelineBounds]);
+  const timelineX = useCallback((year: number) =>
+    Math.max(0, Math.min(timelineTrackWidth, (year - timelineBounds.minYear) * timelineYearPx)),
+  [timelineBounds.minYear, timelineTrackWidth]);
+
   const pedigreeData = useMemo(
     () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId, familyUnits) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
     [treeNodes, treeView, preferredRootId, familyUnits],
