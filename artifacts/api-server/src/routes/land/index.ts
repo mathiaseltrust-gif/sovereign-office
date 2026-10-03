@@ -13,6 +13,7 @@ import {
   nextSeqForLocation,
 } from "../../engines/land-code-service";
 import { triggerReviewEngine, auditLog } from "../../engines/nfr-review-engine";
+import { ensureEntityAlias } from "../../engines/entity-resolver";
 
 const router = Router();
 
@@ -64,6 +65,7 @@ type RepositoryDeedDocument = {
   federalLawRef: string;
   defaultStatus: string;
   note: string;
+  aliases?: Array<{ type: string; value: string }>;
 };
 
 const REPOSITORY_DEED_DOCUMENTS: RepositoryDeedDocument[] = [
@@ -86,6 +88,12 @@ const REPOSITORY_DEED_DOCUMENTS: RepositoryDeedDocument[] = [
     federalLawRef: "25USC177",
     defaultStatus: "pending",
     note: "Existing Sovereign Office repository document. Recorder space in this generated instrument is blank; enter county recording information only when independently confirmed.",
+    aliases: [
+      { type: "atn", value: "514-364-11-00-1" },
+      { type: "parcelId", value: "514-364-11-6" },
+      { type: "apn", value: "514-300-03" },
+      { type: "tractNumber", value: "MET-TL-BC-001" },
+    ],
   },
 ];
 
@@ -95,6 +103,30 @@ const REPOSITORY_DOCUMENT_ROOT =
 
 function repositoryDeedById(id: string): RepositoryDeedDocument | undefined {
   return REPOSITORY_DEED_DOCUMENTS.find((doc) => doc.id === id);
+}
+
+async function registerRepositoryParcelAliases(
+  doc: RepositoryDeedDocument,
+  parcelId: number,
+  userId: number | null,
+): Promise<void> {
+  const aliases = [
+    { type: "parcelId", value: doc.parcelIdentifier },
+    ...(doc.tractNumber ? [{ type: "tractNumber", value: doc.tractNumber }] : []),
+    ...(doc.aliases ?? []),
+  ];
+
+  for (const alias of aliases) {
+    await ensureEntityAlias({
+      entityType: "parcel",
+      entityId: String(parcelId),
+      aliasType: alias.type,
+      aliasValue: alias.value,
+      verified: true,
+      source: "repository_deed",
+      createdBy: userId,
+    });
+  }
 }
 
 // ── GET /api/land/stats ────────────────────────────────────────────────────────
@@ -787,6 +819,8 @@ router.post("/repository-documents/:documentId/link", requireAuth, requireLandAc
       return;
     }
 
+    await registerRepositoryParcelAliases(doc, parcelId, req.user?.dbId ?? null);
+
     const fileKey = `repository:${doc.id}`;
     const existing = await db.execute(sql`
       SELECT *
@@ -903,6 +937,7 @@ router.post("/repository-documents/:documentId/register-and-link", requireAuth, 
     }
 
     const parcelId = Number(parcel.id);
+    await registerRepositoryParcelAliases(doc, parcelId, req.user?.dbId ?? null);
     const fileKey = `repository:${doc.id}`;
 
     const existing = await db.execute(sql`
