@@ -1923,6 +1923,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   }, [familyViewNodes, familyUnits, preferredRootId]);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
 
   const [_savedSession] = useState(readTreeSession);
   const [transform, setTransform] = useState(_savedSession?.transform ?? { x: 0, y: 0, scale: 1 });
@@ -2078,11 +2079,37 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     [familyViewNodes, treeView, preferredRootId, familyUnits, generationDepth, pedigreeExpandedIds],
   );
 
+  const pedigreeHorizontalFitScale = useMemo(() => {
+    if (
+      viewportSize.width <= 0 ||
+      viewportSize.height <= 0 ||
+      pedigreeHorizontalData.totalW <= 0 ||
+      pedigreeHorizontalData.totalH <= 0
+    ) {
+      return 1;
+    }
+    return Math.min(
+      (viewportSize.width - 40) / pedigreeHorizontalData.totalW,
+      (viewportSize.height - 40) / pedigreeHorizontalData.totalH,
+      1.5,
+    );
+  }, [
+    viewportSize.width,
+    viewportSize.height,
+    pedigreeHorizontalData.totalW,
+    pedigreeHorizontalData.totalH,
+  ]);
+
   // Auto switches to the compact root-at-bottom overview when the horizontal
-  // pedigree becomes crowded. Manual preference always wins.
+  // chart would have to shrink too far to fit. A card-count fallback covers
+  // the first render before the viewport has been measured.
+  const pedigreeAutoNeedsOverview =
+    pedigreeHorizontalFitScale < 0.42 ||
+    (viewportSize.width === 0 && pedigreeHorizontalData.placed.length > 24);
+
   const pedigreeEffectivePresentation: PedigreePresentation =
     pedigreePreference === "auto"
-      ? (pedigreeHorizontalData.placed.length > 24 ? "compact" : "horizontal")
+      ? (pedigreeAutoNeedsOverview ? "compact" : "horizontal")
       : pedigreePreference;
 
   const pedigreeData = useMemo(
@@ -2350,6 +2377,23 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     const id = setTimeout(() => fitToScreen(), 60);
     return () => clearTimeout(id);
   }, [generationDepth, treeView, treeNodes.length, fitToScreen]);
+
+  useEffect(() => {
+    const el = containerRef.current;
+    if (!el) return;
+
+    const syncSize = () => {
+      setViewportSize({
+        width: el.clientWidth,
+        height: el.clientHeight,
+      });
+    };
+
+    syncSize();
+    const observer = new ResizeObserver(syncSize);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, []);
 
   useEffect(() => {
     const id = setTimeout(() => {
