@@ -2104,7 +2104,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // chart would have to shrink too far to fit. A card-count fallback covers
   // the first render before the viewport has been measured.
   const pedigreeAutoNeedsOverview =
-    pedigreeHorizontalFitScale < 0.42 ||
+    pedigreeHorizontalFitScale < 0.56 ||
     (viewportSize.width === 0 && pedigreeHorizontalData.placed.length > 24);
 
   const pedigreeEffectivePresentation: PedigreePresentation =
@@ -2658,7 +2658,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             const titles: Record<TreeViewMode, string> = {
               tree: "Full connected family tree — zoom and pan across the whole lineage",
               family: "Person-centered household view — click a person to make them the focus",
-              pedigree: "Pedigree chart — horizontal, direct ancestors only",
+              pedigree: "Direct ancestors — readable horizontal view or compact root-at-bottom overview",
               fan: "Fan chart — radial ancestor wheel",
               timeline: "Family lifespans and recorded events aligned with Urban Indian Atlas history",
             };
