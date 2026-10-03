@@ -2,8 +2,8 @@ import { Router } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
-import { hasRole } from "../../engines/authority";
 import { recordListenerEvent } from "../../engines/document-association";
+import { canReviewCanonicalDocument } from "../../security/canonical-document-access";
 
 const router = Router();
 
@@ -22,11 +22,14 @@ async function resolveAuthorizedDocument(
   const document = result.rows[0] as Record<string, unknown> | undefined;
   if (!document) return { document: null, allowed: false };
 
-  const ownsDocument = Number(document.created_by) === userId;
-  const canReviewOfficeRecords = hasRole(roles, "officer");
   return {
     document,
-    allowed: ownsDocument || canReviewOfficeRecords,
+    allowed: canReviewCanonicalDocument({
+      requesterId: userId,
+      documentCreatedBy: document.created_by == null ? null : Number(document.created_by),
+      sensitivityLevel: document.sensitivity_level == null ? null : String(document.sensitivity_level),
+      roles,
+    }),
   };
 }
 

@@ -8,7 +8,7 @@ import {
 } from "./document-association";
 
 export interface EntityCandidate {
-  entityType: "parcel" | "organization" | "person" | "member" | "case";
+  entityType: "parcel" | "organization" | "person" | "member" | "case" | "household" | "address";
   entityId: string;
   displayLabel: string;
   relationshipType: string;
@@ -17,6 +17,22 @@ export interface EntityCandidate {
   matchedField: string;
   matchedValue: string;
   metadata?: Record<string, unknown>;
+}
+
+
+export function isProtectedLevel(value: unknown): boolean {
+  const protectionLevel = String(value ?? "").trim().toLowerCase();
+  return Boolean(
+    protectionLevel &&
+    !["pending", "standard", "none", "null"].includes(protectionLevel),
+  );
+}
+
+export function shouldEscalateProtectedAssociation(
+  protectionLevel: unknown,
+  associationStatus: unknown,
+): boolean {
+  return isProtectedLevel(protectionLevel) && String(associationStatus) === "active";
 }
 
 function textValue(value: unknown): string | null {
@@ -134,6 +150,32 @@ async function resolveParcelIdentifier(
       matchedField: field,
       matchedValue: value,
     });
+  }
+}
+
+
+async function resolveAddressIdentifier(
+  field: string,
+  value: string,
+  target: EntityCandidate[],
+) {
+  // Addresses are only auto-linked through aliases that were already verified
+  // by the Office. A raw/fuzzy address alone never merges a parcel or household.
+  for (const entityType of ["parcel", "household", "address"] as const) {
+    const aliases = await resolveVerifiedAlias(entityType, "address", value);
+    for (const alias of aliases) {
+      pushUnique(target, {
+        entityType,
+        entityId: alias.entityId,
+        displayLabel: alias.aliasValue,
+        relationshipType: entityType === "parcel" ? "related_property" : "resident",
+        confidence: "exact",
+        resolutionMethod: "verified_alias",
+        matchedField: field,
+        matchedValue: value,
+        metadata: { addressMatch: true },
+      });
+    }
   }
 }
 
@@ -345,6 +387,12 @@ export async function resolveDocumentEntities(
     if (value) await resolveParcelIdentifier(field, value, candidates);
   }
 
+
+  for (const field of ["propertyAddress", "residenceAddress", "mailingAddress", "address"] as const) {
+    const value = textValue(fields[field]);
+    if (value) await resolveAddressIdentifier(field, value, candidates);
+  }
+
   const caseNumber = textValue(fields.caseNumber);
   if (caseNumber) await resolveCaseNumber(caseNumber, candidates);
 
@@ -430,22 +478,60 @@ export async function persistResolvedAssociations(input: {
     });
 
     const protectionLevel = String(candidate.metadata?.protectionLevel ?? "").toLowerCase();
-    if (
-      protectionLevel &&
-      !["pending", "standard", "none", "null"].includes(protectionLevel)
-    ) {
-      await recordListenerEvent({
-        documentId: input.documentId,
-        listenerName: "protection-listener",
-        eventType: "DOCUMENT_LINKED_TO_PROTECTED_PERSON",
-        actionState: association?.status ?? "existing",
-        payload: {
-          entityType: candidate.entityType,
-          entityId: candidate.entityId,
-          displayLabel: candidate.displayLabel,
-          protectionLevel,
-        },
-      });
+
+    if (isProtectedLevel(protectionLevel)) {
+      const activeResult = await db.execute(sql`
+        SELECT status
+        FROM document_associations
+        WHERE document_id = ${input.documentId}
+          AND entity_type = ${candidate.entityType}
+          AND entity_id = ${candidate.entityId}
+          AND relationship_type = ${candidate.relationshipType}
+        LIMIT 1
+      `);
+      const activeStatus = String(
+        (activeResult.rows[0] as Record<string, unknown> | undefined)?.status ?? "",
+      );
+
+      if (shouldEscalateProtectedAssociation(protectionLevel, activeStatus)) {
+        await db.execute(sql`
+          UPDATE document_registry
+          SET sensitivity_level = 'protected',
+              metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
+                protectionEscalated: true,
+                protectionSource: "entity_resolver",
+              })}::jsonb,
+              updated_at = NOW()
+          WHERE id = ${input.documentId}
+            AND sensitivity_level <> 'protected'
+        `);
+
+        await recordListenerEvent({
+          documentId: input.documentId,
+          listenerName: "protection-listener",
+          eventType: "DOCUMENT_LINKED_TO_PROTECTED_PERSON",
+          actionState: "protected",
+          payload: {
+            entityType: candidate.entityType,
+            entityId: candidate.entityId,
+            displayLabel: candidate.displayLabel,
+            protectionLevel,
+          },
+        });
+      } else {
+        await recordListenerEvent({
+          documentId: input.documentId,
+          listenerName: "protection-listener",
+          eventType: "PROTECTED_PERSON_MATCH_AWAITING_REVIEW",
+          actionState: activeStatus || "proposed",
+          payload: {
+            entityType: candidate.entityType,
+            entityId: candidate.entityId,
+            displayLabel: candidate.displayLabel,
+            protectionLevel,
+          },
+        });
+      }
     }
   }
 
