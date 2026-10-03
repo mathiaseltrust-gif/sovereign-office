@@ -18,6 +18,7 @@ import { familyLineageTable, familyUnitsTable, identityNarrativesTable } from "@
 import { eq, sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { enrichLifeEventPlace } from "../../lib/place-normalization";
+import { reconcileVerifiedMaternalChain } from "../../engines/maternal-lineage-reconciliation";
 
 async function getAncestorHistoricalContext(userId: number) {
   const result = await db.execute(sql`
@@ -466,50 +467,24 @@ router.get("/full", requireAuth, async (_req, res, next) => {
       }
     }
 
-    // Canonical maternal-lineage reconciliation.
-    //
-    // Historical imports used both "Cornella" and "Cornelia" and some older
-    // production rows were created before parent arrays and GEDCOM FAM records
-    // were kept in sync. The active tree should not lose this verified branch
-    // merely because one persistence representation is incomplete.
-    //
-    // This is intentionally additive: it never removes or replaces existing
-    // relationships. It only fills the known Pamela -> Cornelia ->
-    // Richard/Johnnie chain when those active people are present.
-    const activeNodes = [...nodeById.values()];
-    const normalizedName = (value: string | null | undefined) =>
-      String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+    // Reconcile the verified maternal chain across every matching active legacy
+    // row, not only the first Pamela/Cornelia record returned by the database.
+    // Older imports can leave duplicate person rows; the live tree may be
+    // connected to a different duplicate than an earlier migration repaired.
+    const reconciledMaternal = reconcileVerifiedMaternalChain([...nodeById.values()]);
+    nodeById.clear();
+    for (const node of reconciledMaternal.nodes) nodeById.set(node.id, node);
 
-    const findCanonicalNode = (names: string[], expectedBirthYear?: number) => {
-      const accepted = new Set(names.map(normalizedName));
-      const matches = activeNodes.filter((node) => accepted.has(normalizedName(node.fullName)));
-      if (matches.length === 0) return null;
-      if (expectedBirthYear != null) {
-        const exactYear = matches.find((node) => node.birthYear === expectedBirthYear);
-        if (exactYear) return exactYear;
-      }
-      return matches.sort((a, b) => a.id - b.id)[0] ?? null;
-    };
-
-    const pamela = findCanonicalNode(["Pamela Denise McCaster"], 1961);
-    const cornelia = findCanonicalNode(["Cornelia Morant Ruff", "Cornella Morant Ruff"], 1940);
-    const richard = findCanonicalNode(["Richard Henry Morant"], 1918);
-    const johnnie = findCanonicalNode(["Johnnie Mae Allen"], 1917);
-
-    const linkParentChild = (
-      child: typeof activeNodes[number] | null,
-      parent: typeof activeNodes[number] | null,
-    ) => {
-      if (!child || !parent) return;
-      child.parentIds = mergeIds(child.parentIds, [parent.id]);
-      parent.childrenIds = mergeIds(parent.childrenIds, [child.id]);
-    };
-
-    if (cornelia) {
-      cornelia.gender = "female";
-      linkParentChild(pamela, cornelia);
-      linkParentChild(cornelia, richard);
-      linkParentChild(cornelia, johnnie);
+    if (
+      reconciledMaternal.diagnostics.repairedPamelaIds.length > 0
+      || reconciledMaternal.diagnostics.repairedCorneliaIds.length > 0
+      || reconciledMaternal.diagnostics.pamelaIds.length > 1
+      || reconciledMaternal.diagnostics.corneliaIds.length > 1
+    ) {
+      logger.info(
+        { maternalLineage: reconciledMaternal.diagnostics },
+        "Maternal lineage reconciled for active family-tree projection",
+      );
     }
 
     const lifeEventsByPerson = await loadLifeEventsForPeople([...nodeById.keys()]);
