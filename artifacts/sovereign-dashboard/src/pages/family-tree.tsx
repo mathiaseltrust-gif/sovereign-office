@@ -1210,12 +1210,19 @@ interface FamilyTimelineAtlasEvent {
 }
 
 // ── Pedigree layout — d3-hierarchy Reingold–Tilford ─────────────────────────────
-const PDIG_W    = 158;  // node width
-const PDIG_H    = 70;   // node height
-const PDIG_CGAP = 52;   // column gap (horizontal, between generations)
-const PDIG_RGAP = 18;   // row gap    (vertical, between siblings)
+const PDIG_W    = 158;  // horizontal-card width
+const PDIG_H    = 70;   // horizontal-card height
+const PDIG_CGAP = 52;   // horizontal generation gap
+const PDIG_RGAP = 18;   // horizontal sibling gap
+const PDIG_COMPACT_W = 92;   // compact-overview portrait width
+const PDIG_COMPACT_H = 116;  // compact-overview portrait height
+const PDIG_COMPACT_BGAP = 16; // horizontal breadth gap between compact cards
+const PDIG_COMPACT_DGAP = 42; // vertical gap between compact generations
 const PDIG_PAD  = 60;   // canvas padding
 const PDIG_MAX  = 8;    // max ancestor generations
+
+type PedigreePresentation = "horizontal" | "compact";
+type PedigreePreference = "auto" | PedigreePresentation;
 
 interface PedigreeNode extends LineageNode {
   px: number;
@@ -1341,10 +1348,14 @@ function computePedigreeLayout(
   familyUnits: FamilyUnit[] = [],
   maxGeneration = 3,
   expandedIds: Set<number> = new Set(),
+  presentation: PedigreePresentation = "horizontal",
 ): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
+  cardW: number;
+  cardH: number;
+  presentation: PedigreePresentation;
   pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }>;
 } {
   const byId = new Map(nodes.map(n => [n.id, n]));
@@ -1354,7 +1365,17 @@ function computePedigreeLayout(
     ?? nodes.find((n) => n.linkedProfileUserId != null)
     ?? nodes.find(n => (n.generationalPosition ?? 99) === 0)
     ?? nodes[0];
-  if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
+  if (!root) {
+    return {
+      placed: [],
+      totalW: 0,
+      totalH: 0,
+      cardW: presentation === "compact" ? PDIG_COMPACT_W : PDIG_W,
+      cardH: presentation === "compact" ? PDIG_COMPACT_H : PDIG_H,
+      presentation,
+      pEdges: [],
+    };
+  }
 
   // Build recursive ancestor structure:  root = focal person; "children" in d3 = parents (upward)
   interface HierDatum {
@@ -1392,29 +1413,57 @@ function computePedigreeLayout(
   }
 
   const hierData = buildHier(root.id, 0, 1, new Set());
-  if (!hierData) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
+  if (!hierData) {
+    return {
+      placed: [],
+      totalW: 0,
+      totalH: 0,
+      cardW: presentation === "compact" ? PDIG_COMPACT_W : PDIG_W,
+      cardH: presentation === "compact" ? PDIG_COMPACT_H : PDIG_H,
+      presentation,
+      pEdges: [],
+    };
+  }
 
   const root2 = hierarchy<HierDatum>(hierData, d => d.children);
+  const cardW = presentation === "compact" ? PDIG_COMPACT_W : PDIG_W;
+  const cardH = presentation === "compact" ? PDIG_COMPACT_H : PDIG_H;
+  const breadthGap = presentation === "compact" ? PDIG_COMPACT_BGAP : PDIG_RGAP;
+  const depthGap = presentation === "compact" ? PDIG_COMPACT_DGAP : PDIG_CGAP;
 
-  // nodeSize: [breadth-spacing (→ our vertical), depth-spacing (→ our horizontal)]
-  tree<HierDatum>().nodeSize([PDIG_H + PDIG_RGAP, PDIG_W + PDIG_CGAP])(root2);
+  // d3 x = breadth, d3 y = depth. Horizontal presentation transposes depth
+  // left→right. Compact presentation keeps breadth horizontal and inverts
+  // depth so the focal person sits at the bottom and ancestors fan upward.
+  tree<HierDatum>().nodeSize([
+    (presentation === "compact" ? cardW : cardH) + breadthGap,
+    (presentation === "compact" ? cardH : cardW) + depthGap,
+  ])(root2);
 
-  // Bounding box in d3 space (x = breadth, y = depth)
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   root2.each(d => {
-    const dx = d.x ?? 0; const dy = d.y ?? 0;
-    minX = Math.min(minX, dx); maxX = Math.max(maxX, dx);
-    minY = Math.min(minY, dy); maxY = Math.max(maxY, dy);
+    const dx = d.x ?? 0;
+    const dy = d.y ?? 0;
+    minX = Math.min(minX, dx);
+    maxX = Math.max(maxX, dx);
+    minY = Math.min(minY, dy);
+    maxY = Math.max(maxY, dy);
   });
 
-  // Transpose: d3.y (depth) → our px (horizontal); d3.x (breadth) → our py (vertical)
-  const totalW = PDIG_PAD * 2 + (maxY - minY) + PDIG_W;
-  const totalH = PDIG_PAD * 2 + (maxX - minX) + PDIG_H;
+  const totalW = presentation === "compact"
+    ? PDIG_PAD * 2 + (maxX - minX) + cardW
+    : PDIG_PAD * 2 + (maxY - minY) + cardW;
+  const totalH = presentation === "compact"
+    ? PDIG_PAD * 2 + (maxY - minY) + cardH
+    : PDIG_PAD * 2 + (maxX - minX) + cardH;
 
   const placed: PedigreeNode[] = [];
   root2.each(d => {
-    const px = PDIG_PAD + ((d.y ?? 0) - minY);
-    const py = PDIG_PAD + ((d.x ?? 0) - minX);
+    const px = presentation === "compact"
+      ? PDIG_PAD + ((d.x ?? 0) - minX)
+      : PDIG_PAD + ((d.y ?? 0) - minY);
+    const py = presentation === "compact"
+      ? PDIG_PAD + (maxY - (d.y ?? 0))
+      : PDIG_PAD + ((d.x ?? 0) - minX);
     placed.push({
       ...d.data.node,
       px,
@@ -1427,18 +1476,29 @@ function computePedigreeLayout(
 
   const pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }> = [];
   root2.links().forEach(({ source, target }) => {
-    const child  = placed.find(p => p.id === source.data.node.id);
+    const child = placed.find(p => p.id === source.data.node.id);
     const parent = placed.find(p => p.id === target.data.node.id);
     if (!child || !parent) return;
-    pEdges.push({
-      key:   `${child.id}-${parent.id}`,
-      x1:    child.px + PDIG_W,  y1: child.py  + PDIG_H / 2,
-      x2:    parent.px,           y2: parent.py + PDIG_H / 2,
-      isPat: target.data.ahnNum % 2 === 0,
-    });
+    pEdges.push(presentation === "compact"
+      ? {
+          key: `${child.id}-${parent.id}`,
+          x1: child.px + cardW / 2,
+          y1: child.py,
+          x2: parent.px + cardW / 2,
+          y2: parent.py + cardH,
+          isPat: target.data.ahnNum % 2 === 0,
+        }
+      : {
+          key: `${child.id}-${parent.id}`,
+          x1: child.px + cardW,
+          y1: child.py + cardH / 2,
+          x2: parent.px,
+          y2: parent.py + cardH / 2,
+          isPat: target.data.ahnNum % 2 === 0,
+        });
   });
 
-  return { placed, totalW, totalH, pEdges };
+  return { placed, totalW, totalH, cardW, cardH, presentation, pEdges };
 }
 
 // ── Fan chart layout (radial ancestor wheel) ────────────────────────────────────
