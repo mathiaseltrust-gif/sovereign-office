@@ -434,6 +434,68 @@ export async function resolveDocumentEntities(
   return candidates;
 }
 
+
+export async function applyProtectedAssociationSensitivity(input: {
+  documentId: number;
+  entityType: string;
+  entityId: string;
+  associationStatus: string;
+  listenerName?: string;
+}) {
+  if (
+    input.associationStatus !== "active" ||
+    !["person", "member"].includes(input.entityType)
+  ) {
+    return { escalated: false, protectionLevel: null };
+  }
+
+  const lineageId = Number(input.entityId);
+  if (!Number.isFinite(lineageId) || lineageId <= 0) {
+    return { escalated: false, protectionLevel: null };
+  }
+
+  const result = await db.execute(sql`
+    SELECT full_name, protection_level
+    FROM family_lineage
+    WHERE id = ${lineageId}
+    LIMIT 1
+  `);
+  const person = result.rows[0] as Record<string, unknown> | undefined;
+  if (!person) return { escalated: false, protectionLevel: null };
+
+  const protectionLevel = String(person.protection_level ?? "").toLowerCase();
+  if (!shouldEscalateProtectedAssociation(protectionLevel, input.associationStatus)) {
+    return { escalated: false, protectionLevel };
+  }
+
+  await db.execute(sql`
+    UPDATE document_registry
+    SET sensitivity_level = 'protected',
+        metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
+          protectionEscalated: true,
+          protectionSource: "active_person_association",
+        })}::jsonb,
+        updated_at = NOW()
+    WHERE id = ${input.documentId}
+      AND sensitivity_level <> 'protected'
+  `);
+
+  await recordListenerEvent({
+    documentId: input.documentId,
+    listenerName: input.listenerName ?? "protection-listener",
+    eventType: "DOCUMENT_LINKED_TO_PROTECTED_PERSON",
+    actionState: "protected",
+    payload: {
+      entityType: input.entityType,
+      entityId: input.entityId,
+      displayLabel: person.full_name ?? null,
+      protectionLevel,
+    },
+  });
+
+  return { escalated: true, protectionLevel };
+}
+
 export async function persistResolvedAssociations(input: {
   documentId: number;
   fields: Record<string, unknown>;

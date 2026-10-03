@@ -4,6 +4,8 @@ import { db } from "@workspace/db";
 import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { recordListenerEvent } from "../../engines/document-association";
 import { canReviewCanonicalDocument } from "../../security/canonical-document-access";
+import { resolveAuthorityContext } from "../../engines/authority-context";
+import { applyProtectedAssociationSensitivity } from "../../engines/entity-resolver";
 
 const router = Router();
 
@@ -22,13 +24,14 @@ async function resolveAuthorizedDocument(
   const document = result.rows[0] as Record<string, unknown> | undefined;
   if (!document) return { document: null, allowed: false };
 
+  const authority = await resolveAuthorityContext({ userId, baseRoles: roles });
   return {
     document,
     allowed: canReviewCanonicalDocument({
       requesterId: userId,
       documentCreatedBy: document.created_by == null ? null : Number(document.created_by),
       sensitivityLevel: document.sensitivity_level == null ? null : String(document.sensitivity_level),
-      roles,
+      authorityKeys: authority.authorityKeys,
     }),
   };
 }
@@ -183,10 +186,22 @@ router.patch(
         },
       });
 
+      let protectionEscalation = null;
+      if (decision === "approve") {
+        protectionEscalation = await applyProtectedAssociationSensitivity({
+          documentId,
+          entityType: String(association.entity_type),
+          entityId: String(association.entity_id),
+          associationStatus: newStatus,
+          listenerName: "association-review",
+        });
+      }
+
       res.json({
         success: true,
         decision,
         association: updated.rows[0],
+        protectionEscalation,
       });
     } catch (err) {
       next(err);

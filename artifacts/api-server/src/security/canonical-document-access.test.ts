@@ -7,7 +7,7 @@ describe("canonical document access policy", () => {
       requesterId: 7,
       documentCreatedBy: 7,
       sensitivityLevel: "protected",
-      roles: ["member"],
+      authorityKeys: ["member"],
     })).toBe(true);
   });
 
@@ -17,7 +17,7 @@ describe("canonical document access policy", () => {
         requesterId: 8,
         documentCreatedBy: 7,
         sensitivityLevel: "protected",
-        roles: [role],
+        authorityKeys: [role],
       })).toBe(false);
     }
   });
@@ -28,7 +28,7 @@ describe("canonical document access policy", () => {
         requesterId: 8,
         documentCreatedBy: 7,
         sensitivityLevel: "protected",
-        roles: [role],
+        authorityKeys: [role],
       })).toBe(true);
     }
   });
@@ -38,7 +38,7 @@ describe("canonical document access policy", () => {
       requesterId: 8,
       documentCreatedBy: 7,
       sensitivityLevel: "internal",
-      roles: ["officer"],
+      authorityKeys: ["officer"],
     })).toBe(true);
   });
 });

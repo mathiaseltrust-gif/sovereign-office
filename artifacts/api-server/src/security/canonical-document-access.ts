@@ -2,7 +2,7 @@ export interface CanonicalDocumentAccessInput {
   requesterId: number;
   documentCreatedBy: number | null;
   sensitivityLevel: string | null;
-  roles: string[];
+  authorityKeys: string[];
 }
 
 const PROTECTED_REVIEW_ROLES = new Set([
@@ -31,8 +31,8 @@ export function canReviewCanonicalDocument(input: CanonicalDocumentAccessInput):
 
   const sensitivity = String(input.sensitivityLevel ?? "internal").toLowerCase();
   if (sensitivity === "protected") {
-    return input.roles.some((role) => PROTECTED_REVIEW_ROLES.has(role));
+    return input.authorityKeys.some((role) => PROTECTED_REVIEW_ROLES.has(role));
   }
 
-  return input.roles.some((role) => OFFICE_REVIEW_ROLES.has(role));
+  return input.authorityKeys.some((role) => OFFICE_REVIEW_ROLES.has(role));
 }
