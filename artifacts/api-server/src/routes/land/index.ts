@@ -749,8 +749,10 @@ router.get("/repository-documents/:documentId/download", requireAuth, requireLan
 
   res.sendFile(doc.filename, { root: REPOSITORY_DOCUMENT_ROOT }, (err) => {
     if (err && !res.headersSent) {
+      const sendFileError = err as Error & { status?: number; statusCode?: number };
       logger.error({ err, documentId: doc.id, root: REPOSITORY_DOCUMENT_ROOT }, "Repository deed download failed");
-      res.status(err.statusCode === 404 ? 404 : 500).json({ error: "Repository document file is unavailable" });
+      const status = sendFileError.statusCode ?? sendFileError.status;
+      res.status(status === 404 ? 404 : 500).json({ error: "Repository document file is unavailable" });
     }
   });
 });
