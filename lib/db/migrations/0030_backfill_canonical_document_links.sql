@@ -62,7 +62,8 @@ WHERE NOT EXISTS (
   SELECT 1
   FROM document_registry existing
   WHERE existing.storage_key = source.file_key
-);
+)
+ON CONFLICT DO NOTHING;
 --> statement-breakpoint
 
 INSERT INTO document_associations (
@@ -319,7 +320,8 @@ WHERE NOT EXISTS (
   SELECT 1
   FROM document_registry existing
   WHERE existing.storage_key = deed.file_key
-);
+)
+ON CONFLICT DO NOTHING;
 --> statement-breakpoint
 
 INSERT INTO document_associations (
