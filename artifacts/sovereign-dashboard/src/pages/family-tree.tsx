@@ -1173,7 +1173,26 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
 }
 
 // ── Tree view mode ──────────────────────────────────────────────────────────────
-type TreeViewMode = "tree" | "family" | "pedigree" | "fan";
+type TreeViewMode = "tree" | "family" | "pedigree" | "fan" | "timeline";
+
+interface FamilyTimelineAtlasEvent {
+  id: string;
+  eventId?: string;
+  title: string;
+  shortTitle?: string | null;
+  year: number;
+  era?: string | null;
+  eventType?: string | null;
+  policyArea?: string | null;
+  severityLevel?: string | null;
+  description?: string | null;
+  plainLanguageSummary?: string | null;
+  affectedRegions?: string[] | null;
+  coordinateLat?: number | null;
+  coordinateLng?: number | null;
+  sourceTitle?: string | null;
+  sourceUrl?: string | null;
+}
 
 // ── Pedigree layout — d3-hierarchy Reingold–Tilford ─────────────────────────────
 const PDIG_W    = 158;  // node width
@@ -1496,6 +1515,38 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
   const familyUnits: FamilyUnit[] = data?.familyUnits ?? famUnitData?.familyUnits ?? [];
 
+  const { data: atlasTimelineEvents = [] } = useQuery<FamilyTimelineAtlasEvent[]>({
+    queryKey: ["family-tree-atlas-events"],
+    queryFn: async () => {
+      const r = await fetch("/api/atlas/events", { credentials: "include" });
+      if (!r.ok) return [];
+      const raw = await r.json() as any[];
+      return raw
+        .map((event) => ({
+          id: String(event.eventId ?? event.id ?? ""),
+          eventId: event.eventId ? String(event.eventId) : undefined,
+          title: String(event.title ?? event.shortTitle ?? "Historical event"),
+          shortTitle: event.shortTitle ?? null,
+          year: Number(event.year),
+          era: event.era ?? null,
+          eventType: event.eventType ?? event.event_type ?? null,
+          policyArea: event.policyArea ?? event.policy_area ?? null,
+          severityLevel: event.severityLevel ?? event.severity_level ?? null,
+          description: event.description ?? null,
+          plainLanguageSummary: event.plainLanguageSummary ?? event.plain_language_summary ?? null,
+          affectedRegions: Array.isArray(event.affectedRegions)
+            ? event.affectedRegions
+            : Array.isArray(event.affected_regions) ? event.affected_regions : [],
+          coordinateLat: event.coordinateLat ?? event.coordinate_lat ?? null,
+          coordinateLng: event.coordinateLng ?? event.coordinate_lng ?? null,
+          sourceTitle: event.sourceTitle ?? event.source_title ?? null,
+          sourceUrl: event.sourceUrl ?? event.source_url ?? null,
+        }))
+        .filter((event) => Number.isFinite(event.year) && event.id && event.era !== "life-event");
+    },
+    staleTime: 5 * 60_000,
+  });
+
   const nodes = (() => {
     const base = (data?.nodes ?? []).filter((n) => n.sourceType !== "archived");
     const selfNodes = (selfData?.nodes ?? []).filter((n) => n.sourceType !== "archived");
@@ -1768,6 +1819,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const [treeView, setTreeView] = useState<TreeViewMode>("tree");
+  const [selectedHistoricalEvent, setSelectedHistoricalEvent] = useState<FamilyTimelineAtlasEvent | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
 
   const effectiveFocusId = focusedPersonId ?? preferredRootId;
@@ -1792,6 +1844,70 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     familyViewNodes.find((node) => node.id === familyLayout.focalId)
     ?? familyViewNodes.find((node) => node.id === preferredRootId)
     ?? null;
+
+  const timelinePeople = useMemo(() => {
+    const currentYear = new Date().getFullYear();
+    return fullTreeNodes
+      .map((node) => {
+        const datedEvents = (node.lifeEvents ?? [])
+          .map((event, index) => {
+            const explicitYear = event.event_year;
+            const parsedYear = explicitYear ?? (() => {
+              const match = String(event.event_date ?? "").match(/\b(1[5-9]\d{2}|20\d{2}|21\d{2})\b/);
+              return match ? Number(match[1]) : null;
+            })();
+            if (parsedYear == null || !Number.isFinite(parsedYear)) return null;
+            return {
+              id: `person-${node.id}-event-${index}`,
+              year: parsedYear,
+              type: event.event_type || "life_event",
+              label: lifeEventLabel(event.event_type || "life_event"),
+              place: event.event_place ?? event.place_normalized ?? [event.county, event.state, event.country].filter(Boolean).join(", ") || null,
+              source: event.source_reference ?? event.source_type ?? null,
+            };
+          })
+          .filter((event): event is NonNullable<typeof event> => event != null);
+
+        const birth = node.birthYear ?? null;
+        const death = node.deathYear ?? null;
+        const eventYears = datedEvents.map((event) => event.year);
+        const startYear = birth ?? (eventYears.length > 0 ? Math.min(...eventYears) : null);
+        const endYear = death ?? (node.isDeceased ? (eventYears.length > 0 ? Math.max(...eventYears) : null) : currentYear);
+        if (startYear == null && endYear == null && datedEvents.length === 0) return null;
+
+        return {
+          node,
+          startYear,
+          endYear,
+          events: datedEvents,
+          generation: node.generationalPosition ?? 0,
+        };
+      })
+      .filter((item): item is NonNullable<typeof item> => item != null)
+      .sort((a, b) => {
+        const aStart = a.startYear ?? 9999;
+        const bStart = b.startYear ?? 9999;
+        if (aStart !== bStart) return aStart - bStart;
+        return a.node.fullName.localeCompare(b.node.fullName);
+      });
+  }, [fullTreeNodes]);
+
+  const timelineBounds = useMemo(() => {
+    const years: number[] = [];
+    for (const person of timelinePeople) {
+      if (person.startYear != null) years.push(person.startYear);
+      if (person.endYear != null) years.push(person.endYear);
+      person.events.forEach((event) => years.push(event.year));
+    }
+    atlasTimelineEvents.forEach((event) => years.push(event.year));
+    if (years.length === 0) return { minYear: 1800, maxYear: new Date().getFullYear() };
+    const min = Math.min(...years);
+    const max = Math.max(...years);
+    return {
+      minYear: Math.floor(min / 10) * 10,
+      maxYear: Math.ceil(max / 10) * 10,
+    };
+  }, [timelinePeople, atlasTimelineEvents]);
 
   const pedigreeData = useMemo(
     () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId, familyUnits) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
@@ -2276,19 +2392,21 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* View mode switcher */}
         <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
-          {(["tree", "family", "pedigree", "fan"] as TreeViewMode[]).map((mode) => {
-            const labels: Record<TreeViewMode, string> = { tree: "Tree", family: "Family", pedigree: "Pedigree", fan: "Fan" };
+          {(["tree", "family", "pedigree", "fan", "timeline"] as TreeViewMode[]).map((mode) => {
+            const labels: Record<TreeViewMode, string> = { tree: "Tree", family: "Family", pedigree: "Pedigree", fan: "Fan", timeline: "Timeline" };
             const titles: Record<TreeViewMode, string> = {
               tree: "Full connected family tree — zoom and pan across the whole lineage",
               family: "Person-centered household view — click a person to make them the focus",
               pedigree: "Pedigree chart — horizontal, direct ancestors only",
               fan: "Fan chart — radial ancestor wheel",
+              timeline: "Family lifespans and recorded events aligned with Urban Indian Atlas history",
             };
             return (
               <button
                 key={mode}
                 onClick={() => {
                   if (mode === "tree") setGenerationDepth(DEPTH_MAX);
+                  if (mode !== "timeline") setSelectedHistoricalEvent(null);
                   setTreeView(mode);
                   setTransform({ x: 0, y: 0, scale: 1 });
                 }}
@@ -2307,6 +2425,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         </div>
 
         {/* View controls */}
+        {treeView !== "timeline" && (
+          <>
         <Button size="sm" variant="outline" onClick={centerOnSelf} className="gap-1 h-8" title="Center on my node">
           <Users className="h-3.5 w-3.5" /> Me
         </Button>
@@ -2338,6 +2458,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <Plus className="h-3.5 w-3.5" />
           </button>
         </div>
+          </>
+        )}
 
         {treeView === "family" ? (
           <div className="h-8 max-w-[280px] flex items-center gap-1.5 rounded-md border border-input bg-muted/20 px-2.5 text-xs">
@@ -2349,6 +2471,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           <div className="h-8 flex items-center rounded-md border border-input bg-muted/20 px-2.5 text-xs">
             <span className="font-medium">Full connected tree</span>
             <span className="text-muted-foreground ml-1.5">· {fullTreeNodes.length} people</span>
+          </div>
+        ) : treeView === "timeline" ? (
+          <div className="h-8 flex items-center rounded-md border border-input bg-muted/20 px-2.5 text-xs">
+            <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+            <span className="font-medium">{timelineBounds.minYear}–{timelineBounds.maxYear}</span>
+            <span className="text-muted-foreground ml-1.5">· family + Atlas history</span>
           </div>
         ) : (
           <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
@@ -2414,6 +2542,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
             : treeView === "tree"
               ? <>{fullTreeNodes.length} connected <span className="opacity-60">to your tree</span></>
+            : treeView === "timeline"
+              ? <>{timelinePeople.length} dated people <span className="opacity-60">· {atlasTimelineEvents.length} Atlas events</span></>
             : activeFilterCount > 0
               ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
               : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
