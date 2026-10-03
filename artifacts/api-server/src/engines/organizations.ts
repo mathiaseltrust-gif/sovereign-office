@@ -69,6 +69,32 @@ export const SOVEREIGN_ORGS: SovereignOrg[] = [
     color: "red",
   },
   {
+    id: "board_of_trustees",
+    name: "Board of Trustees / Independent Accountability & Stewardship",
+    shortName: "Board of Trustees",
+    type: "trust",
+    legalStatus: "Internal fiduciary oversight and governance body",
+    jurisdiction: "Office of the Chief Justice & Trustee — trust and institutional governance",
+    description: "Restricted trustee-governance workspace for fiduciary oversight, Board Matters, directives, minutes, resolutions, conflicts, evidence, and institutional accountability.",
+    mission: "Protect beneficiaries and trust assets through documented oversight, responsible action, evidence-based closure, and durable institutional records.",
+    navPath: "/board",
+    requiredRole: "trustee",
+    letterhead: {
+      line1: "BOARD OF TRUSTEES",
+      line2: "Independent Accountability & Stewardship",
+      line3: "Office of the Chief Justice & Trustee",
+    },
+    authorities: [
+      "Fiduciary oversight",
+      "Board Matter review",
+      "Trustee directives",
+      "Minutes and resolutions",
+      "Conflict disclosures",
+      "Evidence and closure review",
+    ],
+    color: "amber",
+  },
+  {
     id: "tribal_trust",
     name: "Mathias El Tribe Trust",
     shortName: "Tribal Trust",
@@ -189,6 +215,7 @@ export function getOrgAccess(role: string, orgId: string): OrgAccessLevel {
   const isOfficer = r === "officer";
 
   if (isAdmin || isTrustee) return "full";
+  if (orgId === "board_of_trustees") return "none";
   if (isOfficer) {
     if (orgId === "medical_center") return "officer";
     if (orgId === "supreme_court") return "officer";
