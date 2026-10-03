@@ -61,3 +61,5 @@ export * from "./trace-drafts";
 export * from "./board-matters";
 
 export * from "./trustee-agreement-acceptances";
+
+export * from "./document-associations";

@@ -1,11 +1,14 @@
 import { Router } from "express";
 import multer from "multer";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
-import { randomUUID } from "crypto";
+import { createHash, randomUUID } from "crypto";
 import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
+import { ObjectStorageService } from "../../lib/objectStorage";
+import { registerDocument, recordListenerEvent } from "../../engines/document-association";
 
 const router = Router();
+const objectStorageService = new ObjectStorageService();
 
 const ALLOWED_MIME = [
   "application/pdf",
@@ -50,7 +53,7 @@ function isCsv(mimetype: string, filename: string): boolean {
   return csvMimes.includes(mimetype) || ext === ".csv";
 }
 
-router.post("/upload", requireAuth, upload.single("file"), async (req, res, next) => {
+router.post("/upload", requireAuth, requireRegisteredUser, upload.single("file"), async (req, res, next) => {
   try {
     if (!req.file) {
       res.status(400).json({ error: "No file uploaded. Send a PDF, CSV, image, or text file as 'file' field." });
@@ -58,6 +61,39 @@ router.post("/upload", requireAuth, upload.single("file"), async (req, res, next
     }
 
     const { originalname, mimetype, buffer, size } = req.file;
+    const ownerId = req.user!.dbId!;
+    const sha256 = createHash("sha256").update(buffer).digest("hex");
+
+    // Persist the original before analysis. The extracted text and listener
+    // results are derivatives; the original is the authoritative source record.
+    const storageKey = await objectStorageService.uploadBuffer(
+      buffer,
+      mimetype || "application/octet-stream",
+      "intake",
+    );
+    await objectStorageService.trySetObjectEntityAclPolicy(storageKey, {
+      owner: String(ownerId),
+      visibility: "private",
+    });
+
+    const registered = await registerDocument({
+      originalFilename: originalname,
+      title: originalname,
+      mimeType: mimetype,
+      sizeBytes: size,
+      sha256,
+      storageProvider: "office_object_storage",
+      storageKey,
+      sourceChannel: "web_upload",
+      verificationState: "received",
+      sensitivityLevel: "internal",
+      metadata: {
+        uploadSource: "intake/upload",
+      },
+      createdBy: ownerId,
+    });
+    const canonicalDocument = registered.record;
+
     let text = "";
     let pageCount = 1;
     let fileType = "document";
@@ -103,9 +139,23 @@ Document filename analysis: "${originalname}"`;
     }
 
     const sessionId = randomUUID();
-    const docId = randomUUID();
+    const docId = canonicalDocument.documentRef;
 
     logger.info({ filename: originalname, chars: cleanText.length, pages: pageCount, fileType, sessionId }, "Document uploaded for intake");
+
+    await recordListenerEvent({
+      documentId: canonicalDocument.id,
+      listenerName: "intake-upload",
+      eventType: "DOCUMENT_RECEIVED",
+      payload: {
+        filename: originalname,
+        fileType,
+        pageCount,
+        charCount: cleanText.length,
+        sha256,
+        reusedExisting: registered.reusedExisting,
+      },
+    });
 
     // Detect legal-threat signal from filename + first 500 chars of content
     const probe = (originalname + " " + cleanText.substring(0, 500)).toLowerCase();
@@ -134,11 +184,22 @@ Document filename analysis: "${originalname}"`;
         evidenceSource: `filename:${originalname}`,
         context: cleanText.substring(0, 1000),
       }).catch(() => {});
+      recordListenerEvent({
+        documentId: canonicalDocument.id,
+        listenerName: "intake-threat-signal",
+        eventType: uploadSignal,
+        payload: {
+          filename: originalname,
+          fileType,
+          sessionId,
+        },
+      }).catch(() => {});
+
       auditLog({
         userId,
         action: "document.upload",
         resourceType: "document",
-        resourceRef: originalname,
+        resourceRef: canonicalDocument.documentRef,
         metadata: { signalDetected: uploadSignal, fileType, sessionId, docId },
       }).catch(() => {});
     }
@@ -146,6 +207,11 @@ Document filename analysis: "${originalname}"`;
     res.json({
       session_id: sessionId,
       doc_id: docId,
+      document_ref: canonicalDocument.documentRef,
+      document_registry_id: canonicalDocument.id,
+      persisted: true,
+      reused_existing: registered.reusedExisting,
+      storage_provider: canonicalDocument.storageProvider,
       filename: originalname,
       file_type: fileType,
       page_count: pageCount,
