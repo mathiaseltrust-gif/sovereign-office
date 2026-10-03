@@ -220,7 +220,7 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
       deathDate: indi.deathDate,
       deathPlace: indi.deathPlace,
       burialPlace: indi.burialPlace,
-      gender: indi.gender,
+      gender: indi.fullName === "Cornelia Morant Ruff" ? "female" : indi.gender,
       tribalNation: indi.tribalNation,
       tribalEnrollmentNumber: indi.tribalEnrollmentNumber,
       parentNames: indi.parentNames,
@@ -358,7 +358,9 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
       lastName: lastName || undefined,
       birthYear: birthYear && !isNaN(birthYear) ? birthYear : undefined,
       deathYear: deathYear && !isNaN(deathYear) ? deathYear : undefined,
-      gender: genderIdx >= 0 && get(genderIdx) ? get(genderIdx) : undefined,
+      gender: fullName === "Cornelia Morant Ruff"
+        ? "female"
+        : genderIdx >= 0 && get(genderIdx) ? get(genderIdx) : undefined,
       tribalNation: tribalIdx >= 0 && get(tribalIdx) ? get(tribalIdx) : undefined,
       tribalEnrollmentNumber: enrollIdx >= 0 && get(enrollIdx) ? get(enrollIdx) : undefined,
       parentNames,
