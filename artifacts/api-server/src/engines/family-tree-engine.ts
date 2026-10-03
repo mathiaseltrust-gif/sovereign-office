@@ -74,6 +74,15 @@ export interface EligibilityResult {
   reasons: string[];
 }
 
+function canonicalizeLineageName(name: string): string {
+  const cleaned = name.replace(/\s+/g, " ").trim();
+  const normalized = cleaned.toLowerCase();
+  if (normalized === "cornella morant ruff" || normalized === "cornelia morant ruff") {
+    return "Cornelia Morant Ruff";
+  }
+  return cleaned;
+}
+
 export function parseGedcom(gedText: string): ParsedPerson[] {
   const lines = gedText.split(/\r?\n/);
   const individuals = new Map<string, ParsedPerson & { _id: string; _famc?: string[] }>();
@@ -119,7 +128,7 @@ export function parseGedcom(gedText: string): ParsedPerson[] {
       if (level === 1) {
         currentTag = tag;
         if (tag === "NAME") {
-          const cleaned = value.replace(/\//g, "").replace(/\s+/g, " ").trim();
+          const cleaned = canonicalizeLineageName(value.replace(/\//g, "").replace(/\s+/g, " ").trim());
           if (cleaned) {
             indi.fullName = cleaned;
             const nameParts = cleaned.split(/\s+/);
@@ -307,12 +316,13 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
 
     const get = (idx: number) => (idx >= 0 && idx < cells.length ? cells[idx].trim().replace(/^"|"$/g, "") : "");
 
-    const fullName =
+    const fullName = canonicalizeLineageName(
       nameIdx >= 0
         ? get(nameIdx)
         : firstIdx >= 0 && lastIdx >= 0
         ? `${get(firstIdx)} ${get(lastIdx)}`.trim()
-        : "";
+        : ""
+    );
 
     if (!fullName) continue;
 
@@ -337,10 +347,10 @@ export function parseLineageCsv(csvText: string): ParsedPerson[] {
         : deathYear !== undefined && !isNaN(deathYear);
 
     const parentRaw = get(parentIdx);
-    const parentNames = parentRaw ? parentRaw.split(";").map((n) => n.trim()).filter(Boolean) : [];
+    const parentNames = parentRaw ? parentRaw.split(";").map(canonicalizeLineageName).filter(Boolean) : [];
 
     const spouseRaw = get(spouseIdx);
-    const spouseNames = spouseRaw ? spouseRaw.split(";").map((n) => n.trim()).filter(Boolean) : [];
+    const spouseNames = spouseRaw ? spouseRaw.split(";").map(canonicalizeLineageName).filter(Boolean) : [];
 
     people.push({
       fullName,
