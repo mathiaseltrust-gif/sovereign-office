@@ -24,7 +24,8 @@ export type ResolutionMethod =
   | "external_source_id"
   | "case_number"
   | "verified_alias"
-  | "normalized_name";
+  | "normalized_name"
+  | "system_created";
 
 const AUTO_LINK_METHODS = new Set<ResolutionMethod>([
   "parcel_number",
@@ -35,6 +36,7 @@ const AUTO_LINK_METHODS = new Set<ResolutionMethod>([
   "external_source_id",
   "case_number",
   "verified_alias",
+  "system_created",
   "manual",
 ]);
 
