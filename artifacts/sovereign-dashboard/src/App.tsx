@@ -15,6 +15,7 @@ const CreativeStudioProjectPage = lazy(() => import("@/pages/creative-studio-pro
 const Login = lazy(() => import("@/pages/login"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const TrusteeDashboard = lazy(() => import("@/pages/dashboard-trustee"));
+const BoardPage = lazy(() => import("@/pages/board"));
 const OfficerDashboard = lazy(() => import("@/pages/dashboard-officer"));
 const MemberDashboard = lazy(() => import("@/pages/dashboard-member"));
 const AdminDashboard = lazy(() => import("@/pages/dashboard-admin"));
@@ -270,6 +271,10 @@ function AppRouter() {
       </Route>
       <Route path="/dashboard">
         {() => <ProtectedRoute component={DashboardRedirect} />}
+      </Route>
+
+      <Route path="/board">
+        {() => <RoleProtectedRoute component={BoardPage} allowedRoles={TRUSTEE_ROLES} />}
       </Route>
 
       <Route path="/instrument-wizard">
