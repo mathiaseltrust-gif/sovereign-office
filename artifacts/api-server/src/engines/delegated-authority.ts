@@ -52,7 +52,7 @@ const MEMBER_ORG: OrgAccess = {
 };
 const VISITOR_ORG: OrgAccess = {
   medicalCenter: "none", supremeCourt: "none", tribalTrust: "none",
-  charitableTrust: "member", niac: "member", iee: "member",
+  charitableTrust: "none", niac: "none", iee: "none",
 };
 
 export function computeDelegatedAuthorities(

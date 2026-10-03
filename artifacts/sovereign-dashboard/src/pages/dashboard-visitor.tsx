@@ -4,7 +4,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Link } from "wouter";
-import { Send, Loader2, Leaf } from "lucide-react";
+import { Send, Loader2, Leaf, Network, ShieldCheck } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
 const SERVICE_KEY = import.meta.env.VITE_SERVICE_KEY ?? "";
@@ -12,6 +12,21 @@ const SERVICE_KEY = import.meta.env.VITE_SERVICE_KEY ?? "";
 interface ChatMessage {
   role: "user" | "assistant";
   content: string;
+}
+
+interface PublicMcpStatus {
+  online: boolean;
+  phase: string;
+  protocolVersion: string;
+  endpoint: string;
+  profile: {
+    label: string;
+    accessClass: string;
+    posture: string;
+  };
+  tools: string[];
+  resources: string[];
+  prompts: string[];
 }
 
 const SUGGESTED_QUESTIONS = [
@@ -177,6 +192,73 @@ function HeritageGuideChat() {
   );
 }
 
+function PublicMcpGatewayCard() {
+  const [status, setStatus] = useState<PublicMcpStatus | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    fetch(`${API}/api/mcp/status`)
+      .then(r => {
+        if (!r.ok) throw new Error("MCP status unavailable");
+        return r.json();
+      })
+      .then(data => { if (active) setStatus(data); })
+      .catch(() => { if (active) setFailed(true); });
+    return () => { active = false; };
+  }, []);
+
+  return (
+    <Card className="border-primary/20">
+      <CardHeader className="pb-2">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+              <Network className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <CardTitle className="text-sm">Sovereign Office MCP Gateway</CardTitle>
+              <p className="text-[10px] text-muted-foreground">Visitor / Media · public capability profile</p>
+            </div>
+          </div>
+          <Badge variant="outline" className={status?.online ? "border-green-500 text-green-700" : "border-muted-foreground/30"}>
+            {status?.online ? "Phase 0 active" : failed ? "Unavailable" : "Checking…"}
+          </Badge>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        <div className="flex items-start gap-2 text-xs text-muted-foreground">
+          <ShieldCheck className="h-4 w-4 mt-0.5 shrink-0 text-primary" />
+          <p>
+            This gateway exposes only the public Visitor / Media capability set. Internal cases, member records,
+            medical information, private lineage, trust records, Board records, and Office actions are not exposed.
+          </p>
+        </div>
+        {status && (
+          <div className="grid grid-cols-2 gap-2 text-xs">
+            <div className="rounded-lg border border-border p-2">
+              <p className="font-medium">Protocol</p>
+              <p className="text-muted-foreground">{status.protocolVersion}</p>
+            </div>
+            <div className="rounded-lg border border-border p-2">
+              <p className="font-medium">Endpoint</p>
+              <p className="text-muted-foreground">{status.endpoint}</p>
+            </div>
+            <div className="rounded-lg border border-border p-2">
+              <p className="font-medium">Tools</p>
+              <p className="text-muted-foreground">{status.tools.length} public tools</p>
+            </div>
+            <div className="rounded-lg border border-border p-2">
+              <p className="font-medium">Storage</p>
+              <p className="text-muted-foreground">Stateless public session</p>
+            </div>
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 const PUBLIC_RESOURCES = [
   { title: "Public Records Search", desc: "Search publicly available court records, filings, and instruments.", href: "/search" },
   { title: "Tribal Law Library", desc: "Browse publicly accessible tribal laws, statutes, and legal doctrines.", href: "/law" },
@@ -196,6 +278,8 @@ export default function VisitorDashboard() {
           For tribal member services, please contact the Sovereign Office of the Chief Justice & Trustee.
         </p>
       </div>
+
+      <PublicMcpGatewayCard />
 
       {/* Heritage Guide Chat */}
       <Card className="overflow-hidden">

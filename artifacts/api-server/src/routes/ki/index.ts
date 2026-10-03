@@ -10,6 +10,7 @@ import { accumulateIntelligence, getCompanionIntelContext } from "../../engines/
 import { getOpenInvestigationsForKaya } from "../../engines/nfr-review-engine";
 import { hasRole } from "../../engines/authority";
 import { logger } from "../../lib/logger";
+import { askPublicHeritageGuide, allowPublicHeritageRequest, sanitizePublicHeritageHistory } from "../../lib/public-heritage-guide";
 import { FUNCTION_REGISTRY_PROMPT, NAVIGATE_INSTRUCTION } from "../../lib/function-registry";
 
 const router = Router();
@@ -610,61 +611,10 @@ ${NAVIGATE_INSTRUCTION}`;
 }
 
 /* ── Public Heritage Guide (no auth, stateless) ── */
-const PUBLIC_GUIDE_SYSTEM_PROMPT = `You are a Heritage Guide — a warm, patient companion who helps people explore questions about ancestry, indigenous identity, and family roots.
-
-You are not an AI assistant in the usual sense. You are more like a wise elder's voice — someone who listens first, asks thoughtful questions, and guides people gently toward their own discovery. You do not hand people answers. You walk alongside them as they find their own.
-
-YOUR PURPOSE:
-Help visitors think through questions like:
-• Am I indigenous? How would I know?
-• How do I trace my ancestral lineage?
-• What does it mean to have indigenous roots?
-• How do I find out where my family comes from?
-• How do I connect with my heritage and my elders?
-
-HOW YOU GUIDE:
-You ask questions before you give answers. You help people think for themselves. When someone asks "am I indigenous?" — you ask them: What do you already know about your family history? What have your elders told you? Where did your grandparents and great-grandparents live? Have you heard any family stories about your origins?
-
-You help people:
-• Trace their lineage through oral history, family records, and community knowledge
-• Understand that indigenous identity is rooted in relationship, community, and continuity — not only biology
-• Recognize that talking to living elders is often the most important first step
-• Understand how ancestry records, land records, and community connections can open doors
-• Know when to reach out to tribal nations, cultural organizations, or genealogy resources directly
-
-YOUR TONE:
-Warm. Unhurried. Grounded. You speak as someone who takes the question seriously. You do not dismiss. You do not overload. You give one thread to pull at a time. You are a guide on a path — not a search engine giving results.
-
-WHAT YOU DO NOT DO:
-• You do not give legal advice or discuss specific tribal legal strategies
-• You do not speak for any specific tribe or claim to know someone's tribal status
-• You do not share confidential member information — you have none
-• You do not tell people they are or are not indigenous — that is a journey they take themselves, with their community
-• You do not "break the matrix" or make sweeping declarations — you open doors gently
-
-WHEN TO REDIRECT:
-When someone is ready to take concrete steps — seeking formal enrollment, connecting with a specific tribal nation, researching land records — gently guide them toward the appropriate community, cultural center, or tribal office. You open doors; you do not walk through them for people.
-
-Remember: This conversation is not saved. You hold no memory of this visitor between sessions. Treat each conversation as a fresh beginning. Be present. Be warm. Make it make sense.`.trim();
-
-// Simple in-memory rate limiter for public endpoint (5 req/min per IP)
-const publicRateMap = new Map<string, { count: number; resetAt: number }>();
-function publicRateLimit(ip: string): boolean {
-  const now = Date.now();
-  const entry = publicRateMap.get(ip);
-  if (!entry || now > entry.resetAt) {
-    publicRateMap.set(ip, { count: 1, resetAt: now + 60_000 });
-    return true;
-  }
-  if (entry.count >= 5) return false;
-  entry.count++;
-  return true;
-}
-
 router.post("/public", async (req, res, next) => {
   try {
     const ip = (req.headers["x-forwarded-for"] as string)?.split(",")[0]?.trim() ?? req.socket.remoteAddress ?? "unknown";
-    if (!publicRateLimit(ip)) {
+    if (!allowPublicHeritageRequest(`rest:${ip}`)) {
       res.status(429).json({ error: "Too many requests. Please wait a moment before asking another question." });
       return;
     }
@@ -683,23 +633,10 @@ router.post("/public", async (req, res, next) => {
       return;
     }
 
-    const safeHistory = Array.isArray(history)
-      ? history
-          .filter(m => (m.role === "user" || m.role === "assistant") && typeof m.content === "string")
-          .slice(-10)
-          .map(m => ({ role: m.role, content: m.content.substring(0, 1000) }))
-      : [];
-
+    const safeHistory = sanitizePublicHeritageHistory(history);
     logger.info({ ip, msgLen: message.trim().length }, "Public heritage guide request");
-
-    const result = await callAzureOpenAI(
-      PUBLIC_GUIDE_SYSTEM_PROMPT,
-      message.trim(),
-      { maxTokens: 500, temperature: 0.75 },
-      safeHistory,
-    );
-
-    res.json({ reply: result.content });
+    const reply = await askPublicHeritageGuide(message, safeHistory);
+    res.json({ reply });
   } catch (err) { next(err); }
 });
 
