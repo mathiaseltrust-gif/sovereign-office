@@ -593,7 +593,7 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
           entityId: String(parcelDbId),
           relationshipType: "related_property",
           confidence: "exact",
-          resolutionMethod: "manual",
+          resolutionMethod: "system_created",
           metadata: { source: "apply_filing", documentType },
           verifiedBy: userId ?? null,
         });
@@ -607,7 +607,7 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
           entityId: String(courtDoc.id),
           relationshipType: "source_document",
           confidence: "exact",
-          resolutionMethod: "manual",
+          resolutionMethod: "system_created",
           metadata: { source: "apply_filing", tribalRef: courtDoc.tribalRef ?? null },
           verifiedBy: userId ?? null,
         });
@@ -621,7 +621,7 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
           entityId: String(encumbrance.id),
           relationshipType: "evidence",
           confidence: "exact",
-          resolutionMethod: "manual",
+          resolutionMethod: "system_created",
           metadata: { source: "apply_filing", documentType },
           verifiedBy: userId ?? null,
         });
