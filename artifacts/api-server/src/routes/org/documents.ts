@@ -197,7 +197,8 @@ router.get("/_documents/catalog", requireAuth, async (req: Request, res: Respons
   }
   try {
     const docs = await db.select().from(orgDocumentsTable);
-    res.json(docs.filter((doc) => canAccessOrg(req, doc.orgId)));
+    const visible = docs.filter((doc) => canAccessOrg(req, doc.orgId));
+    res.json(await attachCanonicalDocumentRefs(visible));
   } catch (err) {
     next(err);
   }
