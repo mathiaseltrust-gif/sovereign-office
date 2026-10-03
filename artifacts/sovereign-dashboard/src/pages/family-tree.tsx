@@ -1122,18 +1122,57 @@ function normalizedGenderRole(value: unknown): "male" | "female" | null {
   return null;
 }
 
-function resolveParentSlots(node: LineageNode, byId: Map<number, LineageNode>): { fatherId: number | null; motherId: number | null; extras: number[] } {
-  const pids = Array.isArray(node.parentIds)
-    ? (node.parentIds as number[]).map(Number).filter((id) => Number.isFinite(id) && id > 0)
+function resolveParentSlots(
+  node: LineageNode,
+  byId: Map<number, LineageNode>,
+  familyUnits: FamilyUnit[] = [],
+): { fatherId: number | null; motherId: number | null; extras: number[] } {
+  const flatParentIds = Array.isArray(node.parentIds)
+    ? (node.parentIds as number[]).map(Number).filter((id) => Number.isFinite(id) && id > 0 && byId.has(id))
     : [];
 
-  if (pids.length === 0) return { fatherId: null, motherId: null, extras: [] };
+  // GEDCOM FAM records are the canonical source for a person's birth family.
+  // Use those records first so Fan/Pedigree stay aligned with the Family view.
+  const birthUnits = familyUnits.filter((unit) => numericIds(unit.childIds).includes(node.id));
 
   let fatherId: number | null = null;
   let motherId: number | null = null;
-  const unmatched: number[] = [];
+  const candidates: number[] = [];
 
-  for (const id of pids) {
+  const considerExplicit = (id: number | null | undefined, slot: "father" | "mother") => {
+    if (id == null || !byId.has(id)) return;
+    const role = normalizedGenderRole(byId.get(id)?.gender);
+
+    // Prefer the FAM role, but do not force a known female into the father slot
+    // or a known male into the mother slot if imported metadata disagrees.
+    if (slot === "father") {
+      if (role === "female" && motherId == null) motherId = id;
+      else if (fatherId == null) fatherId = id;
+      else candidates.push(id);
+    } else {
+      if (role === "male" && fatherId == null) fatherId = id;
+      else if (motherId == null) motherId = id;
+      else candidates.push(id);
+    }
+  };
+
+  for (const unit of birthUnits) {
+    considerExplicit(unit.husbandId, "father");
+    considerExplicit(unit.wifeId, "mother");
+    for (const id of numericIds(unit.spouseIds)) {
+      if (byId.has(id)) candidates.push(id);
+    }
+  }
+
+  // Legacy parent arrays remain a fallback and can also fill a missing FAM slot.
+  for (const id of flatParentIds) {
+    if (id !== fatherId && id !== motherId) candidates.push(id);
+  }
+
+  const uniqueCandidates = [...new Set(candidates)];
+  const unmatched: number[] = [];
+  for (const id of uniqueCandidates) {
+    if (id === fatherId || id === motherId) continue;
     const role = normalizedGenderRole(byId.get(id)?.gender);
     if (role === "male" && fatherId == null) {
       fatherId = id;
@@ -1144,7 +1183,7 @@ function resolveParentSlots(node: LineageNode, byId: Map<number, LineageNode>): 
     }
   }
 
-  // Fall back to historical array order only for unresolved slots.
+  // Historical ordering is only a last fallback for unresolved/unknown roles.
   for (const id of unmatched) {
     if (fatherId == null) {
       fatherId = id;
@@ -1157,14 +1196,35 @@ function resolveParentSlots(node: LineageNode, byId: Map<number, LineageNode>): 
   }
 
   const used = new Set([fatherId, motherId].filter((id): id is number => id != null));
-  const extras = pids.filter((id) => !used.has(id));
+  const allParentIds = [...new Set([
+    ...birthUnits.flatMap((unit) => [
+      unit.husbandId,
+      unit.wifeId,
+      ...numericIds(unit.spouseIds),
+    ].filter((id): id is number => id != null && byId.has(id))),
+    ...flatParentIds,
+  ])];
+  const extras = allParentIds.filter((id) => !used.has(id));
   return { fatherId, motherId, extras };
+}
+
+function resolveAncestorIds(
+  node: LineageNode,
+  byId: Map<number, LineageNode>,
+  familyUnits: FamilyUnit[] = [],
+): number[] {
+  const { fatherId, motherId, extras } = resolveParentSlots(node, byId, familyUnits);
+  return [...new Set([
+    fatherId,
+    motherId,
+    ...extras,
+  ].filter((id): id is number => id != null))];
 }
 
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
-function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | null): {
+function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | null, familyUnits: FamilyUnit[] = []): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
@@ -1187,7 +1247,7 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
     const n = byId.get(id);
     if (!n) return null;
     seen.add(id);
-    const { fatherId, motherId } = resolveParentSlots(n, byId);
+    const { fatherId, motherId } = resolveParentSlots(n, byId, familyUnits);
     const kids: HierDatum[] = [];
     if (fatherId) { const c = buildHier(fatherId, gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
     if (motherId) { const c = buildHier(motherId, gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
@@ -1266,7 +1326,7 @@ interface FanEntry {
   a1: number; a2: number; isPat: boolean;
 }
 
-function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
+function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null, familyUnits: FamilyUnit[] = []): { entries: FanEntry[]; root: LineageNode | null; maxGen: number } {
   const byId = new Map(nodes.map((n) => [n.id, n]));
   const root =
     (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
@@ -1301,7 +1361,7 @@ function buildFanEntries(nodes: LineageNode[], preferredRootId?: number | null):
       entries.push({ id, node: n, gen, ahnNum, a1, a2, isPat });
     }
 
-    const { fatherId, motherId } = resolveParentSlots(n, byId);
+    const { fatherId, motherId } = resolveParentSlots(n, byId, familyUnits);
     if (fatherId && !seen.has(fatherId)) q.push({ id: fatherId, gen: gen + 1, ahnNum: ahnNum * 2 });
     if (motherId && !seen.has(motherId)) q.push({ id: motherId, gen: gen + 1, ahnNum: ahnNum * 2 + 1 });
   }
@@ -1429,14 +1489,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       for (const uid of upFrontier) {
         const node = byId.get(uid);
         if (!node) continue;
-        for (const pid of (node.parentIds ?? []) as number[]) {
+        for (const pid of resolveAncestorIds(node, byId, familyUnits)) {
           if (!included.has(pid)) {
             included.add(pid);
             nextFrontier.push(pid);
-            // Include this ancestor's spouse(s)
+            // Include this ancestor's spouse(s), plus adults sharing a FAM unit.
             const parent = byId.get(pid);
             if (parent) {
               (parent.spouseIds ?? []).forEach((sid) => included.add(sid as number));
+            }
+            for (const unit of familyUnits) {
+              const adults = [
+                unit.husbandId,
+                unit.wifeId,
+                ...numericIds(unit.spouseIds),
+              ].filter((id): id is number => id != null);
+              if (adults.includes(pid)) adults.forEach((sid) => included.add(sid));
             }
           }
         }
@@ -1453,7 +1521,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     }
 
     return included;
-  }, [nodes, selfNodeRaw, generationDepth]);
+  }, [nodes, selfNodeRaw, generationDepth, familyUnits]);
 
   // ── Member access restriction ─────────────────────────────────────────────
   // Non-privileged members see only nodes connected to their own lineage path
@@ -1470,7 +1538,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     (memberNode.spouseIds ?? []).forEach((id) => visible.add(id as number));
     nodes.filter((n) => (n.parentIds ?? []).includes(memberNode.id as never)).forEach((n) => visible.add(n.id));
     // BFS up: collect all ancestors (these are the "common ancestors" they share)
-    const queue: number[] = [...(memberNode.parentIds ?? []) as number[]];
+    const queue: number[] = resolveAncestorIds(memberNode, byId, familyUnits);
     const visited = new Set<number>();
     while (queue.length > 0) {
       const id = queue.shift()!;
@@ -1480,11 +1548,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       const node = byId.get(id);
       if (node) {
         (node.spouseIds ?? []).forEach((sid) => visible.add(sid as number));
-        (node.parentIds ?? []).forEach((pid) => queue.push(pid as number));
+        resolveAncestorIds(node, byId, familyUnits).forEach((pid) => queue.push(pid));
       }
     }
     return visible;
-  }, [nodes, user?.dbId, user?.roles]);
+  }, [nodes, user?.dbId, user?.roles, familyUnits]);
 
   // ── Filter state ─────────────────────────────────────────────────────────
   const [showFilters, setShowFilters] = useState(false);
@@ -1595,12 +1663,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     ?? null;
 
   const pedigreeData = useMemo(
-    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
-    [treeNodes, treeView],
+    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId, familyUnits) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+    [treeNodes, treeView, preferredRootId, familyUnits],
   );
   const fanData = useMemo(
-    () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId) : { entries: [], root: null, maxGen: 0 },
-    [treeNodes, treeView],
+    () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId, familyUnits) : { entries: [], root: null, maxGen: 0 },
+    [treeNodes, treeView, preferredRootId, familyUnits],
   );
   const fanCanvasSize = useMemo(() => {
     if (fanData.maxGen === 0) return (FAN_ROOT_R + FAN_PAD) * 2;
