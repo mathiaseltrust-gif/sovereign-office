@@ -54,7 +54,6 @@ function parseDevToken(token: string): { id: string; email: string; roles: strin
       roles: Array.isArray(parsed.roles) ? parsed.roles : [],
       name: parsed.name,
       entraId: parsed.entraId,
-      authMethod: authMethod === "entra_jwt" ? "microsoft" : authMethod === "dev_token" ? "dev" : undefined,
     };
   } catch {
     return null;
