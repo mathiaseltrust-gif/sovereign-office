@@ -3963,6 +3963,35 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
     setShowEditOwn(true);
   }
 
+  async function openLinkedDocument(doc: LinkedLineageDocument) {
+    const popup = window.open("about:blank", "_blank");
+    try {
+      const r = await fetch(
+        `/api/lineage/nodes/${n.id}/documents/${encodeURIComponent(doc.document_ref)}/download`,
+        { headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` } },
+      );
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        popup?.close();
+        throw new Error(body.error ?? "Could not open the original document.");
+      }
+      const blob = await r.blob();
+      const url = URL.createObjectURL(blob);
+      if (popup) {
+        popup.location.href = url;
+      } else {
+        window.location.href = url;
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 60_000);
+    } catch (err) {
+      toast({
+        title: "Document unavailable",
+        description: err instanceof Error ? err.message : "Could not open the original document.",
+        variant: "destructive",
+      });
+    }
+  }
+
   const lifeEvents = Array.isArray(n.lifeEvents) ? sortLifeEventsForDisplay(n.lifeEvents) : [];
 
   return (
@@ -4105,6 +4134,16 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
                         </span>
                       )}
                     </div>
+                    {doc.storage_provider === "office_object_storage" && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7 text-[10px] mt-2"
+                        onClick={() => openLinkedDocument(doc)}
+                      >
+                        Open original
+                      </Button>
+                    )}
                   </div>
                 ))}
               </div>
