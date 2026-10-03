@@ -27,6 +27,7 @@ const schema = z.object({
   BACKUP_RETENTION_DAYS: z.coerce.number().default(30),
   BACKUP_SCRIPT: z.string().optional(),
   M365_SERVICE_KEY: z.string().optional(),
+  GITHUB_INTAKE_SERVICE_KEY: z.string().optional(),
   RESEND_API_KEY: z.string().optional(),
   RESEND_FROM_EMAIL: z.string().email().optional(),
   STRIPE_WEBHOOK_SECRET: z.string().optional(),
