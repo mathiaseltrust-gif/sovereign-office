@@ -21,7 +21,11 @@ export type ResolutionMethod =
   | "listener"
   | "ai_extraction"
   | "manual"
-  | "external_source_id";
+  | "external_source_id"
+  | "case_number"
+  | "verified_alias"
+  | "normalized_name"
+  | "system_created";
 
 const AUTO_LINK_METHODS = new Set<ResolutionMethod>([
   "parcel_number",
@@ -30,6 +34,9 @@ const AUTO_LINK_METHODS = new Set<ResolutionMethod>([
   "tribal_id",
   "verified_email",
   "external_source_id",
+  "case_number",
+  "verified_alias",
+  "system_created",
   "manual",
 ]);
 
