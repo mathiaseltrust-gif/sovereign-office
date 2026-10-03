@@ -1946,7 +1946,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const allMatchingNodes = useMemo(() => {
     if (!q) return [] as LineageNode[];
     const searchPool: LineageNode[] =
-      treeView === "tree" ? fullTreeNodes
+      treeView === "tree" || treeView === "timeline" ? fullTreeNodes
       : treeView === "family" ? familyViewNodes
       : treeNodes;
     return searchPool.filter(
