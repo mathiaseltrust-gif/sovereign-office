@@ -114,6 +114,32 @@ export default function BoardPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [editingMatter, setEditingMatter] = useState<BoardMatter | null>(null);
+  const [editForm, setEditForm] = useState({
+    status: "new",
+    priority: "normal",
+    responsibleOffice: "",
+    dueDate: "",
+    boardAction: "",
+    closureNotes: "",
+    responseRequired: false,
+    evidenceRequired: false,
+  });
+
+  const openMatterReview = (matter: BoardMatter) => {
+    setEditingMatter(matter);
+    setEditForm({
+      status: matter.status,
+      priority: matter.priority,
+      responsibleOffice: matter.responsibleOffice ?? "",
+      dueDate: matter.dueDate ? matter.dueDate.slice(0, 10) : "",
+      boardAction: matter.boardAction ?? "",
+      closureNotes: matter.closureNotes ?? "",
+      responseRequired: matter.responseRequired,
+      evidenceRequired: matter.evidenceRequired,
+    });
+  };
+
   const [form, setForm] = useState({
     title: "",
     summary: "",
@@ -166,6 +192,8 @@ export default function BoardPage() {
       qc.invalidateQueries({ queryKey: ["board-matters"] });
       qc.invalidateQueries({ queryKey: ["tasks"] });
       qc.invalidateQueries({ queryKey: ["calendar"] });
+      setEditingMatter(null);
+      toast({ title: "Board Matter updated" });
     },
     onError: (e: Error) => toast({ title: "Board Matter update failed", description: e.message, variant: "destructive" }),
   });
@@ -269,6 +297,138 @@ export default function BoardPage() {
               </div>
             </DialogContent>
           </Dialog>
+
+          <Dialog open={editingMatter !== null} onOpenChange={(next) => { if (!next) setEditingMatter(null); }}>
+            <DialogContent className="max-w-2xl">
+              <DialogHeader>
+                <DialogTitle>
+                  {editingMatter ? `Board Matter #${editingMatter.id} — Review / Action` : "Board Matter Review"}
+                </DialogTitle>
+              </DialogHeader>
+              {editingMatter && (
+                <div className="space-y-4 mt-2">
+                  <div>
+                    <p className="text-sm font-semibold">{editingMatter.title}</p>
+                    {editingMatter.summary && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{editingMatter.summary}</p>}
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Workflow Stage</Label>
+                      <Select value={editForm.status} onValueChange={(value) => setEditForm({ ...editForm, status: value })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          {STATUS_FLOW.map((value) => <SelectItem key={value} value={value}>{STATUS_LABELS[value]}</SelectItem>)}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <Label>Priority</Label>
+                      <Select value={editForm.priority} onValueChange={(value) => setEditForm({ ...editForm, priority: value })}>
+                        <SelectTrigger><SelectValue /></SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="low">Low</SelectItem>
+                          <SelectItem value="normal">Normal</SelectItem>
+                          <SelectItem value="high">High</SelectItem>
+                          <SelectItem value="urgent">Urgent</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  <div className="grid sm:grid-cols-2 gap-3">
+                    <div>
+                      <Label>Responsible Office</Label>
+                      <Input
+                        value={editForm.responsibleOffice}
+                        onChange={(e) => setEditForm({ ...editForm, responsibleOffice: e.target.value })}
+                        placeholder="Trust, Court, Medical Center, etc."
+                      />
+                    </div>
+                    <div>
+                      <Label>Due Date</Label>
+                      <Input
+                        type="date"
+                        value={editForm.dueDate}
+                        onChange={(e) => setEditForm({ ...editForm, dueDate: e.target.value })}
+                      />
+                    </div>
+                  </div>
+
+                  <div>
+                    <Label>Board Action / Directive</Label>
+                    <Textarea
+                      value={editForm.boardAction}
+                      onChange={(e) => setEditForm({ ...editForm, boardAction: e.target.value })}
+                      rows={4}
+                      placeholder="Record the Board's direction, conditions, or required action."
+                    />
+                  </div>
+
+                  <div className="flex items-center gap-5 text-sm">
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editForm.responseRequired}
+                        onChange={(e) => setEditForm({ ...editForm, responseRequired: e.target.checked })}
+                      />
+                      Response required
+                    </label>
+                    <label className="flex items-center gap-2">
+                      <input
+                        type="checkbox"
+                        checked={editForm.evidenceRequired}
+                        onChange={(e) => setEditForm({ ...editForm, evidenceRequired: e.target.checked })}
+                      />
+                      Evidence required
+                    </label>
+                  </div>
+
+                  {(editForm.status === "closed" || editingMatter.status === "closed") && (
+                    <div>
+                      <Label>Closure Notes</Label>
+                      <Textarea
+                        value={editForm.closureNotes}
+                        onChange={(e) => setEditForm({ ...editForm, closureNotes: e.target.value })}
+                        rows={3}
+                        placeholder="State what was completed, the evidence relied upon, and why the matter is closed."
+                      />
+                    </div>
+                  )}
+
+                  <div className="rounded-md border bg-muted/30 p-3 text-xs text-muted-foreground">
+                    {editingMatter.linkedTaskId
+                      ? `Linked Task #${editingMatter.linkedTaskId} will stay synchronized with this matter.`
+                      : editForm.dueDate
+                        ? "Saving this due date will create a linked Task and Calendar deadline."
+                        : "Add a due date to create linked Task and Calendar records."}
+                  </div>
+
+                  <div className="flex justify-end gap-2">
+                    <Button variant="outline" onClick={() => setEditingMatter(null)}>Cancel</Button>
+                    <Button
+                      disabled={updateMatter.isPending}
+                      onClick={() => updateMatter.mutate({
+                        id: editingMatter.id,
+                        patch: {
+                          status: editForm.status,
+                          priority: editForm.priority,
+                          responsibleOffice: editForm.responsibleOffice || null,
+                          dueDate: editForm.dueDate || null,
+                          boardAction: editForm.boardAction || null,
+                          closureNotes: editForm.closureNotes || null,
+                          responseRequired: editForm.responseRequired,
+                          evidenceRequired: editForm.evidenceRequired,
+                        },
+                      })}
+                    >
+                      {updateMatter.isPending ? "Saving…" : "Save Board Action"}
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </DialogContent>
+          </Dialog>
         </div>
       </div>
 
@@ -346,15 +506,20 @@ export default function BoardPage() {
                       {matter.dueDate && <p className="text-xs"><span className="text-muted-foreground">Due:</span> {new Date(matter.dueDate).toLocaleDateString()}</p>}
                       {matter.boardAction && <p className="text-xs"><span className="text-muted-foreground">Board action:</span> {matter.boardAction}</p>}
 
-                      <Select
-                        value={matter.status}
-                        onValueChange={(value) => updateMatter.mutate({ id: matter.id, patch: { status: value } })}
-                      >
-                        <SelectTrigger className="h-8 text-xs"><SelectValue /></SelectTrigger>
-                        <SelectContent>
-                          {STATUS_FLOW.map((value) => <SelectItem key={value} value={value}>{STATUS_LABELS[value]}</SelectItem>)}
-                        </SelectContent>
-                      </Select>
+                      <div className="flex gap-2">
+                        <Select
+                          value={matter.status}
+                          onValueChange={(value) => updateMatter.mutate({ id: matter.id, patch: { status: value } })}
+                        >
+                          <SelectTrigger className="h-8 text-xs flex-1"><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            {STATUS_FLOW.map((value) => <SelectItem key={value} value={value}>{STATUS_LABELS[value]}</SelectItem>)}
+                          </SelectContent>
+                        </Select>
+                        <Button size="sm" variant="outline" className="h-8 text-xs" onClick={() => openMatterReview(matter)}>
+                          Review / Action
+                        </Button>
+                      </div>
                     </div>
                   ))}
                 </CardContent>
