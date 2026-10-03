@@ -34,7 +34,27 @@ export async function getObjectAclPolicy(
   const [metadata] = await objectFile.getMetadata();
   const raw = metadata?.metadata?.[ACL_POLICY_METADATA_KEY];
   if (!raw) return null;
-  return JSON.parse(raw as string) as ObjectAclPolicy;
+  try {
+    const parsed = JSON.parse(raw as string) as Partial<ObjectAclPolicy>;
+    if (
+      typeof parsed.owner !== "string" ||
+      (parsed.visibility !== "public" && parsed.visibility !== "private") ||
+      (parsed.readers !== undefined && (
+        !Array.isArray(parsed.readers) ||
+        parsed.readers.some((principal) => typeof principal !== "string")
+      ))
+    ) {
+      return null;
+    }
+    return {
+      owner: parsed.owner,
+      visibility: parsed.visibility,
+      readers: parsed.readers ?? [],
+    };
+  } catch {
+    // Malformed ACL metadata is never treated as permissive.
+    return null;
+  }
 }
 
 export async function canAccessObject({
