@@ -61,8 +61,8 @@ function expectedName(body: JsonRpcRequest): string | null {
   return null;
 }
 
-function modernHeaderError(req: Request, body: JsonRpcRequest): string | null {
-  if (!isModernRequest(req, body)) return null;
+function modernHeaderError(req: Request, body: JsonRpcRequest, modern: boolean): string | null {
+  if (!modern) return null;
 
   const protocol = req.header("MCP-Protocol-Version");
   if (protocol !== PUBLIC_MCP_PROTOCOL_VERSION) {
@@ -184,8 +184,8 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const modern = isModernRequest(req, body);
-  const headerProblem = modernHeaderError(req, body);
+  const modern = body.method === "server/discover" || isModernRequest(req, body);
+  const headerProblem = modernHeaderError(req, body, modern);
   if (headerProblem) {
     sendError(req, res, body.id, -32020, "HeaderMismatch", 400, { detail: headerProblem });
     return;
