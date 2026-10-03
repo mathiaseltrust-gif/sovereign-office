@@ -3,15 +3,21 @@ export interface MaternalLineageNode {
   fullName: string;
   birthYear?: number | null;
   gender?: string | null;
-  parentIds?: number[] | null;
-  childrenIds?: number[] | null;
+  parentIds?: unknown;
+  childrenIds?: unknown;
   sourceType?: string | null;
   membershipStatus?: string | null;
   pendingReview?: boolean | null;
 }
 
+export interface ReconciledMaternalFields {
+  parentIds: number[];
+  childrenIds: number[];
+  gender?: string | null;
+}
+
 export interface MaternalReconciliationResult<T extends MaternalLineageNode> {
-  nodes: T[];
+  nodes: Array<T & ReconciledMaternalFields>;
   diagnostics: {
     pamelaIds: number[];
     corneliaIds: number[];
@@ -73,11 +79,12 @@ function pickCanonical<T extends MaternalLineageNode>(
 export function reconcileVerifiedMaternalChain<T extends MaternalLineageNode>(
   inputNodes: T[],
 ): MaternalReconciliationResult<T> {
-  const nodes = inputNodes.map((node) => ({
+  const nodes: Array<T & ReconciledMaternalFields> = inputNodes.map((node) => ({
     ...node,
     parentIds: mergeIds(node.parentIds, []),
     childrenIds: mergeIds(node.childrenIds, []),
-  })) as T[];
+    gender: node.gender ?? null,
+  }));
 
   const pamelas = nodes.filter((node) =>
     normalizeName(node.fullName) === "pamela denise mccaster"
