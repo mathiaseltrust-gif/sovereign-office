@@ -5,6 +5,7 @@ import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { recordListenerEvent } from "../../engines/document-association";
 import { canReviewCanonicalDocument } from "../../security/canonical-document-access";
 import { resolveAuthorityContext } from "../../engines/authority-context";
+import { applyProtectedAssociationSensitivity } from "../../engines/entity-resolver";
 
 const router = Router();
 
@@ -185,10 +186,22 @@ router.patch(
         },
       });
 
+      let protectionEscalation = null;
+      if (decision === "approve") {
+        protectionEscalation = await applyProtectedAssociationSensitivity({
+          documentId,
+          entityType: String(association.entity_type),
+          entityId: String(association.entity_id),
+          associationStatus: newStatus,
+          listenerName: "association-review",
+        });
+      }
+
       res.json({
         success: true,
         decision,
         association: updated.rows[0],
+        protectionEscalation,
       });
     } catch (err) {
       next(err);
