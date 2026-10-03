@@ -6,24 +6,16 @@
  * validates fields, runs optional AI extraction, and returns a
  * draft preview — without writing to the DB unless dryRun=false.
  *
- * Auth: X-Api-Key header (SERVICE_KEY) OR Bearer session token.
+ * Auth: dedicated GitHub intake service capability OR verified human session.
  */
 import { Router } from "express";
 import { logger } from "../../lib/logger";
+import { requireServiceCapabilityOrAuth } from "../../auth/service-key";
 
 const router = Router();
 
-// ── Auth: service key OR bearer token ────────────────────────────────────────
-function checkAuth(req: import("express").Request): boolean {
-  const apiKey = req.headers["x-api-key"];
-  const serviceKey = process.env.SERVICE_KEY || process.env.M365_SERVICE_KEY;
-  if (serviceKey && apiKey === serviceKey) return true;
-
-  const auth = req.headers["authorization"] ?? "";
-  if (auth.startsWith("Bearer ") && auth.length > 10) return true;
-
-  return false;
-}
+// Authentication is handled by the central principal/capability boundary.
+// Raw Authorization header text is never treated as proof of identity.
 
 // ── Mock extraction fallback ──────────────────────────────────────────────────
 function mockExtract(title: string, body: string) {
@@ -80,12 +72,8 @@ function mockExtract(title: string, body: string) {
 }
 
 // ── POST /api/github/intake ───────────────────────────────────────────────────
-router.post("/", async (req, res, next) => {
+router.post("/", requireServiceCapabilityOrAuth("github:intake:preview"), async (req, res, next) => {
   try {
-    if (!checkAuth(req)) {
-      res.status(401).json({ error: "Unauthorized — provide X-Api-Key or Bearer token" });
-      return;
-    }
 
     const {
       issueNumber,

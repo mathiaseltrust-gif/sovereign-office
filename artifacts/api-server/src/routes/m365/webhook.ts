@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireServiceKeyOrAuth } from "../../auth/service-key";
+import { requireServiceCapabilityOrAuth } from "../../auth/service-key";
 import { callAzureOpenAI, getAzureOpenAIClient } from "../../lib/azure-openai";
 import { logger } from "../../lib/logger";
 import type { ExtractedFacts } from "./facts";
@@ -51,7 +51,7 @@ Return JSON with:
 
 Return only valid JSON, no markdown wrapper.`;
 
-router.post("/webhook", requireServiceKeyOrAuth, async (req, res, next) => {
+router.post("/webhook", requireServiceCapabilityOrAuth("m365:intake:submit"), async (req, res, next) => {
   const start = Date.now();
   try {
     const body = req.body as M365WebhookInput;

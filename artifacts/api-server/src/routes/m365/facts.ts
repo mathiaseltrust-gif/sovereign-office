@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { requireServiceKeyOrAuth } from "../../auth/service-key";
+import { requireServiceCapabilityOrAuth } from "../../auth/service-key";
 import { callAzureOpenAI, getAzureOpenAIClient } from "../../lib/azure-openai";
 import { logger } from "../../lib/logger";
 
@@ -44,7 +44,7 @@ Extract structured legal facts from the provided document text. Return a JSON ob
 
 Return only valid JSON, no markdown, no explanation.`;
 
-router.post("/extract", requireServiceKeyOrAuth, async (req, res, next) => {
+router.post("/extract", requireServiceCapabilityOrAuth("m365:facts:extract"), async (req, res, next) => {
   try {
     const body = req.body as {
       text?: string;

@@ -88,7 +88,7 @@ node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
 **Using Azure Database for PostgreSQL instead of the bundled postgres container:**
 
 ```
-DATABASE_URL=postgresql://<user>@<server>:<password>@<server>.postgres.database.azure.com:5432/sovereign_office?sslmode=require
+DATABASE_URL=<from-secret-store>
 ```
 
 When pointing to an external database, edit `docker-compose.yml` to:
@@ -239,7 +239,7 @@ pnpm install
 ### Push schema
 
 ```bash
-DATABASE_URL="postgresql://<user>:<pass>@<host>:5432/sovereign_office?sslmode=require" \
+DATABASE_URL=<from-secret-store> \
   pnpm --filter @workspace/db run push
 ```
 
@@ -514,7 +514,7 @@ docker compose up --build -d --no-deps trust
 # If the database schema changed, push new schema from the host machine.
 # The runtime API image does not include pnpm or workspace source,
 # so run this from the cloned repo directory on the host:
-DATABASE_URL="postgresql://<user>:<pass>@<host>:5432/sovereign_office?sslmode=require" \
+DATABASE_URL=<from-secret-store> \
   pnpm --filter @workspace/db run push
 ```
 

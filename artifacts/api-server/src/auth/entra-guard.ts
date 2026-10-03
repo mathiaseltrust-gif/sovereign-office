@@ -79,6 +79,26 @@ export function requireAdmin(req: Request, res: Response, next: NextFunction): v
   requireRole("admin")(req, res, next);
 }
 
+/**
+ * Highest-risk identity administration is intentionally NOT hierarchical.
+ * A trustee role alone cannot change another user's role, authentication
+ * requirement, trust privilege, or password.
+ */
+export function requireIdentityAdmin(req: Request, res: Response, next: NextFunction): void {
+  if (!req.user) {
+    res.status(401).json({ error: "Authentication required." });
+    return;
+  }
+  const allowed = new Set(["admin", "sovereign_admin", "chief_justice", "chief_justice_trustee"]);
+  if (!req.user.roles.some((role) => allowed.has(role))) {
+    res.status(403).json({
+      error: "Identity administration requires explicit system/chief authority.",
+    });
+    return;
+  }
+  next();
+}
+
 export function requireTrustee(req: Request, res: Response, next: NextFunction): void {
   requireRole("trustee")(req, res, next);
 }

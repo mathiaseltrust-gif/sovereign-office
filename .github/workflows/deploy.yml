@@ -117,6 +117,12 @@ jobs:
       - name: Typecheck workspace
         run: pnpm run typecheck
 
+      - name: Scan tracked files for committed credentials
+        run: pnpm run security:scan
+
+      - name: Run authority and MCP boundary tests
+        run: pnpm run test:security
+
       - name: Build production services
         run: |
           set -euo pipefail

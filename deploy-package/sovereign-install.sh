@@ -12,9 +12,18 @@
 set -euo pipefail
 
 DEPLOY_DIR="/opt/sovereign-office"
-ACR_REGISTRY="sovereignoffice.azurecr.io"
-ACR_USERNAME="sovereignoffice"
-ACR_PASSWORD="16Ef4DDsKUCPWasmGFNNoEUjDnTYWcfrJnVdEfiRNxyNtwZphI6jJQQJ99CEACYeBjFEqg7NAAACAZCROBYv"
+ACR_REGISTRY="${ACR_REGISTRY:-sovereignoffice.azurecr.io}"
+ACR_USERNAME="${ACR_USERNAME:-sovereignoffice}"
+: "${ACR_PASSWORD:?Set ACR_PASSWORD in the shell or secret store before running this script}"
+: "${DATABASE_URL:?Set DATABASE_URL in the shell or secret store before running this script}"
+: "${SESSION_SECRET:?Set SESSION_SECRET in the shell or secret store before running this script}"
+: "${SERVICE_KEY:?Set SERVICE_KEY in the shell or secret store before running this script}"
+AZURE_ENTRA_TENANT_ID=${AZURE_ENTRA_TENANT_ID}
+AZURE_ENTRA_CLIENT_ID=${AZURE_ENTRA_CLIENT_ID}
+AZURE_ENTRA_CLIENT_SECRET=${AZURE_ENTRA_CLIENT_SECRET}
+: "${AZURE_ENTRA_TENANT_ID:?Set AZURE_ENTRA_TENANT_ID before running this script}"
+: "${AZURE_ENTRA_CLIENT_ID:?Set AZURE_ENTRA_CLIENT_ID before running this script}"
+: "${AZURE_ENTRA_CLIENT_SECRET:?Set AZURE_ENTRA_CLIENT_SECRET before running this script}"
 
 echo ""
 echo "╔══════════════════════════════════════════════════════════════╗"
@@ -51,12 +60,12 @@ cd "$DEPLOY_DIR"
 
 # ── Step 4: Write .env ────────────────────────────────────────────────────────
 echo "▶ Writing .env ..."
-cat > .env << 'ENVEOF'
-DATABASE_URL=postgresql://tribaladmin:TribalSecurePass2026@tribalpostgres-db.postgres.database.azure.com:5432/sovereign_office?sslmode=require
-POSTGRES_PASSWORD=TribalSecurePass2026
+cat > .env << ENVEOF
+DATABASE_URL=${DATABASE_URL}
+POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-}
 
-SESSION_SECRET=f4c0e3b9c2d7a1f8e6b4c9d2a7f1e3b8c4d2a9f7b1e6c3d8f2a7b9c4e1d6f8a3c7b2d9e4f1a6c8b3d7e2f9a4c1b6d8e3f7a2c9
-SERVICE_KEY=241f3ea0fb713150b614e4b9f004521795f10cb30661b1aabecc4924046cb4fb
+SESSION_SECRET=${SESSION_SECRET}
+SERVICE_KEY=${SERVICE_KEY}
 
 APP_URL=https://api.sovereignoffice.org
 SOVEREIGN_DASHBOARD_URL=https://sovereign.sovereignoffice.org
@@ -75,7 +84,7 @@ AZURE_OPENAI_DEPLOYMENT=
 ACR_REGISTRY=sovereignoffice.azurecr.io
 ACR_LOGIN_SERVER=sovereignoffice.azurecr.io
 ACR_USERNAME=sovereignoffice
-ACR_PASSWORD=16Ef4DDsKUCPWasmGFNNoEUjDnTYWcfrJnVdEfiRNxyNtwZphI6jJQQJ99CEACYeBjFEqg7NAAACAZCROBYv
+ACR_PASSWORD=${ACR_PASSWORD}
 IMAGE_TAG=latest
 
 LOG_LEVEL=info
