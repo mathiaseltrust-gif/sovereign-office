@@ -13,6 +13,17 @@ function fakeFile(policy?: { owner: string; visibility: "public" | "private"; re
 }
 
 describe("private object boundaries", () => {
+  it("fails closed when object ACL metadata is malformed", async () => {
+    const objectFile = {
+      getMetadata: async () => [{ metadata: { "custom:aclPolicy": "{not-json" } }],
+    } as any;
+    await expect(canAccessObject({
+      userId: "1",
+      objectFile,
+      requestedPermission: ObjectPermission.READ,
+    })).resolves.toBe(false);
+  });
+
   it("defaults to deny when object ACL metadata is absent", async () => {
     await expect(canAccessObject({
       userId: "1",
