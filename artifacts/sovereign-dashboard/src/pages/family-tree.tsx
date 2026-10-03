@@ -2980,8 +2980,188 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
 
+
+          {/* ── Timeline view ───────────────────────────────────────────────── */}
+          {!isLoading && treeView === "timeline" && (
+            <div
+              data-node="1"
+              className="absolute inset-0 overflow-auto bg-background"
+              onPointerDown={(e) => e.stopPropagation()}
+              onPointerMove={(e) => e.stopPropagation()}
+              onPointerUp={(e) => e.stopPropagation()}
+            >
+              <div
+                className="relative min-h-full"
+                style={{ width: timelineLabelWidth + timelineTrackWidth, minWidth: "100%" }}
+              >
+                <div className="sticky top-0 z-30 flex border-b bg-background/95 backdrop-blur">
+                  <div
+                    className="sticky left-0 z-40 shrink-0 border-r bg-background px-3 py-2"
+                    style={{ width: timelineLabelWidth }}
+                  >
+                    <div className="text-xs font-semibold">Family Timeline</div>
+                    <div className="text-[10px] text-muted-foreground">Recorded family life + Atlas historical context</div>
+                  </div>
+                  <div className="relative h-[92px] shrink-0" style={{ width: timelineTrackWidth }}>
+                    <div className="absolute left-0 right-0 top-7 border-t border-border" />
+                    {timelineTicks.map((year) => (
+                      <div
+                        key={year}
+                        className="absolute top-0 bottom-0 border-l border-border/50"
+                        style={{ left: timelineX(year) }}
+                      >
+                        <span className="absolute top-1 left-1 text-[10px] font-mono text-muted-foreground">{year}</span>
+                      </div>
+                    ))}
+                    <div className="absolute left-0 right-0 top-9 h-[50px]">
+                      {atlasTimelineEvents.map((event) => (
+                        <button
+                          key={event.id}
+                          type="button"
+                          className={[
+                            "absolute top-2 -translate-x-1/2 rounded-full border-2 border-background shadow-sm transition-transform hover:scale-125 focus:outline-none focus:ring-2 focus:ring-primary",
+                            event.severityLevel === "critical"
+                              ? "w-3.5 h-3.5 bg-red-600"
+                              : event.severityLevel === "high"
+                                ? "w-3 h-3 bg-amber-500"
+                                : "w-2.5 h-2.5 bg-slate-500",
+                          ].join(" ")}
+                          style={{ left: timelineX(event.year) }}
+                          title={String(event.year) + ": " + event.title}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedHistoricalEvent(event);
+                            setSelectedNodeId(null);
+                          }}
+                        />
+                      ))}
+                      <div className="absolute left-2 bottom-1 text-[9px] uppercase tracking-wider text-muted-foreground">
+                        Atlas historical events
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <div>
+                  {timelinePeople.map((person) => {
+                    const startYear = person.startYear ?? timelineBounds.minYear;
+                    const endYear = person.endYear ?? startYear;
+                    const startX = timelineX(startYear);
+                    const endX = timelineX(endYear);
+                    const width = Math.max(8, endX - startX);
+                    const isSelected = selectedNodeId === person.node.id;
+
+                    return (
+                      <div key={person.node.id} className="flex border-b border-border/40 min-h-[46px]">
+                        <button
+                          type="button"
+                          className={[
+                            "sticky left-0 z-20 shrink-0 border-r px-3 py-2 text-left bg-background hover:bg-muted/50 transition-colors",
+                            isSelected ? "bg-primary/10" : "",
+                          ].join(" ")}
+                          style={{ width: timelineLabelWidth }}
+                          onClick={() => {
+                            setSelectedHistoricalEvent(null);
+                            setSelectedNodeId(person.node.id);
+                          }}
+                        >
+                          <div className="text-[11px] font-semibold truncate">{person.node.fullName}</div>
+                          <div className="text-[10px] text-muted-foreground">
+                            {person.startYear ?? "?"}–{person.node.deathYear ?? (person.node.isDeceased ? "?" : "present")}
+                            {person.node.generationalPosition != null ? " · Gen " + person.node.generationalPosition : ""}
+                          </div>
+                        </button>
+                        <div className="relative h-[46px] shrink-0" style={{ width: timelineTrackWidth }}>
+                          {timelineTicks.map((year) => (
+                            <div
+                              key={String(person.node.id) + "-" + String(year)}
+                              className="absolute top-0 bottom-0 border-l border-border/20"
+                              style={{ left: timelineX(year) }}
+                            />
+                          ))}
+
+                          <button
+                            type="button"
+                            className={[
+                              "absolute top-[17px] h-2 rounded-full transition-all",
+                              isSelected ? "bg-primary ring-2 ring-primary/20" : "bg-slate-400 hover:bg-primary/80",
+                            ].join(" ")}
+                            style={{ left: startX, width }}
+                            title={person.node.fullName + ": " + String(startYear) + "–" + String(person.node.deathYear ?? (person.node.isDeceased ? "?" : "present"))}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setSelectedHistoricalEvent(null);
+                              setSelectedNodeId(person.node.id);
+                            }}
+                          />
+
+                          {person.events.map((event) => (
+                            <button
+                              key={event.id}
+                              type="button"
+                              className="absolute top-[13px] w-4 h-4 -translate-x-1/2 rounded-full bg-primary border-2 border-background shadow-sm hover:scale-125 transition-transform focus:outline-none focus:ring-2 focus:ring-primary"
+                              style={{ left: timelineX(event.year) }}
+                              title={String(event.year) + ": " + person.node.fullName + " — " + event.label + (event.place ? " — " + event.place : "")}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedHistoricalEvent(null);
+                                setSelectedNodeId(person.node.id);
+                              }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {selectedHistoricalEvent && (
+                <div className="sticky bottom-3 float-right z-50 mr-3 mb-3 w-[340px] max-w-[calc(100%-24px)] rounded-lg border bg-card/95 backdrop-blur p-3 shadow-lg">
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <div className="text-[10px] uppercase tracking-wider text-muted-foreground">
+                        {selectedHistoricalEvent.year} · Atlas historical context
+                      </div>
+                      <div className="text-sm font-semibold leading-snug mt-0.5">{selectedHistoricalEvent.title}</div>
+                    </div>
+                    <button
+                      type="button"
+                      className="p-1 rounded hover:bg-muted"
+                      onClick={() => setSelectedHistoricalEvent(null)}
+                      aria-label="Close historical event"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  {(selectedHistoricalEvent.plainLanguageSummary || selectedHistoricalEvent.description) && (
+                    <p className="text-xs text-muted-foreground mt-2 leading-relaxed line-clamp-4">
+                      {selectedHistoricalEvent.plainLanguageSummary ?? selectedHistoricalEvent.description}
+                    </p>
+                  )}
+                  {selectedHistoricalEvent.affectedRegions && selectedHistoricalEvent.affectedRegions.length > 0 && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      {selectedHistoricalEvent.affectedRegions.slice(0, 3).join(" · ")}
+                    </p>
+                  )}
+                  <button
+                    type="button"
+                    className="mt-3 inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted"
+                    onClick={() => {
+                      const eventId = encodeURIComponent(selectedHistoricalEvent.eventId ?? selectedHistoricalEvent.id);
+                      window.location.href = "/atlas/?event=" + eventId;
+                    }}
+                  >
+                    <MapPin className="h-3.5 w-3.5" />
+                    Open event in Atlas
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* ── Legend overlay ─────────────────────────────────────────────── */}
-          {!isLoading && nodes.length > 0 && (
+          {!isLoading && nodes.length > 0 && treeView !== "timeline" && (
             <div className="absolute bottom-3 left-3 bg-card/90 backdrop-blur-sm border rounded-lg px-3 py-2 shadow-sm pointer-events-none select-none">
               <p className="text-[9px] font-semibold uppercase tracking-wider text-muted-foreground mb-1.5">Legend</p>
               <div className="space-y-1">
