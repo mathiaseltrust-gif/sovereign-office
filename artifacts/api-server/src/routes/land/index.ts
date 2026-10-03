@@ -14,6 +14,9 @@ import {
 } from "../../engines/land-code-service";
 import { triggerReviewEngine, auditLog } from "../../engines/nfr-review-engine";
 import { ensureEntityAlias } from "../../engines/entity-resolver";
+import { associateDocument, recordListenerEvent, registerDocument } from "../../engines/document-association";
+import { createHash } from "crypto";
+import { readFile } from "fs/promises";
 
 const router = Router();
 
@@ -127,6 +130,127 @@ async function registerRepositoryParcelAliases(
       createdBy: userId,
     });
   }
+}
+
+async function ensureRepositoryCanonicalDocument(
+  doc: RepositoryDeedDocument,
+  userId: number | null,
+) {
+  const existing = await db.execute(sql`
+    SELECT id, document_ref
+    FROM document_registry
+    WHERE storage_provider = 'repository_asset'
+      AND external_id = ${doc.id}
+    ORDER BY id ASC
+    LIMIT 1
+  `);
+  if (existing.rows[0]) {
+    return {
+      id: Number((existing.rows[0] as Record<string, unknown>).id),
+      documentRef: String((existing.rows[0] as Record<string, unknown>).document_ref),
+    };
+  }
+
+  let sha256: string | null = null;
+  let sizeBytes: number | null = null;
+  try {
+    const bytes = await readFile(`${REPOSITORY_DOCUMENT_ROOT}/${doc.filename}`);
+    sha256 = createHash("sha256").update(bytes).digest("hex");
+    sizeBytes = bytes.byteLength;
+  } catch (err) {
+    logger.warn({ err, documentId: doc.id }, "Repository document hash unavailable during registry creation");
+  }
+
+  const registered = await registerDocument({
+    originalFilename: doc.filename,
+    title: doc.title,
+    mimeType: "application/pdf",
+    sizeBytes,
+    sha256,
+    storageProvider: "repository_asset",
+    storageKey: `repository:${doc.id}`,
+    externalId: doc.id,
+    sourceChannel: "repository_asset",
+    sourceUri: `/api/land/repository-documents/${doc.id}/download`,
+    classification: doc.deedType,
+    verificationState: "repository_verified",
+    sensitivityLevel: "internal",
+    metadata: {
+      grantor: doc.grantor,
+      grantee: doc.grantee,
+      recordingJurisdiction: doc.recordingJurisdiction,
+      parcelIdentifier: doc.parcelIdentifier,
+    },
+    createdBy: null,
+  });
+
+  await recordListenerEvent({
+    documentId: registered.record.id,
+    listenerName: "repository-document-adapter",
+    eventType: "REPOSITORY_DOCUMENT_REGISTERED",
+    actionState: "active",
+    payload: {
+      repositoryDocumentId: doc.id,
+      documentRef: registered.record.documentRef,
+      registeredBy: userId,
+    },
+  });
+
+  return {
+    id: registered.record.id,
+    documentRef: registered.record.documentRef,
+  };
+}
+
+async function associateRepositoryDeedDocument(input: {
+  doc: RepositoryDeedDocument;
+  parcelId: number;
+  deedId: number;
+  userId: number | null;
+}) {
+  const canonical = await ensureRepositoryCanonicalDocument(input.doc, input.userId);
+
+  await associateDocument({
+    documentId: canonical.id,
+    entityType: "parcel",
+    entityId: String(input.parcelId),
+    relationshipType: "related_property",
+    confidence: "exact",
+    resolutionMethod: "system_created",
+    metadata: {
+      repositoryDocumentId: input.doc.id,
+      parcelIdentifier: input.doc.parcelIdentifier,
+    },
+    verifiedBy: input.userId,
+  });
+
+  await associateDocument({
+    documentId: canonical.id,
+    entityType: "land_deed",
+    entityId: String(input.deedId),
+    relationshipType: "source_record",
+    confidence: "exact",
+    resolutionMethod: "system_created",
+    metadata: {
+      repositoryDocumentId: input.doc.id,
+      deedType: input.doc.deedType,
+    },
+    verifiedBy: input.userId,
+  });
+
+  await recordListenerEvent({
+    documentId: canonical.id,
+    listenerName: "land-repository",
+    eventType: "DOCUMENT_LINKED_TO_PARCEL",
+    actionState: "active",
+    payload: {
+      parcelId: input.parcelId,
+      deedId: input.deedId,
+      repositoryDocumentId: input.doc.id,
+    },
+  });
+
+  return canonical;
 }
 
 // ── GET /api/land/stats ────────────────────────────────────────────────────────
@@ -830,7 +954,18 @@ router.post("/repository-documents/:documentId/link", requireAuth, requireLandAc
       LIMIT 1
     `);
     if (existing.rows[0]) {
-      res.json({ ...existing.rows[0], linkedExisting: true });
+      const existingDeed = existing.rows[0] as Record<string, unknown>;
+      const canonical = await associateRepositoryDeedDocument({
+        doc,
+        parcelId,
+        deedId: Number(existingDeed.id),
+        userId: req.user?.dbId ?? null,
+      });
+      res.json({
+        ...existingDeed,
+        linkedExisting: true,
+        documentRef: canonical.documentRef,
+      });
       return;
     }
 
@@ -873,7 +1008,18 @@ router.post("/repository-documents/:documentId/link", requireAuth, requireLandAc
       },
     });
 
-    res.status(201).json({ ...deed, parcelMismatch: Boolean(mismatch) });
+    const canonical = await associateRepositoryDeedDocument({
+      doc,
+      parcelId,
+      deedId: Number(deed.id),
+      userId: req.user?.dbId ?? null,
+    });
+
+    res.status(201).json({
+      ...deed,
+      parcelMismatch: Boolean(mismatch),
+      documentRef: canonical.documentRef,
+    });
   } catch (err) { next(err); }
 });
 
@@ -949,11 +1095,19 @@ router.post("/repository-documents/:documentId/register-and-link", requireAuth, 
     `);
 
     if (existing.rows[0]) {
+      const existingDeed = existing.rows[0] as Record<string, unknown>;
+      const canonical = await associateRepositoryDeedDocument({
+        doc,
+        parcelId,
+        deedId: Number(existingDeed.id),
+        userId: req.user?.dbId ?? null,
+      });
       res.json({
         parcel,
-        deed: existing.rows[0],
+        deed: existingDeed,
         parcelCreated,
         linkedExisting: true,
+        documentRef: canonical.documentRef,
       });
       return;
     }
@@ -990,7 +1144,19 @@ router.post("/repository-documents/:documentId/register-and-link", requireAuth, 
       },
     });
 
-    res.status(201).json({ parcel, deed, parcelCreated });
+    const canonical = await associateRepositoryDeedDocument({
+      doc,
+      parcelId,
+      deedId: Number(deed.id),
+      userId: req.user?.dbId ?? null,
+    });
+
+    res.status(201).json({
+      parcel,
+      deed,
+      parcelCreated,
+      documentRef: canonical.documentRef,
+    });
   } catch (err) { next(err); }
 });
 
