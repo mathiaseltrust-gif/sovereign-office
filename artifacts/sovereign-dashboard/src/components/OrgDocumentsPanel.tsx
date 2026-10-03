@@ -243,7 +243,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
         onClick={() => setExpanded((v) => !v)}
       >
         <div className="flex items-center justify-between">
-          <CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle>
+          <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-0.5">{orgName}</p><CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle></div>
           <span className="text-xs text-muted-foreground">{expanded ? "▲ collapse" : "▼ expand"}</span>
         </div>
       </CardHeader>
