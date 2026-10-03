@@ -19,7 +19,7 @@ import { logger } from "../../lib/logger";
 import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 import { nextDocRef } from "../../lib/doc-ref";
 import { associateDocument, recordListenerEvent } from "../../engines/document-association";
-import { persistResolvedAssociations } from "../../engines/entity-resolver";
+import { ensureEntityAlias, persistResolvedAssociations } from "../../engines/entity-resolver";
 
 const router = Router();
 
@@ -450,6 +450,18 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
         logger.warn({ err: e }, "apply-filing: parcel upsert failed");
         created.parcelError = String(e);
       }
+    }
+
+    if (parcelDbId && fields.propertyAddress) {
+      await ensureEntityAlias({
+        entityType: "parcel",
+        entityId: String(parcelDbId),
+        aliasType: "address",
+        aliasValue: String(fields.propertyAddress),
+        verified: true,
+        source: "parcel_intake",
+        createdBy: userId ?? null,
+      });
     }
 
     // ── 2. Create encumbrance ─────────────────────────────────────────────────
