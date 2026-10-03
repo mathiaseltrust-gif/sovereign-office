@@ -8,6 +8,7 @@ import { db } from "@workspace/db";
 import { businessDocumentsTable, businessConceptsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { registerUpload } from "../../lib/pendingUploads";
+import { canReadOwnedPrivateObject } from "../../security/private-object-policy";
 
 const RequestUploadUrlBody = z.object({
   name: z.string(),
@@ -127,7 +128,7 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
       .from(businessConceptsTable)
       .where(eq(businessConceptsTable.id, doc.conceptId));
 
-    if (!concept || concept.ownerId !== userId) {
+    if (!canReadOwnedPrivateObject({ requestingUserId: userId, ownerUserId: concept?.ownerId })) {
       res.status(403).json({ error: "Access denied: you are not authorized for this document record." });
       return;
     }
