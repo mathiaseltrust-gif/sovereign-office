@@ -7,7 +7,7 @@ import { Link } from "wouter";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 
-type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
+type OrgType = "court" | "trust" | "board" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
 type AccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
 
 interface Org {
@@ -46,6 +46,7 @@ interface OrgData {
 const TYPE_LABELS: Record<OrgType, string> = {
   court: "Tribal Court",
   trust: "Tribal Trust",
+  board: "Governance Board",
   charitable_trust: "Charitable Trust",
   political: "Political Organization",
   enterprise: "Business Enterprise",
