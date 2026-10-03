@@ -98,14 +98,15 @@ const PEOPLE: PersonDef[] = [
   // GEN 2 — Maternal grandparent
   {
     key: "cornella",
-    fullName: "Cornella Morant Ruff",
-    firstName: "Cornella",
+    fullName: "Cornelia Morant Ruff",
+    firstName: "Cornelia",
     lastName: "Ruff",
     gender: "female",
     birthYear: 1940,
     deathYear: 2013,
     isDeceased: true,
     generationalPosition: 2,
+    nameVariants: ["Cornella Morant Ruff"],
     notes: "Maternal grandmother of Mathew-Allen. Mother of Pamela Denise McCaster.",
   },
 
@@ -146,7 +147,7 @@ const PEOPLE: PersonDef[] = [
     deathYear: 1987,
     isDeceased: true,
     generationalPosition: 3,
-    notes: "Maternal great-grandfather. Father of Cornella Morant Ruff.",
+    notes: "Maternal great-grandfather. Father of Cornelia Morant Ruff.",
   },
   {
     key: "johnnie_allen",
@@ -158,7 +159,7 @@ const PEOPLE: PersonDef[] = [
     deathYear: 1978,
     isDeceased: true,
     generationalPosition: 3,
-    notes: "Maternal great-grandmother. Mother of Cornella Morant Ruff.",
+    notes: "Maternal great-grandmother. Mother of Cornelia Morant Ruff.",
   },
 
   // GEN 4 — Paternal 2x great-grandparents
