@@ -6,6 +6,7 @@ import { recordListenerEvent } from "../../engines/document-association";
 import { canReviewCanonicalDocument } from "../../security/canonical-document-access";
 import { resolveAuthorityContext } from "../../engines/authority-context";
 import { applyProtectedAssociationSensitivity } from "../../engines/entity-resolver";
+import { recomputeCanonicalObjectAcl } from "../../engines/canonical-object-acl";
 
 const router = Router();
 
@@ -186,6 +187,11 @@ router.patch(
         },
       });
 
+      const aclProjection = await recomputeCanonicalObjectAcl(documentId).catch(() => ({
+        applied: false,
+        reason: "acl_projection_failed",
+      }));
+
       let protectionEscalation = null;
       if (decision === "approve") {
         protectionEscalation = await applyProtectedAssociationSensitivity({
@@ -202,6 +208,7 @@ router.patch(
         decision,
         association: updated.rows[0],
         protectionEscalation,
+        aclProjection,
       });
     } catch (err) {
       next(err);

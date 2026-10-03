@@ -6,6 +6,7 @@ import {
   documentListenerEventsTable,
   documentRegistryTable,
 } from "@workspace/db";
+import { recomputeCanonicalObjectAcl } from "./canonical-object-acl";
 
 export type AssociationConfidence = "exact" | "very_high" | "high" | "medium" | "low";
 export type AssociationStatus = "active" | "proposed" | "unresolved" | "rejected";
@@ -143,6 +144,10 @@ export async function associateDocument(input: AssociateDocumentInput) {
     verifiedBy: verified ? (input.verifiedBy ?? null) : null,
     verifiedAt: verified ? new Date() : null,
   }).onConflictDoNothing().returning();
+
+  if (status === "active") {
+    await recomputeCanonicalObjectAcl(input.documentId).catch(() => null);
+  }
 
   return inserted[0] ?? null;
 }

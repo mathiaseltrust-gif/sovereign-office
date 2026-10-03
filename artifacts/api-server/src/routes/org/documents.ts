@@ -13,6 +13,7 @@ import { SOVEREIGN_ORGS, ORG_BY_ID } from "../../engines/organizations";
 import { hasRole } from "../../engines/authority";
 import { associateDocument, recordListenerEvent, registerDocument } from "../../engines/document-association";
 import { ensureEntityAlias } from "../../engines/entity-resolver";
+import { recomputeCanonicalObjectAcl } from "../../engines/canonical-object-acl";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -70,6 +71,18 @@ function orgPrincipal(orgId: string): string {
 }
 
 async function recomputeOrgDocumentAcl(fileKey: string): Promise<void> {
+  const [canonical] = await db.select({ id: documentRegistryTable.id })
+    .from(documentRegistryTable)
+    .where(eq(documentRegistryTable.storageKey, fileKey))
+    .limit(1);
+
+  if (canonical) {
+    await recomputeCanonicalObjectAcl(canonical.id);
+    return;
+  }
+
+  // Legacy fallback for an object that has not yet entered the canonical
+  // registry. Once canonicalized, the association ledger owns ACL projection.
   const rows = await db.select({ orgId: orgDocumentsTable.orgId })
     .from(orgDocumentsTable)
     .where(eq(orgDocumentsTable.fileKey, fileKey));
