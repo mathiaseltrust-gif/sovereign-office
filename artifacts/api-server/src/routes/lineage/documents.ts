@@ -3,6 +3,7 @@ import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { canViewLineageDocuments } from "../../security/lineage-document-access";
+import { resolveAuthorityContext } from "../../engines/authority-context";
 
 const router = Router();
 
@@ -37,14 +38,17 @@ router.get(
       }
 
       const requesterId = req.user!.dbId!;
-      const roles = req.user!.roles ?? [];
+      const authority = await resolveAuthorityContext({
+        userId: requesterId,
+        baseRoles: req.user!.roles ?? [],
+      });
       const allowed = canViewLineageDocuments({
         requesterId,
         targetLinkedProfileUserId: target.linked_profile_user_id == null
           ? null
           : Number(target.linked_profile_user_id),
         targetUserId: target.user_id == null ? null : Number(target.user_id),
-        roles,
+        authorityKeys: authority.authorityKeys,
       });
 
       if (!allowed) {
