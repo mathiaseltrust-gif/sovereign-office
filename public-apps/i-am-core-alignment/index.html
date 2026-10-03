@@ -211,7 +211,7 @@ const cards=[
 ["What is the core sequence?","I AM → I observe → I choose → I care → I act → I live."]
 ];
 
-let i=0,revealed=false,autoplay=false,sound=false,timer=null,startX=0,startY=0,transitioning=false,audioCtx=null;
+let i=0,revealed=false,autoplay=false,sound=false,timer=null,startX=0,startY=0,transitioning=false,audioCtx=null,ambientMaster=null,ambientOsc432=null,ambientOsc216=null;
 const landing=document.getElementById("landing"),session=document.getElementById("session");
 const cardEl=document.getElementById("card"),promptEl=document.getElementById("prompt"),answerEl=document.getElementById("answer");
 const autoBtn=document.getElementById("autoBtn"),soundBtn=document.getElementById("soundBtn");
@@ -226,18 +226,55 @@ function ensureAudio(){
     if(audioCtx && audioCtx.state==="suspended") audioCtx.resume();
   }catch(e){}
 }
-function tone(){
+function startAmbientSound(){
   if(!sound)return;
   try{
     ensureAudio();
-    if(!audioCtx)return;
-    const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-    o.type="sine";o.frequency.setValueAtTime(432,audioCtx.currentTime);
-    g.gain.setValueAtTime(.0001,audioCtx.currentTime);
-    g.gain.exponentialRampToValueAtTime(.025,audioCtx.currentTime+.025);
-    g.gain.exponentialRampToValueAtTime(.0001,audioCtx.currentTime+.34);
-    o.connect(g);g.connect(audioCtx.destination);
-    o.start();o.stop(audioCtx.currentTime+.36);
+    if(!audioCtx || ambientMaster)return;
+
+    ambientMaster=audioCtx.createGain();
+    ambientMaster.gain.setValueAtTime(.0001,audioCtx.currentTime);
+    ambientMaster.gain.exponentialRampToValueAtTime(.0105,audioCtx.currentTime+2.8);
+    ambientMaster.connect(audioCtx.destination);
+
+    const g432=audioCtx.createGain();
+    const g216=audioCtx.createGain();
+    g432.gain.value=.72;
+    g216.gain.value=.28;
+
+    ambientOsc432=audioCtx.createOscillator();
+    ambientOsc216=audioCtx.createOscillator();
+    ambientOsc432.type="sine";
+    ambientOsc216.type="sine";
+
+    // 432 Hz remains the primary frequency. The quiet 216 Hz subharmonic
+    // adds warmth so the sustained tone feels ambient rather than like an alert.
+    ambientOsc432.frequency.setValueAtTime(432,audioCtx.currentTime);
+    ambientOsc216.frequency.setValueAtTime(216,audioCtx.currentTime);
+
+    ambientOsc432.connect(g432);
+    ambientOsc216.connect(g216);
+    g432.connect(ambientMaster);
+    g216.connect(ambientMaster);
+
+    ambientOsc432.start();
+    ambientOsc216.start();
+  }catch(e){}
+}
+function stopAmbientSound(){
+  try{
+    if(!audioCtx || !ambientMaster)return;
+    const master=ambientMaster,o432=ambientOsc432,o216=ambientOsc216;
+    const now=audioCtx.currentTime;
+    master.gain.cancelScheduledValues(now);
+    master.gain.setValueAtTime(Math.max(master.gain.value,.0001),now);
+    master.gain.exponentialRampToValueAtTime(.0001,now+2.2);
+    setTimeout(()=>{
+      try{o432&&o432.stop();}catch(e){}
+      try{o216&&o216.stop();}catch(e){}
+      try{master.disconnect();}catch(e){}
+      ambientMaster=null;ambientOsc432=null;ambientOsc216=null;
+    },2300);
   }catch(e){}
 }
 function ambientCue(){
@@ -271,7 +308,7 @@ async function moveTo(nextIndex){
   answerEl.classList.remove("show");
   cardEl.classList.remove("clearing");
   cardEl.classList.add("prompt-in");
-  ambientCue();tone();pulse();
+  ambientCue();pulse();
   await new Promise(r=>setTimeout(r,590));
   cardEl.classList.remove("prompt-in");
   transitioning=false;
@@ -281,7 +318,7 @@ function advance(){
   if(!revealed){
     revealed=true;
     answerEl.classList.add("show");
-    ambientCue();tone();pulse();
+    ambientCue();pulse();
   } else {
     moveTo(i+1);
   }
@@ -322,10 +359,10 @@ autoBtn.onclick=()=>{
 };
 soundBtn.onclick=()=>{
   sound=!sound;
-  if(sound)ensureAudio();
   soundBtn.querySelector("span").textContent=sound?"SOUND ON":"SOUND OFF";
   soundIcon.innerHTML=sound?'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M17 9c1.5 1.5 1.5 4.5 0 6"/><path d="M19.5 6.5c3 3 3 8 0 11"/>':'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M18 9l4 6M22 9l-4 6"/>';
-  if(sound)tone();
+  if(sound)startAmbientSound();
+  else stopAmbientSound();
 };
 const touch=document.getElementById("touchArea");
 touch.addEventListener("touchstart",e=>{const t=e.changedTouches[0];startX=t.clientX;startY=t.clientY},{passive:true});
