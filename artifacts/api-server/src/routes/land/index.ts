@@ -45,6 +45,54 @@ function bool(v: unknown): boolean {
   return v === true || v === "true" || v === 1 || v === "1";
 }
 
+type RepositoryDeedDocument = {
+  id: string;
+  title: string;
+  filename: string;
+  parcelIdentifier: string;
+  tractNumber?: string;
+  deedType: string;
+  grantor: string;
+  grantee: string;
+  recordingJurisdiction: string;
+  consideration: number;
+  exemptionBasis: string;
+  communityLandUse: string;
+  tribalCodeRef: string;
+  federalLawRef: string;
+  defaultStatus: string;
+  note: string;
+};
+
+const REPOSITORY_DEED_DOCUMENTS: RepositoryDeedDocument[] = [
+  {
+    id: "kern-tribal-grant-deed",
+    title: "Tribal Grant Deed — Kern County APN 514-364-11-00-1",
+    filename: "tribal-grant-deed-kern-ca-APN-514-364-11-00-1.pdf",
+    parcelIdentifier: "514-364-11-00-1",
+    tractNumber: "MET-TL-BC-001",
+    deedType: "grant_deed",
+    grantor: "Mathew-Allen: McCaster",
+    grantee: "Mathias El Tribe Trust",
+    recordingJurisdiction: "Kern County, California",
+    consideration: 0,
+    exemptionBasis: "Voluntary conveyance into Tribal Trust — no monetary consideration. Instrument cites 25 U.S.C. §177 and Cal. Rev. & Tax. Code §11930.",
+    communityLandUse: "housing",
+    tribalCodeRef: "METC.T4.§3",
+    federalLawRef: "25USC177",
+    defaultStatus: "pending",
+    note: "Existing Sovereign Office repository document. Recorder space in this generated instrument is blank; enter county recording information only when independently confirmed.",
+  },
+];
+
+const REPOSITORY_DOCUMENT_ROOT =
+  process.env.REPOSITORY_DOCUMENT_ROOT ??
+  (process.env.NODE_ENV === "production" ? "/app/repository-documents" : `${process.cwd()}/attached_assets`);
+
+function repositoryDeedById(id: string): RepositoryDeedDocument | undefined {
+  return REPOSITORY_DEED_DOCUMENTS.find((doc) => doc.id === id);
+}
+
 // ── GET /api/land/stats ────────────────────────────────────────────────────────
 
 router.get("/stats", requireAuth, requireLandAccess, async (_req, res, next) => {
@@ -658,6 +706,136 @@ router.delete("/pipeline/:id", requireAuth, requireLandAccess, async (req, res, 
 });
 
 // ── DEEDS ─────────────────────────────────────────────────────────────────────
+
+router.get("/repository-documents", requireAuth, requireLandAccess, async (_req, res, next) => {
+  try {
+    const linked = await db.execute(sql`
+      SELECT file_key, parcel_id
+      FROM land_deeds
+      WHERE file_key LIKE 'repository:%'
+    `);
+
+    const linkedByDocument = new Map<string, number[]>();
+    for (const row of linked.rows as Array<{ file_key?: string | null; parcel_id?: number | null }>) {
+      const key = row.file_key?.startsWith("repository:") ? row.file_key.slice("repository:".length) : null;
+      if (!key || row.parcel_id == null) continue;
+      linkedByDocument.set(key, [...(linkedByDocument.get(key) ?? []), Number(row.parcel_id)]);
+    }
+
+    res.json(REPOSITORY_DEED_DOCUMENTS.map((doc) => ({
+      id: doc.id,
+      title: doc.title,
+      filename: doc.filename,
+      parcelIdentifier: doc.parcelIdentifier,
+      tractNumber: doc.tractNumber ?? null,
+      deedType: doc.deedType,
+      grantor: doc.grantor,
+      grantee: doc.grantee,
+      recordingJurisdiction: doc.recordingJurisdiction,
+      defaultStatus: doc.defaultStatus,
+      note: doc.note,
+      linkedParcelIds: linkedByDocument.get(doc.id) ?? [],
+      downloadUrl: `/api/land/repository-documents/${doc.id}/download`,
+    })));
+  } catch (err) { next(err); }
+});
+
+router.get("/repository-documents/:documentId/download", requireAuth, requireLandAccess, async (req, res) => {
+  const doc = repositoryDeedById(String(req.params.documentId));
+  if (!doc) {
+    res.status(404).json({ error: "Repository document not found" });
+    return;
+  }
+
+  res.sendFile(doc.filename, { root: REPOSITORY_DOCUMENT_ROOT }, (err) => {
+    if (err && !res.headersSent) {
+      logger.error({ err, documentId: doc.id, root: REPOSITORY_DOCUMENT_ROOT }, "Repository deed download failed");
+      res.status(err.statusCode === 404 ? 404 : 500).json({ error: "Repository document file is unavailable" });
+    }
+  });
+});
+
+router.post("/repository-documents/:documentId/link", requireAuth, requireLandAccess, async (req, res, next) => {
+  try {
+    const doc = repositoryDeedById(String(req.params.documentId));
+    if (!doc) {
+      res.status(404).json({ error: "Repository document not found" });
+      return;
+    }
+
+    const parcelId = num((req.body as Record<string, unknown>)?.parcelId);
+    if (!parcelId) {
+      res.status(400).json({ error: "parcelId is required" });
+      return;
+    }
+
+    const parcelResult = await db.execute(sql`
+      SELECT id, parcel_id, tract_number
+      FROM land_parcels
+      WHERE id = ${parcelId}
+      LIMIT 1
+    `);
+    const parcel = parcelResult.rows[0] as { id: number; parcel_id?: string | null; tract_number?: string | null } | undefined;
+    if (!parcel) {
+      res.status(404).json({ error: "Parcel not found" });
+      return;
+    }
+
+    const fileKey = `repository:${doc.id}`;
+    const existing = await db.execute(sql`
+      SELECT *
+      FROM land_deeds
+      WHERE parcel_id = ${parcelId}
+        AND file_key = ${fileKey}
+      LIMIT 1
+    `);
+    if (existing.rows[0]) {
+      res.json({ ...existing.rows[0], linkedExisting: true });
+      return;
+    }
+
+    const mismatch =
+      parcel.parcel_id &&
+      doc.parcelIdentifier &&
+      parcel.parcel_id !== doc.parcelIdentifier;
+
+    const result = await db.execute(sql`
+      INSERT INTO land_deeds (
+        parcel_id, deed_type, grantor, grantee,
+        recording_jurisdiction, consideration, exemption_basis,
+        sovereign_immunity_claim, conservation_easement, community_land_use,
+        tribal_code_ref, federal_law_ref, file_key, file_name, file_url, notes, status
+      ) VALUES (
+        ${parcelId}, ${doc.deedType}, ${doc.grantor}, ${doc.grantee},
+        ${doc.recordingJurisdiction}, ${doc.consideration}, ${doc.exemptionBasis},
+        false, false, ${doc.communityLandUse},
+        ${doc.tribalCodeRef}, ${doc.federalLawRef}, ${fileKey}, ${doc.filename},
+        ${`/api/land/repository-documents/${doc.id}/download`},
+        ${mismatch ? `${doc.note} Linked to parcel ${parcel.parcel_id}; repository document identifies parcel ${doc.parcelIdentifier}. Review parcel association.` : doc.note},
+        ${doc.defaultStatus}
+      )
+      RETURNING *
+    `);
+
+    const deed = result.rows[0] as Record<string, unknown>;
+    await auditLog({
+      userId: req.user?.dbId ?? null,
+      action: "DEED_REPOSITORY_DOCUMENT_LINKED",
+      resourceType: "land_deed",
+      resourceId: deed?.id as number | undefined,
+      afterValue: deed,
+      metadata: {
+        repositoryDocumentId: doc.id,
+        parcelId,
+        parcelIdentifier: parcel.parcel_id ?? null,
+        expectedParcelIdentifier: doc.parcelIdentifier,
+        parcelMismatch: Boolean(mismatch),
+      },
+    });
+
+    res.status(201).json({ ...deed, parcelMismatch: Boolean(mismatch) });
+  } catch (err) { next(err); }
+});
 
 router.get("/deeds", requireAuth, requireLandAccess, async (req, res, next) => {
   try {
