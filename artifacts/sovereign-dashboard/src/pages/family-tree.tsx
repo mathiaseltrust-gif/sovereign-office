@@ -2640,6 +2640,37 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           })}
         </div>
 
+        {treeView === "pedigree" && (
+          <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden h-8">
+            {([
+              ["auto", "Auto"],
+              ["horizontal", "Horizontal"],
+              ["compact", "Overview"],
+            ] as Array<[PedigreePreference, string]>).map(([mode, label]) => (
+              <button
+                key={mode}
+                type="button"
+                className={[
+                  "h-full px-2 text-[10px] font-medium transition-colors",
+                  pedigreePreference === mode
+                    ? "bg-secondary text-foreground"
+                    : "bg-background text-muted-foreground hover:bg-muted/60 hover:text-foreground",
+                ].join(" ")}
+                onClick={() => setPedigreePreference(mode)}
+                title={
+                  mode === "auto"
+                    ? `Auto: switch to Overview when the pedigree is crowded. Currently ${pedigreeEffectivePresentation === "compact" ? "Overview" : "Horizontal"}.`
+                    : mode === "horizontal"
+                      ? "Horizontal pedigree: focal person at left, ancestors extend to the right."
+                      : "Compact overview: focal person at bottom, ancestors spread upward using narrow cards."
+                }
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* View controls */}
         {treeView !== "timeline" && (
           <>
@@ -2753,7 +2784,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             : treeView === "tree"
               ? <>{treeNodes.length} visible <span className="opacity-60">at {depthLabel.toLowerCase()} depth</span></>
             : treeView === "pedigree"
-              ? <>{pedigreeData.placed.length} ancestor card{pedigreeData.placed.length === 1 ? "" : "s"} <span className="opacity-60">shown</span></>
+              ? <>{pedigreeData.placed.length} ancestor card{pedigreeData.placed.length === 1 ? "" : "s"} <span className="opacity-60">shown · {pedigreeEffectivePresentation === "compact" ? "overview" : "horizontal"}</span></>
             : treeView === "fan"
               ? <>{fanData.entries.length + (fanData.root ? 1 : 0)} ancestor segment{fanData.entries.length + (fanData.root ? 1 : 0) === 1 ? "" : "s"} <span className="opacity-60">shown</span></>
             : treeView === "timeline"
@@ -3039,11 +3070,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                 style={{ position: "absolute", top: 0, left: 0, width: pedigreeData.totalW, height: pedigreeData.totalH, pointerEvents: "none", overflow: "visible" }}
               >
                 {pedigreeData.pEdges.map((e) => {
-                  const midX = (e.x1 + e.x2) / 2;
+                  const path = pedigreeData.presentation === "compact"
+                    ? (() => {
+                        const midY = (e.y1 + e.y2) / 2;
+                        return `M${e.x1},${e.y1} V${midY} H${e.x2} V${e.y2}`;
+                      })()
+                    : (() => {
+                        const midX = (e.x1 + e.x2) / 2;
+                        return `M${e.x1},${e.y1} H${midX} V${e.y2} H${e.x2}`;
+                      })();
                   return (
                     <path
                       key={e.key}
-                      d={`M${e.x1},${e.y1} H${midX} V${e.y2} H${e.x2}`}
+                      d={path}
                       fill="none"
                       stroke={e.isPat ? "#b45309" : "#0369a1"}
                       strokeWidth={1.5}
@@ -3074,9 +3113,16 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       setSelectedHistoricalEvent(null);
                       setSelectedNodeId(node.id);
                     }}
-                    style={{ position: "absolute", left: node.px, top: node.py, width: PDIG_W, height: PDIG_H }}
+                    style={{
+                      position: "absolute",
+                      left: node.px,
+                      top: node.py,
+                      width: pedigreeData.cardW,
+                      height: pedigreeData.cardH,
+                    }}
                     className={[
-                      "rounded-lg border-2 px-2.5 py-1.5 cursor-pointer transition-all flex flex-col justify-between overflow-visible relative",
+                      "rounded-lg border-2 cursor-pointer transition-all flex flex-col justify-between overflow-visible relative",
+                      pedigreeData.presentation === "compact" ? "px-2 py-2" : "px-2.5 py-1.5",
                       bg,
                       isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md hover:scale-[1.01]",
                     ].join(" ")}
@@ -3085,7 +3131,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       <button
                         type="button"
                         data-node="1"
-                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border bg-background shadow-sm flex items-center justify-center hover:bg-muted z-20"
+                        className={[
+                          "absolute w-6 h-6 rounded-full border bg-background shadow-sm flex items-center justify-center hover:bg-muted z-20",
+                          pedigreeData.presentation === "compact"
+                            ? "left-1/2 -translate-x-1/2 -top-3"
+                            : "-right-3 top-1/2 -translate-y-1/2",
+                        ].join(" ")}
                         title={node.hasHiddenParents ? "Show this ancestor's parents" : "Collapse this ancestor's added generation"}
                         aria-label={node.hasHiddenParents ? "Show this ancestor's parents" : "Collapse this ancestor's added generation"}
                         onPointerDown={(e) => e.stopPropagation()}
@@ -3104,13 +3155,35 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                           : <Plus className="h-3 w-3" />}
                       </button>
                     )}
-                    <span className="text-[11px] font-semibold leading-tight line-clamp-2 pr-1">{node.fullName}</span>
-                    <div className="flex items-center justify-between gap-1 mt-0.5">
-                      <span className="text-[10px] text-muted-foreground font-mono">{dateStr}</span>
-                      {node.gen > 0 && (
-                        <span className="text-[9px] font-bold text-muted-foreground/50">Gen +{node.gen}</span>
-                      )}
-                    </div>
+                    {pedigreeData.presentation === "compact" ? (
+                      <>
+                        <span className="text-[10px] font-semibold leading-tight line-clamp-4 break-words">
+                          {node.fullName}
+                        </span>
+                        <div className="space-y-1 mt-1">
+                          {dateStr && (
+                            <span className="block text-[9px] text-muted-foreground font-mono leading-tight">
+                              {dateStr}
+                            </span>
+                          )}
+                          {node.gen > 0 && (
+                            <span className="block text-[8px] font-bold text-muted-foreground/50">
+                              Gen +{node.gen}
+                            </span>
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <span className="text-[11px] font-semibold leading-tight line-clamp-2 pr-1">{node.fullName}</span>
+                        <div className="flex items-center justify-between gap-1 mt-0.5">
+                          <span className="text-[10px] text-muted-foreground font-mono">{dateStr}</span>
+                          {node.gen > 0 && (
+                            <span className="text-[9px] font-bold text-muted-foreground/50">Gen +{node.gen}</span>
+                          )}
+                        </div>
+                      </>
+                    )}
                   </div>
                 );
               })}
