@@ -29,6 +29,7 @@ interface OrgDocument {
   fileKey: string | null;
   description: string | null;
   uploadedAt: string;
+  documentRef?: string | null;
 }
 
 const DOC_TYPE_LABELS: Record<string, string> = {
@@ -389,6 +390,11 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                           <p className="text-[10px] text-muted-foreground truncate">
                             {doc.orgId.replace(/_/g, " ")} · {doc.filename}
                           </p>
+                          {doc.documentRef && (
+                            <p className="text-[9px] text-emerald-700/70 font-mono truncate">
+                              {doc.documentRef} · canonical
+                            </p>
+                          )}
                         </div>
                         <Button
                           size="sm"

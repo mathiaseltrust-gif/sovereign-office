@@ -1,15 +1,18 @@
 import { Router, type Request, type Response } from "express";
 import { db } from "@workspace/db";
-import { orgProfilesTable, orgDocumentsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { orgProfilesTable, orgDocumentsTable, documentRegistryTable } from "@workspace/db";
+import { eq, and, inArray } from "drizzle-orm";
 import { requireAuth } from "../../auth/entra-guard";
 import { logger } from "../../lib/logger";
 import { claimUpload } from "../../lib/pendingUploads";
 import { ObjectStorageService, ObjectNotFoundError } from "../../lib/objectStorage";
+import { ObjectPermission } from "../../lib/objectAcl";
 import { Readable } from "stream";
 import { z } from "zod";
-import { SOVEREIGN_ORGS } from "../../engines/organizations";
+import { SOVEREIGN_ORGS, ORG_BY_ID } from "../../engines/organizations";
 import { hasRole } from "../../engines/authority";
+import { associateDocument, recordListenerEvent, registerDocument } from "../../engines/document-association";
+import { ensureEntityAlias } from "../../engines/entity-resolver";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -62,6 +65,131 @@ function canAccessOrg(req: Request, orgId: string): boolean {
   return isElevated(req);
 }
 
+function orgPrincipal(orgId: string): string {
+  return `org:${orgId}`;
+}
+
+async function recomputeOrgDocumentAcl(fileKey: string): Promise<void> {
+  const rows = await db.select({ orgId: orgDocumentsTable.orgId })
+    .from(orgDocumentsTable)
+    .where(eq(orgDocumentsTable.fileKey, fileKey));
+
+  const principals = [...new Set(rows.map((row) => orgPrincipal(row.orgId)))].sort();
+  const owner = principals[0] ?? "org:orphaned";
+  const readers = principals.slice(1);
+
+  await objectStorageService.trySetObjectEntityAclPolicy(fileKey, {
+    owner,
+    readers,
+    visibility: "private",
+  });
+}
+
+async function ensureCanonicalOrgDocument(input: {
+  orgId: string;
+  doc: typeof orgDocumentsTable.$inferSelect;
+  userId: number | null;
+}) {
+  if (!input.doc.fileKey) return null;
+
+  const existing = await db.select({
+    id: documentRegistryTable.id,
+    documentRef: documentRegistryTable.documentRef,
+  })
+    .from(documentRegistryTable)
+    .where(eq(documentRegistryTable.storageKey, input.doc.fileKey))
+    .limit(1);
+
+  let canonical = existing[0] ?? null;
+  if (!canonical) {
+    const registered = await registerDocument({
+      originalFilename: input.doc.filename,
+      title: input.doc.label,
+      mimeType: null,
+      sizeBytes: null,
+      sha256: null,
+      storageProvider: "office_object_storage",
+      storageKey: input.doc.fileKey,
+      sourceChannel: "organization_upload",
+      classification: input.doc.docType,
+      verificationState: "received",
+      sensitivityLevel: "internal",
+      metadata: {
+        orgDocumentId: input.doc.id,
+        sourceOrgId: input.orgId,
+      },
+      createdBy: null,
+    });
+    canonical = {
+      id: registered.record.id,
+      documentRef: registered.record.documentRef,
+    };
+  }
+
+  await associateDocument({
+    documentId: canonical.id,
+    entityType: "organization",
+    entityId: input.orgId,
+    relationshipType: input.doc.docType === "evidence" ? "evidence" : "governing_instrument",
+    confidence: "exact",
+    resolutionMethod: "system_created",
+    metadata: {
+      orgDocumentId: input.doc.id,
+      label: input.doc.label,
+      docType: input.doc.docType,
+    },
+    verifiedBy: input.userId,
+  });
+
+  await associateDocument({
+    documentId: canonical.id,
+    entityType: "organization_document",
+    entityId: String(input.doc.id),
+    relationshipType: "source_record",
+    confidence: "exact",
+    resolutionMethod: "system_created",
+    metadata: { orgId: input.orgId },
+    verifiedBy: input.userId,
+  });
+
+  await recordListenerEvent({
+    documentId: canonical.id,
+    listenerName: "organization-documents",
+    eventType: "DOCUMENT_LINKED_TO_ORGANIZATION",
+    actionState: "active",
+    payload: {
+      orgId: input.orgId,
+      orgDocumentId: input.doc.id,
+      docType: input.doc.docType,
+    },
+  });
+
+  return canonical;
+}
+
+async function attachCanonicalDocumentRefs(docs: Array<typeof orgDocumentsTable.$inferSelect>) {
+  const keys = [...new Set(docs.map((doc) => doc.fileKey).filter((key): key is string => Boolean(key)))];
+  if (keys.length === 0) return docs.map((doc) => ({ ...doc, documentRef: null }));
+
+  const registryRows = await db.select({
+    storageKey: documentRegistryTable.storageKey,
+    documentRef: documentRegistryTable.documentRef,
+  })
+    .from(documentRegistryTable)
+    .where(inArray(documentRegistryTable.storageKey, keys));
+
+  const byKey = new Map(
+    registryRows
+      .filter((row) => row.storageKey)
+      .map((row) => [row.storageKey as string, row.documentRef]),
+  );
+
+  return docs.map((doc) => ({
+    ...doc,
+    documentRef: doc.fileKey ? (byKey.get(doc.fileKey) ?? null) : null,
+  }));
+}
+
 router.get("/_documents/catalog", requireAuth, async (req: Request, res: Response, next) => {
   if (!isElevated(req)) {
     res.status(403).json({ error: "Trustee or officer access required." });
@@ -69,7 +197,8 @@ router.get("/_documents/catalog", requireAuth, async (req: Request, res: Respons
   }
   try {
     const docs = await db.select().from(orgDocumentsTable);
-    res.json(docs.filter((doc) => canAccessOrg(req, doc.orgId)));
+    const visible = docs.filter((doc) => canAccessOrg(req, doc.orgId));
+    res.json(await attachCanonicalDocumentRefs(visible));
   } catch (err) {
     next(err);
   }
@@ -126,6 +255,41 @@ router.patch("/:orgId/profile", requireAuth, async (req: Request, res: Response,
     } else {
       [result] = await db.insert(orgProfilesTable).values({ orgId: orgId as string, ...updates }).returning();
     }
+    const canonicalOrg = ORG_BY_ID[String(orgId)];
+    if (canonicalOrg?.name) {
+      await ensureEntityAlias({
+        entityType: "organization",
+        entityId: String(orgId),
+        aliasType: "legalName",
+        aliasValue: canonicalOrg.name,
+        verified: true,
+        source: "organization_registry",
+        createdBy: userId ?? null,
+      });
+    }
+    if (result.legalName) {
+      await ensureEntityAlias({
+        entityType: "organization",
+        entityId: String(orgId),
+        aliasType: "legalName",
+        aliasValue: result.legalName,
+        verified: true,
+        source: "org_profile",
+        createdBy: userId ?? null,
+      });
+    }
+    if (result.ein) {
+      await ensureEntityAlias({
+        entityType: "organization",
+        entityId: String(orgId),
+        aliasType: "ein",
+        aliasValue: result.ein,
+        verified: true,
+        source: "org_profile",
+        createdBy: userId ?? null,
+      });
+    }
+
     res.json(result);
   } catch (err) {
     next(err);
@@ -145,7 +309,7 @@ router.get("/:orgId/documents", requireAuth, async (req: Request, res: Response,
     }
     const docs = await db.select().from(orgDocumentsTable)
       .where(eq(orgDocumentsTable.orgId, orgId as string));
-    res.json(docs);
+    res.json(await attachCanonicalDocumentRefs(docs));
   } catch (err) {
     next(err);
   }
@@ -189,8 +353,20 @@ router.post("/:orgId/documents", requireAuth, async (req: Request, res: Response
       uploadedBy: userId,
     }).returning();
 
-    logger.info({ orgId, docId: doc.id, filename, userId }, "Org document registered");
-    res.status(201).json(doc);
+    if (doc.fileKey) {
+      await recomputeOrgDocumentAcl(doc.fileKey);
+    }
+    const canonical = await ensureCanonicalOrgDocument({
+      orgId: String(orgId),
+      doc,
+      userId: userId ?? null,
+    });
+
+    logger.info(
+      { orgId, docId: doc.id, filename, userId, documentRef: canonical?.documentRef ?? null },
+      "Org document registered",
+    );
+    res.status(201).json({ ...doc, documentRef: canonical?.documentRef ?? null });
   } catch (err) {
     next(err);
   }
@@ -232,7 +408,17 @@ router.post("/:orgId/documents/link", requireAuth, async (req: Request, res: Res
         .where(and(eq(orgDocumentsTable.orgId, orgId), eq(orgDocumentsTable.fileKey, source.fileKey)))
         .limit(1);
       if (existing[0]) {
-        res.json({ ...existing[0], linkedExisting: true });
+        await recomputeOrgDocumentAcl(source.fileKey);
+        const canonical = await ensureCanonicalOrgDocument({
+          orgId,
+          doc: existing[0],
+          userId: req.user!.dbId ?? null,
+        });
+        res.json({
+          ...existing[0],
+          linkedExisting: true,
+          documentRef: canonical?.documentRef ?? null,
+        });
         return;
       }
     }
@@ -247,8 +433,23 @@ router.post("/:orgId/documents/link", requireAuth, async (req: Request, res: Res
       uploadedBy: req.user!.dbId,
     }).returning();
 
-    logger.info({ orgId, sourceDocumentId: source.id, linkedDocumentId: linked.id, userId: req.user!.dbId }, "Org document linked from existing record");
-    res.status(201).json(linked);
+    if (linked.fileKey) {
+      await recomputeOrgDocumentAcl(linked.fileKey);
+    }
+    const canonical = await ensureCanonicalOrgDocument({
+      orgId,
+      doc: linked,
+      userId: req.user!.dbId ?? null,
+    });
+
+    logger.info({
+      orgId,
+      sourceDocumentId: source.id,
+      linkedDocumentId: linked.id,
+      userId: req.user!.dbId,
+      documentRef: canonical?.documentRef ?? null,
+    }, "Org document linked from existing record");
+    res.status(201).json({ ...linked, documentRef: canonical?.documentRef ?? null });
   } catch (err) {
     next(err);
   }
@@ -264,9 +465,20 @@ router.delete("/:orgId/documents/:docId", requireAuth, async (req: Request, res:
     const id = parseInt(String(docId), 10);
     if (isNaN(id)) { res.status(400).json({ error: "Invalid document id" }); return; }
 
+    const [existing] = await db.select().from(orgDocumentsTable).where(
+      and(eq(orgDocumentsTable.id, id), eq(orgDocumentsTable.orgId, orgId as string))
+    ).limit(1);
+    if (!existing) {
+      res.status(404).json({ error: "Document not found" });
+      return;
+    }
+
     await db.delete(orgDocumentsTable).where(
       and(eq(orgDocumentsTable.id, id), eq(orgDocumentsTable.orgId, orgId as string))
     );
+    if (existing.fileKey) {
+      await recomputeOrgDocumentAcl(existing.fileKey);
+    }
     res.json({ ok: true });
   } catch (err) {
     next(err);
@@ -290,7 +502,20 @@ router.get("/:orgId/documents/:docId/download", requireAuth, async (req: Request
     if (!doc) { res.status(404).json({ error: "Document not found" }); return; }
     if (!doc.fileKey) { res.status(404).json({ error: "No file stored for this document" }); return; }
 
+    // The object ACL is derived from the current institutional links.
+    // This also safely backfills ACL metadata for older organization uploads.
+    await recomputeOrgDocumentAcl(doc.fileKey);
     const objectFile = await objectStorageService.getObjectEntityFile(doc.fileKey);
+    const allowed = await objectStorageService.canAccessObjectEntity({
+      principalIds: [orgPrincipal(String(orgId))],
+      objectFile,
+      requestedPermission: ObjectPermission.READ,
+    });
+    if (!allowed) {
+      res.status(403).json({ error: "Object ACL denied access to this organization document." });
+      return;
+    }
+
     const response = await objectStorageService.downloadObject(objectFile);
 
     res.setHeader("Content-Disposition", `inline; filename="${doc.filename}"`);

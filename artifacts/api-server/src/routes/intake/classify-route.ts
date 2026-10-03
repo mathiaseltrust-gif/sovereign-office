@@ -11,13 +11,15 @@
  */
 
 import { Router } from "express";
-import { requireAuth } from "../../auth/entra-guard";
+import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { db } from "@workspace/db";
 import { courtDocumentsTable } from "@workspace/db";
 import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 import { nextDocRef } from "../../lib/doc-ref";
+import { associateDocument, recordListenerEvent } from "../../engines/document-association";
+import { persistResolvedAssociations } from "../../engines/entity-resolver";
 
 const router = Router();
 
@@ -205,6 +207,11 @@ function extractFieldsByRules(text: string, filename: string): Record<string, un
   const federalCitations = (text.match(
     /(?:25\s+U\.S\.C\.\s*§\s*\d+[\w\s()]+|MCL\s+[\d.]+|Pub\.\s*L\.\s*\d+[^\n\r]{0,60}|U\.S\.\s*at\s*\d+)[^\n\r]{0,80}/gi
   ) ?? []).slice(0, 8);
+  const einMatch = text.match(/(?:EIN|Employer\s+Identification\s+Number)\s*[:#]?\s*(\d{2}-?\d{7})/i);
+  const emailMatch = text.match(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/i);
+  const tribalIdMatch = text.match(/(?:Tribal\s+ID|Tribal\s+Identification)\s*(?:No\.?|Number|#)?\s*[:#]?\s*([A-Z0-9-]{2,30})/i);
+  const enrollmentMatch = text.match(/(?:Enrollment|Enrollment\s+Number)\s*(?:No\.?|Number|#)?\s*[:#]?\s*([A-Z0-9-]{2,40})/i);
+  const caseNumberMatch = text.match(/(?:Case|Docket)\s*(?:No\.?|Number|#)\s*[:#]?\s*([A-Z0-9][A-Z0-9:.\-]{2,80})/i);
 
   return {
     parcelId: parcelMatch?.[1]?.trim() ?? null,
@@ -217,6 +224,11 @@ function extractFieldsByRules(text: string, filename: string): Record<string, un
     state: michiganMatch ? "MI" : null,
     reliefRequested: reliefMatch?.[1]?.trim() ?? null,
     tribalEntity: tribalEntityMatch?.[1]?.trim() ?? null,
+    ein: einMatch?.[1]?.trim() ?? null,
+    email: emailMatch?.[0]?.trim() ?? null,
+    tribalIdNumber: tribalIdMatch?.[1]?.trim() ?? null,
+    enrollmentNumber: enrollmentMatch?.[1]?.trim() ?? null,
+    caseNumber: caseNumberMatch?.[1]?.trim() ?? null,
     amounts,
     dates,
     federalCitationsFound: [...new Set(federalCitations.map(c => c.trim()))],
@@ -266,6 +278,12 @@ router.post("/classify-and-route", requireAuth, async (req, res, next) => {
     "lender": "string|null",
     "servicer": "string|null",
     "trustName": "string|null",
+    "ein": "Employer Identification Number or null",
+    "email": "person or organization email explicitly printed in the document or null",
+    "tribalIdNumber": "explicit tribal ID number or null",
+    "enrollmentNumber": "explicit enrollment number or null",
+    "personName": "primary natural person named as the subject, if clear, or null",
+    "caseNumber": "court or agency case/docket number or null",
     "encumbranceIndicators": [],
     "parcelId": "assessor parcel number or null",
     "propertyAddress": "full property address or null",
@@ -336,7 +354,7 @@ router.post("/classify-and-route", requireAuth, async (req, res, next) => {
 // Takes a classification result and creates the appropriate DB records.
 // Returns refs to all created records.
 
-router.post("/apply-filing", requireAuth, async (req, res, next) => {
+router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res, next) => {
   try {
     const userId = req.user?.dbId;
     const {
@@ -347,6 +365,7 @@ router.post("/apply-filing", requireAuth, async (req, res, next) => {
       routingTargets,
       text,
       filename,
+      documentRef,
     } = req.body as {
       documentType: string;
       documentTypeLabel?: string;
@@ -355,6 +374,7 @@ router.post("/apply-filing", requireAuth, async (req, res, next) => {
       routingTargets?: string[];
       text?: string;
       filename?: string;
+      documentRef?: string;
     };
 
     if (!documentType) {
@@ -367,6 +387,22 @@ router.post("/apply-filing", requireAuth, async (req, res, next) => {
     const label = documentTypeLabel ?? DOC_TYPE_LABELS[documentType] ?? "Document";
     const sig = (signalType ?? DOC_TYPE_SIGNAL[documentType]) as ReviewSignalType | null;
     const created: Record<string, unknown> = {};
+
+    let canonicalDocumentId: number | null = null;
+    if (documentRef) {
+      const ownedDocument = await db.execute(sql`
+        SELECT id, document_ref
+        FROM document_registry
+        WHERE document_ref = ${documentRef}
+          AND created_by = ${userId}
+        LIMIT 1
+      `);
+      if (!ownedDocument.rows[0]) {
+        res.status(403).json({ error: "Document reference is not owned by the authenticated principal." });
+        return;
+      }
+      canonicalDocumentId = Number((ownedDocument.rows[0] as Record<string, unknown>).id);
+    }
 
     // ── 1. Upsert land parcel ─────────────────────────────────────────────────
     let parcelDbId: number | null = null;
@@ -420,9 +456,11 @@ router.post("/apply-filing", requireAuth, async (req, res, next) => {
     if (targets.includes("encumbrance") && parcelDbId) {
       try {
         const encType =
-          documentType === "tax_lien"    ? "tax_lien"
+          documentType === "tax_lien" ? "tax_lien"
           : documentType === "foreclosure" ? "foreclosure_notice"
-          : "tax_lien";
+          : documentType === "deed_of_trust" ? "deed_of_trust_encumbrance"
+          : documentType === "mortgage_security_instrument" ? "mortgage_security_instrument"
+          : "other_encumbrance";
 
         const encRow = await db.execute(sql`
           INSERT INTO land_encumbrances (
@@ -537,17 +575,116 @@ router.post("/apply-filing", requireAuth, async (req, res, next) => {
       }
     }
 
-    // ── 5. Audit ──────────────────────────────────────────────────────────────
+    // ── 5. Resolve and associate the canonical document ─────────────────────
+    let associationSummary: {
+      total: number;
+      active: number;
+      proposed: number;
+      unresolved: number;
+      reviewRequired: boolean;
+    } | null = null;
+
+    if (canonicalDocumentId) {
+      // Records created by this exact routing operation are deterministic.
+      if (parcelDbId) {
+        await associateDocument({
+          documentId: canonicalDocumentId,
+          entityType: "parcel",
+          entityId: String(parcelDbId),
+          relationshipType: "related_property",
+          confidence: "exact",
+          resolutionMethod: "system_created",
+          metadata: { source: "apply_filing", documentType },
+          verifiedBy: userId ?? null,
+        });
+      }
+
+      const courtDoc = created.courtDocument as Record<string, unknown> | undefined;
+      if (courtDoc?.id) {
+        await associateDocument({
+          documentId: canonicalDocumentId,
+          entityType: "court_document",
+          entityId: String(courtDoc.id),
+          relationshipType: "source_document",
+          confidence: "exact",
+          resolutionMethod: "system_created",
+          metadata: { source: "apply_filing", tribalRef: courtDoc.tribalRef ?? null },
+          verifiedBy: userId ?? null,
+        });
+      }
+
+      const encumbrance = created.encumbrance as Record<string, unknown> | undefined;
+      if (encumbrance?.id) {
+        await associateDocument({
+          documentId: canonicalDocumentId,
+          entityType: "encumbrance",
+          entityId: String(encumbrance.id),
+          relationshipType: "evidence",
+          confidence: "exact",
+          resolutionMethod: "system_created",
+          metadata: { source: "apply_filing", documentType },
+          verifiedBy: userId ?? null,
+        });
+      }
+
+      const resolution = await persistResolvedAssociations({
+        documentId: canonicalDocumentId,
+        fields,
+        verifiedBy: userId ?? null,
+      });
+
+      const statuses = await db.execute(sql`
+        SELECT status, COUNT(*)::int AS count
+        FROM document_associations
+        WHERE document_id = ${canonicalDocumentId}
+        GROUP BY status
+      `);
+      const counts = new Map(
+        (statuses.rows as Array<{ status: string; count: number }>).map((row) => [row.status, Number(row.count)]),
+      );
+      const active = counts.get("active") ?? 0;
+      const proposed = counts.get("proposed") ?? 0;
+      const unresolved = counts.get("unresolved") ?? 0;
+      associationSummary = {
+        total: active + proposed + unresolved + (counts.get("rejected") ?? 0),
+        active,
+        proposed,
+        unresolved,
+        reviewRequired: proposed > 0 || unresolved > 0,
+      };
+
+      await recordListenerEvent({
+        documentId: canonicalDocumentId,
+        listenerName: "apply-filing",
+        eventType: "DOCUMENT_ROUTING_COMPLETED",
+        actionState: associationSummary.reviewRequired ? "review_required" : "complete",
+        payload: {
+          documentType,
+          routingTargets: targets,
+          candidateCount: resolution.candidates.length,
+          associationSummary,
+        },
+      });
+    }
+
+    // ── 6. Audit ──────────────────────────────────────────────────────────────
     auditLog({
       userId: userId ?? null,
       action: "document.apply_filing",
       resourceType: "court_document",
       resourceRef: String((created.courtDocument as Record<string, unknown> | undefined)?.tribalRef ?? filename ?? documentType),
-      metadata: { documentType, parcelDbId, filename, created },
+      metadata: { documentType, parcelDbId, filename, documentRef: documentRef ?? null, created, associationSummary },
     }).catch(() => {});
 
     logger.info({ userId, documentType, filename, created }, "apply-filing completed");
-    res.status(201).json({ success: true, documentType, label, created });
+    res.status(201).json({
+      success: true,
+      documentType,
+      label,
+      documentRef: documentRef ?? null,
+      created,
+      associationSummary,
+    });
   } catch (err) {
     next(err);
   }

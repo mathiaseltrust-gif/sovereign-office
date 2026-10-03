@@ -1,4 +1,4 @@
-import { pgTable, serial, integer, varchar, text, bigint, jsonb, timestamp, uniqueIndex, index } from "drizzle-orm/pg-core";
+import { pgTable, serial, integer, varchar, text, bigint, jsonb, timestamp, uniqueIndex, index, boolean } from "drizzle-orm/pg-core";
 import { usersTable } from "./users";
 
 export const documentRegistryTable = pgTable("document_registry", {
@@ -50,6 +50,31 @@ export const documentAssociationsTable = pgTable("document_associations", {
   documentIdx: index("document_association_document_idx").on(table.documentId),
 }));
 
+export const entityAliasesTable = pgTable("entity_aliases", {
+  id: serial("id").primaryKey(),
+  entityType: varchar("entity_type", { length: 60 }).notNull(),
+  entityId: varchar("entity_id", { length: 160 }).notNull(),
+  aliasType: varchar("alias_type", { length: 80 }).notNull(),
+  aliasValue: text("alias_value").notNull(),
+  normalizedValue: text("normalized_value").notNull(),
+  verified: boolean("verified").notNull().default(false),
+  source: varchar("source", { length: 120 }).notNull().default("manual"),
+  createdBy: integer("created_by").references(() => usersTable.id, { onDelete: "set null" }),
+  createdAt: timestamp("created_at", { withTimezone: true }).defaultNow().notNull(),
+}, (table) => ({
+  uniqueAlias: uniqueIndex("entity_alias_unique").on(
+    table.entityType,
+    table.entityId,
+    table.aliasType,
+    table.normalizedValue,
+  ),
+  lookupIdx: index("entity_alias_lookup_idx").on(
+    table.entityType,
+    table.aliasType,
+    table.normalizedValue,
+  ),
+}));
+
 export const documentListenerEventsTable = pgTable("document_listener_events", {
   id: serial("id").primaryKey(),
   documentId: integer("document_id").notNull().references(() => documentRegistryTable.id, { onDelete: "cascade" }),
@@ -66,3 +91,5 @@ export const documentListenerEventsTable = pgTable("document_listener_events", {
 export type DocumentRegistryRecord = typeof documentRegistryTable.$inferSelect;
 export type DocumentAssociation = typeof documentAssociationsTable.$inferSelect;
 export type DocumentListenerEvent = typeof documentListenerEventsTable.$inferSelect;
+
+export type EntityAlias = typeof entityAliasesTable.$inferSelect;

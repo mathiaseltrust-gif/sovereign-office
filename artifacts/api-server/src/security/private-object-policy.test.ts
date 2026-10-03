@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { canAccessObject, ObjectPermission } from "../lib/objectAcl";
 import { canReadOwnedPrivateObject } from "../security/private-object-policy";
 
-function fakeFile(policy?: { owner: string; visibility: "public" | "private" }) {
+function fakeFile(policy?: { owner: string; visibility: "public" | "private"; readers?: string[] }) {
   return {
     getMetadata: async () => [{
       metadata: policy
@@ -13,6 +13,17 @@ function fakeFile(policy?: { owner: string; visibility: "public" | "private" }) 
 }
 
 describe("private object boundaries", () => {
+  it("fails closed when object ACL metadata is malformed", async () => {
+    const objectFile = {
+      getMetadata: async () => [{ metadata: { "custom:aclPolicy": "{not-json" } }],
+    } as any;
+    await expect(canAccessObject({
+      userId: "1",
+      objectFile,
+      requestedPermission: ObjectPermission.READ,
+    })).resolves.toBe(false);
+  });
+
   it("defaults to deny when object ACL metadata is absent", async () => {
     await expect(canAccessObject({
       userId: "1",
@@ -30,6 +41,29 @@ describe("private object boundaries", () => {
     })).resolves.toBe(true);
     await expect(canAccessObject({
       userId: "8",
+      objectFile,
+      requestedPermission: ObjectPermission.READ,
+    })).resolves.toBe(false);
+  });
+
+  it("allows explicitly listed institutional readers without granting write authority", async () => {
+    const objectFile = fakeFile({
+      owner: "org:trust_a",
+      visibility: "private",
+      readers: ["org:board_of_trustees"],
+    } as any);
+    await expect(canAccessObject({
+      principalIds: ["org:board_of_trustees"],
+      objectFile,
+      requestedPermission: ObjectPermission.READ,
+    })).resolves.toBe(true);
+    await expect(canAccessObject({
+      principalIds: ["org:board_of_trustees"],
+      objectFile,
+      requestedPermission: ObjectPermission.WRITE,
+    })).resolves.toBe(false);
+    await expect(canAccessObject({
+      principalIds: ["org:unrelated"],
       objectFile,
       requestedPermission: ObjectPermission.READ,
     })).resolves.toBe(false);
