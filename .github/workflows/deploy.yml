@@ -120,6 +120,9 @@ jobs:
       - name: Scan tracked files for committed credentials
         run: pnpm run security:scan
 
+      - name: Verify migration journal
+        run: pnpm run check:migrations
+
       - name: Run authority and MCP boundary tests
         run: pnpm run test:security
 
