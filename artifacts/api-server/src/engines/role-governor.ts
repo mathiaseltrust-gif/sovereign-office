@@ -200,6 +200,7 @@ export function normalizeRoleKey(role: string): string {
     sovereign_admin: "chief_justice",
     admin: "chief_justice",
     chief_justice: "chief_justice",
+    chief_justice_trustee: "chief_justice",
     trustee: "trustee",
     officer: "officer",
     elder: "elder",
