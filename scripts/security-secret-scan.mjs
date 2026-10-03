@@ -13,7 +13,7 @@ const excludedPrefixes = [
 const rules = [
   {
     name: "inline service/application secret",
-    pattern: /\b(?:M365_SERVICE_KEY|SERVICE_KEY|SESSION_SECRET|ACR_PASSWORD|SMTP_PASSWORD|POSTGRES_PASSWORD|AZURE_ENTRA_CLIENT_SECRET|ENTRA_CLIENT_SECRET)\s*=\s*["'][^"'\n$]{8,}["']/i,
+    pattern: /\b(?:M365_SERVICE_KEY|GITHUB_INTAKE_SERVICE_KEY|SERVICE_KEY|SESSION_SECRET|ACR_PASSWORD|SMTP_PASSWORD|POSTGRES_PASSWORD|AZURE_ENTRA_CLIENT_SECRET|ENTRA_CLIENT_SECRET)\s*=\s*["'][^"'\n$]{8,}["']/i,
   },
   {
     name: "database URL with embedded password",
