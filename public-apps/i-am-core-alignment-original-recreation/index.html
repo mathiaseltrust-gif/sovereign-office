@@ -304,17 +304,17 @@ async function revealAnswer(){
   revealed=true;
 
   // The white thought gets to exist on its own before the response begins forming.
-  await sleep(1050);
+  await sleep(700);
 
   const phrases=[...answerEl.querySelectorAll(".answer-phrase")];
   for(let p=0;p<phrases.length;p++){
     await animatePhraseIn(phrases[p]);
     // A measured beat between complete thought-units: boom ... boom ... boom.
-    if(p<phrases.length-1) await sleep(520);
+    if(p<phrases.length-1) await sleep(340);
   }
 
   // Let the completed thought remain intact long enough to be observed.
-  await sleep(900);
+  await sleep(600);
   busy=false;
 }
 
@@ -325,9 +325,9 @@ async function nextCard(){
 
   // The completed copper thought leaves as one whole thought, not in fragments.
   await animateAnswerOut();
-  await sleep(320);
+  await sleep(220);
   await animatePromptOut();
-  await sleep(620);
+  await sleep(420);
 
   setCard(index+1);
   await animatePromptIn();
@@ -360,7 +360,7 @@ async function previous(){
   }
 
   await animatePromptOut();
-  await sleep(520);
+  await sleep(360);
   setCard(index-1);
   await animatePromptIn();
   busy=false;
@@ -368,7 +368,7 @@ async function previous(){
 
 function resetAutoplay(){
   clearInterval(autoTimer);
-  if(autoplay)autoTimer=setInterval(()=>{if(!busy)nextCard()},11800);
+  if(autoplay)autoTimer=setInterval(()=>{if(!busy)nextCard()},9400);
 }
 
 function ensureAudio(){
