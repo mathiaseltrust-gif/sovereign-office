@@ -270,141 +270,214 @@ const H_GAP = 48;
 const V_GAP = 80;
 const CANVAS_PADDING = 60;
 
-function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], preferredRootId?: number | null): { positioned: PositionedNode[]; totalW: number; totalH: number } {
+function computeLayout(
+  nodes: LineageNode[],
+  familyUnits: FamilyUnit[] = [],
+  preferredRootId?: number | null,
+): { positioned: PositionedNode[]; totalW: number; totalH: number } {
   if (nodes.length === 0) return { positioned: [], totalW: 0, totalH: 0 };
 
-  // ── Identify root (lowest gen, or ID 20 if present) ──────────────────────
-  const byId = new Map(nodes.map((n) => [n.id, n]));
+  const byId = new Map(nodes.map((node) => [node.id, node]));
   const rootNode =
-    (preferredRootId ? nodes.find((n) => n.id === preferredRootId) : null)
-    ?? nodes.find((n) => n.id === 12)
-    ?? nodes.find((n) => n.linkedProfileUserId != null)
-    ?? nodes.reduce((a, b) =>
-      (a.generationalPosition ?? 99) <= (b.generationalPosition ?? 99) ? a : b
-    );
+    (preferredRootId ? byId.get(preferredRootId) : null)
+    ?? nodes.find((node) => node.linkedProfileUserId != null)
+    ?? nodes.find((node) => (node.generationalPosition ?? 99) === 0)
+    ?? nodes[0];
 
-  // ── Tag each node as paternal / maternal / root via BFS ──────────────────
-  const side = new Map<number, "root" | "paternal" | "maternal">();
-  side.set(rootNode.id, "root");
+  // Build one normalized relationship graph from both legacy arrays and
+  // GEDCOM FAM records. Generation is derived from these relationships instead
+  // of trusting imported generationalPosition values (many historical rows
+  // have NULL there, which previously collapsed hundreds of people onto gen 0).
+  const parentsOf = new Map<number, Set<number>>();
+  const childrenOf = new Map<number, Set<number>>();
+  const spousesOf = new Map<number, Set<number>>();
 
-  // Build child→parent map — seed from node.parentIds, then supplement with FAM records
-  const parentOf = new Map<number, number[]>();
-  for (const n of nodes) {
-    const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
-    parentOf.set(n.id, pids);
+  const ensureSet = (map: Map<number, Set<number>>, id: number) => {
+    if (!map.has(id)) map.set(id, new Set());
+    return map.get(id)!;
+  };
+  const linkParentChild = (parentId: number, childId: number) => {
+    if (!byId.has(parentId) || !byId.has(childId) || parentId === childId) return;
+    ensureSet(parentsOf, childId).add(parentId);
+    ensureSet(childrenOf, parentId).add(childId);
+  };
+  const linkSpouses = (a: number, b: number) => {
+    if (!byId.has(a) || !byId.has(b) || a === b) return;
+    ensureSet(spousesOf, a).add(b);
+    ensureSet(spousesOf, b).add(a);
+  };
+
+  for (const node of nodes) {
+    for (const parentId of numericIds(node.parentIds)) linkParentChild(parentId, node.id);
+    for (const childId of numericIds(node.childrenIds)) linkParentChild(node.id, childId);
+    for (const spouseId of numericIds(node.spouseIds)) linkSpouses(node.id, spouseId);
   }
-  // FAM records are authoritative for children that have no parentIds set
-  for (const fam of familyUnits) {
-    const famParents = [fam.husbandId, fam.wifeId, ...(Array.isArray(fam.spouseIds) ? fam.spouseIds : [])]
-      .filter((id): id is number => id != null);
-    for (const childId of (Array.isArray(fam.childIds) ? fam.childIds : []) as number[]) {
-      if (!byId.has(childId)) continue;
-      const existing = parentOf.get(childId) ?? [];
-      const extra = famParents.filter((pid) => byId.has(pid) && !existing.includes(pid));
-      if (extra.length > 0) parentOf.set(childId, [...existing, ...extra]);
+
+  for (const unit of familyUnits) {
+    const adults = [
+      unit.husbandId,
+      unit.wifeId,
+      ...numericIds(unit.spouseIds),
+    ].filter((id): id is number => id != null && byId.has(id));
+    const children = numericIds(unit.childIds).filter((id) => byId.has(id));
+
+    for (let i = 0; i < adults.length; i++) {
+      for (let j = i + 1; j < adults.length; j++) linkSpouses(adults[i], adults[j]);
+    }
+    for (const adultId of adults) {
+      for (const childId of children) linkParentChild(adultId, childId);
     }
   }
 
-  // Resolve direct parents by FAM role/gender instead of relying on array order.
+  // Relative generation from the logged-in/root person:
+  // parent +1, child -1, spouse 0.
+  const generation = new Map<number, number>([[rootNode.id, 0]]);
+  const distance = new Map<number, number>([[rootNode.id, 0]]);
+  const queue: number[] = [rootNode.id];
+
+  const tryAssign = (fromId: number, targetId: number, targetGen: number) => {
+    if (!byId.has(targetId)) return;
+    const nextDistance = (distance.get(fromId) ?? 0) + 1;
+    const oldDistance = distance.get(targetId);
+    if (oldDistance == null || nextDistance < oldDistance) {
+      distance.set(targetId, nextDistance);
+      generation.set(targetId, targetGen);
+      queue.push(targetId);
+    }
+  };
+
+  while (queue.length > 0) {
+    const id = queue.shift()!;
+    const gen = generation.get(id) ?? 0;
+    for (const parentId of parentsOf.get(id) ?? []) tryAssign(id, parentId, gen + 1);
+    for (const childId of childrenOf.get(id) ?? []) tryAssign(id, childId, gen - 1);
+    for (const spouseId of spousesOf.get(id) ?? []) tryAssign(id, spouseId, gen);
+  }
+
+  // Any rare disconnected row that survives the connected-component filter
+  // keeps its stored generation as a harmless fallback.
+  for (const node of nodes) {
+    if (!generation.has(node.id)) generation.set(node.id, node.generationalPosition ?? 0);
+  }
+
+  // Keep the two ancestral halves visually stable.
+  type Branch = "paternal" | "maternal" | "household" | "descendant" | "other" | "root";
+  const branch = new Map<number, Branch>([[rootNode.id, "root"]]);
   const rootSlots = resolveParentSlots(rootNode, byId, familyUnits);
-  const paternalRootId = rootSlots.fatherId;
-  const maternalRootId = rootSlots.motherId;
 
-  function tagSubtree(startId: number, label: "paternal" | "maternal") {
-    const queue = [startId];
-    while (queue.length) {
-      const cur = queue.shift()!;
-      if (side.has(cur)) continue;
-      side.set(cur, label);
-      const n = byId.get(cur);
-      if (!n) continue;
-      const pids = parentOf.get(cur) ?? [];
-      for (const pid of pids) {
-        if (!side.has(pid)) queue.push(pid);
-      }
+  const tagAncestors = (startId: number | null, label: "paternal" | "maternal") => {
+    if (!startId) return;
+    const pending = [startId];
+    while (pending.length > 0) {
+      const id = pending.shift()!;
+      if (branch.has(id)) continue;
+      branch.set(id, label);
+      for (const parentId of parentsOf.get(id) ?? []) pending.push(parentId);
+    }
+  };
+  tagAncestors(rootSlots.fatherId, "paternal");
+  tagAncestors(rootSlots.motherId, "maternal");
+
+  const householdQueue = [...(spousesOf.get(rootNode.id) ?? [])];
+  for (const id of householdQueue) if (!branch.has(id)) branch.set(id, "household");
+
+  const descendantQueue = [...(childrenOf.get(rootNode.id) ?? [])];
+  const seenDescendants = new Set<number>();
+  while (descendantQueue.length > 0) {
+    const id = descendantQueue.shift()!;
+    if (seenDescendants.has(id)) continue;
+    seenDescendants.add(id);
+    if (!branch.has(id)) branch.set(id, "descendant");
+    for (const childId of childrenOf.get(id) ?? []) descendantQueue.push(childId);
+    for (const spouseId of spousesOf.get(id) ?? []) {
+      if (!branch.has(spouseId)) branch.set(spouseId, "descendant");
     }
   }
 
-  if (paternalRootId) tagSubtree(paternalRootId, "paternal");
-  if (maternalRootId) tagSubtree(maternalRootId, "maternal");
-  // Any remaining untagged nodes default to paternal
-  for (const n of nodes) {
-    if (!side.has(n.id)) side.set(n.id, "paternal");
+  for (const node of nodes) if (!branch.has(node.id)) branch.set(node.id, "other");
+
+  // Family key keeps siblings/household peers adjacent within a generation.
+  const birthFamilyKey = new Map<number, number>();
+  for (const unit of familyUnits) {
+    for (const childId of numericIds(unit.childIds)) {
+      if (byId.has(childId) && !birthFamilyKey.has(childId)) birthFamilyKey.set(childId, unit.id);
+    }
   }
 
-  // ── Group by generation ───────────────────────────────────────────────────
   const byGen = new Map<number, LineageNode[]>();
-  for (const n of nodes) {
-    const gen = n.generationalPosition ?? 0;
+  for (const node of nodes) {
+    const gen = generation.get(node.id) ?? 0;
     if (!byGen.has(gen)) byGen.set(gen, []);
-    byGen.get(gen)!.push(n);
+    byGen.get(gen)!.push(node);
   }
 
-  // Natural family tree order: oldest ancestors at top (highest gen number),
-  // self (gen=0) in the middle, children (gen=-1) and grandchildren (gen=-2) below.
-  // Simple descending sort: 5 → 4 → 3 → 2 → 1 → 0 → -1 → -2
+  const branchOrder: Record<Branch, number> = {
+    paternal: 0,
+    household: 1,
+    root: 2,
+    maternal: 3,
+    descendant: 4,
+    other: 5,
+  };
+
+  for (const [gen, group] of byGen) {
+    group.sort((a, b) => {
+      const ba = branchOrder[branch.get(a.id) ?? "other"];
+      const bb = branchOrder[branch.get(b.id) ?? "other"];
+      if (ba !== bb) return ba - bb;
+      const fa = birthFamilyKey.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+      const fb = birthFamilyKey.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+      if (fa !== fb) return fa - fb;
+      return a.id - b.id;
+    });
+    byGen.set(gen, group);
+  }
+
+  // Bounded packing prevents a single populous generation from becoming a
+  // 100k+ pixel strip. Wider generations wrap into additional rows while
+  // preserving family adjacency.
+  const MAX_COLUMNS = 18;
+  const ROW_GAP = 34;
+  const GEN_GAP = 88;
   const sortedGens = [...byGen.keys()].sort((a, b) => b - a);
 
-  // ── Sort within each generation: root → paternal (left) → maternal (right) ─
-  for (const [gen, arr] of byGen) {
-    byGen.set(gen, arr.sort((a, b) => {
-      const order = { root: 1, paternal: 0, maternal: 2 } as Record<string, number>;
-      const sa = order[side.get(a.id) ?? "paternal"] ?? 0;
-      const sb = order[side.get(b.id) ?? "paternal"] ?? 0;
-      return sa - sb;
-    }));
-  }
-
-  const maxPerGen = Math.max(...[...byGen.values()].map((g) => g.length));
-  const totalW = CANVAS_PADDING * 2 + maxPerGen * NODE_W + (maxPerGen - 1) * H_GAP;
-  const positioned: PositionedNode[] = [];
-
-  sortedGens.forEach((gen, genIndex) => {
-    const nodesInGen = byGen.get(gen)!;
-    const paternal = nodesInGen.filter((n) => side.get(n.id) === "paternal");
-    const root = nodesInGen.filter((n) => side.get(n.id) === "root");
-    const maternal = nodesInGen.filter((n) => side.get(n.id) === "maternal");
-
-    // For gen 0: center the root node; for other gens: paternal left, maternal right with gap
-    const y = CANVAS_PADDING + genIndex * (NODE_H + V_GAP);
-
-    if (root.length > 0 && paternal.length === 0 && maternal.length === 0) {
-      // Only root node in this row — center it
-      const x = (totalW - NODE_W) / 2;
-      root.forEach((n) => positioned.push({ ...n, x, y }));
-    } else {
-      // Lay out paternal on left half, root in center, maternal on right half
-      const CENTER_GAP = 32;
-      const halfW = (totalW - CENTER_GAP) / 2;
-
-      // Paternal block (left)
-      if (paternal.length > 0) {
-        const blockW = paternal.length * NODE_W + (paternal.length - 1) * H_GAP;
-        const startX = halfW - blockW; // right-align within left half
-        paternal.forEach((n, i) => {
-          positioned.push({ ...n, x: startX + i * (NODE_W + H_GAP), y });
-        });
-      }
-
-      // Root block (center)
-      if (root.length > 0) {
-        const centerX = (totalW - NODE_W) / 2;
-        root.forEach((n, i) => {
-          positioned.push({ ...n, x: centerX + i * (NODE_W + H_GAP), y });
-        });
-      }
-
-      // Maternal block (right)
-      if (maternal.length > 0) {
-        const startX = halfW + CENTER_GAP;
-        maternal.forEach((n, i) => {
-          positioned.push({ ...n, x: startX + i * (NODE_W + H_GAP), y });
-        });
-      }
-    }
+  const packing = sortedGens.map((gen) => {
+    const group = byGen.get(gen)!;
+    const columns = Math.max(1, Math.min(MAX_COLUMNS, Math.ceil(Math.sqrt(group.length * 2.2))));
+    const rows = Math.ceil(group.length / columns);
+    const width = columns * NODE_W + Math.max(0, columns - 1) * H_GAP;
+    const height = rows * NODE_H + Math.max(0, rows - 1) * ROW_GAP;
+    return { gen, group, columns, rows, width, height };
   });
 
-  const totalH = CANVAS_PADDING * 2 + sortedGens.length * NODE_H + (sortedGens.length - 1) * V_GAP;
+  const widest = Math.max(...packing.map((entry) => entry.width), NODE_W);
+  const totalW = CANVAS_PADDING * 2 + widest;
+  const totalH =
+    CANVAS_PADDING * 2
+    + packing.reduce((sum, entry) => sum + entry.height, 0)
+    + Math.max(0, packing.length - 1) * GEN_GAP;
+
+  const positioned: PositionedNode[] = [];
+  let y = CANVAS_PADDING;
+
+  for (const entry of packing) {
+    for (let row = 0; row < entry.rows; row++) {
+      const rowStart = row * entry.columns;
+      const rowNodes = entry.group.slice(rowStart, rowStart + entry.columns);
+      const rowWidth = rowNodes.length * NODE_W + Math.max(0, rowNodes.length - 1) * H_GAP;
+      const startX = (totalW - rowWidth) / 2;
+
+      rowNodes.forEach((node, column) => {
+        positioned.push({
+          ...node,
+          x: startX + column * (NODE_W + H_GAP),
+          y: y + row * (NODE_H + ROW_GAP),
+        });
+      });
+    }
+    y += entry.height + GEN_GAP;
+  }
+
   return { positioned, totalW, totalH };
 }
 
