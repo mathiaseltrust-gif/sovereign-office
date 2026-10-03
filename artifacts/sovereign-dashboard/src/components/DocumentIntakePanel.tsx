@@ -41,6 +41,13 @@ interface ClassifyResult {
     state?: string | null;
     reliefRequested?: string | null;
     tribalEntity?: string | null;
+    trustName?: string | null;
+    ein?: string | null;
+    email?: string | null;
+    tribalIdNumber?: string | null;
+    enrollmentNumber?: string | null;
+    personName?: string | null;
+    caseNumber?: string | null;
     federalCitationsFound?: string[];
     amounts?: string[];
     dates?: string[];
@@ -54,6 +61,14 @@ interface ApplyResult {
   success: boolean;
   documentType: string;
   label: string;
+  documentRef?: string | null;
+  associationSummary?: {
+    total: number;
+    active: number;
+    proposed: number;
+    unresolved: number;
+    reviewRequired: boolean;
+  } | null;
   created: {
     parcel?: { action: string; id: number; parcelId: string; tribalRef?: string };
     encumbrance?: { id: number };
@@ -115,6 +130,8 @@ export function DocumentIntakePanel() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [extractedText, setExtractedText] = useState<string | null>(null);
+  const [documentRef, setDocumentRef] = useState<string | null>(null);
+  const [documentRegistryId, setDocumentRegistryId] = useState<number | null>(null);
   const [intakeReport, setIntakeReport] = useState<IntakeReport | null>(null);
   const [kayaExplanation, setKayaExplanation] = useState<string | null>(null);
   const [classifyResult, setClassifyResult] = useState<ClassifyResult | null>(null);
@@ -129,6 +146,8 @@ export function DocumentIntakePanel() {
     setSelectedFile(null);
     setPreviewUrl(null);
     setExtractedText(null);
+    setDocumentRef(null);
+    setDocumentRegistryId(null);
     setIntakeReport(null);
     setKayaExplanation(null);
     setClassifyResult(null);
@@ -159,9 +178,16 @@ export function DocumentIntakePanel() {
         const e = await uploadRes.json().catch(() => ({}));
         throw new Error((e as Record<string,string>).error ?? "Failed to extract document text");
       }
-      const uploadData = await uploadRes.json() as { text?: string };
+      const uploadData = await uploadRes.json() as {
+        text?: string;
+        document_ref?: string;
+        document_registry_id?: number;
+        persisted?: boolean;
+      };
       const text: string = uploadData.text ?? "";
       setExtractedText(text);
+      setDocumentRef(uploadData.document_ref ?? null);
+      setDocumentRegistryId(uploadData.document_registry_id ?? null);
 
       if (!text.trim()) {
         toast({ title: "Could not read document", description: "No readable text was found.", variant: "destructive" });
@@ -236,6 +262,7 @@ export function DocumentIntakePanel() {
           ...classifyResult,
           text: extractedText,
           filename: selectedFile?.name,
+          documentRef,
         }),
       });
       if (!res.ok) {
@@ -386,6 +413,26 @@ export function DocumentIntakePanel() {
                 </button>
               </div>
 
+              {documentRef && (
+                <div
+                  className="flex items-center justify-between gap-3 rounded-lg px-3 py-2"
+                  style={{ background: "rgba(0,120,70,0.08)", border: "1px solid rgba(0,180,100,0.16)" }}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <CheckCircle className="w-3.5 h-3.5 text-emerald-400/70 flex-shrink-0" />
+                    <div className="min-w-0">
+                      <p className="text-[10px] text-emerald-300/70 font-semibold">Saved to Office Document Registry</p>
+                      <p className="text-[10px] text-white/50 font-mono truncate">
+                        {documentRef}{documentRegistryId ? ` · Registry #${documentRegistryId}` : ""}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge className="bg-emerald-950/70 text-emerald-300 border border-emerald-700/30 text-[9px]">
+                    PERSISTED
+                  </Badge>
+                </div>
+              )}
+
               {/* PDF Viewer */}
               {isPdf && previewUrl && (
                 <div className="rounded-lg overflow-hidden" style={{ border: "1px solid rgba(255,255,255,0.08)" }}>
@@ -441,6 +488,11 @@ export function DocumentIntakePanel() {
                         f.filingBody      && { label: "Filed With",      value: f.filingBody },
                         f.county          && { label: "County",          value: f.county + (f.state ? `, ${f.state}` : "") },
                         f.tribalEntity    && { label: "Tribal Entity",   value: f.tribalEntity },
+                        f.trustName        && { label: "Trust",           value: f.trustName },
+                        f.ein              && { label: "EIN",             value: f.ein },
+                        f.tribalIdNumber   && { label: "Tribal ID",       value: f.tribalIdNumber },
+                        f.enrollmentNumber && { label: "Enrollment",      value: f.enrollmentNumber },
+                        f.caseNumber       && { label: "Case / Docket",   value: f.caseNumber },
                         f.reliefRequested && { label: "Relief Sought",   value: f.reliefRequested },
                       ].filter(Boolean) as Array<{ label: string; value: string }>;
 
@@ -590,8 +642,35 @@ export function DocumentIntakePanel() {
                         </div>
                       </div>
                     )}
+                    {applyResult.associationSummary && (
+                      <div
+                        className="rounded-lg px-2.5 py-2 mt-2"
+                        style={{ background: "rgba(255,255,255,0.035)", border: "1px solid rgba(255,255,255,0.07)" }}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <p className="text-[10px] text-white/60 font-semibold">Record Associations</p>
+                          <span className="text-[9px] text-white/35 font-mono">
+                            {applyResult.associationSummary.total} total
+                          </span>
+                        </div>
+                        <p className="text-[10px] text-white/45 mt-1">
+                          {applyResult.associationSummary.active} active
+                          {" · "}{applyResult.associationSummary.proposed} proposed
+                          {" · "}{applyResult.associationSummary.unresolved} unresolved
+                        </p>
+                        <p className={`text-[10px] mt-1 ${
+                          applyResult.associationSummary.reviewRequired
+                            ? "text-amber-300/70"
+                            : "text-emerald-300/60"
+                        }`}>
+                          {applyResult.associationSummary.reviewRequired
+                            ? "Association review required before uncertain matches become authoritative."
+                            : "All resolved associations are active."}
+                        </p>
+                      </div>
+                    )}
                     <p className="text-[10px] text-emerald-400/50 mt-1">
-                      All records created. Check Land Records and Active Matters for details.
+                      Original stored once. Linked records now reference the canonical document.
                     </p>
                   </div>
                 </div>
