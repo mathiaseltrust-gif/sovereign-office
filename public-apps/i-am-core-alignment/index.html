@@ -114,26 +114,32 @@ button{font:inherit}
   font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
   font-size:clamp(48px,10.5vw,92px);font-weight:400;letter-spacing:.025em;
   line-height:1.14;color:#eee7dd;text-wrap:balance;
-  transition:transform .45s ease,opacity .45s ease,filter .45s ease;
+  transition:opacity .72s cubic-bezier(.22,.61,.36,1),transform .72s cubic-bezier(.22,.61,.36,1),filter .72s ease;
 }
 .answer{
   margin-top:70px;max-width:720px;
   font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
   font-size:clamp(24px,5.4vw,42px);line-height:1.5;font-style:italic;
   color:#c39b7c;text-wrap:balance;
-  opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;
+  opacity:0;transform:translateY(10px);filter:blur(1.6px);
+  transition:opacity .88s cubic-bezier(.22,.61,.36,1),transform .88s cubic-bezier(.22,.61,.36,1),filter .88s ease;
 }
-.answer.show{opacity:1;transform:translateY(0)}
-.card.clearing .answer,
-.card.clearing .prompt{
+.answer.show{opacity:1;transform:translateY(0);filter:blur(0)}
+.card.answer-closing .answer{
   opacity:0 !important;
-  transform:translateY(-8px);
-  filter:blur(3px);
+  transform:translateY(-3px);
+  filter:blur(2.2px);
 }
-.card.prompt-in .prompt{animation:promptIn .58s ease both}
-@keyframes promptIn{
-  0%{opacity:0;transform:translateY(10px);filter:blur(4px)}
-  100%{opacity:1;transform:translateY(0);filter:blur(0)}
+.card.prompt-closing .prompt{
+  opacity:0 !important;
+  transform:translateY(-2px) scale(.996);
+  filter:blur(1.8px);
+}
+.card.prompt-in .prompt{animation:promptFocusIn .96s cubic-bezier(.16,1,.3,1) both}
+@keyframes promptFocusIn{
+  0%{opacity:0;transform:translateY(7px) scale(.994);filter:blur(5px)}
+  48%{opacity:.58;filter:blur(2.2px)}
+  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
 }
 .hint{
   position:absolute;bottom:clamp(92px,15vh,138px);left:0;right:0;text-align:center;
@@ -156,7 +162,7 @@ button{font:inherit}
   .tagline{margin-top:44px}.begin{margin-top:50px;height:104px}.share{margin-bottom:28px}
   .hero{padding-top:0}.hint{bottom:75px}.center{padding-bottom:44px}
 }
-@media (prefers-reduced-motion:reduce){.screen,.prompt,.answer{transition:none}.fade,.ambient-wash.cue,.card.prompt-in .prompt{animation:none}.card.clearing .answer,.card.clearing .prompt{filter:none}}
+@media (prefers-reduced-motion:reduce){.screen,.prompt,.answer{transition:none}.fade,.ambient-wash.cue,.card.prompt-in .prompt{animation:none}.card.answer-closing .answer,.card.prompt-closing .prompt{filter:none}}
 </style>
 </head>
 <body>
@@ -298,18 +304,31 @@ function resetTimer(){
 async function moveTo(nextIndex){
   if(transitioning)return;
   transitioning=true;
-  cardEl.classList.remove("prompt-in");
-  cardEl.classList.add("clearing");
-  await new Promise(r=>setTimeout(r,560));
+  cardEl.classList.remove("prompt-in","prompt-closing","answer-closing");
+
+  // Let the copper/gold reflection close gently and completely first.
+  cardEl.classList.add("answer-closing");
+  await new Promise(r=>setTimeout(r,920));
+
+  // Then let the current white prompt recede on its own.
+  cardEl.classList.add("prompt-closing");
+  await new Promise(r=>setTimeout(r,740));
+
+  // A quiet empty beat keeps the two thoughts from visually competing.
+  await new Promise(r=>setTimeout(r,360));
+
   i=(nextIndex+cards.length)%cards.length;
   revealed=false;
   promptEl.textContent=cards[i][0];
   answerEl.textContent=cards[i][1];
   answerEl.classList.remove("show");
-  cardEl.classList.remove("clearing");
+
+  cardEl.classList.remove("answer-closing","prompt-closing");
   cardEl.classList.add("prompt-in");
   ambientCue();pulse();
-  await new Promise(r=>setTimeout(r,590));
+
+  // The next thought resolves from soft blur into a crisp center focus.
+  await new Promise(r=>setTimeout(r,1000));
   cardEl.classList.remove("prompt-in");
   transitioning=false;
 }
