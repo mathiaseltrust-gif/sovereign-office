@@ -106,11 +106,19 @@ button{font:inherit}
 .answer{
   margin-top:72px;max-width:720px;
   font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
-  font-size:clamp(24px,5.35vw,42px);line-height:1.53;font-style:italic;font-weight:400;
+  font-size:clamp(24px,5.35vw,42px);line-height:1.56;font-style:italic;font-weight:400;
   color:var(--copper);text-wrap:balance;
-  opacity:0;transform:scale(.94);
+  opacity:1;transform:none;
   will-change:opacity,transform;
 }
+.answer-phrase{
+  display:inline-block;
+  opacity:0;
+  transform:translateY(5px) scale(.985);
+  margin-right:.22em;
+  will-change:opacity,transform;
+}
+.answer-phrase:last-child{margin-right:0}
 .hint{
   position:absolute;bottom:clamp(91px,14vh,135px);left:0;right:0;
   text-align:center;color:#868f91;font-size:13px;letter-spacing:.34em;text-indent:.34em;
@@ -175,16 +183,16 @@ button{font:inherit}
 
 <script>
 const cards=[
-  ["I AM.","I exist. I am here. Return to the present."],
-  ["Who is observing this moment?","I am. I can observe without becoming every thought."],
-  ["What comes before reaction?","Awareness. Then choice."],
-  ["This body is my present vessel.","Protect it. Feed it. Move it. Rest it. Breathe."],
-  ["Noise is not command.","I can notice an input without obeying it."],
-  ["What deserves my energy?","Truth, healing, purpose, loved ones, and deliberate action."],
-  ["I do not need to fight every signal.","Discern. Verify. Choose what actually requires action."],
-  ["When the mind becomes overloaded—","Return to breath, body, surroundings, and the next real step."],
-  ["Desire does not control choice.","Pause. Observe the urge. Choose from the larger self."],
-  ["What is the core sequence?","I AM → I observe → I choose → I care → I act → I live."]
+  {prompt:"I AM.",parts:["I exist.","I am here.","Return to the present."]},
+  {prompt:"Who is observing this moment?",parts:["I am.","I can observe","without becoming every thought."]},
+  {prompt:"What comes before reaction?",parts:["Awareness.","Then choice."]},
+  {prompt:"This body is my present vessel.",parts:["Protect it.","Feed it.","Move it.","Rest it.","Breathe."]},
+  {prompt:"Noise is not command.",parts:["I can notice an input","without obeying it."]},
+  {prompt:"What deserves my energy?",parts:["Truth, healing, purpose,","loved ones,","and deliberate action."]},
+  {prompt:"I do not need to fight every signal.",parts:["Discern.","Verify.","Choose what actually requires action."]},
+  {prompt:"When the mind becomes overloaded—",parts:["Return to breath, body, surroundings,","and the next real step."]},
+  {prompt:"Desire does not control choice.",parts:["Pause.","Observe the urge.","Choose from the larger self."]},
+  {prompt:"What is the core sequence?",parts:["I AM","→ I observe","→ I choose","→ I care","→ I act","→ I live."]}
 ];
 
 let index=0;
@@ -212,55 +220,99 @@ const soundIcon=document.getElementById("soundIcon");
 
 const sleep=ms=>new Promise(r=>setTimeout(r,ms));
 
-async function animateIn(el,kind){
-  const fromScale=kind==="answer"?.94:.955;
-  const duration=kind==="answer"?1450:1320;
-  el.getAnimations().forEach(a=>a.cancel());
-  const a=el.animate(
+async function animatePromptIn(){
+  promptEl.getAnimations().forEach(a=>a.cancel());
+  const a=promptEl.animate(
     [
-      {opacity:0,transform:`scale(${fromScale})`},
-      {opacity:1,transform:"scale(1)"}
+      {opacity:0,transform:"translateY(5px) scale(.972)"},
+      {opacity:.42,transform:"translateY(2px) scale(.988)",offset:.42},
+      {opacity:1,transform:"translateY(0) scale(1)"}
     ],
-    {duration,easing:"cubic-bezier(.16,1,.30,1)",fill:"forwards"}
+    {duration:1850,easing:"cubic-bezier(.16,1,.30,1)",fill:"forwards"}
   );
   try{await a.finished}catch(e){}
 }
 
-async function animateOut(el,kind){
-  const duration=kind==="answer"?980:920;
+async function animatePromptOut(){
+  promptEl.getAnimations().forEach(a=>a.cancel());
+  const a=promptEl.animate(
+    [
+      {opacity:1,transform:"translateY(0) scale(1)"},
+      {opacity:.48,transform:"translateY(-2px) scale(.992)",offset:.55},
+      {opacity:0,transform:"translateY(-5px) scale(.982)"}
+    ],
+    {duration:1450,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}
+  );
+  try{await a.finished}catch(e){}
+}
+
+async function animatePhraseIn(el){
   el.getAnimations().forEach(a=>a.cancel());
   const a=el.animate(
     [
-      {opacity:1,transform:"scale(1)"},
-      {opacity:0,transform:"scale(.985)"}
+      {opacity:0,transform:"translateY(5px) scale(.985)"},
+      {opacity:.28,transform:"translateY(3px) scale(.991)",offset:.34},
+      {opacity:.72,transform:"translateY(1px) scale(.997)",offset:.70},
+      {opacity:1,transform:"translateY(0) scale(1)"}
     ],
-    {duration,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}
+    {duration:1400,easing:"cubic-bezier(.16,1,.30,1)",fill:"forwards"}
+  );
+  try{await a.finished}catch(e){}
+}
+
+async function animateAnswerOut(){
+  answerEl.getAnimations().forEach(a=>a.cancel());
+  const a=answerEl.animate(
+    [
+      {opacity:1,transform:"translateY(0) scale(1)"},
+      {opacity:.52,transform:"translateY(-2px) scale(.995)",offset:.55},
+      {opacity:0,transform:"translateY(-5px) scale(.987)"}
+    ],
+    {duration:1500,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}
   );
   try{await a.finished}catch(e){}
 }
 
 function setCard(n){
   index=(n+cards.length)%cards.length;
-  promptEl.textContent=cards[index][0];
-  answerEl.textContent=cards[index][1];
+  promptEl.textContent=cards[index].prompt;
   promptEl.style.opacity="0";
-  promptEl.style.transform="scale(.955)";
-  answerEl.style.opacity="0";
-  answerEl.style.transform="scale(.94)";
+  promptEl.style.transform="translateY(5px) scale(.972)";
+  answerEl.innerHTML="";
+  answerEl.style.opacity="1";
+  answerEl.style.transform="none";
+
+  for(const text of cards[index].parts){
+    const span=document.createElement("span");
+    span.className="answer-phrase";
+    span.textContent=text;
+    answerEl.appendChild(span);
+  }
   revealed=false;
 }
 
 async function enterCurrent(){
-  await sleep(180);
-  await animateIn(promptEl,"prompt");
+  await sleep(420);
+  await animatePromptIn();
 }
 
 async function revealAnswer(){
   if(busy||revealed)return;
   busy=true;
   revealed=true;
-  await sleep(80);
-  await animateIn(answerEl,"answer");
+
+  // The white thought gets to exist on its own before the response begins forming.
+  await sleep(1050);
+
+  const phrases=[...answerEl.querySelectorAll(".answer-phrase")];
+  for(let p=0;p<phrases.length;p++){
+    await animatePhraseIn(phrases[p]);
+    // A measured beat between complete thought-units: boom ... boom ... boom.
+    if(p<phrases.length-1) await sleep(520);
+  }
+
+  // Let the completed thought remain intact long enough to be observed.
+  await sleep(900);
   busy=false;
 }
 
@@ -269,44 +321,52 @@ async function nextCard(){
   if(!revealed){await revealAnswer();return;}
   busy=true;
 
-  await animateOut(answerEl,"answer");
-  await sleep(180);
-  await animateOut(promptEl,"prompt");
-  await sleep(300);
+  // The completed copper thought leaves as one whole thought, not in fragments.
+  await animateAnswerOut();
+  await sleep(320);
+  await animatePromptOut();
+  await sleep(620);
 
   setCard(index+1);
-  await animateIn(promptEl,"prompt");
+  await animatePromptIn();
   busy=false;
 }
 
 async function previous(){
   if(busy)return;
   busy=true;
+
   if(revealed){
-    await animateOut(answerEl,"answer");
+    await animateAnswerOut();
+    for(const p of answerEl.querySelectorAll(".answer-phrase")){
+      p.style.opacity="0";
+      p.style.transform="translateY(5px) scale(.985)";
+    }
+    answerEl.style.opacity="1";
+    answerEl.style.transform="none";
     revealed=false;
-    answerEl.style.opacity="0";
-    answerEl.style.transform="scale(.94)";
     busy=false;
     return;
   }
+
   if(index===0){
-    await animateOut(promptEl,"prompt");
+    await animatePromptOut();
     session.classList.remove("active");
     landing.classList.remove("hidden");
     busy=false;
     return;
   }
-  await animateOut(promptEl,"prompt");
-  await sleep(260);
+
+  await animatePromptOut();
+  await sleep(520);
   setCard(index-1);
-  await animateIn(promptEl,"prompt");
+  await animatePromptIn();
   busy=false;
 }
 
 function resetAutoplay(){
   clearInterval(autoTimer);
-  if(autoplay)autoTimer=setInterval(()=>{if(!busy)nextCard()},6200);
+  if(autoplay)autoTimer=setInterval(()=>{if(!busy)nextCard()},11800);
 }
 
 function ensureAudio(){
