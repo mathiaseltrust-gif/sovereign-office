@@ -157,6 +157,35 @@ interface RelationshipAudit {
   issues: Array<{ type: string; relatedId?: number; detail: string }>;
 }
 
+interface LinkedLineageDocument {
+  association_id: number;
+  relationship_type: string;
+  confidence: string;
+  resolution_method: string;
+  linked_at: string;
+  registry_id: number;
+  document_ref: string;
+  title: string | null;
+  original_filename: string;
+  classification: string | null;
+  verification_state: string;
+  sensitivity_level: string;
+  storage_provider: string;
+  source_channel: string;
+  created_at: string;
+}
+
+interface LineageDocumentProjection {
+  lineage: {
+    id: number;
+    fullName: string;
+    protectionLevel: string | null;
+    visibility: string | null;
+  };
+  documents: LinkedLineageDocument[];
+  restricted?: boolean;
+}
+
 interface LineageRecord {
   id: number;
   fullName: string;
@@ -3724,6 +3753,33 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
     },
   });
 
+  const { data: linkedDocumentProjection, isLoading: linkedDocumentsLoading } = useQuery<LineageDocumentProjection>({
+    queryKey: ["lineage-linked-documents", node.id],
+    queryFn: async () => {
+      const r = await fetch(`/api/lineage/nodes/${node.id}/documents`, {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (r.status === 403) {
+        return {
+          lineage: {
+            id: node.id,
+            fullName: node.fullName,
+            protectionLevel: node.protectionLevel ?? null,
+            visibility: node.visibility ?? null,
+          },
+          documents: [],
+          restricted: true,
+        };
+      }
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Failed to load linked documents");
+      }
+      return r.json();
+    },
+    staleTime: 30_000,
+  });
+
   const { data: relationshipAudit, isLoading: relationshipAuditLoading, error: relationshipAuditError } = useQuery<RelationshipAudit>({
     queryKey: ["lineage-family-unit-audit", node.id],
     queryFn: async () => {
@@ -3988,6 +4044,74 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
                 {n._profile.lineageVerified && <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">✓ Lineage verified</span>}
                 {n._profile.membershipVerified && <span className="inline-flex items-center gap-1 text-[10px] font-semibold bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-400 px-2 py-0.5 rounded-full">✓ Membership verified</span>}
               </div>
+            )}
+          </div>
+
+          <div className="border rounded-md px-3 py-2.5 space-y-2">
+            <div className="flex items-center justify-between gap-2">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-widest text-muted-foreground flex items-center gap-1">
+                  <Scroll className="w-3 h-3" /> Linked Office Documents
+                </p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  Canonical records associated with this person — the original file is stored once.
+                </p>
+              </div>
+              {!linkedDocumentProjection?.restricted && !linkedDocumentsLoading && (
+                <Badge variant="outline" className="text-[10px]">
+                  {linkedDocumentProjection?.documents.length ?? 0}
+                </Badge>
+              )}
+            </div>
+
+            {linkedDocumentsLoading ? (
+              <Skeleton className="h-12" />
+            ) : linkedDocumentProjection?.restricted ? (
+              <div className="rounded border bg-muted/20 px-2.5 py-2">
+                <p className="text-xs font-medium">Supporting documents restricted</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">
+                  This lineage record may be visible without exposing its private supporting evidence.
+                </p>
+              </div>
+            ) : (linkedDocumentProjection?.documents.length ?? 0) > 0 ? (
+              <div className="space-y-2">
+                {linkedDocumentProjection!.documents.map((doc) => (
+                  <div key={doc.association_id} className="rounded border bg-muted/20 px-2.5 py-2">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0">
+                        <p className="text-xs font-medium truncate">
+                          {doc.title || doc.original_filename}
+                        </p>
+                        <p className="text-[10px] font-mono text-muted-foreground mt-0.5">
+                          {doc.document_ref}
+                        </p>
+                      </div>
+                      <Badge variant="outline" className="text-[9px] shrink-0 capitalize">
+                        {doc.relationship_type.replace(/_/g, " ")}
+                      </Badge>
+                    </div>
+                    <div className="flex flex-wrap gap-1 mt-1.5">
+                      {doc.classification && (
+                        <span className="text-[9px] rounded bg-background border px-1.5 py-0.5">
+                          {doc.classification.replace(/_/g, " ")}
+                        </span>
+                      )}
+                      <span className="text-[9px] rounded bg-background border px-1.5 py-0.5">
+                        {doc.verification_state.replace(/_/g, " ")}
+                      </span>
+                      {doc.sensitivity_level === "protected" && (
+                        <span className="text-[9px] rounded bg-amber-50 dark:bg-amber-950/30 border border-amber-300 px-1.5 py-0.5 text-amber-800 dark:text-amber-300">
+                          protected
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-muted-foreground">
+                No canonical supporting documents are linked to this person yet.
+              </p>
             )}
           </div>
 
