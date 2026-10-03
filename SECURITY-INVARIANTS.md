@@ -10,7 +10,8 @@ These rules are architectural boundaries. AI prompts, dashboards, connectors, MC
 4. **Missing object ACL metadata defaults to deny.**
 5. **Public MCP remains public-only.** Its tools and resources must remain in the public namespace and sensitive capabilities remain denied.
 6. **Tracked credentials block deployment.** CI scans tracked source/configuration files for committed credentials.
-7. **Security boundary tests block deployment.** CI runs the API security test suite before production builds.
+7. **Identity administration is explicit, not inherited.** A trustee role alone cannot change another user's role, authentication requirement, trust privilege, or password.
+8. **Security boundary tests block deployment.** CI runs the API security test suite before production builds.
 
 ## Required before internal MCP expansion
 
