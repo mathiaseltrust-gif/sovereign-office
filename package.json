@@ -6,7 +6,9 @@
     "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",\n    "security:scan": "node scripts/security-secret-scan.mjs",\n    "test:security": "pnpm --filter @workspace/api-server test"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "security:scan": "node scripts/security-secret-scan.mjs",
+    "test:security": "pnpm --filter @workspace/api-server test"
   },
   "private": true,
   "devDependencies": {
