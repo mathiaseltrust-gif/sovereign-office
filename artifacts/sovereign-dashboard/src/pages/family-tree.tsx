@@ -305,10 +305,10 @@ function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], pre
     }
   }
 
-  // Find direct parents of root — first = paternal, second = maternal
-  const rootParents = parentOf.get(rootNode.id) ?? [];
-  const paternalRootId = rootParents[0] ?? null;
-  const maternalRootId = rootParents[1] ?? null;
+  // Resolve direct parents by FAM role/gender instead of relying on array order.
+  const rootSlots = resolveParentSlots(rootNode, byId, familyUnits);
+  const paternalRootId = rootSlots.fatherId;
+  const maternalRootId = rootSlots.motherId;
 
   function tagSubtree(startId: number, label: "paternal" | "maternal") {
     const queue = [startId];
@@ -318,7 +318,7 @@ function computeLayout(nodes: LineageNode[], familyUnits: FamilyUnit[] = [], pre
       side.set(cur, label);
       const n = byId.get(cur);
       if (!n) continue;
-      const pids = Array.isArray(n.parentIds) ? (n.parentIds as number[]) : [];
+      const pids = parentOf.get(cur) ?? [];
       for (const pid of pids) {
         if (!side.has(pid)) queue.push(pid);
       }
@@ -1100,7 +1100,7 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
 }
 
 // ── Tree view mode ──────────────────────────────────────────────────────────────
-type TreeViewMode = "family" | "pedigree" | "fan";
+type TreeViewMode = "tree" | "family" | "pedigree" | "fan";
 
 // ── Pedigree layout — d3-hierarchy Reingold–Tilford ─────────────────────────────
 const PDIG_W    = 158;  // node width
@@ -1439,7 +1439,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // 4 = + Great-grandparents
   // 5 = 2× Great-grandparents
   // 99 = Full tree (no depth restriction)
-  const [generationDepth, setGenerationDepth] = useState(2);
+  const [generationDepth, setGenerationDepth] = useState(99);
 
   const DEPTH_MAX = 99;
   const DEPTH_LABELS: Record<number, string> = {
@@ -1627,6 +1627,55 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     ?? familyViewNodes[0]?.id
     ?? null;
 
+  // Full Tree view follows the root's actual connected component, similar to
+  // Ancestry's zoomable tree. It is not constrained by the ancestor-depth
+  // selector used by Pedigree/Fan.
+  const fullTreeNodes = useMemo(() => {
+    if (!preferredRootId) return [] as LineageNode[];
+    const byId = new Map(familyViewNodes.map((node) => [node.id, node]));
+    if (!byId.has(preferredRootId)) return [] as LineageNode[];
+
+    const adjacency = new Map<number, Set<number>>();
+    const connect = (a: number, b: number) => {
+      if (!byId.has(a) || !byId.has(b) || a === b) return;
+      if (!adjacency.has(a)) adjacency.set(a, new Set());
+      if (!adjacency.has(b)) adjacency.set(b, new Set());
+      adjacency.get(a)!.add(b);
+      adjacency.get(b)!.add(a);
+    };
+
+    for (const node of familyViewNodes) {
+      for (const id of numericIds(node.parentIds)) connect(node.id, id);
+      for (const id of numericIds(node.childrenIds)) connect(node.id, id);
+      for (const id of numericIds(node.spouseIds)) connect(node.id, id);
+    }
+
+    for (const unit of familyUnits) {
+      const members = [
+        unit.husbandId,
+        unit.wifeId,
+        ...numericIds(unit.spouseIds),
+        ...numericIds(unit.childIds),
+      ].filter((id): id is number => id != null && byId.has(id));
+      for (let i = 0; i < members.length; i++) {
+        for (let j = i + 1; j < members.length; j++) connect(members[i], members[j]);
+      }
+    }
+
+    const visible = new Set<number>();
+    const queue = [preferredRootId];
+    while (queue.length > 0) {
+      const id = queue.shift()!;
+      if (visible.has(id)) continue;
+      visible.add(id);
+      for (const next of adjacency.get(id) ?? []) {
+        if (!visible.has(next)) queue.push(next);
+      }
+    }
+
+    return familyViewNodes.filter((node) => visible.has(node.id));
+  }, [familyViewNodes, familyUnits, preferredRootId]);
+
   const containerRef = useRef<HTMLDivElement>(null);
 
   const [_savedSession] = useState(readTreeSession);
@@ -1645,7 +1694,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
-  const [treeView, setTreeView] = useState<TreeViewMode>("family");
+  const [treeView, setTreeView] = useState<TreeViewMode>("tree");
   const importRef = useRef<HTMLInputElement>(null);
 
   const effectiveFocusId = focusedPersonId ?? preferredRootId;
@@ -1653,10 +1702,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     () => computeFocusedFamilyLayout(familyViewNodes, familyUnits, effectiveFocusId),
     [familyViewNodes, familyUnits, effectiveFocusId],
   );
-  const positioned = familyLayout.positioned;
-  const totalW = familyLayout.totalW;
-  const totalH = familyLayout.totalH;
-  const edges = familyLayout.edges;
+  const fullTreeLayout = useMemo(
+    () => computeLayout(fullTreeNodes, familyUnits, preferredRootId),
+    [fullTreeNodes, familyUnits, preferredRootId],
+  );
+  const fullTreeEdges = useMemo(
+    () => buildEdges(fullTreeLayout.positioned, familyUnits),
+    [fullTreeLayout.positioned, familyUnits],
+  );
+
+  const positioned = treeView === "tree" ? fullTreeLayout.positioned : familyLayout.positioned;
+  const totalW = treeView === "tree" ? fullTreeLayout.totalW : familyLayout.totalW;
+  const totalH = treeView === "tree" ? fullTreeLayout.totalH : familyLayout.totalH;
+  const edges = treeView === "tree" ? fullTreeEdges : familyLayout.edges;
   const focusedPerson =
     familyViewNodes.find((node) => node.id === familyLayout.focalId)
     ?? familyViewNodes.find((node) => node.id === preferredRootId)
@@ -1685,14 +1743,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const q = searchQuery.trim().toLowerCase();
   const allMatchingNodes = useMemo(() => {
     if (!q) return [] as LineageNode[];
-    const searchPool: LineageNode[] = treeView === "family" ? familyViewNodes : treeNodes;
+    const searchPool: LineageNode[] =
+      treeView === "tree" ? fullTreeNodes
+      : treeView === "family" ? familyViewNodes
+      : treeNodes;
     return searchPool.filter(
       (n) =>
         n.fullName.toLowerCase().includes(q) ||
         (n.tribalNation ?? "").toLowerCase().includes(q) ||
         (n.nameVariants ?? []).some((v) => v.toLowerCase().includes(q))
     );
-  }, [q, treeView, familyViewNodes, positioned]);
+  }, [q, treeView, familyViewNodes, fullTreeNodes, treeNodes]);
 
   const matchingNodes = useMemo(() => allMatchingNodes.slice(0, 8), [allMatchingNodes]);
   const matchingIdSet = useMemo(() => new Set(allMatchingNodes.map((n) => n.id)), [allMatchingNodes]);
@@ -1815,6 +1876,20 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       return;
     }
 
+    if (treeView === "tree") {
+      const selfNode = positioned.find((node) => node.id === preferredRootId);
+      if (!selfNode || !containerRef.current) return;
+      const { clientWidth, clientHeight } = containerRef.current;
+      const scale = Math.max(0.8, Math.min(1.15, transform.scale));
+      setTransform({
+        x: clientWidth / 2 - (selfNode.x + NODE_W / 2) * scale,
+        y: clientHeight / 2 - (selfNode.y + NODE_H / 2) * scale,
+        scale,
+      });
+      setSelectedNodeId(selfNode.id);
+      return;
+    }
+
     const selfNode =
       (treeView === "pedigree"
         ? pedigreeData.placed.find((n) => n.id === preferredRootId)
@@ -1831,7 +1906,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
     setSelectedNodeId(preferredRootId);
     setTimeout(() => fitToScreen(), 0);
-  }, [treeView, preferredRootId, pedigreeData.placed, fitToScreen]);
+  }, [treeView, preferredRootId, pedigreeData.placed, fitToScreen, positioned, transform.scale]);
 
   const focusOnPerson = useCallback((personId: number) => {
     setFocusedPersonId(personId);
@@ -1864,7 +1939,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     setTransform({ x, y, scale });
   }, [treeView, familyLayout.focalId, familyFocusPosition?.x, familyFocusPosition?.y]);
 
-  // Pedigree/Fan retain the existing generational-depth behavior.
+  // Tree/Pedigree/Fan auto-fit when their visible graph changes.
   useEffect(() => {
     if (treeView === "family" || treeNodes.length === 0) return;
     const id = setTimeout(() => fitToScreen(), 60);
@@ -2128,17 +2203,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* View mode switcher */}
         <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
-          {(["family", "pedigree", "fan"] as TreeViewMode[]).map((mode) => {
-            const labels: Record<TreeViewMode, string> = { family: "Family", pedigree: "Pedigree", fan: "Fan" };
+          {(["tree", "family", "pedigree", "fan"] as TreeViewMode[]).map((mode) => {
+            const labels: Record<TreeViewMode, string> = { tree: "Tree", family: "Family", pedigree: "Pedigree", fan: "Fan" };
             const titles: Record<TreeViewMode, string> = {
-              family: "Person-centered family tree — click a person to make them the focus",
+              tree: "Full connected family tree — zoom and pan across the whole lineage",
+              family: "Person-centered household view — click a person to make them the focus",
               pedigree: "Pedigree chart — horizontal, direct ancestors only",
               fan: "Fan chart — radial ancestor wheel",
             };
             return (
               <button
                 key={mode}
-                onClick={() => { setTreeView(mode); setTransform({ x: 0, y: 0, scale: 1 }); }}
+                onClick={() => {
+                  if (mode === "tree") setGenerationDepth(DEPTH_MAX);
+                  setTreeView(mode);
+                  setTransform({ x: 0, y: 0, scale: 1 });
+                }}
                 className={[
                   "px-2.5 py-1 text-xs transition-colors",
                   treeView === mode
@@ -2189,6 +2269,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <span className="text-muted-foreground shrink-0">Focused:</span>
             <span className="font-semibold truncate">{focusedPerson?.fullName ?? "My family"}</span>
             <span className="text-muted-foreground shrink-0">· {familyLayout.householdCount} household{familyLayout.householdCount === 1 ? "" : "s"}</span>
+          </div>
+        ) : treeView === "tree" ? (
+          <div className="h-8 flex items-center rounded-md border border-input bg-muted/20 px-2.5 text-xs">
+            <span className="font-medium">Full connected tree</span>
+            <span className="text-muted-foreground ml-1.5">· {fullTreeNodes.length} people</span>
           </div>
         ) : (
           <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
@@ -2252,6 +2337,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <span className="text-xs text-muted-foreground ml-auto whitespace-nowrap">
           {treeView === "family"
             ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
+            : treeView === "tree"
+              ? <>{fullTreeNodes.length} connected <span className="opacity-60">to your tree</span></>
             : activeFilterCount > 0
               ? <>{connectedNodes.length} connected <span className="opacity-60">of {nodes.length}</span></>
               : <>{connectedNodes.length} <span className="opacity-60">of {nodes.length} people</span></>
@@ -2347,7 +2434,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
 
-          {!isLoading && treeView === "family" && positioned.length > 0 && (
+          {!isLoading && (treeView === "family" || treeView === "tree") && positioned.length > 0 && (
             <div
               style={{
                 transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.scale})`,
@@ -2386,7 +2473,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               {positioned.map((node) => {
                 const { border, bg } = nodeCardClasses(node);
                 const isSelected = node.id === selectedNodeId;
-                const isFocal = node.id === familyLayout.focalId;
+                const isFocal = treeView === "family" && node.id === familyLayout.focalId;
+                const isTreeRoot = treeView === "tree" && node.id === preferredRootId;
                 const isCurrentUser = user?.dbId != null && node.linkedProfileUserId === user.dbId;
                 const isMatch = hasSearch && matchingIdSet.has(node.id);
                 const isDimmed = hasSearch && !matchingIdSet.has(node.id);
@@ -2407,7 +2495,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                     onClick={(e) => {
                       e.stopPropagation();
                       if (Date.now() < suppressNodeClickUntil.current) return;
-                      focusOnPerson(node.id);
+                      if (treeView === "family") focusOnPerson(node.id);
+                      else setSelectedNodeId(node.id);
                     }}
                     style={{
                       position: "absolute",
@@ -2415,12 +2504,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       top: node.y,
                       width: NODE_W,
                       height: NODE_H,
-                      zIndex: isFocal ? 25 : isSelected ? 20 : 1,
+                      zIndex: isFocal || isTreeRoot ? 25 : isSelected ? 20 : 1,
                     }}
                     className={[
                       "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:z-10",
                       bg, border,
-                      isFocal ? "ring-4 ring-primary/70 shadow-xl scale-[1.04]" : isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
+                      isFocal || isTreeRoot ? "ring-4 ring-primary/70 shadow-xl scale-[1.04]" : isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
                       isMatch ? "ring-2 ring-amber-400 shadow-amber-200/60 shadow-md" : "",
                       isDimmed ? "opacity-20 pointer-events-none" : "",
                       node.sourceType === "archived" ? "opacity-40" : "",
@@ -2441,12 +2530,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       <span className="text-xs font-semibold leading-snug line-clamp-2 flex-1 min-w-0">
                         {node.fullName}
                       </span>
-                      {isFocal && (
+                      {(isFocal || isTreeRoot) && (
                         <span className="text-[9px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded-full bg-primary text-primary-foreground shrink-0">
-                          {isCurrentUser ? "You" : "Focus"}
+                          {isCurrentUser || isTreeRoot ? "You" : "Focus"}
                         </span>
                       )}
-                      {!isFocal && membershipDot(node.membershipStatus)}
+                      {!isFocal && !isTreeRoot && membershipDot(node.membershipStatus)}
                     </div>
 
                     {/* Bottom: dates + badges */}
