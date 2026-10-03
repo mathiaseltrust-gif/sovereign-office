@@ -87,7 +87,11 @@ RUN if [ -d ./node_modules_ws ] && [ "$(ls -A ./node_modules_ws 2>/dev/null)" ];
       cp -rn ./node_modules_art/. ./node_modules/ 2>/dev/null || true ; \
     fi && rm -rf ./node_modules_art
 
-# ── Step D: entrypoint ───────────────────────────────────────────────────────
+# ── Step D: curated repository documents used by authenticated Office records ──
+RUN mkdir -p /app/repository-documents
+COPY attached_assets/tribal-grant-deed-kern-ca-APN-514-364-11-00-1.pdf /app/repository-documents/
+
+# ── Step E: entrypoint ───────────────────────────────────────────────────────
 COPY artifacts/api-server/docker-entrypoint.sh /docker-entrypoint.sh
 RUN chmod +x /docker-entrypoint.sh
 
