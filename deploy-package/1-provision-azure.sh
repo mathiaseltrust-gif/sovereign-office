@@ -92,7 +92,7 @@ else
 fi
 ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
 ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
-ACR_PASSWORD=<from-secret-store>
+ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
 echo "  ACR_REGISTRY=$ACR_LOGIN_SERVER"
 echo ""
 
@@ -193,7 +193,7 @@ if ! az postgres flexible-server db show \
 fi
 
 PG_HOST="${PG_SERVER_NAME}.postgres.database.azure.com"
-DATABASE_URL=<from-secret-store>
+DATABASE_URL="$(printf 'postgresql://%s:%s@%s:5432/%s?sslmode=require' "$PG_ADMIN" "$PG_PASSWORD" "$PG_HOST" "$PG_DB")"
 echo "  Host: $PG_HOST"
 echo ""
 
@@ -265,24 +265,27 @@ echo "  TRUST_DASHBOARD_URL=http://$VM_IP:3002"
 echo "  COMMUNITY_DASHBOARD_URL=http://$VM_IP:3003"
 echo "  ATLAS_DASHBOARD_URL=http://$VM_IP:3004"
 echo ""
-echo "  # Azure Container Registry"
-echo "  ACR_REGISTRY=$ACR_LOGIN_SERVER"
-echo "  ACR_USERNAME=$ACR_USERNAME"
-echo "  ACR_PASSWORD=$ACR_PASSWORD"
+SECRETS_FILE="${HOME}/.sovereign-office-provisioned-secrets.env"
+umask 077
+cat > "$SECRETS_FILE" <<SECRETS
+ACR_REGISTRY=$ACR_LOGIN_SERVER
+ACR_USERNAME=$ACR_USERNAME
+ACR_PASSWORD=$ACR_PASSWORD
+DATABASE_URL=$DATABASE_URL
+POSTGRES_PASSWORD=$PG_PASSWORD
+AZURE_STORAGE_ACCOUNT=$STORAGE_ACCOUNT
+AZURE_STORAGE_KEY=$STORAGE_KEY
+AZURE_BACKUP_CONTAINER=$BACKUP_CONTAINER
+SECRETS
+chmod 600 "$SECRETS_FILE"
+
+echo "  Provisioned credentials were written to a local 0600 file:"
+echo "    $SECRETS_FILE"
+echo "  Move those values into the approved secret stores, then delete the local file."
 echo ""
-echo "  # PostgreSQL"
-echo "  DATABASE_URL=$DATABASE_URL"
-echo "  POSTGRES_PASSWORD=$PG_PASSWORD"
-echo ""
-echo "  # Blob Storage (backups)"
-echo "  AZURE_STORAGE_ACCOUNT=$STORAGE_ACCOUNT"
-echo "  AZURE_STORAGE_KEY=$STORAGE_KEY"
-echo "  AZURE_BACKUP_CONTAINER=$BACKUP_CONTAINER"
-echo ""
-echo "GitHub Actions secrets to add (Settings → Secrets → Actions):"
-echo "  ACR_REGISTRY, ACR_USERNAME, ACR_PASSWORD"
+echo "GitHub Actions non-secret values:"
 echo "  DEPLOY_HOST=$VM_IP  DEPLOY_USER=$VM_ADMIN  DEPLOY_PATH=/opt/sovereign-office"
-echo "  DEPLOY_SSH_KEY — paste the private key matching $VM_SSH_KEY_PATH"
+echo "  DEPLOY_SSH_KEY remains a GitHub Actions secret."
 echo ""
 echo "Next: bash 2-build-push.sh  (from the repo root)"
 echo ""
