@@ -23,7 +23,7 @@ const ITEMS = [
   { href: "/land", label: "Land & Assets", description: "Trust land and asset administration" },
 ];
 
-function authHeaders() {
+function authHeaders(): Record<string, string> {
   const token = getCurrentBearerToken();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
