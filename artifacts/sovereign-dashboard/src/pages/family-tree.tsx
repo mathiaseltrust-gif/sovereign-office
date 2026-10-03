@@ -1612,21 +1612,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   // Large "full" ancestor expansions become unreadable very quickly (2^N).
   // Tree/Pedigree/Fan grow in controlled steps; Timeline remains the all-record view.
   const [generationDepth, setGenerationDepth] = useState(3);
+  const [treeExpandedIds, setTreeExpandedIds] = useState<Set<number>>(() => new Set());
+  const [pedigreeExpandedIds, setPedigreeExpandedIds] = useState<Set<number>>(() => new Set());
 
   const DEPTH_MIN = 1;
-  const DEPTH_MAX = 7;
+  const DEPTH_MAX = 5;
   const DEPTH_LABELS: Record<number, string> = {
     1: "Parents",
     2: "Grandparents",
     3: "Great-grandparents",
     4: "2× Great-grandparents",
     5: "3× Great-grandparents",
-    6: "4× Great-grandparents",
-    7: "5× Great-grandparents",
   };
   const depthLabel = DEPTH_LABELS[generationDepth] ?? "Ancestors";
 
   useEffect(() => {
+    setTreeExpandedIds(new Set());
     setPedigreeExpandedIds(new Set());
   }, [generationDepth]);
 
@@ -1685,18 +1686,28 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         }
       }
       upFrontier = nextFrontier;
+    }
 
-      // Descendant BFS — level 2 shows grandchildren, level 3 great-grandchildren, etc.
-      if (lvl >= 1) {
-        const childFrontier = [...included];
-        for (const cid of childFrontier) {
-          nodes.filter((n) => (n.parentIds ?? []).includes(cid as never)).forEach((n) => included.add(n.id));
+    // Branch-by-branch continuation beyond the global baseline.
+    // Only expanded nodes that are already visible can reveal their parents.
+    let changed = true;
+    while (changed) {
+      changed = false;
+      for (const expandedId of treeExpandedIds) {
+        if (!included.has(expandedId)) continue;
+        const node = byId.get(expandedId);
+        if (!node) continue;
+        for (const parentId of resolveAncestorIds(node, byId, familyUnits)) {
+          if (!included.has(parentId)) {
+            included.add(parentId);
+            changed = true;
+          }
         }
       }
     }
 
     return included;
-  }, [nodes, selfNodeRaw, generationDepth, familyUnits]);
+  }, [nodes, selfNodeRaw, generationDepth, familyUnits, treeExpandedIds]);
 
   // ── Member access restriction ─────────────────────────────────────────────
   // Non-privileged members see only nodes connected to their own lineage path
@@ -1871,7 +1882,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const [treeView, setTreeView] = useState<TreeViewMode>("tree");
   const [selectedHistoricalEvent, setSelectedHistoricalEvent] = useState<FamilyTimelineAtlasEvent | null>(null);
-  const [pedigreeExpandedIds, setPedigreeExpandedIds] = useState<Set<number>>(() => new Set());
   const importRef = useRef<HTMLInputElement>(null);
 
   const effectiveFocusId = focusedPersonId ?? preferredRootId;
@@ -1887,6 +1897,17 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     () => buildEdges(fullTreeLayout.positioned, familyUnits),
     [fullTreeLayout.positioned, familyUnits],
   );
+
+  const treeHiddenParentIds = useMemo(() => {
+    const hidden = new Set<number>();
+    const allById = new Map(familyViewNodes.map((node) => [node.id, node]));
+    const visibleIds = new Set(treeNodes.map((node) => node.id));
+    for (const node of treeNodes) {
+      const parentIds = resolveAncestorIds(node, allById, familyUnits);
+      if (parentIds.some((parentId) => !visibleIds.has(parentId))) hidden.add(node.id);
+    }
+    return hidden;
+  }, [familyViewNodes, treeNodes, familyUnits]);
 
   const positioned = treeView === "tree" ? fullTreeLayout.positioned : familyLayout.positioned;
   const totalW = treeView === "tree" ? fullTreeLayout.totalW : familyLayout.totalW;
@@ -2784,7 +2805,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       zIndex: isFocal || isTreeRoot ? 25 : isSelected ? 20 : 1,
                     }}
                     className={[
-                      "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:z-10",
+                      "rounded-xl border-2 px-3 py-2 cursor-pointer transition-all duration-150 flex flex-col justify-between hover:z-10 relative overflow-visible",
                       bg, border,
                       isFocal || isTreeRoot ? "ring-4 ring-primary/70 shadow-xl scale-[1.04]" : isSelected ? "ring-2 ring-primary shadow-lg scale-[1.03]" : "hover:shadow-md hover:scale-[1.02]",
                       isMatch ? "ring-2 ring-amber-400 shadow-amber-200/60 shadow-md" : "",
@@ -2792,6 +2813,29 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                       node.sourceType === "archived" ? "opacity-40" : "",
                     ].join(" ")}
                   >
+                    {treeView === "tree" && (treeHiddenParentIds.has(node.id) || treeExpandedIds.has(node.id)) && (
+                      <button
+                        type="button"
+                        data-node="1"
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full border bg-background shadow-sm flex items-center justify-center hover:bg-muted z-30"
+                        title={treeHiddenParentIds.has(node.id) ? "Show this branch's next ancestor generation" : "Collapse this branch"}
+                        aria-label={treeHiddenParentIds.has(node.id) ? "Show this branch's next ancestor generation" : "Collapse this branch"}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setTreeExpandedIds((current) => {
+                            const next = new Set(current);
+                            if (next.has(node.id)) next.delete(node.id);
+                            else next.add(node.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {treeExpandedIds.has(node.id)
+                          ? <Minus className="h-3.5 w-3.5" />
+                          : <Plus className="h-3.5 w-3.5" />}
+                      </button>
+                    )}
                     {/* Top row: photo/gender dot · name · membership dot */}
                     <div className="flex items-start gap-1.5">
                       {node.photoUrl ? (
