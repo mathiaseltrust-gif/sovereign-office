@@ -1,216 +1,271 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<meta name="theme-color" content="#05070b" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#101716">
 <title>I AM — Core Alignment</title>
 <style>
-  :root{
-    --bg:#05070b;
-    --panel:rgba(255,255,255,.06);
-    --text:#f6f7fb;
-    --muted:#aeb6c7;
-    --accent:#9fe8ff;
-    --accent2:#c7b6ff;
-    --line:rgba(255,255,255,.12);
-  }
-  *{box-sizing:border-box}
-  html,body{height:100%;margin:0;background:var(--bg);color:var(--text);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;overflow:hidden}
-  body{background:
-    radial-gradient(circle at 50% 25%,rgba(159,232,255,.13),transparent 32%),
-    radial-gradient(circle at 20% 80%,rgba(199,182,255,.09),transparent 36%),
-    var(--bg);
-  }
-  button{font:inherit}
-  .app{height:100%;display:flex;flex-direction:column;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
-  header{height:64px;display:flex;align-items:center;justify-content:space-between;gap:12px;max-width:980px;width:100%;margin:auto auto 0}
-  .brand{letter-spacing:.18em;font-size:12px;font-weight:800;color:var(--muted);text-transform:uppercase}
-  .icon-btn{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:10px 14px;cursor:pointer;backdrop-filter:blur(12px)}
-  .stage{position:relative;flex:1;display:grid;place-items:center;max-width:980px;width:100%;margin:0 auto}
-  .halo{position:absolute;width:min(68vw,560px);aspect-ratio:1;border-radius:50%;border:1px solid rgba(159,232,255,.24);box-shadow:0 0 110px rgba(159,232,255,.12),inset 0 0 80px rgba(199,182,255,.05);opacity:.8;transform:scale(.92)}
-  .halo.pulse{animation:breathe 6s ease-in-out infinite}
-  @keyframes breathe{0%,100%{transform:scale(.88);opacity:.45}50%{transform:scale(1.03);opacity:.92}}
-  .card{position:relative;z-index:2;text-align:center;max-width:850px;padding:34px 22px;user-select:none;cursor:pointer}
-  .eyebrow{font-size:12px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);font-weight:800;margin-bottom:20px;opacity:.9}
-  .prompt{font-weight:800;font-size:clamp(36px,8vw,84px);line-height:.98;letter-spacing:-.04em;text-wrap:balance;text-shadow:0 0 32px rgba(159,232,255,.06);transition:opacity .5s ease,transform .5s ease,filter .5s ease}
-  .answer{margin:24px auto 0;max-width:680px;font-size:clamp(17px,3vw,24px);line-height:1.45;color:var(--muted);text-wrap:balance;transition:opacity .5s ease,transform .5s ease}
-  .swap-out .prompt,.swap-out .answer{opacity:0;transform:translateY(12px);filter:blur(4px)}
-  .controls{max-width:980px;width:100%;margin:0 auto 14px;display:flex;flex-wrap:wrap;align-items:center;justify-content:center;gap:8px}
-  .controls button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:11px 15px;cursor:pointer;backdrop-filter:blur(12px)}
-  .controls button.primary{background:linear-gradient(135deg,rgba(159,232,255,.18),rgba(199,182,255,.18));border-color:rgba(159,232,255,.3)}
-  .status{width:100%;display:flex;align-items:center;gap:10px;margin-top:4px}
-  .bar{height:4px;background:rgba(255,255,255,.08);flex:1;border-radius:999px;overflow:hidden}
-  .fill{height:100%;width:10%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease}
-  .count{font-size:12px;color:var(--muted);min-width:54px;text-align:right}
-  .overlay{position:fixed;inset:0;z-index:10;background:rgba(3,5,8,.94);display:grid;place-items:center;padding:24px;backdrop-filter:blur(20px)}
-  .modal{max-width:720px;width:100%;border:1px solid var(--line);background:rgba(255,255,255,.055);border-radius:28px;padding:28px;box-shadow:0 30px 100px rgba(0,0,0,.45)}
-  .modal h1{font-size:clamp(34px,7vw,64px);margin:0 0 12px;letter-spacing:-.04em}
-  .modal p{color:var(--muted);line-height:1.55;font-size:17px}
-  .modal .small{font-size:13px;color:#8992a5}
-  .actions{display:flex;flex-wrap:wrap;gap:10px;margin-top:24px}
-  .actions button{border:1px solid var(--line);background:var(--panel);color:var(--text);border-radius:999px;padding:13px 18px;cursor:pointer}
-  .actions .start{background:var(--text);color:#05070b;font-weight:800}
-  .settings{display:grid;grid-template-columns:1fr auto;gap:14px 20px;align-items:center;margin-top:22px;padding-top:18px;border-top:1px solid var(--line)}
-  .settings label{color:var(--muted)}
-  input[type="checkbox"]{width:22px;height:22px;accent-color:#9fe8ff}
-  .footer-note{font-size:11px;color:#747d90;text-align:center;margin:0 auto 8px}
-  @media (prefers-reduced-motion: reduce){.halo.pulse{animation:none}.prompt,.answer{transition:none}}
+:root{
+  --bg:#0c1213;
+  --bg2:#111b19;
+  --cream:#eee7dc;
+  --muted:#9aa2a4;
+  --muted2:#737d7e;
+  --gold:#b08a69;
+  --gold2:#8e7059;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;background:#080d0e;color:var(--cream);overflow:hidden}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit}
+.app{
+  min-height:100dvh;height:100dvh;width:100%;
+  position:relative;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 43%,rgba(172,142,108,.11) 0%,rgba(89,102,85,.08) 24%,rgba(20,34,31,.08) 48%,transparent 70%),
+    linear-gradient(180deg,#101819 0%,#0b1112 100%);
+}
+.app:before{
+  content:"";position:absolute;inset:0;pointer-events:none;opacity:.23;
+  background:
+    radial-gradient(ellipse at center,transparent 0 43%,rgba(0,0,0,.34) 78%,rgba(0,0,0,.7) 100%),
+    repeating-linear-gradient(0deg,rgba(255,255,255,.011) 0 1px,transparent 1px 3px);
+}
+.screen{
+  position:absolute;inset:0;
+  padding:calc(env(safe-area-inset-top) + 20px) 26px calc(env(safe-area-inset-bottom) + 22px);
+  display:flex;flex-direction:column;
+  transition:opacity .55s ease,transform .55s ease;
+}
+.screen.hidden{opacity:0;pointer-events:none;transform:scale(.985)}
+.landing{align-items:center;text-align:center}
+.hero{
+  flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  padding-top:clamp(10px,5vh,44px)
+}
+.title{
+  font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
+  font-size:clamp(80px,20vw,148px);font-weight:400;line-height:.85;letter-spacing:.025em;
+  color:#f0e8dd;text-shadow:0 0 45px rgba(222,195,158,.06);
+}
+.subtitle{
+  margin-top:27px;font-size:clamp(14px,3.8vw,20px);letter-spacing:.38em;
+  text-transform:uppercase;color:#a5aaab;font-weight:500;
+}
+.tagline{
+  margin-top:72px;max-width:680px;
+  font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
+  font-size:clamp(25px,5.2vw,40px);line-height:1.5;font-style:italic;font-weight:400;
+  color:#969693;text-wrap:balance;
+}
+.begin{
+  margin-top:84px;width:min(76vw,450px);height:clamp(112px,14vh,156px);
+  border-radius:999px;border:1.4px solid var(--gold2);
+  background:rgba(255,255,255,.006);color:#b99477;
+  font-family:Didot,"Bodoni 72",Baskerville,serif;
+  font-size:clamp(35px,7vw,54px);letter-spacing:.28em;text-indent:.28em;
+  cursor:pointer;
+  box-shadow:inset 0 0 28px rgba(178,137,102,.025);
+}
+.begin:active{transform:scale(.985);background:rgba(176,138,105,.035)}
+.share{
+  border:0;background:transparent;color:#98a1a3;display:flex;align-items:center;gap:14px;
+  font-size:16px;letter-spacing:.28em;text-transform:uppercase;cursor:pointer;padding:12px 18px;
+  margin-bottom:clamp(46px,8vh,80px)
+}
+.share svg{width:27px;height:27px;stroke:currentColor;fill:none;stroke-width:1.8}
+.disclaimer{
+  color:#9a9fa0;font-size:clamp(13px,3.5vw,18px);line-height:1.55;text-align:center;
+  max-width:690px;letter-spacing:.02em
+}
+.session{touch-action:pan-y;user-select:none;-webkit-user-select:none}
+.center{
+  flex:1;display:flex;align-items:center;justify-content:center;text-align:center;
+  position:relative;padding:30px 0 68px
+}
+.glow{
+  position:absolute;width:min(92vw,720px);height:min(92vw,720px);border-radius:50%;
+  background:radial-gradient(circle,rgba(173,145,113,.085) 0%,rgba(101,111,90,.05) 34%,rgba(17,30,28,0) 72%);
+  filter:blur(2px);pointer-events:none;
+}
+.card{
+  z-index:1;width:100%;max-width:760px;min-height:44vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+  cursor:pointer;padding:24px 8px;
+}
+.prompt{
+  font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
+  font-size:clamp(48px,10.5vw,92px);font-weight:400;letter-spacing:.025em;
+  line-height:1.14;color:#eee7dd;text-wrap:balance;
+  transition:transform .45s ease,opacity .45s ease;
+}
+.answer{
+  margin-top:70px;max-width:720px;
+  font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
+  font-size:clamp(24px,5.4vw,42px);line-height:1.5;font-style:italic;
+  color:#c39b7c;text-wrap:balance;
+  opacity:0;transform:translateY(12px);transition:opacity .55s ease,transform .55s ease;
+}
+.answer.show{opacity:1;transform:translateY(0)}
+.hint{
+  position:absolute;bottom:clamp(92px,15vh,138px);left:0;right:0;text-align:center;
+  color:#899295;font-size:14px;letter-spacing:.34em;text-transform:uppercase;
+}
+.controls{
+  width:100%;display:grid;grid-template-columns:1fr 1.25fr 1.1fr;align-items:center;
+  gap:8px;color:#9ca5a7;padding-bottom:4px
+}
+.control{
+  border:0;background:transparent;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:12px;
+  text-transform:uppercase;letter-spacing:.24em;font-size:clamp(11px,3.3vw,15px);white-space:nowrap;padding:14px 2px
+}
+.control:first-child{justify-content:flex-start}
+.control:last-child{justify-content:flex-end}
+.control svg{width:26px;height:26px;stroke:currentColor;fill:none;stroke-width:1.8;flex:0 0 auto}
+.fade{animation:fade .48s ease}
+@keyframes fade{0%{opacity:.12;transform:translateY(7px)}100%{opacity:1;transform:translateY(0)}}
+@media (max-height:700px){
+  .tagline{margin-top:44px}.begin{margin-top:50px;height:104px}.share{margin-bottom:28px}
+  .hero{padding-top:0}.hint{bottom:75px}.center{padding-bottom:44px}
+}
+@media (prefers-reduced-motion:reduce){.screen,.prompt,.answer{transition:none}.fade{animation:none}}
 </style>
 </head>
 <body>
-<div class="app">
-  <header>
-    <div class="brand">I AM · Core Alignment</div>
-    <button class="icon-btn" id="shareBtn" aria-label="Share">Share</button>
-  </header>
+<main class="app">
+  <section class="screen landing" id="landing">
+    <div class="hero">
+      <div class="title">I AM</div>
+      <div class="subtitle">CORE ALIGNMENT</div>
+      <div class="tagline">Not from panic. Not as an escape. A return to the core self, in reality.</div>
+      <button class="begin" id="begin">BEGIN</button>
+    </div>
+    <button class="share" id="shareLanding" aria-label="Share I AM Core Alignment">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.8"/><circle cx="6" cy="12" r="2.8"/><circle cx="18" cy="19" r="2.8"/><path d="M8.5 10.8l6.8-4.2M8.5 13.2l6.8 4.2"/></svg>
+      <span>SHARE</span>
+    </button>
+    <div class="disclaimer">A grounding and reflection experience. It is not hypnosis, therapy, or medical care.</div>
+  </section>
 
-  <main class="stage" id="stage" aria-live="polite">
-    <div class="halo pulse" id="halo"></div>
-    <section class="card" id="card" tabindex="0" role="button" aria-label="Advance to next reflection">
-      <div class="eyebrow" id="eyebrow">Return to center</div>
-      <div class="prompt" id="prompt">I AM.</div>
-      <div class="answer" id="answer">I exist. I am here. Return to the present.</div>
-    </section>
-  </main>
-
-  <section class="controls">
-    <button id="prevBtn">← Back</button>
-    <button class="primary" id="playBtn">Pause flow</button>
-    <button id="nextBtn">Next →</button>
-    <button id="fullscreenBtn">Full screen</button>
-    <div class="status">
-      <div class="bar"><div class="fill" id="fill"></div></div>
-      <div class="count" id="count">1 / 10</div>
+  <section class="screen session hidden" id="session">
+    <div class="center" id="touchArea">
+      <div class="glow"></div>
+      <div class="card" id="card" role="button" tabindex="0" aria-label="Reveal or advance">
+        <div class="prompt" id="prompt">I AM.</div>
+        <div class="answer" id="answer">I exist. I am here. Return to the present.</div>
+      </div>
+      <div class="hint">TAP OR SWIPE</div>
+    </div>
+    <div class="controls">
+      <button class="control" id="backBtn">
+        <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>BACK</span>
+      </button>
+      <button class="control" id="autoBtn"><span>AUTOPLAY OFF</span></button>
+      <button class="control" id="soundBtn">
+        <svg viewBox="0 0 24 24" id="soundIcon"><path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M18 9l4 6M22 9l-4 6"/></svg><span>SOUND OFF</span>
+      </button>
     </div>
   </section>
-  <div class="footer-note">A voluntary grounding and reflection tool. Stop whenever you want.</div>
-</div>
-
-<div class="overlay" id="intro">
-  <div class="modal">
-    <div class="brand">I AM · Core Alignment</div>
-    <h1>Return to yourself.</h1>
-    <p>A short sequence for presence, awareness, care, and deliberate action. Nothing here asks you to surrender judgment. Observe it, test it, keep what is useful.</p>
-    <p class="small">This version uses slow fades and gentle motion—no rapid flashing or strobe effects.</p>
-    <div class="settings">
-      <label for="pulseToggle">Gentle breathing pulse</label><input id="pulseToggle" type="checkbox" checked>
-      <label for="soundToggle">Soft transition sound</label><input id="soundToggle" type="checkbox">
-      <label for="vibeToggle">Haptic cue when available</label><input id="vibeToggle" type="checkbox" checked>
-    </div>
-    <div class="actions">
-      <button class="start" id="startBtn">Begin</button>
-      <button id="manualBtn">Manual mode</button>
-    </div>
-  </div>
-</div>
+</main>
 
 <script>
-const reflections = [
-  {e:'Return to center',p:'I AM.',a:'I exist. I am here. Return to the present.'},
-  {e:'Observer',p:'I OBSERVE.',a:'I can notice a thought without becoming every thought.'},
-  {e:'Space',p:'AWARENESS BEFORE REACTION.',a:'There is a moment between an input and my response.'},
-  {e:'Embodiment',p:'CARE FOR THE VESSEL.',a:'Protect it. Feed it. Move it. Rest it. Breathe.'},
-  {e:'Discernment',p:'NOISE IS NOT COMMAND.',a:'I can notice an input without automatically obeying it.'},
-  {e:'Direction',p:'WHAT DESERVES MY ENERGY?',a:'Truth. Healing. Purpose. Loved ones. Deliberate action.'},
-  {e:'Clarity',p:'DISCERN. VERIFY. CHOOSE.',a:'I do not need to fight every signal. I choose what requires action.'},
-  {e:'Grounding',p:'RETURN TO WHAT IS REAL NOW.',a:'Breath. Body. Surroundings. The next real step.'},
-  {e:'Discipline',p:'DESIRE IS INFORMATION, NOT COMMAND.',a:'Pause. Observe the urge. Choose from the larger self.'},
-  {e:'Alignment',p:'I AM → I OBSERVE → I CHOOSE',a:'I care → I act → I live.'}
+const cards=[
+["I AM.","I exist. I am here. Return to the present."],
+["Who is observing this moment?","I am. I can observe without becoming every thought."],
+["What comes before reaction?","Awareness. Then choice."],
+["This body is my present vessel.","Protect it. Feed it. Move it. Rest it. Breathe."],
+["Noise is not command.","I can notice an input without obeying it."],
+["What deserves my energy?","Truth, healing, purpose, loved ones, and deliberate action."],
+["I do not need to fight every signal.","Discern. Verify. Choose what actually requires action."],
+["When the mind becomes overloaded—","Return to breath, body, surroundings, and the next real step."],
+["Desire does not control choice.","Pause. Observe the urge. Choose from the larger self."],
+["What is the core sequence?","I AM → I observe → I choose → I care → I act → I live."]
 ];
-let index = 0;
-let playing = true;
-let timer = null;
-let intervalMs = 5200;
-let soundOn = false;
-let vibeOn = true;
 
-const card = document.getElementById('card');
-const promptEl = document.getElementById('prompt');
-const answerEl = document.getElementById('answer');
-const eyebrowEl = document.getElementById('eyebrow');
-const fill = document.getElementById('fill');
-const count = document.getElementById('count');
-const playBtn = document.getElementById('playBtn');
-const halo = document.getElementById('halo');
-const intro = document.getElementById('intro');
+let i=0,revealed=false,autoplay=false,sound=false,timer=null,startX=0,startY=0;
+const landing=document.getElementById("landing"),session=document.getElementById("session");
+const promptEl=document.getElementById("prompt"),answerEl=document.getElementById("answer");
+const autoBtn=document.getElementById("autoBtn"),soundBtn=document.getElementById("soundBtn");
+const soundIcon=document.getElementById("soundIcon");
 
-function cue(){
-  if (vibeOn && navigator.vibrate) navigator.vibrate(18);
-  if (!soundOn) return;
+function tone(){
+  if(!sound)return;
   try{
-    const AC = window.AudioContext || window.webkitAudioContext;
-    const ctx = new AC();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.frequency.value = 432;
-    gain.gain.setValueAtTime(0.0001, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.035, ctx.currentTime + 0.02);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.28);
-    osc.connect(gain); gain.connect(ctx.destination);
-    osc.start(); osc.stop(ctx.currentTime + 0.3);
-    osc.onended = () => ctx.close();
-  } catch(e){}
+    const A=window.AudioContext||window.webkitAudioContext,c=new A(),o=c.createOscillator(),g=c.createGain();
+    o.type="sine";o.frequency.value=432;
+    g.gain.setValueAtTime(.0001,c.currentTime);
+    g.gain.exponentialRampToValueAtTime(.025,c.currentTime+.025);
+    g.gain.exponentialRampToValueAtTime(.0001,c.currentTime+.32);
+    o.connect(g);g.connect(c.destination);o.start();o.stop(c.currentTime+.34);o.onended=()=>c.close();
+  }catch(e){}
 }
-
-function render(nextIndex, animate=true){
-  index = (nextIndex + reflections.length) % reflections.length;
-  const r = reflections[index];
-  const apply = () => {
-    eyebrowEl.textContent = r.e;
-    promptEl.textContent = r.p;
-    answerEl.textContent = r.a;
-    fill.style.width = `${((index+1)/reflections.length)*100}%`;
-    count.textContent = `${index+1} / ${reflections.length}`;
-    card.classList.remove('swap-out');
-    cue();
-  };
-  if (animate){card.classList.add('swap-out'); setTimeout(apply, 360)} else apply();
-}
-
-function restart(){
-  clearInterval(timer);
-  if (playing) timer = setInterval(() => render(index+1), intervalMs);
-}
-function next(){render(index+1); restart()}
-function prev(){render(index-1); restart()}
-
-document.getElementById('nextBtn').onclick = next;
-document.getElementById('prevBtn').onclick = prev;
-card.onclick = next;
-card.onkeydown = (e) => {if(e.key==='Enter'||e.key===' '){e.preventDefault();next()}};
-playBtn.onclick = () => {
-  playing = !playing;
-  playBtn.textContent = playing ? 'Pause flow' : 'Resume flow';
-  restart();
-};
-
-document.getElementById('fullscreenBtn').onclick = async () => {
-  try{if(!document.fullscreenElement) await document.documentElement.requestFullscreen(); else await document.exitFullscreen();}catch(e){}
-};
-
-document.getElementById('pulseToggle').onchange = (e) => halo.classList.toggle('pulse', e.target.checked);
-document.getElementById('soundToggle').onchange = (e) => soundOn = e.target.checked;
-document.getElementById('vibeToggle').onchange = (e) => vibeOn = e.target.checked;
-
-document.getElementById('startBtn').onclick = () => {playing = true; intro.style.display='none'; render(0,false); restart();};
-document.getElementById('manualBtn').onclick = () => {playing = false; intro.style.display='none'; playBtn.textContent='Resume flow'; render(0,false); restart();};
-
-document.getElementById('shareBtn').onclick = async () => {
-  const url = location.href;
-  const data = {title:'I AM — Core Alignment',text:'A short grounding and reflection experience.',url};
-  try{
-    if(navigator.share){await navigator.share(data); return;}
-    if(navigator.clipboard){await navigator.clipboard.writeText(url); alert('Link copied.'); return;}
-    prompt('Copy this link:', url);
-  } catch(e){
-    if(e && e.name === 'AbortError') return;
-    try{await navigator.clipboard.writeText(url); alert('Link copied.');}
-    catch(_){prompt('Copy this link:', url);}
+function pulse(){if(navigator.vibrate)navigator.vibrate(12)}
+function render(anim=true){
+  promptEl.textContent=cards[i][0];answerEl.textContent=cards[i][1];
+  answerEl.classList.toggle("show",revealed);
+  if(anim){
+    promptEl.classList.remove("fade");answerEl.classList.remove("fade");
+    void promptEl.offsetWidth;promptEl.classList.add("fade");answerEl.classList.add("fade");
   }
+}
+function resetTimer(){
+  clearInterval(timer);
+  if(autoplay) timer=setInterval(()=>advance(),4300);
+}
+function advance(){
+  if(!revealed){revealed=true;answerEl.classList.add("show");tone();pulse();}
+  else{i=(i+1)%cards.length;revealed=false;render(true);tone();pulse();}
+}
+function previous(){
+  if(revealed){revealed=false;answerEl.classList.remove("show");return;}
+  if(i===0){showLanding();return;}
+  i=(i-1+cards.length)%cards.length;revealed=false;render(true);tone();pulse();
+}
+function startSession(){
+  landing.classList.add("hidden");session.classList.remove("hidden");
+  i=0;revealed=false;render(false);resetTimer();
+}
+function showLanding(){
+  clearInterval(timer);session.classList.add("hidden");landing.classList.remove("hidden");
+}
+async function shareApp(){
+  const data={title:"I AM — Core Alignment",text:"A grounding and reflection experience.",url:location.href};
+  try{
+    if(navigator.share){await navigator.share(data);return;}
+    await navigator.clipboard.writeText(location.href);alert("Link copied.");
+  }catch(e){if(e?.name!=="AbortError")prompt("Copy this link:",location.href);}
+}
+document.getElementById("begin").onclick=startSession;
+document.getElementById("shareLanding").onclick=shareApp;
+document.getElementById("card").onclick=()=>{advance();resetTimer()};
+document.getElementById("card").onkeydown=e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();advance();resetTimer()}};
+document.getElementById("backBtn").onclick=()=>{previous();resetTimer()};
+autoBtn.onclick=()=>{
+  autoplay=!autoplay;
+  autoBtn.querySelector("span").textContent=autoplay?"AUTOPLAY ON":"AUTOPLAY OFF";
+  resetTimer();
 };
-
-render(0,false);
+soundBtn.onclick=()=>{
+  sound=!sound;
+  soundBtn.querySelector("span").textContent=sound?"SOUND ON":"SOUND OFF";
+  soundIcon.innerHTML=sound?'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M17 9c1.5 1.5 1.5 4.5 0 6"/><path d="M19.5 6.5c3 3 3 8 0 11"/>':'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M18 9l4 6M22 9l-4 6"/>';
+  if(sound)tone();
+};
+const touch=document.getElementById("touchArea");
+touch.addEventListener("touchstart",e=>{const t=e.changedTouches[0];startX=t.clientX;startY=t.clientY},{passive:true});
+touch.addEventListener("touchend",e=>{
+  const t=e.changedTouches[0],dx=t.clientX-startX,dy=t.clientY-startY;
+  if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)){
+    if(dx<0){if(revealed){i=(i+1)%cards.length;revealed=false;render(true)}else advance();}
+    else previous();
+    resetTimer();
+  }
+},{passive:true});
 </script>
 </body>
 </html>
