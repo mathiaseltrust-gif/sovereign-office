@@ -1,0 +1,429 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#0d1515">
+<title>I AM — Core Alignment</title>
+<style>
+:root{
+  --bg0:#091011;
+  --bg1:#101a19;
+  --cream:#eee7dc;
+  --soft:#9aa0a0;
+  --copper:#c49a78;
+  --copper-dim:#9d7b61;
+}
+*{box-sizing:border-box}
+html,body{margin:0;width:100%;height:100%;overflow:hidden;background:var(--bg0);color:var(--cream)}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  -webkit-font-smoothing:antialiased;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit}
+.app{
+  position:relative;width:100%;height:100dvh;overflow:hidden;
+  background:
+    radial-gradient(circle at 50% 39%,rgba(180,145,107,.10),rgba(102,115,94,.055) 27%,transparent 63%),
+    linear-gradient(180deg,#101919,#091011);
+}
+.app::after{
+  content:"";position:absolute;inset:0;pointer-events:none;
+  background:radial-gradient(ellipse at center,transparent 0 45%,rgba(0,0,0,.28) 76%,rgba(0,0,0,.66) 100%);
+}
+.breath{
+  position:absolute;left:50%;top:43%;width:min(104vw,820px);height:min(104vw,820px);
+  transform:translate(-50%,-50%) scale(.96);border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(190,153,112,.095) 0%,rgba(112,128,103,.045) 37%,transparent 70%);
+  animation:breathe 9s ease-in-out infinite;z-index:0;
+}
+@keyframes breathe{
+  0%,100%{opacity:.44;transform:translate(-50%,-50%) scale(.94)}
+  50%{opacity:.76;transform:translate(-50%,-50%) scale(1.025)}
+}
+.screen{
+  position:absolute;inset:0;z-index:2;
+  padding:calc(env(safe-area-inset-top) + 22px) 26px calc(env(safe-area-inset-bottom) + 22px);
+}
+.landing{
+  display:flex;flex-direction:column;align-items:center;text-align:center;
+}
+.hero{
+  flex:1;width:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.title{
+  font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
+  font-weight:400;font-size:clamp(82px,20vw,150px);line-height:.84;letter-spacing:.025em;color:#f0e8dd;
+}
+.subtitle{
+  margin-top:29px;font-size:clamp(13px,3.7vw,20px);letter-spacing:.39em;
+  text-indent:.39em;color:#a4aaab;font-weight:500;
+}
+.tagline{
+  margin-top:70px;max-width:690px;
+  font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
+  font-size:clamp(24px,5.2vw,40px);line-height:1.52;font-style:italic;color:#979996;
+}
+.begin{
+  margin-top:82px;width:min(76vw,450px);height:clamp(110px,14vh,154px);
+  border:1.35px solid #8f7059;border-radius:999px;background:transparent;color:#b89172;
+  font-family:Didot,"Bodoni 72",Baskerville,serif;font-size:clamp(34px,7vw,54px);
+  letter-spacing:.28em;text-indent:.28em;cursor:pointer;
+}
+.begin:active{transform:scale(.99)}
+.share{
+  border:0;background:transparent;color:#99a1a2;cursor:pointer;
+  display:flex;align-items:center;gap:14px;padding:12px 18px;margin-bottom:clamp(42px,7vh,76px);
+  font-size:15px;letter-spacing:.29em;text-indent:.29em;
+}
+.share svg,.control svg{fill:none;stroke:currentColor;stroke-width:1.7}
+.share svg{width:27px;height:27px}
+.disclaimer{
+  max-width:710px;text-align:center;color:#989d9e;font-size:clamp(13px,3.45vw,18px);line-height:1.55;
+}
+.session{
+  display:flex;flex-direction:column;opacity:0;pointer-events:none;
+}
+.session.active{opacity:1;pointer-events:auto}
+.landing.hidden{opacity:0;pointer-events:none}
+.landing,.session{transition:opacity .7s ease}
+.center{
+  flex:1;position:relative;display:flex;align-items:center;justify-content:center;text-align:center;
+  padding:26px 0 72px;touch-action:pan-y;
+}
+.card{
+  width:100%;max-width:780px;min-height:48vh;
+  display:flex;flex-direction:column;align-items:center;justify-content:center;padding:24px 4px;
+}
+.prompt{
+  font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
+  font-size:clamp(49px,10.6vw,94px);font-weight:400;line-height:1.13;letter-spacing:.02em;
+  color:var(--cream);text-wrap:balance;
+  opacity:0;transform:scale(.955);
+  will-change:opacity,transform;
+}
+.answer{
+  margin-top:72px;max-width:720px;
+  font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
+  font-size:clamp(24px,5.35vw,42px);line-height:1.53;font-style:italic;font-weight:400;
+  color:var(--copper);text-wrap:balance;
+  opacity:0;transform:scale(.94);
+  will-change:opacity,transform;
+}
+.hint{
+  position:absolute;bottom:clamp(91px,14vh,135px);left:0;right:0;
+  text-align:center;color:#868f91;font-size:13px;letter-spacing:.34em;text-indent:.34em;
+}
+.controls{
+  display:grid;grid-template-columns:1fr 1.25fr 1.1fr;align-items:center;gap:8px;color:#9aa3a4;
+}
+.control{
+  border:0;background:transparent;color:inherit;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:11px;
+  text-transform:uppercase;letter-spacing:.22em;font-size:clamp(11px,3.25vw,15px);white-space:nowrap;padding:14px 2px;
+}
+.control:first-child{justify-content:flex-start}
+.control:last-child{justify-content:flex-end}
+.control svg{width:25px;height:25px;flex:0 0 auto}
+@media(max-height:700px){
+  .tagline{margin-top:42px}.begin{margin-top:48px;height:102px}.share{margin-bottom:24px}
+  .center{padding-bottom:42px}.hint{bottom:72px}
+}
+@media(prefers-reduced-motion:reduce){
+  .breath{animation:none}.landing,.session{transition:none}
+}
+</style>
+</head>
+<body>
+<main class="app">
+  <div class="breath" aria-hidden="true"></div>
+
+  <section class="screen landing" id="landing">
+    <div class="hero">
+      <div class="title">I AM</div>
+      <div class="subtitle">CORE ALIGNMENT</div>
+      <div class="tagline">Not from panic. Not as an escape. A return to the core self, in reality.</div>
+      <button class="begin" id="begin">BEGIN</button>
+    </div>
+    <button class="share" id="shareBtn" aria-label="Share">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.7"/><circle cx="6" cy="12" r="2.7"/><circle cx="18" cy="19" r="2.7"/><path d="M8.5 10.8l6.8-4.2M8.5 13.2l6.8 4.2"/></svg>
+      <span>SHARE</span>
+    </button>
+    <div class="disclaimer">A grounding and reflection experience. It is not hypnosis, therapy, or medical care.</div>
+  </section>
+
+  <section class="screen session" id="session">
+    <div class="center" id="touchArea">
+      <div class="card" id="card" tabindex="0" role="button" aria-label="Reveal or advance">
+        <div class="prompt" id="prompt"></div>
+        <div class="answer" id="answer"></div>
+      </div>
+      <div class="hint">TAP OR SWIPE</div>
+    </div>
+    <div class="controls">
+      <button class="control" id="backBtn">
+        <svg viewBox="0 0 24 24"><path d="M19 12H5M11 6l-6 6 6 6"/></svg><span>BACK</span>
+      </button>
+      <button class="control" id="autoBtn"><span>AUTOPLAY OFF</span></button>
+      <button class="control" id="soundBtn">
+        <svg viewBox="0 0 24 24" id="soundIcon"><path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M18 9l4 6M22 9l-4 6"/></svg>
+        <span>SOUND OFF</span>
+      </button>
+    </div>
+  </section>
+</main>
+
+<script>
+const cards=[
+  ["I AM.","I exist. I am here. Return to the present."],
+  ["Who is observing this moment?","I am. I can observe without becoming every thought."],
+  ["What comes before reaction?","Awareness. Then choice."],
+  ["This body is my present vessel.","Protect it. Feed it. Move it. Rest it. Breathe."],
+  ["Noise is not command.","I can notice an input without obeying it."],
+  ["What deserves my energy?","Truth, healing, purpose, loved ones, and deliberate action."],
+  ["I do not need to fight every signal.","Discern. Verify. Choose what actually requires action."],
+  ["When the mind becomes overloaded—","Return to breath, body, surroundings, and the next real step."],
+  ["Desire does not control choice.","Pause. Observe the urge. Choose from the larger self."],
+  ["What is the core sequence?","I AM → I observe → I choose → I care → I act → I live."]
+];
+
+let index=0;
+let revealed=false;
+let busy=false;
+let autoplay=false;
+let autoTimer=null;
+let sound=false;
+let audioCtx=null;
+let master=null;
+let osc432=null;
+let osc216=null;
+let lfo=null;
+let lfoGain=null;
+let startX=0,startY=0;
+
+const landing=document.getElementById("landing");
+const session=document.getElementById("session");
+const card=document.getElementById("card");
+const promptEl=document.getElementById("prompt");
+const answerEl=document.getElementById("answer");
+const autoBtn=document.getElementById("autoBtn");
+const soundBtn=document.getElementById("soundBtn");
+const soundIcon=document.getElementById("soundIcon");
+
+const sleep=ms=>new Promise(r=>setTimeout(r,ms));
+
+async function animateIn(el,kind){
+  const fromScale=kind==="answer"?.94:.955;
+  const duration=kind==="answer"?1450:1320;
+  el.getAnimations().forEach(a=>a.cancel());
+  const a=el.animate(
+    [
+      {opacity:0,transform:`scale(${fromScale})`},
+      {opacity:1,transform:"scale(1)"}
+    ],
+    {duration,easing:"cubic-bezier(.16,1,.30,1)",fill:"forwards"}
+  );
+  try{await a.finished}catch(e){}
+}
+
+async function animateOut(el,kind){
+  const duration=kind==="answer"?980:920;
+  el.getAnimations().forEach(a=>a.cancel());
+  const a=el.animate(
+    [
+      {opacity:1,transform:"scale(1)"},
+      {opacity:0,transform:"scale(.985)"}
+    ],
+    {duration,easing:"cubic-bezier(.4,0,.2,1)",fill:"forwards"}
+  );
+  try{await a.finished}catch(e){}
+}
+
+function setCard(n){
+  index=(n+cards.length)%cards.length;
+  promptEl.textContent=cards[index][0];
+  answerEl.textContent=cards[index][1];
+  promptEl.style.opacity="0";
+  promptEl.style.transform="scale(.955)";
+  answerEl.style.opacity="0";
+  answerEl.style.transform="scale(.94)";
+  revealed=false;
+}
+
+async function enterCurrent(){
+  await sleep(180);
+  await animateIn(promptEl,"prompt");
+}
+
+async function revealAnswer(){
+  if(busy||revealed)return;
+  busy=true;
+  revealed=true;
+  await sleep(80);
+  await animateIn(answerEl,"answer");
+  busy=false;
+}
+
+async function nextCard(){
+  if(busy)return;
+  if(!revealed){await revealAnswer();return;}
+  busy=true;
+
+  await animateOut(answerEl,"answer");
+  await sleep(180);
+  await animateOut(promptEl,"prompt");
+  await sleep(300);
+
+  setCard(index+1);
+  await animateIn(promptEl,"prompt");
+  busy=false;
+}
+
+async function previous(){
+  if(busy)return;
+  busy=true;
+  if(revealed){
+    await animateOut(answerEl,"answer");
+    revealed=false;
+    answerEl.style.opacity="0";
+    answerEl.style.transform="scale(.94)";
+    busy=false;
+    return;
+  }
+  if(index===0){
+    await animateOut(promptEl,"prompt");
+    session.classList.remove("active");
+    landing.classList.remove("hidden");
+    busy=false;
+    return;
+  }
+  await animateOut(promptEl,"prompt");
+  await sleep(260);
+  setCard(index-1);
+  await animateIn(promptEl,"prompt");
+  busy=false;
+}
+
+function resetAutoplay(){
+  clearInterval(autoTimer);
+  if(autoplay)autoTimer=setInterval(()=>{if(!busy)nextCard()},6200);
+}
+
+function ensureAudio(){
+  try{
+    if(!audioCtx){
+      const A=window.AudioContext||window.webkitAudioContext;
+      if(A)audioCtx=new A();
+    }
+    if(audioCtx?.state==="suspended")audioCtx.resume();
+  }catch(e){}
+}
+
+function startSound(){
+  if(!sound||master)return;
+  try{
+    ensureAudio();
+    if(!audioCtx)return;
+
+    master=audioCtx.createGain();
+    master.gain.setValueAtTime(.0001,audioCtx.currentTime);
+    master.gain.exponentialRampToValueAtTime(.0065,audioCtx.currentTime+3.2);
+    master.connect(audioCtx.destination);
+
+    const g432=audioCtx.createGain();
+    const g216=audioCtx.createGain();
+    g432.gain.value=.72;
+    g216.gain.value=.28;
+
+    osc432=audioCtx.createOscillator();
+    osc216=audioCtx.createOscillator();
+    osc432.type="sine";osc216.type="sine";
+    osc432.frequency.value=432;
+    osc216.frequency.value=216;
+
+    osc432.connect(g432);osc216.connect(g216);
+    g432.connect(master);g216.connect(master);
+
+    lfo=audioCtx.createOscillator();
+    lfoGain=audioCtx.createGain();
+    lfo.frequency.value=.075;
+    lfoGain.gain.value=.0015;
+    lfo.connect(lfoGain);
+    lfoGain.connect(master.gain);
+
+    osc432.start();osc216.start();lfo.start();
+  }catch(e){}
+}
+
+function stopSound(){
+  try{
+    if(!audioCtx||!master)return;
+    const m=master,o1=osc432,o2=osc216,lo=lfo;
+    const now=audioCtx.currentTime;
+    m.gain.cancelScheduledValues(now);
+    m.gain.setValueAtTime(Math.max(m.gain.value,.0001),now);
+    m.gain.exponentialRampToValueAtTime(.0001,now+2.6);
+    setTimeout(()=>{
+      try{o1?.stop()}catch(e){};try{o2?.stop()}catch(e){};try{lo?.stop()}catch(e){};
+      try{m.disconnect()}catch(e){}
+      master=osc432=osc216=lfo=lfoGain=null;
+    },2700);
+  }catch(e){}
+}
+
+async function begin(){
+  if(busy)return;
+  busy=true;
+  landing.classList.add("hidden");
+  await sleep(520);
+  session.classList.add("active");
+  setCard(0);
+  await enterCurrent();
+  busy=false;
+  resetAutoplay();
+}
+
+async function share(){
+  const data={title:"I AM — Core Alignment",text:"A grounding and reflection experience.",url:location.href};
+  try{
+    if(navigator.share){await navigator.share(data);return}
+    await navigator.clipboard.writeText(location.href);
+    alert("Link copied.");
+  }catch(e){if(e?.name!=="AbortError")prompt("Copy this link:",location.href)}
+}
+
+document.getElementById("begin").onclick=begin;
+document.getElementById("shareBtn").onclick=share;
+card.onclick=async()=>{await nextCard();resetAutoplay()};
+card.onkeydown=async e=>{if(e.key==="Enter"||e.key===" "){e.preventDefault();await nextCard();resetAutoplay()}};
+document.getElementById("backBtn").onclick=async()=>{await previous();resetAutoplay()};
+
+autoBtn.onclick=()=>{
+  autoplay=!autoplay;
+  autoBtn.querySelector("span").textContent=autoplay?"AUTOPLAY ON":"AUTOPLAY OFF";
+  resetAutoplay();
+};
+
+soundBtn.onclick=()=>{
+  sound=!sound;
+  soundBtn.querySelector("span").textContent=sound?"SOUND ON":"SOUND OFF";
+  soundIcon.innerHTML=sound
+    ?'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M17 9c1.5 1.5 1.5 4.5 0 6"/><path d="M19.5 6.5c3 3 3 8 0 11"/>'
+    :'<path d="M5 10v4h4l5 4V6l-5 4H5"/><path d="M18 9l4 6M22 9l-4 6"/>';
+  if(sound)startSound(); else stopSound();
+};
+
+const touch=document.getElementById("touchArea");
+touch.addEventListener("touchstart",e=>{
+  const t=e.changedTouches[0];startX=t.clientX;startY=t.clientY;
+},{passive:true});
+touch.addEventListener("touchend",async e=>{
+  const t=e.changedTouches[0],dx=t.clientX-startX,dy=t.clientY-startY;
+  if(Math.abs(dx)>55&&Math.abs(dx)>Math.abs(dy)){
+    if(dx<0)await nextCard();else await previous();
+    resetAutoplay();
+  }
+},{passive:true});
+</script>
+</body>
+</html>
