@@ -2625,6 +2625,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
             : treeView === "tree"
               ? <>{treeNodes.length} visible <span className="opacity-60">at {depthLabel.toLowerCase()} depth</span></>
+            : treeView === "pedigree"
+              ? <>{pedigreeData.placed.length} ancestor card{pedigreeData.placed.length === 1 ? "" : "s"} <span className="opacity-60">shown</span></>
+            : treeView === "fan"
+              ? <>{fanData.entries.length + (fanData.root ? 1 : 0)} ancestor segment{fanData.entries.length + (fanData.root ? 1 : 0) === 1 ? "" : "s"} <span className="opacity-60">shown</span></>
             : treeView === "timeline"
               ? <>{timelinePeople.length} dated people <span className="opacity-60">· {atlasTimelineEvents.length} Atlas events</span></>
             : activeFilterCount > 0
