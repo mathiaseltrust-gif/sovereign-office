@@ -60,7 +60,7 @@ function pushUnique(target: EntityCandidate[], candidate: EntityCandidate) {
 
 async function resolveVerifiedAlias(
   entityType: string,
-  aliasType: string,
+  aliasType: string | null,
   value: string,
 ): Promise<Array<{ entityId: string; aliasValue: string }>> {
   const normalized = normalizeEntityAlias(value);
@@ -70,7 +70,7 @@ async function resolveVerifiedAlias(
     SELECT entity_id, alias_value
     FROM entity_aliases
     WHERE entity_type = ${entityType}
-      AND alias_type = ${aliasType}
+      AND (${aliasType}::text IS NULL OR alias_type = ${aliasType})
       AND normalized_value = ${normalized}
       AND verified = true
     ORDER BY id ASC
@@ -122,7 +122,7 @@ async function resolveParcelIdentifier(
     });
   }
 
-  const aliases = await resolveVerifiedAlias("parcel", field, value);
+  const aliases = await resolveVerifiedAlias("parcel", null, value);
   for (const alias of aliases) {
     pushUnique(target, {
       entityType: "parcel",
@@ -197,7 +197,7 @@ async function resolveOrganizationIdentifier(
   const byName = await db.execute(sql`
     SELECT org_id, legal_name, ein
     FROM org_profiles
-    WHERE lower(regexp_replace(COALESCE(legal_name, ''), '\\s+', ' ', 'g')) = ${normalizedLabel}
+    WHERE regexp_replace(lower(COALESCE(legal_name, '')), '[^a-z0-9]', '', 'g') = ${normalizeEntityAlias(value)}
        OR lower(org_id) = lower(${value})
     ORDER BY id ASC
     LIMIT 10
@@ -311,7 +311,7 @@ async function resolvePersonIdentifier(
   const result = await db.execute(sql`
     SELECT id, full_name, protection_level, linked_profile_user_id
     FROM family_lineage
-    WHERE lower(regexp_replace(full_name, '\\s+', ' ', 'g')) = ${normalized}
+    WHERE regexp_replace(lower(full_name), '[^a-z0-9]', '', 'g') = ${normalizeEntityAlias(value)}
     ORDER BY id ASC
     LIMIT 10
   `);
