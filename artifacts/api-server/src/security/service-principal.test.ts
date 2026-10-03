@@ -77,6 +77,32 @@ describe("machine service principal boundary", () => {
     expect(deniedRes.statusCode).toBe(401);
   });
 
+  it("does not let an M365 principal cross into the GitHub intake capability", () => {
+    const req: any = {
+      servicePrincipal: {
+        id: "m365-service",
+        kind: "service",
+        capabilities: ["m365:intake:submit", "m365:facts:extract"],
+      },
+    };
+    const res = mockResponse();
+    const next = vi.fn();
+    requireServiceCapabilityOrAuth("github:intake:preview")(req, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+  });
+
+  it("does not treat a raw Bearer header as an authenticated human session", () => {
+    const req: any = {
+      headers: { authorization: "Bearer not-a-verified-session" },
+    };
+    const res = mockResponse();
+    const next = vi.fn();
+    requireServiceCapabilityOrAuth("github:intake:preview")(req, res, next);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+  });
+
   it("allows an authenticated human without converting them into a service principal", () => {
     const req: any = {
       user: { id: "human", email: "human@example.test", roles: ["member"] },
