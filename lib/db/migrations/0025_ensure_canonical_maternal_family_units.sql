@@ -149,6 +149,44 @@ BEGIN
     RETURNING id INTO johnnie_id;
   END IF;
 
+  -- Normalize the four canonical records as active verified lineage rows.
+  UPDATE family_lineage
+  SET gender = 'female',
+      birth_year = coalesce(birth_year, 1961),
+      is_ancestor = true,
+      generational_position = coalesce(generational_position, 1),
+      pending_review = false,
+      membership_status = CASE WHEN membership_status = 'rejected' THEN 'confirmed' ELSE coalesce(membership_status, 'confirmed') END,
+      source_type = CASE WHEN coalesce(source_type, '') = 'archived' THEN 'verified_lineage' ELSE coalesce(nullif(source_type, ''), 'verified_lineage') END,
+      updated_at = now()
+  WHERE id = pamela_id;
+
+  UPDATE family_lineage
+  SET gender = 'male',
+      birth_year = coalesce(birth_year, 1918),
+      death_year = coalesce(death_year, 1987),
+      is_deceased = true,
+      is_ancestor = true,
+      generational_position = coalesce(generational_position, 3),
+      pending_review = false,
+      membership_status = CASE WHEN membership_status = 'rejected' THEN 'confirmed' ELSE coalesce(membership_status, 'confirmed') END,
+      source_type = CASE WHEN coalesce(source_type, '') = 'archived' THEN 'verified_lineage' ELSE coalesce(nullif(source_type, ''), 'verified_lineage') END,
+      updated_at = now()
+  WHERE id = richard_id;
+
+  UPDATE family_lineage
+  SET gender = 'female',
+      birth_year = coalesce(birth_year, 1917),
+      death_year = coalesce(death_year, 1978),
+      is_deceased = true,
+      is_ancestor = true,
+      generational_position = coalesce(generational_position, 3),
+      pending_review = false,
+      membership_status = CASE WHEN membership_status = 'rejected' THEN 'confirmed' ELSE coalesce(membership_status, 'confirmed') END,
+      source_type = CASE WHEN coalesce(source_type, '') = 'archived' THEN 'verified_lineage' ELSE coalesce(nullif(source_type, ''), 'verified_lineage') END,
+      updated_at = now()
+  WHERE id = johnnie_id;
+
   -- Canonical relationship arrays.
   UPDATE family_lineage
   SET parent_ids = CASE
