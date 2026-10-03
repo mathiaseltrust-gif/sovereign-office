@@ -191,15 +191,18 @@ export class ObjectStorageService {
 
   async canAccessObjectEntity({
     userId,
+    principalIds,
     objectFile,
     requestedPermission,
   }: {
     userId?: string;
+    principalIds?: string[];
     objectFile: File;
     requestedPermission?: ObjectPermission;
   }): Promise<boolean> {
     return canAccessObject({
       userId,
+      principalIds,
       objectFile,
       requestedPermission: requestedPermission ?? ObjectPermission.READ,
     });
