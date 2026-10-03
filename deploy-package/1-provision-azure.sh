@@ -92,7 +92,7 @@ else
 fi
 ACR_LOGIN_SERVER=$(az acr show --name "$ACR_NAME" --query loginServer -o tsv)
 ACR_USERNAME=$(az acr credential show --name "$ACR_NAME" --query username -o tsv)
-ACR_PASSWORD=$(az acr credential show --name "$ACR_NAME" --query "passwords[0].value" -o tsv)
+ACR_PASSWORD=<from-secret-store>
 echo "  ACR_REGISTRY=$ACR_LOGIN_SERVER"
 echo ""
 
@@ -193,7 +193,7 @@ if ! az postgres flexible-server db show \
 fi
 
 PG_HOST="${PG_SERVER_NAME}.postgres.database.azure.com"
-DATABASE_URL="postgresql://${PG_ADMIN}:${PG_PASSWORD}@${PG_HOST}:5432/${PG_DB}?sslmode=require"
+DATABASE_URL=<from-secret-store>
 echo "  Host: $PG_HOST"
 echo ""
 
