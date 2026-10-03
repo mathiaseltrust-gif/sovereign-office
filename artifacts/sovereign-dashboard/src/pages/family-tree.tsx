@@ -1616,13 +1616,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const DEPTH_MIN = 1;
   const DEPTH_MAX = 7;
   const DEPTH_LABELS: Record<number, string> = {
-    1: "Household",
-    2: "Parents",
-    3: "Grandparents",
-    4: "Great-grandparents",
-    5: "2× Great-grandparents",
-    6: "3× Great-grandparents",
-    7: "4× Great-grandparents",
+    1: "Parents",
+    2: "Grandparents",
+    3: "Great-grandparents",
+    4: "2× Great-grandparents",
+    5: "3× Great-grandparents",
+    6: "4× Great-grandparents",
+    7: "5× Great-grandparents",
   };
   const depthLabel = DEPTH_LABELS[generationDepth] ?? "Ancestors";
 
@@ -1655,12 +1655,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     );
     selfChildren.forEach((n) => included.add(n.id));
 
-    if (generationDepth <= 1) return included;
-
-    // Ancestor BFS — each level adds one generation up
-    // Start from self + all spouses for ancestor traversal
+    // Ancestor BFS — each level adds one generation up.
+    // generationDepth=1 means parents, 2 means grandparents, etc.
+    // Start from self + all spouses for ancestor traversal.
     let upFrontier: number[] = [selfNodeRaw.id, ...selfSpouseIds];
-    for (let lvl = 1; lvl <= generationDepth - 1; lvl++) {
+    for (let lvl = 1; lvl <= generationDepth; lvl++) {
       const nextFrontier: number[] = [];
       for (const uid of upFrontier) {
         const node = byId.get(uid);
