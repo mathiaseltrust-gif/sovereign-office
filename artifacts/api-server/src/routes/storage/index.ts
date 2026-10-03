@@ -9,8 +9,6 @@ import { businessDocumentsTable, businessConceptsTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { registerUpload } from "../../lib/pendingUploads";
 
-const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
-
 const RequestUploadUrlBody = z.object({
   name: z.string(),
   size: z.number(),
@@ -102,9 +100,9 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
  * GET /storage/objects/*
  *
  * Serve private object entities from PRIVATE_OBJECT_DIR.
- * Requires authentication. Enforces concept-ownership ACL:
- * elevated roles (trustee/officer/sovereign_admin) can access any object;
- * other users can only access objects belonging to their own business concepts.
+ * Requires authentication. Access is tied to the record relationship itself,
+ * not to a broad Office role. Knowing an object path or holding an elevated
+ * title does not grant access to unrelated private files.
  */
 router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Response) => {
   try {
@@ -113,28 +111,25 @@ router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Resp
     const objectPath = `/objects/${wildcardPath}`;
 
     const userId = req.user?.dbId;
-    const isElevated = req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
 
-    if (!isElevated) {
-      const [doc] = await db
-        .select({ conceptId: businessDocumentsTable.conceptId })
-        .from(businessDocumentsTable)
-        .where(eq(businessDocumentsTable.fileKey, objectPath));
+    const [doc] = await db
+      .select({ conceptId: businessDocumentsTable.conceptId })
+      .from(businessDocumentsTable)
+      .where(eq(businessDocumentsTable.fileKey, objectPath));
 
-      if (!doc) {
-        res.status(403).json({ error: "Access denied: document not found." });
-        return;
-      }
+    if (!doc) {
+      res.status(403).json({ error: "Access denied: no authorized record relationship exists for this object." });
+      return;
+    }
 
-      const [concept] = await db
-        .select({ ownerId: businessConceptsTable.ownerId })
-        .from(businessConceptsTable)
-        .where(eq(businessConceptsTable.id, doc.conceptId));
+    const [concept] = await db
+      .select({ ownerId: businessConceptsTable.ownerId })
+      .from(businessConceptsTable)
+      .where(eq(businessConceptsTable.id, doc.conceptId));
 
-      if (!concept || concept.ownerId !== userId) {
-        res.status(403).json({ error: "Access denied: you do not own this document." });
-        return;
-      }
+    if (!concept || concept.ownerId !== userId) {
+      res.status(403).json({ error: "Access denied: you are not authorized for this document record." });
+      return;
     }
 
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
