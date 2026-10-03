@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
+import { BoardMatterDocuments } from "@/components/BoardMatterDocuments";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CalendarDays, CheckSquare, ClipboardList, ExternalLink, FileSignature, Scale, ShieldCheck } from "lucide-react";
@@ -503,6 +504,8 @@ export default function BoardPage() {
                         ? "Saving this due date will create a linked Task and Calendar deadline."
                         : "Add a due date to create linked Task and Calendar records."}
                   </div>
+
+                  <BoardMatterDocuments matterId={editingMatter.id} />
 
                   <div className="flex justify-end gap-2">
                     <Button variant="outline" onClick={() => setEditingMatter(null)}>Cancel</Button>
