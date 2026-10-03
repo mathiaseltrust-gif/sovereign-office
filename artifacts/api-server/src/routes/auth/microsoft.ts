@@ -192,6 +192,7 @@ router.get("/callback", async (req, res) => {
       role: dbUser.role,
       entraId,
       type: "session",
+      authMethod: "microsoft",
       firstLogin,
       lineagePending,
     });
@@ -301,6 +302,7 @@ router.post("/exchange", async (req, res) => {
       role: dbUser.role,
       entraId,
       type: "session",
+      authMethod: "microsoft",
       firstLogin,
       lineagePending,
     });

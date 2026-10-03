@@ -29,6 +29,7 @@ interface OrgOverviewResponse {
 
 const ITEMS = [
   { href: "/board", label: "Board of Trustees", description: "Board Matters, oversight, evidence, resolutions, and records" },
+  { href: "/trustee-agreement", label: "Trustee Agreement", description: "Governing duties, authority limits, removal standards, and signed acknowledgment" },
   { href: "/sovereign-pipeline", label: "AI Intake & Pipeline", description: "Incoming matters and routed institutional work" },
   { href: "/instruments", label: "Trust Instruments", description: "Create, review, and maintain trust instruments" },
   { href: "/filings", label: "Filings", description: "Pending and completed institutional filings" },

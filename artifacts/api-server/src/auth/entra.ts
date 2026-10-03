@@ -40,6 +40,7 @@ export interface EntraUser {
   name?: string;
   entraId?: string;
   dbId?: number;
+  authMethod?: "microsoft" | "password" | "entra_jwt" | "dev";
 }
 
 function parseDevToken(token: string): { id: string; email: string; roles: string[]; name?: string; entraId?: string } | null {
@@ -53,6 +54,7 @@ function parseDevToken(token: string): { id: string; email: string; roles: strin
       roles: Array.isArray(parsed.roles) ? parsed.roles : [],
       name: parsed.name,
       entraId: parsed.entraId,
+      authMethod: authMethod === "entra_jwt" ? "microsoft" : authMethod === "dev_token" ? "dev" : undefined,
     };
   } catch {
     return null;
@@ -81,6 +83,9 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
   if (isSessionJwt(token)) {
     const sessionPayload = verifySessionJwt(token);
     if (sessionPayload && sessionPayload.type === "session") {
+      const sessionAuthMethod = sessionPayload.authMethod === "microsoft" || (!sessionPayload.authMethod && sessionPayload.entraId)
+        ? "microsoft"
+        : "password";
       // dbId is explicitly embedded in the JWT; sub is a reliable fallback
       const tokenDbId = Number(sessionPayload.dbId) || Number(sessionPayload.sub) || 0;
       const dbUser = await resolveDbUser(sessionPayload.email as string);
@@ -92,6 +97,7 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
           name: dbUser.name ?? (sessionPayload.name as string),
           entraId: dbUser.entraId ?? (sessionPayload.entraId as string | undefined),
           dbId: dbUser.id,
+          authMethod: sessionAuthMethod,
         };
       } else {
         // resolveDbUser failed (transient DB error or email mismatch) — fall back
@@ -104,6 +110,7 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
           name: sessionPayload.name as string,
           entraId: sessionPayload.entraId as string | undefined,
           dbId: tokenDbId || undefined,
+          authMethod: sessionAuthMethod,
         };
         if (tokenDbId) {
           logger.warn({ email: sessionPayload.email, tokenDbId }, "resolveDbUser missed — using JWT sub as dbId fallback");
@@ -150,6 +157,7 @@ export async function entraMiddleware(req: Request, _res: Response, next: NextFu
       name: dbUser.name ?? parsed.name,
       entraId: dbUser.entraId ?? parsed.entraId,
       dbId: dbUser.id,
+      authMethod: authMethod === "entra_jwt" ? "microsoft" : authMethod === "dev_token" ? "dev" : undefined,
     };
     logger.debug({ userId: dbUser.id, role: dbUser.role, method: authMethod }, "DB-authoritative user resolved");
   } else {

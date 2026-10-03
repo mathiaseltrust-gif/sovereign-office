@@ -72,6 +72,7 @@ router.post("/login", async (req, res) => {
       name: dbUser.name,
       role: dbUser.role,
       type: "session",
+      authMethod: "password",
       firstLogin: onboarding.firstLogin,
       lineagePending: onboarding.lineagePending,
     });

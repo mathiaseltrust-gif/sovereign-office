@@ -16,6 +16,7 @@ const Login = lazy(() => import("@/pages/login"));
 const NotFound = lazy(() => import("@/pages/not-found"));
 const TrusteeDashboard = lazy(() => import("@/pages/dashboard-trustee"));
 const BoardPage = lazy(() => import("@/pages/board"));
+const TrusteeAgreementPage = lazy(() => import("@/pages/trustee-agreement"));
 const OfficerDashboard = lazy(() => import("@/pages/dashboard-officer"));
 const MemberDashboard = lazy(() => import("@/pages/dashboard-member"));
 const AdminDashboard = lazy(() => import("@/pages/dashboard-admin"));
@@ -170,18 +171,41 @@ const OFFICE_ROLES: Role[] = ["sovereign_admin", "trustee", "officer"];
 const TRUSTEE_ROLES: Role[] = ["sovereign_admin", "trustee"];
 const CHIEF_ONLY: Role[] = ["sovereign_admin"];
 
+function TrusteeAgreementGuard({ children }: { children: React.ReactNode }) {
+  const { user, firstLogin, lineagePending } = useAuth();
+  const [location] = useLocation();
+  const { data, isLoading, isError } = useQuery({
+    queryKey: ["trustee-agreement-current"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken();
+      const res = await fetch("/api/trustee-agreement/current", { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+      if (!res.ok) throw new Error("Unable to verify Trustee Agreement.");
+      return res.json() as Promise<{ requiresSignature: boolean }>;
+    },
+    enabled: !!user && !firstLogin && !lineagePending,
+    staleTime: 30_000,
+  });
+  if (isLoading) return <div className="py-16 text-center text-muted-foreground">Verifying Trustee Agreement…</div>;
+  if (isError) return <div className="py-16 text-center text-muted-foreground">Unable to verify Trustee Agreement status.</div>;
+  if (data?.requiresSignature && location !== "/trustee-agreement") return <Redirect to={`/trustee-agreement?next=${encodeURIComponent(location)}`} />;
+  return <>{children}</>;
+}
+
 function RoleProtectedRoute({
   component: Component,
   allowedRoles,
+  skipTrusteeAgreement = false,
 }: {
   component: React.ComponentType;
   allowedRoles: Role[];
+  skipTrusteeAgreement?: boolean;
 }) {
   const { activeRole } = useAuth();
-  if (!allowedRoles.includes(activeRole)) {
-    return <Redirect to={roleLandingPath(activeRole)} />;
-  }
-  return <ProtectedRoute component={Component} />;
+  if (!allowedRoles.includes(activeRole)) return <Redirect to={roleLandingPath(activeRole)} />;
+  const protectedPage = <ProtectedRoute component={Component} />;
+  const trusteeScoped = allowedRoles.includes("trustee") && allowedRoles.every((role) => TRUSTEE_ROLES.includes(role));
+  if (trusteeScoped && !skipTrusteeAgreement) return <TrusteeAgreementGuard>{protectedPage}</TrusteeAgreementGuard>;
+  return protectedPage;
 }
 
 function RoleProtectedParamRoute({
@@ -248,8 +272,11 @@ function AppRouter() {
 
       <Route path="/" component={RootRedirect} />
 
+      <Route path="/trustee-agreement">
+        {() => <RoleProtectedRoute component={TrusteeAgreementPage} allowedRoles={TRUSTEE_ROLES} skipTrusteeAgreement />}
+      </Route>
       <Route path="/dashboard/trustee">
-        {() => <ProtectedRoute component={TrusteeDashboard} />}
+        {() => <TrusteeAgreementGuard><ProtectedRoute component={TrusteeDashboard} /></TrusteeAgreementGuard>}
       </Route>
       <Route path="/dashboard/officer">
         {() => <ProtectedRoute component={OfficerDashboard} />}

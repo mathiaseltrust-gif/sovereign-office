@@ -98,6 +98,7 @@ import githubIntakeRouter from "./github/intake";
 import harmonizationProfileRouter from "./harmonization/profile";
 import grampsRouter from "./gramps";
 import boardRouter from "./board/index";
+import trusteeAgreementRouter from "./trustee-agreement/index";
 
 const router: IRouter = Router();
 
@@ -201,5 +202,6 @@ router.use("/github/intake", githubIntakeRouter);
 router.use("/harmonization/profile", harmonizationProfileRouter);
 router.use("/gramps", grampsRouter);
 router.use("/board", boardRouter);
+router.use("/trustee-agreement", trusteeAgreementRouter);
 
 export default router;

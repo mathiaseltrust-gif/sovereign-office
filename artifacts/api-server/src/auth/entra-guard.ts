@@ -1,8 +1,9 @@
 import type { Request, Response, NextFunction } from "express";
 import { hasRole, type Role } from "../engines/authority";
 import { db } from "@workspace/db";
-import { usersTable, profilesTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { usersTable, profilesTable, trusteeAgreementAcceptancesTable } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
+import { getCurrentTrusteeAgreement, TRUSTEE_AGREEMENT_KEY, TRUSTEE_AGREEMENT_VERSION } from "../engines/trustee-agreement";
 
 export function requireAuth(req: Request, res: Response, next: NextFunction): void {
   if (!req.user) {
@@ -10,6 +11,36 @@ export function requireAuth(req: Request, res: Response, next: NextFunction): vo
     return;
   }
   next();
+}
+
+async function verifyCurrentTrusteeAgreement(req: Request, res: Response, next: NextFunction): Promise<void> {
+  if (!req.user?.dbId) {
+    res.status(403).json({ error: "A registered Trustee identity is required." });
+    return;
+  }
+  try {
+    const { contentHash } = getCurrentTrusteeAgreement();
+    const [acceptance] = await db.select({ id: trusteeAgreementAcceptancesTable.id })
+      .from(trusteeAgreementAcceptancesTable)
+      .where(and(
+        eq(trusteeAgreementAcceptancesTable.userId, req.user.dbId),
+        eq(trusteeAgreementAcceptancesTable.agreementKey, TRUSTEE_AGREEMENT_KEY),
+        eq(trusteeAgreementAcceptancesTable.agreementVersion, TRUSTEE_AGREEMENT_VERSION),
+        eq(trusteeAgreementAcceptancesTable.contentHash, contentHash),
+        isNull(trusteeAgreementAcceptancesTable.revokedAt),
+      )).limit(1);
+    if (!acceptance) {
+      res.status(428).json({
+        error: "Current Trustee Agreement signature required before exercising Trustee authority.",
+        code: "TRUSTEE_AGREEMENT_REQUIRED",
+        agreementUrl: "/trustee-agreement",
+      });
+      return;
+    }
+    next();
+  } catch {
+    res.status(503).json({ error: "Unable to verify current Trustee Agreement status." });
+  }
 }
 
 export function requireRole(role: Role) {
@@ -20,6 +51,10 @@ export function requireRole(role: Role) {
     }
     if (!hasRole(req.user.roles, role)) {
       res.status(403).json({ error: `Insufficient privileges. Required role: ${role}` });
+      return;
+    }
+    if (role === "trustee") {
+      void verifyCurrentTrusteeAgreement(req, res, next);
       return;
     }
     next();

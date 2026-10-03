@@ -64,6 +64,9 @@ router.post("/refresh", async (req, res) => {
     }
 
     const onboarding = await resolveAuthOnboardingState(dbUser.id, dbUser.entraId);
+    const authMethod = payload.authMethod === "microsoft" || (!payload.authMethod && payload.entraId)
+      ? "microsoft"
+      : "password";
 
     const freshToken = signSessionJwt({
       sub: String(dbUser.id),
@@ -72,6 +75,8 @@ router.post("/refresh", async (req, res) => {
       name: dbUser.name,
       role: dbUser.role,
       type: "session",
+      authMethod,
+      ...(authMethod === "microsoft" && dbUser.entraId ? { entraId: dbUser.entraId } : {}),
       firstLogin: onboarding.firstLogin,
       lineagePending: onboarding.lineagePending,
     });

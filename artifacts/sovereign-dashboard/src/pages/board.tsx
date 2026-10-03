@@ -12,7 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { OrgDocumentsPanel } from "@/components/OrgDocumentsPanel";
 import { getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
-import { AlertTriangle, CalendarDays, CheckSquare, ClipboardList, ExternalLink, Scale, ShieldCheck } from "lucide-react";
+import { AlertTriangle, CalendarDays, CheckSquare, ClipboardList, ExternalLink, FileSignature, Scale, ShieldCheck } from "lucide-react";
 
 interface OrgSummary {
   id: string;
@@ -270,6 +270,7 @@ export default function BoardPage() {
           <p className="text-muted-foreground mt-1">Independent Accountability & Stewardship — fiduciary oversight, directives, evidence, and institutional closure.</p>
         </div>
         <div className="flex gap-2 flex-wrap">
+          <Link href="/trustee-agreement"><Button variant="outline" className="gap-1.5"><FileSignature className="h-4 w-4" /> Trustee Agreement</Button></Link>
           <a href="/trust-dashboard/" className="inline-flex">
             <Button variant="outline" className="gap-1.5">
               <Scale className="h-4 w-4" /> Trust Administration <ExternalLink className="h-3 w-3" />

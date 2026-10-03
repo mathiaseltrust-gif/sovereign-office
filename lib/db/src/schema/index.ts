@@ -59,3 +59,5 @@ export * from "./trace-analysis";
 export * from "./trace-drafts";
 
 export * from "./board-matters";
+
+export * from "./trustee-agreement-acceptances";

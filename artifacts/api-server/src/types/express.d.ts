@@ -8,6 +8,7 @@ declare global {
         roles: string[];
         entraId?: string;
         dbId?: number;
+        authMethod?: "microsoft" | "password" | "entra_jwt" | "dev";
       };
     }
   }
