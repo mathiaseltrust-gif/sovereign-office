@@ -591,9 +591,10 @@ export default function Atlas() {
   };
 
   // Read URL params on mount:
-  //   ?mode=atlas  — activate Atlas Mode immediately
-  //   ?person=N    — auto-select ancestor N and activate Atlas Mode
-  //                  (used by Community Dashboard Tree View "View in Atlas" links)
+  //   ?mode=atlas   — activate Atlas Mode immediately
+  //   ?person=N     — auto-select ancestor N and activate Atlas Mode
+  //   ?event=ID     — auto-select the matching historical/life event
+  //                   (used by Family Timeline and Community Dashboard deep links)
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     if (params.get("mode") === "atlas") {
@@ -604,8 +605,13 @@ export default function Atlas() {
       const personId = parseInt(personParam, 10);
       if (!isNaN(personId)) {
         setSelectedPersonId(personId);
-        setAtlasMode(true); // auto-activate Atlas Mode when a person is specified
+        setAtlasMode(true);
       }
+    }
+    const eventParam = params.get("event");
+    if (eventParam) {
+      setSelectedEventId(eventParam);
+      setSelectedPersonId(null);
     }
   }, []);
 
