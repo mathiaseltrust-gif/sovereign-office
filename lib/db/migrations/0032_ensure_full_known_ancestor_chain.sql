@@ -244,3 +244,194 @@ BEGIN
     VALUES (father_id,mother_id,'[]'::jsonb,jsonb_build_array(child_id),'biological','verified_lineage','Curated birth-family link for Johnnie Mae Allen.');
   END IF;
 END $$;
+
+--> statement-breakpoint
+
+-- Ensure the intermediate generations that connect the root to the deeper
+-- records also exist. These were present in the curated seed before later
+-- 2x/3x generations were added, but older production databases can have a
+-- partial subset depending on when the original one-time seed first ran.
+WITH foundational_people (
+  full_name, first_name, last_name, gender, birth_year, death_year,
+  generational_position, is_deceased, membership_status, source_type,
+  protection_level, notes
+) AS (
+  VALUES
+    ('Milledge McCaster Jr', 'Milledge', 'McCaster', 'male', 1954, 1989, 1, true, 'confirmed', 'manual', 'standard', 'Father of Mathew-Allen McCaster.'),
+    ('Pamela Denise McCaster', 'Pamela', 'McCaster', 'female', 1961, NULL::integer, 1, false, 'confirmed', 'manual', 'standard', 'Mother of Mathew-Allen McCaster.'),
+    ('Milledge McCaster Sr', 'Milledge', 'McCaster Sr', 'male', 1932, 2013, 2, true, 'pending', 'csv', 'ancestor', 'Son of Ned and Charlotte; b. Bullock County, Alabama'),
+    ('Mattie Beatrice Watson McCaster', 'Mattie', 'Watson McCaster', 'female', 1935, 2021, 2, true, 'pending', 'gedcom', 'ancestor', 'Paternal grandmother. Spouse of Milledge McCaster Sr.'),
+    ('Cornelia Morant Ruff', 'Cornelia', 'Ruff', 'female', 1940, 2013, 2, true, 'confirmed', 'manual', 'standard', 'Maternal grandmother. Mother of Pamela Denise McCaster.'),
+    ('Charlotte Campbell', 'Charlotte', 'Campbell', 'female', 1885, 1951, 3, true, 'pending', 'csv', 'ancestor', 'Wife of Ned McCaster; b. Montgomery, Alabama')
+)
+INSERT INTO family_lineage (
+  full_name, first_name, last_name, gender, birth_year, death_year,
+  is_deceased, is_ancestor, generational_position,
+  parent_ids, children_ids, spouse_ids, sibling_ids,
+  lineage_tags, source_type, protection_level, membership_status,
+  pending_review, visibility, notes
+)
+SELECT
+  d.full_name, d.first_name, d.last_name, d.gender, d.birth_year, d.death_year,
+  d.is_deceased, true, d.generational_position,
+  '[]'::jsonb, '[]'::jsonb, '[]'::jsonb, '[]'::jsonb,
+  '["mccaster-lineage","chief-mathias-el"]'::jsonb,
+  d.source_type, d.protection_level, d.membership_status,
+  false, 'public', d.notes
+FROM foundational_people d
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM family_lineage f
+  WHERE lower(trim(f.full_name)) = lower(trim(d.full_name))
+    AND f.birth_year IS NOT DISTINCT FROM d.birth_year
+);
+--> statement-breakpoint
+
+WITH foundational_people (
+  full_name, birth_year, gender, generational_position,
+  membership_status, source_type
+) AS (
+  VALUES
+    ('Milledge McCaster Jr', 1954, 'male', 1, 'confirmed', 'manual'),
+    ('Pamela Denise McCaster', 1961, 'female', 1, 'confirmed', 'manual'),
+    ('Milledge McCaster Sr', 1932, 'male', 2, 'pending', 'csv'),
+    ('Mattie Beatrice Watson McCaster', 1935, 'female', 2, 'pending', 'gedcom'),
+    ('Cornelia Morant Ruff', 1940, 'female', 2, 'confirmed', 'manual'),
+    ('Charlotte Campbell', 1885, 'female', 3, 'pending', 'csv')
+)
+UPDATE family_lineage f
+SET
+  gender = coalesce(f.gender, d.gender),
+  generational_position = coalesce(f.generational_position, d.generational_position),
+  is_ancestor = true,
+  pending_review = false,
+  membership_status = CASE
+    WHEN coalesce(f.membership_status, '') = 'rejected' THEN d.membership_status
+    ELSE coalesce(nullif(f.membership_status, ''), d.membership_status)
+  END,
+  source_type = CASE
+    WHEN coalesce(f.source_type, '') = 'archived' THEN d.source_type
+    ELSE coalesce(nullif(f.source_type, ''), d.source_type)
+  END,
+  updated_at = now()
+FROM foundational_people d
+WHERE lower(trim(f.full_name)) = lower(trim(d.full_name))
+  AND f.birth_year IS NOT DISTINCT FROM d.birth_year;
+--> statement-breakpoint
+
+WITH edge_specs (child_name, child_year, parent_name, parent_year) AS (
+  VALUES
+    ('Milledge McCaster Jr', 1954, 'Milledge McCaster Sr', 1932),
+    ('Milledge McCaster Jr', 1954, 'Mattie Beatrice Watson McCaster', 1935),
+    ('Pamela Denise McCaster', 1961, 'Cornelia Morant Ruff', 1940),
+    ('Milledge McCaster Sr', 1932, 'Ned McCaster', 1876),
+    ('Milledge McCaster Sr', 1932, 'Charlotte Campbell', 1885),
+    ('Mattie Beatrice Watson McCaster', 1935, 'Ben C. Watson', 1900),
+    ('Mattie Beatrice Watson McCaster', 1935, 'Rosa Jemison Watson', 1902),
+    ('Cornelia Morant Ruff', 1940, 'Richard Henry Morant', 1918),
+    ('Cornelia Morant Ruff', 1940, 'Johnnie Mae Allen', 1917)
+),
+resolved_edges AS (
+  SELECT child.id AS child_id, parent.id AS parent_id
+  FROM edge_specs e
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.child_name))
+      AND birth_year IS NOT DISTINCT FROM e.child_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) child
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.parent_name))
+      AND birth_year IS NOT DISTINCT FROM e.parent_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) parent
+),
+parents_by_child AS (
+  SELECT child_id, jsonb_agg(DISTINCT parent_id) AS parent_ids_to_add
+  FROM resolved_edges
+  GROUP BY child_id
+)
+UPDATE family_lineage child
+SET parent_ids = (
+  SELECT coalesce(jsonb_agg(DISTINCT id_value), '[]'::jsonb)
+  FROM (
+    SELECT value::integer AS id_value
+    FROM jsonb_array_elements_text(coalesce(child.parent_ids, '[]'::jsonb))
+    UNION ALL
+    SELECT value::integer AS id_value
+    FROM jsonb_array_elements_text(p.parent_ids_to_add)
+  ) ids
+),
+updated_at = now()
+FROM parents_by_child p
+WHERE child.id = p.child_id;
+--> statement-breakpoint
+
+WITH edge_specs (child_name, child_year, parent_name, parent_year) AS (
+  VALUES
+    ('Milledge McCaster Jr', 1954, 'Milledge McCaster Sr', 1932),
+    ('Milledge McCaster Jr', 1954, 'Mattie Beatrice Watson McCaster', 1935),
+    ('Pamela Denise McCaster', 1961, 'Cornelia Morant Ruff', 1940),
+    ('Milledge McCaster Sr', 1932, 'Ned McCaster', 1876),
+    ('Milledge McCaster Sr', 1932, 'Charlotte Campbell', 1885),
+    ('Mattie Beatrice Watson McCaster', 1935, 'Ben C. Watson', 1900),
+    ('Mattie Beatrice Watson McCaster', 1935, 'Rosa Jemison Watson', 1902),
+    ('Cornelia Morant Ruff', 1940, 'Richard Henry Morant', 1918),
+    ('Cornelia Morant Ruff', 1940, 'Johnnie Mae Allen', 1917)
+),
+resolved_edges AS (
+  SELECT child.id AS child_id, parent.id AS parent_id
+  FROM edge_specs e
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.child_name))
+      AND birth_year IS NOT DISTINCT FROM e.child_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) child
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.parent_name))
+      AND birth_year IS NOT DISTINCT FROM e.parent_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) parent
+),
+children_by_parent AS (
+  SELECT parent_id, jsonb_agg(DISTINCT child_id) AS child_ids_to_add
+  FROM resolved_edges
+  GROUP BY parent_id
+)
+UPDATE family_lineage parent
+SET children_ids = (
+  SELECT coalesce(jsonb_agg(DISTINCT id_value), '[]'::jsonb)
+  FROM (
+    SELECT value::integer AS id_value
+    FROM jsonb_array_elements_text(coalesce(parent.children_ids, '[]'::jsonb))
+    UNION ALL
+    SELECT value::integer AS id_value
+    FROM jsonb_array_elements_text(c.child_ids_to_add)
+  ) ids
+),
+updated_at = now()
+FROM children_by_parent c
+WHERE parent.id = c.parent_id;
