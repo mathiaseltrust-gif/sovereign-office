@@ -7,7 +7,7 @@ describe("lineage document projection access", () => {
       requesterId: 6,
       targetLinkedProfileUserId: 6,
       targetUserId: null,
-      roles: ["member"],
+      authorityKeys: ["member"],
     })).toBe(true);
   });
 
@@ -17,7 +17,7 @@ describe("lineage document projection access", () => {
         requesterId: 9,
         targetLinkedProfileUserId: 6,
         targetUserId: null,
-        roles: [role],
+        authorityKeys: [role],
       })).toBe(false);
     }
   });
@@ -28,7 +28,7 @@ describe("lineage document projection access", () => {
         requesterId: 9,
         targetLinkedProfileUserId: 6,
         targetUserId: null,
-        roles: [role],
+        authorityKeys: [role],
       })).toBe(true);
     }
   });
