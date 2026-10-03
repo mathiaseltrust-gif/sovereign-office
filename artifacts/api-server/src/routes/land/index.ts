@@ -55,6 +55,8 @@ type RepositoryDeedDocument = {
   grantor: string;
   grantee: string;
   recordingJurisdiction: string;
+  county: string;
+  state: string;
   consideration: number;
   exemptionBasis: string;
   communityLandUse: string;
@@ -75,6 +77,8 @@ const REPOSITORY_DEED_DOCUMENTS: RepositoryDeedDocument[] = [
     grantor: "Mathew-Allen: McCaster",
     grantee: "Mathias El Tribe Trust",
     recordingJurisdiction: "Kern County, California",
+    county: "Kern",
+    state: "CA",
     consideration: 0,
     exemptionBasis: "Voluntary conveyance into Tribal Trust — no monetary consideration. Instrument cites 25 U.S.C. §177 and Cal. Rev. & Tax. Code §11930.",
     communityLandUse: "housing",
@@ -836,6 +840,122 @@ router.post("/repository-documents/:documentId/link", requireAuth, requireLandAc
     });
 
     res.status(201).json({ ...deed, parcelMismatch: Boolean(mismatch) });
+  } catch (err) { next(err); }
+});
+
+router.post("/repository-documents/:documentId/register-and-link", requireAuth, requireLandAccess, async (req, res, next) => {
+  try {
+    const doc = repositoryDeedById(String(req.params.documentId));
+    if (!doc) {
+      res.status(404).json({ error: "Repository document not found" });
+      return;
+    }
+
+    let parcelResult = await db.execute(sql`
+      SELECT *
+      FROM land_parcels
+      WHERE parcel_id = ${doc.parcelIdentifier}
+         OR tract_number = ${doc.tractNumber ?? ""}
+      ORDER BY id ASC
+      LIMIT 1
+    `);
+
+    let parcelCreated = false;
+    let parcel = parcelResult.rows[0] as Record<string, unknown> | undefined;
+
+    if (!parcel) {
+      const parcelRef = await nextDocRef("land_parcel");
+      const created = await db.execute(sql`
+        INSERT INTO land_parcels (
+          tract_number, parcel_id, legal_description,
+          classification, status, county, state, owner_type,
+          acquisition_source, notes, tribal_ref
+        ) VALUES (
+          ${doc.tractNumber ?? null},
+          ${doc.parcelIdentifier},
+          ${`See linked deed instrument: ${doc.title}`},
+          'protected_tribal_land',
+          'active',
+          ${doc.county},
+          ${doc.state},
+          'tribal',
+          ${`Sovereign Office repository document: ${doc.id}`},
+          ${`Parcel record created from an existing Office deed repository document. Review and complete acreage, legal description, coordinates, status classifications, and authority fields before relying on the parcel profile.`},
+          ${parcelRef}
+        )
+        RETURNING *
+      `);
+      parcel = created.rows[0] as Record<string, unknown>;
+      parcelCreated = true;
+
+      await auditLog({
+        userId: req.user?.dbId ?? null,
+        action: "LAND_PARCEL_CREATED_FROM_REPOSITORY_DEED",
+        resourceType: "land_parcel",
+        resourceId: parcel?.id as number | undefined,
+        afterValue: parcel,
+        metadata: {
+          repositoryDocumentId: doc.id,
+          parcelIdentifier: doc.parcelIdentifier,
+          tractNumber: doc.tractNumber ?? null,
+        },
+      });
+    }
+
+    const parcelId = Number(parcel.id);
+    const fileKey = `repository:${doc.id}`;
+
+    const existing = await db.execute(sql`
+      SELECT *
+      FROM land_deeds
+      WHERE parcel_id = ${parcelId}
+        AND file_key = ${fileKey}
+      LIMIT 1
+    `);
+
+    if (existing.rows[0]) {
+      res.json({
+        parcel,
+        deed: existing.rows[0],
+        parcelCreated,
+        linkedExisting: true,
+      });
+      return;
+    }
+
+    const deedResult = await db.execute(sql`
+      INSERT INTO land_deeds (
+        parcel_id, deed_type, grantor, grantee,
+        recording_jurisdiction, consideration, exemption_basis,
+        sovereign_immunity_claim, conservation_easement, community_land_use,
+        tribal_code_ref, federal_law_ref, file_key, file_name, file_url, notes, status
+      ) VALUES (
+        ${parcelId}, ${doc.deedType}, ${doc.grantor}, ${doc.grantee},
+        ${doc.recordingJurisdiction}, ${doc.consideration}, ${doc.exemptionBasis},
+        false, false, ${doc.communityLandUse},
+        ${doc.tribalCodeRef}, ${doc.federalLawRef}, ${fileKey}, ${doc.filename},
+        ${`/api/land/repository-documents/${doc.id}/download`},
+        ${doc.note},
+        ${doc.defaultStatus}
+      )
+      RETURNING *
+    `);
+
+    const deed = deedResult.rows[0] as Record<string, unknown>;
+    await auditLog({
+      userId: req.user?.dbId ?? null,
+      action: "DEED_REPOSITORY_DOCUMENT_REGISTERED_AND_LINKED",
+      resourceType: "land_deed",
+      resourceId: deed?.id as number | undefined,
+      afterValue: deed,
+      metadata: {
+        repositoryDocumentId: doc.id,
+        parcelId,
+        parcelCreated,
+      },
+    });
+
+    res.status(201).json({ parcel, deed, parcelCreated });
   } catch (err) { next(err); }
 });
 

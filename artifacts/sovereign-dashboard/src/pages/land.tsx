@@ -2495,7 +2495,7 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
   async function linkRepositoryDocument(doc: RepositoryDeedDocument) {
     const parcelId = linkParcelId || defaultParcelFor(doc);
     if (!parcelId) {
-      setLinkError("Select the parcel this deed belongs to before linking it.");
+      setLinkError("Select the parcel this deed belongs to, or use Register Parcel & Link.");
       return;
     }
     setLinkError(null);
@@ -2519,6 +2519,33 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
       }
     } catch (e) {
       setLinkError(e instanceof Error ? e.message : "Unable to link repository document.");
+    } finally {
+      setLinkingDocumentId(null);
+    }
+  }
+
+  async function registerAndLinkRepositoryDocument(doc: RepositoryDeedDocument) {
+    setLinkError(null);
+    setLinkingDocumentId(doc.id);
+    try {
+      const res = await authFetch(`/api/land/repository-documents/${doc.id}/register-and-link`, {
+        method: "POST",
+        body: JSON.stringify({}),
+      });
+      if (!res.ok) {
+        const msg = await res.text();
+        throw new Error(msg || `Register/link failed (${res.status})`);
+      }
+      const result = await res.json();
+      onRefresh();
+      await repositoryDocsQ.refetch();
+      setLinkModal(false);
+      setLinkParcelId("");
+      if (result.parcelCreated) {
+        alert("Parcel record created and deed linked. Review the new parcel profile and complete any missing legal-description, acreage, coordinate, and status details.");
+      }
+    } catch (e) {
+      setLinkError(e instanceof Error ? e.message : "Unable to register parcel and link repository deed.");
     } finally {
       setLinkingDocumentId(null);
     }
@@ -2681,18 +2708,30 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
                           >
                             <ExternalLink className="w-3.5 h-3.5 mr-1.5" /> Open
                           </Button>
-                          <Button
-                            size="sm"
-                            disabled={alreadyLinked || linkingDocumentId === doc.id || !targetParcelId}
-                            onClick={() => {
-                              if (!linkParcelId && autoParcelId) setLinkParcelId(autoParcelId);
-                              linkRepositoryDocument(doc);
-                            }}
-                            className="bg-amber-600 hover:bg-amber-700 text-white"
-                          >
-                            {linkingDocumentId === doc.id ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5 mr-1.5" />}
-                            {alreadyLinked ? "Already Linked" : "Link to Parcel"}
-                          </Button>
+                          {targetParcelId ? (
+                            <Button
+                              size="sm"
+                              disabled={alreadyLinked || linkingDocumentId === doc.id}
+                              onClick={() => {
+                                if (!linkParcelId && autoParcelId) setLinkParcelId(autoParcelId);
+                                linkRepositoryDocument(doc);
+                              }}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              {linkingDocumentId === doc.id ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Link2 className="w-3.5 h-3.5 mr-1.5" />}
+                              {alreadyLinked ? "Already Linked" : "Link to Parcel"}
+                            </Button>
+                          ) : (
+                            <Button
+                              size="sm"
+                              disabled={linkingDocumentId === doc.id}
+                              onClick={() => registerAndLinkRepositoryDocument(doc)}
+                              className="bg-amber-600 hover:bg-amber-700 text-white"
+                            >
+                              {linkingDocumentId === doc.id ? <Loader2 className="w-3.5 h-3.5 mr-1.5 animate-spin" /> : <Plus className="w-3.5 h-3.5 mr-1.5" />}
+                              Register Parcel & Link
+                            </Button>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -2703,7 +2742,7 @@ function DeedsTab({ deeds, parcels, onRefresh }: { deeds: Deed[]; parcels: Parce
 
             {parcels.length === 0 && (
               <p className="text-xs text-amber-700 border border-amber-300 bg-amber-50 rounded p-3">
-                Register the parcel in the Land Registry first. A deed record must be attached to a parcel.
+                No parcel is registered yet. Use <b>Register Parcel &amp; Link</b> on the repository deed to create the minimum parcel record and attach the deed in one step. The new parcel should then be reviewed and completed in Land Registry.
               </p>
             )}
             {linkError && <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded p-3">{linkError}</p>}
