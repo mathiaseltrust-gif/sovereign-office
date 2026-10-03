@@ -2181,7 +2181,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* Filters apply to the record-wide Pedigree/Fan views. Family is a
             focused relationship view and always preserves the focal person. */}
-        {treeView !== "family" && (
+        {(treeView === "pedigree" || treeView === "fan") && (
           <>
             <Button
               size="sm"
@@ -2348,7 +2348,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
       </div>
 
       {/* ── Filter panel ─────────────────────────────────────────────────────── */}
-      {showFilters && treeView !== "family" && (
+      {showFilters && (treeView === "pedigree" || treeView === "fan") && (
         <div className="mb-2 rounded-lg border bg-muted/20 px-3 py-2.5 space-y-2">
           <div className="flex flex-wrap gap-x-5 gap-y-2">
             {[
@@ -2426,7 +2426,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             </div>
           )}
 
-          {!isLoading && treeView !== "family" && nodes.length > 0 && filteredNodes.length === 0 && (
+          {!isLoading && (treeView === "pedigree" || treeView === "fan") && nodes.length > 0 && filteredNodes.length === 0 && (
             <div className="absolute inset-0 flex flex-col items-center justify-center gap-3 text-muted-foreground">
               <SlidersHorizontal className="h-8 w-8 opacity-30" />
               <p className="text-sm font-medium">No people match the current filters.</p>
