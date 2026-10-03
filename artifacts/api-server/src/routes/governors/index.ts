@@ -15,7 +15,7 @@ function requireSovereignAdmin(req: Request, res: Response, next: NextFunction):
     return;
   }
   const allowed = req.user.roles.some((r) =>
-    ["chief_justice", "sovereign_admin"].includes(r)
+    ["chief_justice", "chief_justice_trustee", "sovereign_admin"].includes(r)
   );
   if (!allowed) {
     res.status(403).json({ error: "Access denied. Role Governor management requires Chief Justice or Sovereign Admin access." });
