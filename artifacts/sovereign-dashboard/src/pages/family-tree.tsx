@@ -1218,7 +1218,11 @@ const PDIG_PAD  = 60;   // canvas padding
 const PDIG_MAX  = 8;    // max ancestor generations
 
 interface PedigreeNode extends LineageNode {
-  px: number; py: number; gen: number; ahnNum: number;
+  px: number;
+  py: number;
+  gen: number;
+  ahnNum: number;
+  hasHiddenParents: boolean;
 }
 
 function normalizedGenderRole(value: unknown): "male" | "female" | null {
@@ -1331,7 +1335,13 @@ function resolveAncestorIds(
 /** Horizontal ancestor chart using d3-hierarchy Reingold–Tilford.
  *  Root on the left; oldest ancestors spread to the right.
  *  Paternal line = amber connectors, maternal = sky-blue. */
-function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | null, familyUnits: FamilyUnit[] = []): {
+function computePedigreeLayout(
+  nodes: LineageNode[],
+  preferredRootId?: number | null,
+  familyUnits: FamilyUnit[] = [],
+  maxGeneration = 3,
+  expandedIds: Set<number> = new Set(),
+): {
   placed: PedigreeNode[];
   totalW: number;
   totalH: number;
@@ -1347,7 +1357,12 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
   if (!root) return { placed: [], totalW: 0, totalH: 0, pEdges: [] };
 
   // Build recursive ancestor structure:  root = focal person; "children" in d3 = parents (upward)
-  interface HierDatum { node: LineageNode; ahnNum: number; children?: HierDatum[] }
+  interface HierDatum {
+    node: LineageNode;
+    ahnNum: number;
+    hasHiddenParents: boolean;
+    children?: HierDatum[];
+  }
 
   function buildHier(id: number, gen: number, ahnNum: number, seen: Set<number>): HierDatum | null {
     if (gen > PDIG_MAX || seen.has(id)) return null;
@@ -1355,10 +1370,25 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
     if (!n) return null;
     seen.add(id);
     const { fatherId, motherId } = resolveParentSlots(n, byId, familyUnits);
+    const hasParents = fatherId != null || motherId != null;
+    const mayExpandThisNode = gen < maxGeneration || expandedIds.has(id);
     const kids: HierDatum[] = [];
-    if (fatherId) { const c = buildHier(fatherId, gen + 1, ahnNum * 2,     new Set(seen)); if (c) kids.push(c); }
-    if (motherId) { const c = buildHier(motherId, gen + 1, ahnNum * 2 + 1, new Set(seen)); if (c) kids.push(c); }
-    return { node: n, ahnNum, children: kids.length ? kids : undefined };
+    if (mayExpandThisNode) {
+      if (fatherId) {
+        const c = buildHier(fatherId, gen + 1, ahnNum * 2, new Set(seen));
+        if (c) kids.push(c);
+      }
+      if (motherId) {
+        const c = buildHier(motherId, gen + 1, ahnNum * 2 + 1, new Set(seen));
+        if (c) kids.push(c);
+      }
+    }
+    return {
+      node: n,
+      ahnNum,
+      hasHiddenParents: hasParents && !mayExpandThisNode,
+      children: kids.length ? kids : undefined,
+    };
   }
 
   const hierData = buildHier(root.id, 0, 1, new Set());
@@ -1385,7 +1415,14 @@ function computePedigreeLayout(nodes: LineageNode[], preferredRootId?: number | 
   root2.each(d => {
     const px = PDIG_PAD + ((d.y ?? 0) - minY);
     const py = PDIG_PAD + ((d.x ?? 0) - minX);
-    placed.push({ ...d.data.node, px, py, gen: d.depth, ahnNum: d.data.ahnNum });
+    placed.push({
+      ...d.data.node,
+      px,
+      py,
+      gen: d.depth,
+      ahnNum: d.data.ahnNum,
+      hasHiddenParents: d.data.hasHiddenParents,
+    });
   });
 
   const pEdges: Array<{ key: string; x1: number; y1: number; x2: number; y2: number; isPat: boolean }> = [];
@@ -1588,6 +1625,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     7: "4× Great-grandparents",
   };
   const depthLabel = DEPTH_LABELS[generationDepth] ?? "Ancestors";
+
+  useEffect(() => {
+    setPedigreeExpandedIds(new Set());
+  }, [generationDepth]);
 
   // Self node resolved from raw data (not from positioned, to avoid circular dependency)
   const selfNodeRaw = useMemo(() => {
@@ -1831,6 +1872,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
   const [treeView, setTreeView] = useState<TreeViewMode>("tree");
   const [selectedHistoricalEvent, setSelectedHistoricalEvent] = useState<FamilyTimelineAtlasEvent | null>(null);
+  const [pedigreeExpandedIds, setPedigreeExpandedIds] = useState<Set<number>>(() => new Set());
   const importRef = useRef<HTMLInputElement>(null);
 
   const effectiveFocusId = focusedPersonId ?? preferredRootId;
@@ -1934,8 +1976,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   [timelineBounds.minYear, timelineTrackWidth]);
 
   const pedigreeData = useMemo(
-    () => treeView === "pedigree" ? computePedigreeLayout(treeNodes, preferredRootId, familyUnits) : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
-    [treeNodes, treeView, preferredRootId, familyUnits],
+    () => treeView === "pedigree"
+      ? computePedigreeLayout(familyViewNodes, preferredRootId, familyUnits, Math.max(1, generationDepth), pedigreeExpandedIds)
+      : { placed: [], totalW: 0, totalH: 0, pEdges: [] },
+    [familyViewNodes, treeView, preferredRootId, familyUnits, generationDepth, pedigreeExpandedIds],
   );
   const fanData = useMemo(
     () => treeView === "fan" ? buildFanEntries(treeNodes, preferredRootId, familyUnits) : { entries: [], root: null, maxGen: 0 },
@@ -2716,6 +2760,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <div
                     key={node.id}
                     data-node="1"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => {
                       e.stopPropagation();
                       if (Date.now() < suppressNodeClickUntil.current) return;
@@ -2840,15 +2885,43 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <div
                     key={node.id}
                     data-node="1"
-                    onClick={(e) => { e.stopPropagation(); if (Date.now() >= suppressNodeClickUntil.current) setSelectedNodeId(node.id); }}
+                    onPointerDown={(e) => e.stopPropagation()}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setSelectedHistoricalEvent(null);
+                      setSelectedNodeId(node.id);
+                    }}
                     style={{ position: "absolute", left: node.px, top: node.py, width: PDIG_W, height: PDIG_H }}
                     className={[
-                      "rounded-lg border-2 px-2.5 py-1.5 cursor-pointer transition-all flex flex-col justify-between overflow-hidden",
+                      "rounded-lg border-2 px-2.5 py-1.5 cursor-pointer transition-all flex flex-col justify-between overflow-visible relative",
                       bg,
                       isSelected ? "ring-2 ring-primary shadow-lg" : "hover:shadow-md hover:scale-[1.01]",
                     ].join(" ")}
                   >
-                    <span className="text-[11px] font-semibold leading-tight line-clamp-2">{node.fullName}</span>
+                    {(node.hasHiddenParents || pedigreeExpandedIds.has(node.id)) && (
+                      <button
+                        type="button"
+                        data-node="1"
+                        className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full border bg-background shadow-sm flex items-center justify-center hover:bg-muted z-20"
+                        title={node.hasHiddenParents ? "Show this ancestor's parents" : "Collapse this ancestor's added generation"}
+                        aria-label={node.hasHiddenParents ? "Show this ancestor's parents" : "Collapse this ancestor's added generation"}
+                        onPointerDown={(e) => e.stopPropagation()}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setPedigreeExpandedIds((current) => {
+                            const next = new Set(current);
+                            if (next.has(node.id)) next.delete(node.id);
+                            else next.add(node.id);
+                            return next;
+                          });
+                        }}
+                      >
+                        {pedigreeExpandedIds.has(node.id)
+                          ? <Minus className="h-3 w-3" />
+                          : <Plus className="h-3 w-3" />}
+                      </button>
+                    )}
+                    <span className="text-[11px] font-semibold leading-tight line-clamp-2 pr-1">{node.fullName}</span>
                     <div className="flex items-center justify-between gap-1 mt-0.5">
                       <span className="text-[10px] text-muted-foreground font-mono">{dateStr}</span>
                       {node.gen > 0 && (
@@ -2907,6 +2980,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                     <g
                       key={entry.id}
                       data-node="1"
+                      onPointerDown={(e) => e.stopPropagation()}
                       onClick={(e) => { e.stopPropagation(); setSelectedNodeId(entry.id); }}
                       style={{ cursor: "pointer" }}
                     >
@@ -2943,6 +3017,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                 {fanData.root && (
                   <g
                     data-node="1"
+                    onPointerDown={(e) => e.stopPropagation()}
                     onClick={(e) => { e.stopPropagation(); setSelectedNodeId(fanData.root!.id); }}
                     style={{ cursor: "pointer" }}
                   >
