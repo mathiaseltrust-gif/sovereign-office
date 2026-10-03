@@ -2,7 +2,7 @@ import { Router } from "express";
 import multer from "multer";
 import { db } from "@workspace/db";
 import { familyLineageTable, familyUnitsTable } from "@workspace/db";
-import { eq, and } from "drizzle-orm";
+import { eq, and, or } from "drizzle-orm";
 import { requireAuth, requireRole } from "../../auth/entra-guard";
 import { parseLineageCsv, parseGedcom, parseGedcomFamilies, buildLineageGraph } from "../../engines/family-tree-engine";
 import { logger } from "../../lib/logger";
@@ -63,13 +63,24 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
     for (let i = 0; i < people.length; i++) {
       const person = people[i];
       try {
+        const normalizedName = person.fullName.trim().toLowerCase();
+        const isCorneliaMorantRuff =
+          normalizedName === "cornelia morant ruff" ||
+          normalizedName === "cornella morant ruff";
+        const nameCondition = isCorneliaMorantRuff
+          ? or(
+              eq(familyLineageTable.fullName, "Cornelia Morant Ruff"),
+              eq(familyLineageTable.fullName, "Cornella Morant Ruff"),
+            )
+          : eq(familyLineageTable.fullName, person.fullName);
+
         const existing = await db
           .select({ id: familyLineageTable.id, nameVariants: familyLineageTable.nameVariants })
           .from(familyLineageTable)
           .where(
             person.birthYear
-              ? and(eq(familyLineageTable.fullName, person.fullName), eq(familyLineageTable.birthYear, person.birthYear))
-              : eq(familyLineageTable.fullName, person.fullName)
+              ? and(nameCondition, eq(familyLineageTable.birthYear, person.birthYear))
+              : nameCondition
           )
           .limit(1);
 
@@ -80,10 +91,19 @@ router.post("/", requireAuth, requireRole("trustee"), upload.single("file"), asy
           // variants the parser captured (GEDCOM alternate NAME lines, CSV alternate_name column).
           const incomingVariants: string[] = [
             person.fullName,
+            ...(isCorneliaMorantRuff ? ["Cornelia Morant Ruff", "Cornella Morant Ruff"] : []),
             ...(person.nameVariants ?? []),
           ].map((v) => v.trim()).filter(Boolean);
           const newVariants = [...new Set([...existingVariants, ...incomingVariants])];
-          await db.update(familyLineageTable).set({ nameVariants: newVariants, updatedAt: new Date() }).where(eq(familyLineageTable.id, existingId));
+          await db.update(familyLineageTable).set({
+            nameVariants: newVariants,
+            ...(isCorneliaMorantRuff ? {
+              fullName: "Cornelia Morant Ruff",
+              firstName: "Cornelia",
+              gender: "female",
+            } : {}),
+            updatedAt: new Date(),
+          }).where(eq(familyLineageTable.id, existingId));
           nameToId.set(person.fullName.toLowerCase(), existingId);
           if (person.gedcomId) gedcomIdToDbId.set(person.gedcomId, existingId);
           lineageIds.push(existingId);
