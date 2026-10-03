@@ -36,6 +36,13 @@ const DOC_TYPE_LABELS: Record<string, string> = {
   "501c3_cert": "501(c)(3) Determination Letter",
   tribal_license: "Tribal Business License",
   articles: "Tribal Charter / Articles of Organization",
+  charter: "Board Charter / Governance Instrument",
+  appointment: "Trustee Appointment / Credential",
+  conflict: "Conflict of Interest Disclosure",
+  minutes: "Board Meeting Minutes",
+  resolution: "Board Resolution",
+  report: "Board / Fiduciary Report",
+  evidence: "Board Matter Evidence",
   general: "Organizational Document",
 };
 
@@ -73,6 +80,34 @@ const DOC_TYPE_CONTEXT: Record<string, string[]> = {
     "Foundational governance document",
     "Required for bank accounts and institutional agreements",
     "Proof of organizational authority and structure",
+  ],
+  charter: [
+    "Defines Board authority, structure, scope, and governance procedures",
+    "Preserves the institutional basis for trustee action",
+  ],
+  appointment: [
+    "Documents trustee appointment, office, term, or delegated authority",
+    "Supports access and accountability records",
+  ],
+  conflict: [
+    "Documents disclosed interests and recusal requirements",
+    "Preserves the Board's conflict-management record",
+  ],
+  minutes: [
+    "Preserves deliberations, attendance, actions, and follow-up items",
+    "Provides the permanent record of a Board meeting",
+  ],
+  resolution: [
+    "Records a formal Board action or directive",
+    "Supports implementation and later audit",
+  ],
+  report: [
+    "Documents fiduciary, compliance, program, or stewardship findings",
+    "Supports Board review and institutional continuity",
+  ],
+  evidence: [
+    "Supports a Board Matter, directive, response, or closure determination",
+    "Preserves the evidence relied upon by the Board",
   ],
   general: [
     "Supporting documentation for organizational record",
