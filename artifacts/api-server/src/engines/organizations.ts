@@ -1,4 +1,4 @@
-export type OrgType = "court" | "trust" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
+export type OrgType = "court" | "trust" | "board" | "charitable_trust" | "political" | "enterprise" | "medical" | "education";
 export type OrgAccessLevel = "none" | "member" | "officer" | "director" | "trustee" | "full";
 export type CourtAccessLevel = "none" | "view" | "file" | "adjudicate";
 export type TrustAccessLevel = "none" | "beneficiary" | "officer" | "trustee";
@@ -72,7 +72,7 @@ export const SOVEREIGN_ORGS: SovereignOrg[] = [
     id: "board_of_trustees",
     name: "Board of Trustees / Independent Accountability & Stewardship",
     shortName: "Board of Trustees",
-    type: "trust",
+    type: "board",
     legalStatus: "Internal fiduciary oversight and governance body",
     jurisdiction: "Office of the Chief Justice & Trustee — trust and institutional governance",
     description: "Restricted trustee-governance workspace for fiduciary oversight, Board Matters, directives, minutes, resolutions, conflicts, evidence, and institutional accountability.",
