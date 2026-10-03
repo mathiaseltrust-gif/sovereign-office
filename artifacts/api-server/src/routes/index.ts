@@ -97,6 +97,7 @@ import traceRouter from "./trace/index";
 import githubIntakeRouter from "./github/intake";
 import harmonizationProfileRouter from "./harmonization/profile";
 import grampsRouter from "./gramps";
+import boardRouter from "./board/index";
 
 const router: IRouter = Router();
 
@@ -199,5 +200,6 @@ router.use("/trace", traceRouter);
 router.use("/github/intake", githubIntakeRouter);
 router.use("/harmonization/profile", harmonizationProfileRouter);
 router.use("/gramps", grampsRouter);
+router.use("/board", boardRouter);
 
 export default router;
