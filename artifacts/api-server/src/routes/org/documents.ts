@@ -47,6 +47,10 @@ const DocumentCreateBody = z.object({
   description: z.string().max(1000).optional(),
 });
 
+const LinkDocumentBody = z.object({
+  sourceDocumentId: z.number().int().positive(),
+});
+
 function isElevated(req: Request): boolean {
   return req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
 }
@@ -57,6 +61,19 @@ function canAccessOrg(req: Request, orgId: string): boolean {
   }
   return isElevated(req);
 }
+
+router.get("/_documents/catalog", requireAuth, async (req: Request, res: Response, next) => {
+  if (!isElevated(req)) {
+    res.status(403).json({ error: "Trustee or officer access required." });
+    return;
+  }
+  try {
+    const docs = await db.select().from(orgDocumentsTable);
+    res.json(docs.filter((doc) => canAccessOrg(req, doc.orgId)));
+  } catch (err) {
+    next(err);
+  }
+});
 
 router.get("/:orgId/profile", requireAuth, async (req: Request, res: Response, next) => {
   if (!canAccessOrg(req, String(req.params.orgId))) {
@@ -174,6 +191,64 @@ router.post("/:orgId/documents", requireAuth, async (req: Request, res: Response
 
     logger.info({ orgId, docId: doc.id, filename, userId }, "Org document registered");
     res.status(201).json(doc);
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/:orgId/documents/link", requireAuth, async (req: Request, res: Response, next) => {
+  try {
+    const orgId = String(req.params.orgId);
+    if (!VALID_ORG_IDS.has(orgId)) {
+      res.status(404).json({ error: "Organization not found" });
+      return;
+    }
+    if (!canAccessOrg(req, orgId)) {
+      res.status(403).json({ error: orgId === "board_of_trustees" ? "Trustee access required to link Board records." : "Trustee or officer access required to link documents." });
+      return;
+    }
+
+    const parsed = LinkDocumentBody.safeParse(req.body);
+    if (!parsed.success) {
+      res.status(400).json({ error: "sourceDocumentId is required" });
+      return;
+    }
+
+    const [source] = await db.select().from(orgDocumentsTable)
+      .where(eq(orgDocumentsTable.id, parsed.data.sourceDocumentId))
+      .limit(1);
+
+    if (!source) {
+      res.status(404).json({ error: "Source document not found" });
+      return;
+    }
+    if (!canAccessOrg(req, source.orgId)) {
+      res.status(403).json({ error: "You do not have access to the source document." });
+      return;
+    }
+
+    if (source.fileKey) {
+      const existing = await db.select().from(orgDocumentsTable)
+        .where(and(eq(orgDocumentsTable.orgId, orgId), eq(orgDocumentsTable.fileKey, source.fileKey)))
+        .limit(1);
+      if (existing[0]) {
+        res.json({ ...existing[0], linkedExisting: true });
+        return;
+      }
+    }
+
+    const [linked] = await db.insert(orgDocumentsTable).values({
+      orgId,
+      docType: source.docType,
+      label: source.label,
+      filename: source.filename,
+      fileKey: source.fileKey,
+      description: source.description,
+      uploadedBy: req.user!.dbId,
+    }).returning();
+
+    logger.info({ orgId, sourceDocumentId: source.id, linkedDocumentId: linked.id, userId: req.user!.dbId }, "Org document linked from existing record");
+    res.status(201).json(linked);
   } catch (err) {
     next(err);
   }
