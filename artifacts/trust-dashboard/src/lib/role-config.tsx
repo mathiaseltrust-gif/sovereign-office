@@ -82,6 +82,7 @@ export function getRoleConfig(roles: string[]): RoleConfig {
       navItems: [
         { label: "Overview", href: "/", icon: LayoutDashboard },
         { label: "Trust Instruments", href: "/instruments", icon: FolderOpen, group: "Trust Office" },
+        { label: "Board of Trustees", href: "/board", icon: Shield, group: "Trust Office", externalHref: "/board" },
         { label: "Filings", href: "/filings", icon: FileText, group: "Trust Office" },
         { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority/case-files" },
         { label: "Notice of Federal Review", href: "/nfr", icon: Scale, group: "Court" },
@@ -170,6 +171,7 @@ export function getRoleConfig(roles: string[]): RoleConfig {
       navItems: [
         { label: "Overview", href: "/", icon: LayoutDashboard },
         { label: "Trust Instruments", href: "/instruments", icon: FolderOpen, group: "Trust Office" },
+        { label: "Board of Trustees", href: "/board", icon: Shield, group: "Trust Office", externalHref: "/board" },
         { label: "Filings", href: "/filings", icon: FileText, group: "Trust Office" },
         { label: "Case File Registry", href: "/case-registry", icon: ScrollText, group: "Court", externalHref: "/authority/case-files" },
         { label: "Notice of Federal Review", href: "/nfr", icon: Scale, group: "Court" },
