@@ -8,7 +8,8 @@
     "typecheck:libs": "tsc --build",
     "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
     "security:scan": "node scripts/security-secret-scan.mjs",
-    "test:security": "pnpm --filter @workspace/api-server test"
+    "test:security": "pnpm --filter @workspace/api-server test",
+    "check:migrations": "node scripts/check-migration-journal.mjs"
   },
   "private": true,
   "devDependencies": {
