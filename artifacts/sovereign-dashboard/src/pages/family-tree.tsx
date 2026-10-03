@@ -1862,7 +1862,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               year: parsedYear,
               type: event.event_type || "life_event",
               label: lifeEventLabel(event.event_type || "life_event"),
-              place: event.event_place ?? event.place_normalized ?? [event.county, event.state, event.country].filter(Boolean).join(", ") || null,
+              place: event.event_place ?? event.place_normalized ?? ([event.county, event.state, event.country].filter(Boolean).join(", ") || null),
               source: event.source_reference ?? event.source_type ?? null,
             };
           })
@@ -3544,6 +3544,15 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             {membershipDot(n.membershipStatus)}
             <span className="text-xs text-muted-foreground capitalize">{n.membershipStatus ?? "unknown"}</span>
           </div>
+
+          <a
+            href={"/atlas/?mode=atlas&person=" + n.id}
+            className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted w-fit"
+            title="Open this person in the Urban Indian Continuity Atlas"
+          >
+            <MapPin className="h-3.5 w-3.5" />
+            View in Atlas
+          </a>
 
           <div className="space-y-1">
             {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
