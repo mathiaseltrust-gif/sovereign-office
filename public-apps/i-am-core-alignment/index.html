@@ -114,60 +114,40 @@ button{font:inherit}
   font-family:Didot,"Bodoni 72","Bodoni MT",Baskerville,"Times New Roman",serif;
   font-size:clamp(48px,10.5vw,92px);font-weight:400;letter-spacing:.025em;
   line-height:1.14;color:#eee7dd;text-wrap:balance;
-  transition:opacity .72s cubic-bezier(.22,.61,.36,1),transform .72s cubic-bezier(.22,.61,.36,1),filter .72s ease;
+  opacity:1;
+  transform:translateY(0) scale(1);
+  transition:
+    opacity 1.18s cubic-bezier(.22,.61,.36,1),
+    transform 1.18s cubic-bezier(.22,.61,.36,1);
+  will-change:opacity,transform;
 }
 .answer{
   margin-top:70px;max-width:720px;
   font-family:Didot,"Bodoni 72",Baskerville,"Times New Roman",serif;
   font-size:clamp(24px,5.4vw,42px);line-height:1.5;font-style:italic;
   color:#c39b7c;text-wrap:balance;
-  opacity:0;transform:translateY(7px) scale(.972);filter:blur(4px);
-  text-shadow:0 0 0 rgba(195,155,124,0);
+  opacity:0;
+  transform:translateY(6px) scale(.992);
+  transition:
+    opacity 1.28s cubic-bezier(.22,.61,.36,1),
+    transform 1.28s cubic-bezier(.22,.61,.36,1);
+  will-change:opacity,transform;
 }
 .answer.show{
-  animation:softBoom 1.35s cubic-bezier(.16,1,.3,1) both;
-}
-@keyframes softBoom{
-  0%{
-    opacity:0;
-    transform:translateY(8px) scale(.968);
-    filter:blur(5px);
-    text-shadow:0 0 0 rgba(195,155,124,0);
-  }
-  34%{
-    opacity:.42;
-    transform:translateY(3px) scale(.988);
-    filter:blur(2.7px);
-    text-shadow:0 0 12px rgba(195,155,124,.06);
-  }
-  68%{
-    opacity:.92;
-    transform:translateY(0) scale(1.012);
-    filter:blur(.45px);
-    text-shadow:0 0 24px rgba(195,155,124,.09);
-  }
-  100%{
-    opacity:1;
-    transform:translateY(0) scale(1);
-    filter:blur(0);
-    text-shadow:0 0 12px rgba(195,155,124,.035);
-  }
+  opacity:1;
+  transform:translateY(0) scale(1);
 }
 .card.answer-closing .answer{
   opacity:0 !important;
-  transform:translateY(-3px);
-  filter:blur(2.2px);
+  transform:translateY(-4px) scale(.995);
 }
 .card.prompt-closing .prompt{
   opacity:0 !important;
-  transform:translateY(-2px) scale(.996);
-  filter:blur(1.8px);
+  transform:translateY(-4px) scale(.996);
 }
-.card.prompt-in .prompt{animation:promptFocusIn .96s cubic-bezier(.16,1,.3,1) both}
-@keyframes promptFocusIn{
-  0%{opacity:0;transform:translateY(7px) scale(.994);filter:blur(5px)}
-  48%{opacity:.58;filter:blur(2.2px)}
-  100%{opacity:1;transform:translateY(0) scale(1);filter:blur(0)}
+.card.prompt-preenter .prompt{
+  opacity:0 !important;
+  transform:translateY(5px) scale(.994);
 }
 .hint{
   position:absolute;bottom:clamp(92px,15vh,138px);left:0;right:0;text-align:center;
@@ -190,7 +170,7 @@ button{font:inherit}
   .tagline{margin-top:44px}.begin{margin-top:50px;height:104px}.share{margin-bottom:28px}
   .hero{padding-top:0}.hint{bottom:75px}.center{padding-bottom:44px}
 }
-@media (prefers-reduced-motion:reduce){.screen,.prompt,.answer{transition:none}.fade,.ambient-wash.cue,.card.prompt-in .prompt,.answer.show{animation:none}.answer.show{opacity:1;transform:none;filter:none}.card.answer-closing .answer,.card.prompt-closing .prompt{filter:none}}
+@media (prefers-reduced-motion:reduce){.screen,.prompt,.answer{transition:none}.fade,.ambient-wash.cue{animation:none}.answer.show{opacity:1;transform:none}}
 </style>
 </head>
 <body>
@@ -332,32 +312,37 @@ function resetTimer(){
 async function moveTo(nextIndex){
   if(transitioning)return;
   transitioning=true;
-  cardEl.classList.remove("prompt-in","prompt-closing","answer-closing");
 
-  // Let the copper/gold reflection close gently and completely first.
-  cardEl.classList.add("answer-closing");
-  await new Promise(r=>setTimeout(r,920));
+  cardEl.classList.remove("prompt-preenter","prompt-closing","answer-closing");
 
-  // Then let the current white prompt recede on its own.
+  // Gold response leaves in one smooth motion.
+  if(revealed){
+    cardEl.classList.add("answer-closing");
+    await new Promise(r=>setTimeout(r,1320));
+  }
+
+  // White prompt leaves in the same gentle motion.
   cardEl.classList.add("prompt-closing");
-  await new Promise(r=>setTimeout(r,740));
+  await new Promise(r=>setTimeout(r,1200));
 
-  // A quiet empty beat keeps the two thoughts from visually competing.
-  await new Promise(r=>setTimeout(r,360));
+  // Brief quiet separation between thoughts.
+  await new Promise(r=>setTimeout(r,260));
 
   i=(nextIndex+cards.length)%cards.length;
   revealed=false;
+
+  // Hold the new prompt fully hidden before allowing its single fade-in.
+  cardEl.classList.remove("answer-closing","prompt-closing");
+  cardEl.classList.add("prompt-preenter");
   promptEl.textContent=cards[i][0];
   answerEl.textContent=cards[i][1];
   answerEl.classList.remove("show");
 
-  cardEl.classList.remove("answer-closing","prompt-closing");
-  cardEl.classList.add("prompt-in");
+  await new Promise(r=>requestAnimationFrame(()=>requestAnimationFrame(r)));
+  cardEl.classList.remove("prompt-preenter");
   ambientCue();pulse();
 
-  // The next thought resolves from soft blur into a crisp center focus.
-  await new Promise(r=>setTimeout(r,1000));
-  cardEl.classList.remove("prompt-in");
+  await new Promise(r=>setTimeout(r,1220));
   transitioning=false;
 }
 function advance(){
