@@ -854,46 +854,54 @@ export default function FamilyTreePage() {
   });
 
   return (
-    <div data-testid="page-family-tree">
-      <div className="mb-6">
-        <h1 className="text-3xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
-        <p className="text-muted-foreground mt-1">
-          Interactive visual family tree — ancestors, descendants, and protected lineage lines
-        </p>
+    <div
+      data-testid="page-family-tree"
+      className="flex flex-col min-h-0"
+      style={{ height: "calc(100dvh - 96px)", minHeight: 640 }}
+    >
+      <div className="shrink-0 px-1 pt-1">
+        <div className="mb-3">
+          <h1 className="text-2xl font-serif font-bold text-foreground">Family Tree &amp; Lineage</h1>
+          <p className="text-sm text-muted-foreground mt-0.5">
+            Interactive family workspace — focus a person, pan freely, zoom, and follow household branches.
+          </p>
+        </div>
+
+        <div className="flex gap-1 mb-3 flex-wrap border-b pb-2">
+          {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              className={[
+                "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
+                activeTab === tab
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:bg-secondary hover:text-foreground",
+              ].join(" ")}
+            >
+              {TAB_LABELS[tab]}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <div className="flex gap-1 mb-6 flex-wrap border-b pb-3">
-        {(Object.keys(TAB_LABELS) as Tab[]).map((tab) => (
-          <button
-            key={tab}
-            onClick={() => setActiveTab(tab)}
-            className={[
-              "px-4 py-2 rounded-md text-sm font-medium transition-colors",
-              activeTab === tab
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:bg-secondary hover:text-foreground",
-            ].join(" ")}
-          >
-            {TAB_LABELS[tab]}
-          </button>
-        ))}
+      <div className={activeTab === "view-lineage" ? "flex-1 min-h-0" : "flex-1 min-h-0 overflow-y-auto px-1 pb-3"}>
+        {activeTab === "view-lineage" && (
+          <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        )}
+        {activeTab === "my-submissions" && (
+          <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
+        )}
+        {activeTab === "edit-ancestors" && (
+          <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
+        )}
+        {activeTab === "knowledge-of-self" && (
+          <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
+        )}
+        {activeTab === "deduplicate" && (
+          <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
+        )}
       </div>
-
-      {activeTab === "view-lineage" && (
-        <InteractiveTreeTab canEdit={canEdit} onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-      )}
-      {activeTab === "my-submissions" && (
-        <MySubmissionsTab onDataChange={() => { queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); queryClient.invalidateQueries({ queryKey: ["my-submissions"] }); }} />
-      )}
-      {activeTab === "edit-ancestors" && (
-        <EditAncestorsTab lineageData={lineageData} isLoading={lineageLoading} onSuccess={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); toast({ title: "Ancestor saved" }); }} />
-      )}
-      {activeTab === "knowledge-of-self" && (
-        <KnowledgeOfSelfTab kosData={kosData} lineageData={lineageData} isLoading={kosLoading} onLink={() => { queryClient.invalidateQueries({ queryKey: ["family-tree-kos"] }); toast({ title: "Identity link created" }); }} />
-      )}
-      {activeTab === "deduplicate" && (
-        <DeduplicateTab onResolved={() => { queryClient.invalidateQueries({ queryKey: ["family-tree"] }); queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] }); }} />
-      )}
     </div>
   );
 }
@@ -1556,7 +1564,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [_savedSession] = useState(readTreeSession);
   const [transform, setTransform] = useState(_savedSession?.transform ?? { x: 0, y: 0, scale: 1 });
   const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef<{ x: number; y: number; tx: number; ty: number } | null>(null);
+  const activePointers = useRef(new Map<number, { x: number; y: number }>());
+  const gestureStart = useRef<
+    | { mode: "pan"; pointerId: number; startX: number; startY: number; tx: number; ty: number; moved: boolean }
+    | { mode: "pinch"; startDistance: number; startScale: number; worldX: number; worldY: number; moved: boolean }
+    | null
+  >(null);
+  const suppressNodeClickUntil = useRef(0);
   const [selectedNodeId, setSelectedNodeId] = useState<number | null>(null);
   const [focusedPersonId, setFocusedPersonId] = useState<number | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -1767,17 +1781,20 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     }
   }, [treeView, preferredRootId, focusedPersonId, familyViewNodes]);
 
-  // Recenter the viewport after the focal person's household layout changes.
+  const familyFocusPosition = familyLayout.focalId == null
+    ? null
+    : positioned.find((node) => node.id === familyLayout.focalId) ?? null;
+
+  // Recenter only when the focused person/layout coordinates actually change.
+  // Pan/zoom updates must never be overwritten by a rerender.
   useEffect(() => {
-    if (treeView !== "family" || !containerRef.current || familyLayout.focalId == null) return;
-    const focalNode = positioned.find((node) => node.id === familyLayout.focalId);
-    if (!focalNode) return;
+    if (treeView !== "family" || !containerRef.current || !familyFocusPosition) return;
     const { clientWidth, clientHeight } = containerRef.current;
     const scale = 1.05;
-    const x = clientWidth / 2 - (focalNode.x + NODE_W / 2) * scale;
-    const y = clientHeight * 0.42 - (focalNode.y + NODE_H / 2) * scale;
+    const x = clientWidth / 2 - (familyFocusPosition.x + NODE_W / 2) * scale;
+    const y = clientHeight * 0.42 - (familyFocusPosition.y + NODE_H / 2) * scale;
     setTransform({ x, y, scale });
-  }, [treeView, familyLayout.focalId, positioned]);
+  }, [treeView, familyLayout.focalId, familyFocusPosition?.x, familyFocusPosition?.y]);
 
   // Pedigree/Fan retain the existing generational-depth behavior.
   useEffect(() => {
@@ -1824,36 +1841,112 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     return () => el.removeEventListener("wheel", onWheel);
   }, []);
 
-  const handleMouseDown = useCallback((e: React.MouseEvent) => {
-    if ((e.target as HTMLElement).closest("[data-node]")) return;
+  const beginPinch = useCallback(() => {
+    const el = containerRef.current;
+    if (!el || activePointers.current.size < 2) return;
+    const [a, b] = [...activePointers.current.values()].slice(0, 2);
+    const rect = el.getBoundingClientRect();
+    const midX = (a.x + b.x) / 2 - rect.left;
+    const midY = (a.y + b.y) / 2 - rect.top;
+    const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+    gestureStart.current = {
+      mode: "pinch",
+      startDistance: distance,
+      startScale: transform.scale,
+      worldX: (midX - transform.x) / transform.scale,
+      worldY: (midY - transform.y) / transform.scale,
+      moved: false,
+    };
     setIsDragging(true);
-    dragStart.current = { x: e.clientX, y: e.clientY, tx: transform.x, ty: transform.y };
   }, [transform]);
 
-  useEffect(() => {
-    if (!isDragging) return;
+  const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const el = containerRef.current;
+    if (!el) return;
+    el.setPointerCapture?.(e.pointerId);
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
-    const onMove = (e: MouseEvent) => {
-      if (!dragStart.current) return;
-      setTransform((prev) => ({
-        ...prev,
-        x: dragStart.current!.tx + (e.clientX - dragStart.current!.x),
-        y: dragStart.current!.ty + (e.clientY - dragStart.current!.y),
-      }));
+    if (activePointers.current.size >= 2) {
+      beginPinch();
+      return;
+    }
+
+    // A simple tap on a person remains a node-selection gesture. Panning starts
+    // from open canvas; a second pointer can still promote a node-touch to pinch.
+    if ((e.target as HTMLElement).closest("[data-node]")) {
+      gestureStart.current = null;
+      return;
+    }
+
+    gestureStart.current = {
+      mode: "pan",
+      pointerId: e.pointerId,
+      startX: e.clientX,
+      startY: e.clientY,
+      tx: transform.x,
+      ty: transform.y,
+      moved: false,
     };
+    setIsDragging(true);
+  }, [beginPinch, transform]);
 
-    const onUp = () => {
+  const handlePointerMove = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    if (!activePointers.current.has(e.pointerId)) return;
+    activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
+
+    if (activePointers.current.size >= 2) {
+      if (gestureStart.current?.mode !== "pinch") beginPinch();
+      const start = gestureStart.current;
+      const el = containerRef.current;
+      if (!el || !start || start.mode !== "pinch") return;
+
+      const [a, b] = [...activePointers.current.values()].slice(0, 2);
+      const rect = el.getBoundingClientRect();
+      const midX = (a.x + b.x) / 2 - rect.left;
+      const midY = (a.y + b.y) / 2 - rect.top;
+      const distance = Math.max(1, Math.hypot(a.x - b.x, a.y - b.y));
+      const nextScale = Math.min(3, Math.max(0.15, start.startScale * (distance / start.startDistance)));
+      if (Math.abs(distance - start.startDistance) > 3) start.moved = true;
+      if (start.moved) suppressNodeClickUntil.current = Date.now() + 250;
+
+      setTransform({
+        scale: nextScale,
+        x: midX - start.worldX * nextScale,
+        y: midY - start.worldY * nextScale,
+      });
+      return;
+    }
+
+    const start = gestureStart.current;
+    if (!start || start.mode !== "pan" || start.pointerId !== e.pointerId) return;
+    const dx = e.clientX - start.startX;
+    const dy = e.clientY - start.startY;
+    if (Math.hypot(dx, dy) > 4) start.moved = true;
+    if (start.moved) suppressNodeClickUntil.current = Date.now() + 250;
+    setTransform((prev) => ({ ...prev, x: start.tx + dx, y: start.ty + dy }));
+  }, [beginPinch]);
+
+  const endPointerGesture = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    activePointers.current.delete(e.pointerId);
+    if (activePointers.current.size === 0) {
+      gestureStart.current = null;
       setIsDragging(false);
-      dragStart.current = null;
-    };
+      return;
+    }
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, [isDragging]);
+    if (activePointers.current.size === 1) {
+      const [remainingId, point] = [...activePointers.current.entries()][0];
+      gestureStart.current = {
+        mode: "pan",
+        pointerId: remainingId,
+        startX: point.x,
+        startY: point.y,
+        tx: transform.x,
+        ty: transform.y,
+        moved: true,
+      };
+    }
+  }, [transform]);
 
   const importMutation = useMutation({
     mutationFn: async (file: File) => {
@@ -1879,7 +1972,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   });
 
   return (
-    <div className="flex flex-col" style={{ height: "calc(100vh - 215px)", minHeight: 520 }}>
+    <div className="flex flex-col h-full min-h-0">
 
       {/* ── Toolbar ──────────────────────────────────────────────────────────── */}
       <div className="flex items-center gap-1.5 mb-2 flex-wrap">
@@ -2143,8 +2236,15 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         <div
           ref={containerRef}
           className={`flex-1 border rounded-lg bg-muted/20 overflow-hidden relative select-none ${isDragging ? "cursor-grabbing" : "cursor-grab"}`}
-          onMouseDown={handleMouseDown}
-          onClick={(e) => { if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null); }}
+          style={{ touchAction: "none" }}
+          onPointerDown={handlePointerDown}
+          onPointerMove={handlePointerMove}
+          onPointerUp={endPointerGesture}
+          onPointerCancel={endPointerGesture}
+          onClick={(e) => {
+            if (Date.now() < suppressNodeClickUntil.current) return;
+            if (!(e.target as HTMLElement).closest("[data-node]")) setSelectedNodeId(null);
+          }}
         >
           {isLoading && (
             <div className="absolute inset-0 flex items-center justify-center">
@@ -2236,7 +2336,11 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <div
                     key={node.id}
                     data-node="1"
-                    onClick={(e) => { e.stopPropagation(); focusOnPerson(node.id); }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (Date.now() < suppressNodeClickUntil.current) return;
+                      focusOnPerson(node.id);
+                    }}
                     style={{
                       position: "absolute",
                       left: node.x,
@@ -2355,7 +2459,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
                   <div
                     key={node.id}
                     data-node="1"
-                    onClick={(e) => { e.stopPropagation(); setSelectedNodeId(node.id); }}
+                    onClick={(e) => { e.stopPropagation(); if (Date.now() >= suppressNodeClickUntil.current) setSelectedNodeId(node.id); }}
                     style={{ position: "absolute", left: node.px, top: node.py, width: PDIG_W, height: PDIG_H }}
                     className={[
                       "rounded-lg border-2 px-2.5 py-1.5 cursor-pointer transition-all flex flex-col justify-between overflow-hidden",
