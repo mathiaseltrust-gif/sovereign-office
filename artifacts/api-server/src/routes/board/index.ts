@@ -4,6 +4,7 @@ import { boardMattersTable, tasksTable, calendarEventsTable } from "@workspace/d
 import { desc, eq, sql } from "drizzle-orm";
 import { requireAuth, requireTrustee } from "../../auth/entra-guard";
 import { associateDocument, recordListenerEvent } from "../../engines/document-association";
+import { BOARD_DOCUMENT_RELATIONSHIPS, canLinkDocumentToBoardMatter } from "../../security/board-document-policy";
 
 const router = Router();
 
@@ -17,15 +18,6 @@ const STATUSES = new Set([
 ]);
 
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
-const BOARD_DOCUMENT_RELATIONSHIPS = new Set([
-  "evidence",
-  "governing_instrument",
-  "correspondence",
-  "attachment",
-  "report",
-  "resolution",
-  "minutes",
-]);
 const BOARD_ENTITY_IDS = new Set(["board_of_trustees", "tribal_trust", "charitable_trust"]);
 
 function cleanOrgId(value: unknown, fallback = "board_of_trustees") {
@@ -316,32 +308,38 @@ router.post("/matters/:id/documents", requireAuth, requireTrustee, async (req, r
         dr.document_ref,
         dr.title,
         dr.original_filename,
-        EXISTS (
-          SELECT 1
-          FROM document_associations org_assoc
-          WHERE org_assoc.document_id = dr.id
-            AND org_assoc.entity_type = 'organization'
-            AND org_assoc.status = 'active'
-            AND org_assoc.entity_id IN (${matter.orgId}, 'board_of_trustees')
-        ) AS organization_scope
-      FROM document_registry dr
-      WHERE dr.document_ref = ${documentRef}
-        AND (
-          dr.created_by = ${userId}
-          OR EXISTS (
-            SELECT 1
+        dr.created_by,
+        COALESCE(
+          (
+            SELECT jsonb_agg(DISTINCT org_assoc.entity_id)
             FROM document_associations org_assoc
             WHERE org_assoc.document_id = dr.id
               AND org_assoc.entity_type = 'organization'
               AND org_assoc.status = 'active'
-              AND org_assoc.entity_id IN (${matter.orgId}, 'board_of_trustees')
-          )
-        )
+          ),
+          '[]'::jsonb
+        ) AS organization_ids
+      FROM document_registry dr
+      WHERE dr.document_ref = ${documentRef}
       LIMIT 1
     `);
 
     const document = documentResult.rows[0] as Record<string, unknown> | undefined;
     if (!document) {
+      res.status(404).json({ error: "Canonical document not found." });
+      return;
+    }
+
+    const organizationIds = Array.isArray(document.organization_ids)
+      ? document.organization_ids.map(String)
+      : [];
+    const allowed = canLinkDocumentToBoardMatter({
+      requesterId: userId,
+      documentCreatedBy: document.created_by == null ? null : Number(document.created_by),
+      matterOrgId: matter.orgId,
+      documentOrganizationIds: organizationIds,
+    });
+    if (!allowed) {
       res.status(403).json({
         error: "That document is not within this Board Matter's authorized record scope.",
       });
