@@ -1556,26 +1556,23 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     return missing.length > 0 ? [...base, ...missing] : base;
   })();
 
-  // ── Generational zoom — which depth-level of the tree is visible ─────────
-  // 1 = Household (self + spouse + children)
-  // 2 = + Parents of self and spouse
-  // 3 = + Grandparents
-  // 4 = + Great-grandparents
-  // 5 = 2× Great-grandparents
-  // 99 = Full tree (no depth restriction)
-  const [generationDepth, setGenerationDepth] = useState(99);
+  // ── Generational depth — intentionally finite and genealogically meaningful.
+  // Large "full" ancestor expansions become unreadable very quickly (2^N).
+  // Tree/Pedigree/Fan grow in controlled steps; Timeline remains the all-record view.
+  const [generationDepth, setGenerationDepth] = useState(3);
 
-  const DEPTH_MAX = 99;
+  const DEPTH_MIN = 1;
+  const DEPTH_MAX = 7;
   const DEPTH_LABELS: Record<number, string> = {
     1: "Household",
-    2: "+ Parents",
-    3: "+ Grandparents",
-    4: "+ Great-grand",
-    5: "2× Great-grand",
-    6: "3× Great-grand",
-    7: "4× Great-grand",
+    2: "Parents",
+    3: "Grandparents",
+    4: "Great-grandparents",
+    5: "2× Great-grandparents",
+    6: "3× Great-grandparents",
+    7: "4× Great-grandparents",
   };
-  const depthLabel = generationDepth >= DEPTH_MAX ? "Full Tree" : (DEPTH_LABELS[generationDepth] ?? `${generationDepth - 2}× Great-grand`);
+  const depthLabel = DEPTH_LABELS[generationDepth] ?? "Ancestors";
 
   // Self node resolved from raw data (not from positioned, to avoid circular dependency)
   const selfNodeRaw = useMemo(() => {
@@ -1586,7 +1583,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
   // BFS outward from selfNodeRaw to collect visible node IDs for the given depth level
   const depthVisibleIds = useMemo((): Set<number> | null => {
-    if (generationDepth >= DEPTH_MAX) return null; // null = show all
     if (!selfNodeRaw) return null;
     const byId = new Map(nodes.map((n) => [n.id, n]));
 
@@ -1828,8 +1824,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
     [familyViewNodes, familyUnits, effectiveFocusId],
   );
   const fullTreeLayout = useMemo(
-    () => computeLayout(fullTreeNodes, familyUnits, preferredRootId),
-    [fullTreeNodes, familyUnits, preferredRootId],
+    () => computeLayout(treeNodes, familyUnits, preferredRootId),
+    [treeNodes, familyUnits, preferredRootId],
   );
   const fullTreeEdges = useMemo(
     () => buildEdges(fullTreeLayout.positioned, familyUnits),
@@ -1946,7 +1942,8 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const allMatchingNodes = useMemo(() => {
     if (!q) return [] as LineageNode[];
     const searchPool: LineageNode[] =
-      treeView === "tree" || treeView === "timeline" ? fullTreeNodes
+      treeView === "tree" ? treeNodes
+      : treeView === "timeline" ? fullTreeNodes
       : treeView === "family" ? familyViewNodes
       : treeNodes;
     return searchPool.filter(
@@ -2208,18 +2205,19 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const handlePointerDown = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
     const el = containerRef.current;
     if (!el) return;
+
+    // Person cards own their pointer sequence. Do not capture their pointer at
+    // canvas level or the browser can retarget the eventual click to the canvas.
+    if ((e.target as HTMLElement).closest("[data-node]")) {
+      gestureStart.current = null;
+      return;
+    }
+
     el.setPointerCapture?.(e.pointerId);
     activePointers.current.set(e.pointerId, { x: e.clientX, y: e.clientY });
 
     if (activePointers.current.size >= 2) {
       beginPinch();
-      return;
-    }
-
-    // A simple tap on a person remains a node-selection gesture. Panning starts
-    // from open canvas; a second pointer can still promote a node-touch to pinch.
-    if ((e.target as HTMLElement).closest("[data-node]")) {
-      gestureStart.current = null;
       return;
     }
 
@@ -2418,7 +2416,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               <button
                 key={mode}
                 onClick={() => {
-                  if (mode === "tree") setGenerationDepth(DEPTH_MAX);
                   if (mode !== "timeline") setSelectedHistoricalEvent(null);
                   setTreeView(mode);
                   setTransform({ x: 0, y: 0, scale: 1 });
@@ -2480,11 +2477,6 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
             <span className="font-semibold truncate">{focusedPerson?.fullName ?? "My family"}</span>
             <span className="text-muted-foreground shrink-0">· {familyLayout.householdCount} household{familyLayout.householdCount === 1 ? "" : "s"}</span>
           </div>
-        ) : treeView === "tree" ? (
-          <div className="h-8 flex items-center rounded-md border border-input bg-muted/20 px-2.5 text-xs">
-            <span className="font-medium">Full connected tree</span>
-            <span className="text-muted-foreground ml-1.5">· {fullTreeNodes.length} people</span>
-          </div>
         ) : treeView === "timeline" ? (
           <div className="h-8 flex items-center rounded-md border border-input bg-muted/20 px-2.5 text-xs">
             <Clock className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
@@ -2495,24 +2487,23 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
             <button
               className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              title="Show more generations"
+              title="Show one more ancestor generation"
               disabled={generationDepth >= DEPTH_MAX}
               onClick={() => setGenerationDepth((d) => Math.min(DEPTH_MAX, d + 1))}
             >
               <Plus className="h-3.5 w-3.5" />
             </button>
             <span
-              className="px-2 h-8 flex items-center text-xs font-medium min-w-[110px] justify-center cursor-pointer select-none"
-              title="Click to show full tree"
-              onClick={() => setGenerationDepth((d) => d >= DEPTH_MAX ? 1 : DEPTH_MAX)}
+              className="px-2 h-8 flex items-center text-xs font-medium min-w-[138px] justify-center select-none"
+              title="Current visible genealogy depth"
             >
               {depthLabel}
             </span>
             <button
               className="h-8 w-7 flex items-center justify-center text-muted-foreground hover:bg-muted/60 hover:text-foreground transition-colors disabled:opacity-40 disabled:pointer-events-none"
-              title="Show fewer generations"
-              disabled={generationDepth <= 1}
-              onClick={() => setGenerationDepth((d) => Math.max(1, d - 1))}
+              title="Show one fewer ancestor generation"
+              disabled={generationDepth <= DEPTH_MIN}
+              onClick={() => setGenerationDepth((d) => Math.max(DEPTH_MIN, d - 1))}
             >
               <Minus className="h-3.5 w-3.5" />
             </button>
@@ -2554,7 +2545,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           {treeView === "family"
             ? <>{positioned.length} visible <span className="opacity-60">around the focused person</span></>
             : treeView === "tree"
-              ? <>{fullTreeNodes.length} connected <span className="opacity-60">to your tree</span></>
+              ? <>{treeNodes.length} visible <span className="opacity-60">at {depthLabel.toLowerCase()} depth</span></>
             : treeView === "timeline"
               ? <>{timelinePeople.length} dated people <span className="opacity-60">· {atlasTimelineEvents.length} Atlas events</span></>
             : activeFilterCount > 0
