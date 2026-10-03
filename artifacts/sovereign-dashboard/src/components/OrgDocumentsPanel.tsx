@@ -32,6 +32,34 @@ interface OrgDocument {
   documentRef?: string | null;
 }
 
+interface CanonicalAssociation {
+  id: number;
+  entity_type: string;
+  entity_id: string;
+  relationship_type: string;
+  confidence: string;
+  resolution_method: string;
+  status: string;
+}
+
+interface CanonicalAssociationDetail {
+  document: {
+    documentRef: string;
+    classification: string | null;
+    verificationState: string;
+    sensitivityLevel: string;
+  };
+  summary: {
+    total: number;
+    active: number;
+    proposed: number;
+    unresolved: number;
+    rejected: number;
+    reviewRequired: boolean;
+  };
+  associations: CanonicalAssociation[];
+}
+
 const DOC_TYPE_LABELS: Record<string, string> = {
   ein_letter: "EIN / Entity ID Letter",
   tax_exempt_cert: "Tax-Exempt Determination Letter",
@@ -134,6 +162,80 @@ async function apiFetch(path: string, opts?: RequestInit) {
 }
 
 const ELEVATED_ROLES = ["trustee", "officer", "sovereign_admin"];
+
+function CanonicalLinks({ documentRef }: { documentRef: string }) {
+  const [open, setOpen] = useState(false);
+  const { data, isLoading, error } = useQuery<CanonicalAssociationDetail>({
+    queryKey: ["canonical-document-associations", documentRef],
+    queryFn: () => apiFetch(`/api/documents/registry/${encodeURIComponent(documentRef)}/associations`),
+    enabled: open,
+    staleTime: 30_000,
+  });
+
+  return (
+    <div className="pt-1">
+      <Button
+        size="sm"
+        variant="ghost"
+        className="h-6 px-2 text-[10px]"
+        onClick={() => setOpen((value) => !value)}
+      >
+        {open ? "Hide links" : "Linked records"}
+        {data && !open ? ` · ${data.summary.active}` : ""}
+      </Button>
+
+      {open && (
+        <div className="mt-1.5 rounded border bg-muted/20 p-2 space-y-1.5">
+          {isLoading ? (
+            <Skeleton className="h-10 w-full" />
+          ) : error ? (
+            <p className="text-[10px] text-muted-foreground">
+              Relationship details are restricted for this document.
+            </p>
+          ) : data ? (
+            <>
+              <div className="flex flex-wrap gap-1">
+                <Badge variant="outline" className="text-[9px]">
+                  {data.summary.active} active link{data.summary.active === 1 ? "" : "s"}
+                </Badge>
+                {data.summary.reviewRequired && (
+                  <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-700">
+                    review required
+                  </Badge>
+                )}
+                {data.document.sensitivityLevel === "protected" && (
+                  <Badge variant="outline" className="text-[9px] border-amber-300 text-amber-700">
+                    protected
+                  </Badge>
+                )}
+              </div>
+              <div className="space-y-1">
+                {data.associations
+                  .filter((association) => association.status === "active")
+                  .map((association) => (
+                    <div
+                      key={association.id}
+                      className="flex items-center justify-between gap-2 text-[10px]"
+                    >
+                      <span className="truncate text-muted-foreground">
+                        {association.entity_type.replace(/_/g, " ")} · {association.relationship_type.replace(/_/g, " ")}
+                      </span>
+                      <span className="font-mono text-[9px] text-muted-foreground truncate max-w-[120px]">
+                        {association.entity_id}
+                      </span>
+                    </div>
+                  ))}
+              </div>
+              <p className="text-[9px] text-muted-foreground">
+                One stored original · relationships supplied by the canonical Office ledger.
+              </p>
+            </>
+          ) : null}
+        </div>
+      )}
+    </div>
+  );
+}
 
 interface Props {
   orgId: string;
@@ -241,7 +343,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
 
       await fetch(uploadURL, { method: "PUT", body: file, headers: { "Content-Type": file.type } });
 
-      await apiFetch(`/api/org/${orgId}/documents`, {
+      const saved = await apiFetch(`/api/org/${orgId}/documents`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -250,7 +352,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
           label: uploadLabel,
           docType: uploadDocType,
         }),
-      });
+      }) as OrgDocument;
 
       queryClient.invalidateQueries({ queryKey: docsKey });
       setShowUploadForm(false);
@@ -258,7 +360,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
       setUploadDocType("general");
       setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      toast({ title: "Saved to Office Records", description: `${file.name} is now stored in ${orgName}.` });
+      toast({ title: "Saved to Office Records", description: saved.documentRef ? `${file.name} is stored once as ${saved.documentRef} and linked to ${orgName}.` : `${file.name} is now stored in ${orgName}.` });
     } catch (e) {
       toast({ title: "Upload failed", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -487,6 +589,14 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                           </Badge>
                         </div>
                         <p className="text-xs text-muted-foreground mt-0.5">{doc.filename} · saved {new Date(doc.uploadedAt).toLocaleString()}</p>
+                        {doc.documentRef && (
+                          <>
+                            <p className="text-[10px] font-mono text-emerald-700 mt-1">
+                              {doc.documentRef} · canonical Office record
+                            </p>
+                            <CanonicalLinks documentRef={doc.documentRef} />
+                          </>
+                        )}
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {doc.fileKey && (
