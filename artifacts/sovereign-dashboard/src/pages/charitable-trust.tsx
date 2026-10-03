@@ -7,7 +7,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
-import { getCurrentBearerToken } from "@/components/auth-provider";
+import { getCurrentBearerToken, useAuth } from "@/components/auth-provider";
 import { Heart, RefreshCw, Loader2, CheckCircle2 } from "lucide-react";
 
 const PROGRAMS = [
@@ -473,6 +473,8 @@ function DonatePanel() {
 }
 
 export default function CharitableTrustPage() {
+  const { activeRole } = useAuth();
+  const canSeeBoardOversight = ["trustee", "admin", "sovereign_admin"].includes(activeRole);
   return (
     <div data-testid="page-charitable-trust">
       <div className="mb-6">
@@ -482,7 +484,10 @@ export default function CharitableTrustPage() {
             <h1 className="text-3xl font-serif font-bold text-foreground">Mathias El Tribe Charitable Trust</h1>
             <p className="text-muted-foreground mt-1">Tax-Exempt Charitable Organization — Donations are tax-deductible</p>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {canSeeBoardOversight && (
+              <Link href="/board?entity=charitable_trust"><Button size="sm" variant="outline">Board Oversight</Button></Link>
+            )}
             <Badge className="bg-green-700 text-white">501(c)(3) Certified</Badge>
             <Badge variant="outline" className="text-xs border-green-500 text-green-700">26 U.S.C. § 501(c)(3)</Badge>
             <Badge variant="outline" className="text-xs">IRS Tax-Exempt</Badge>

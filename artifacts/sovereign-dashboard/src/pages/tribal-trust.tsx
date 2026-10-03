@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Link } from "wouter";
 import { WhatNextPanel } from "@/components/WhatNextPanel";
+import { useAuth } from "@/components/auth-provider";
 
 const TRUST_AUTHORITIES = [
   { title: "Indian Reorganization Act", code: "25 U.S.C. § 5108", desc: "Authorizes federal acquisition and protection of tribal trust land" },
@@ -20,6 +21,8 @@ const TRUST_PROGRAMS = [
 ];
 
 export default function TribalTrustPage() {
+  const { activeRole } = useAuth();
+  const canSeeBoardOversight = ["trustee", "admin", "sovereign_admin"].includes(activeRole);
   const { data: instruments } = useListInstruments();
   const { data: filings } = useListFilings();
 
@@ -42,7 +45,10 @@ export default function TribalTrustPage() {
               <p className="text-muted-foreground mt-1">Sovereign Trust — Treaty-Based Federal Fiduciary — 25 U.S.C. § 5108</p>
             </div>
           </div>
-          <div className="flex flex-wrap gap-2">
+          <div className="flex flex-wrap gap-2 items-center">
+            {canSeeBoardOversight && (
+              <Link href="/board?entity=tribal_trust"><Button size="sm" variant="outline">Board Oversight</Button></Link>
+            )}
             <Badge className="bg-amber-700 text-white">Federal Indian Trust</Badge>
             <Badge variant="outline" className="text-xs border-amber-500 text-amber-700">Treaty-Based Fiduciary</Badge>
           </div>

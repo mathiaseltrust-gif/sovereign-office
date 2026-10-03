@@ -14,6 +14,22 @@ import { getCurrentBearerToken } from "@/components/auth-provider";
 import { useToast } from "@/hooks/use-toast";
 import { AlertTriangle, CalendarDays, CheckSquare, ClipboardList, ExternalLink, Scale, ShieldCheck } from "lucide-react";
 
+interface OrgSummary {
+  id: string;
+  name: string;
+  shortName: string;
+  type: string;
+  legalStatus?: string;
+  description?: string;
+  mission?: string;
+  navPath: string;
+  accessLevel?: string;
+}
+
+interface OrgOverviewResponse {
+  orgs: OrgSummary[];
+}
+
 interface BoardMatter {
   id: number;
   title: string;
@@ -54,6 +70,14 @@ const STATUS_LABELS: Record<string, string> = {
   awaiting_evidence: "Awaiting Evidence",
   closed: "Closed",
 };
+
+const BOARD_ENTITIES = [
+  ["board_of_trustees", "Board of Trustees"],
+  ["tribal_trust", "Mathias El Tribe Trust"],
+  ["charitable_trust", "Mathias El Tribe Charitable Trust"],
+] as const;
+
+const ENTITY_LABELS: Record<string, string> = Object.fromEntries(BOARD_ENTITIES);
 
 const MATTER_TYPES = [
   ["fiduciary_review", "Fiduciary Review"],
@@ -114,8 +138,10 @@ export default function BoardPage() {
   const qc = useQueryClient();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [entityFilter, setEntityFilter] = useState<string>(() => new URLSearchParams(window.location.search).get("entity") ?? "all");
   const [editingMatter, setEditingMatter] = useState<BoardMatter | null>(null);
   const [editForm, setEditForm] = useState({
+    orgId: "board_of_trustees",
     status: "new",
     priority: "normal",
     responsibleOffice: "",
@@ -129,6 +155,7 @@ export default function BoardPage() {
   const openMatterReview = (matter: BoardMatter) => {
     setEditingMatter(matter);
     setEditForm({
+      orgId: matter.orgId,
       status: matter.status,
       priority: matter.priority,
       responsibleOffice: matter.responsibleOffice ?? "",
@@ -141,6 +168,7 @@ export default function BoardPage() {
   };
 
   const [form, setForm] = useState({
+    orgId: entityFilter !== "all" ? entityFilter : "board_of_trustees",
     title: "",
     summary: "",
     matterType: "governance",
@@ -149,6 +177,12 @@ export default function BoardPage() {
     dueDate: "",
     responseRequired: false,
     evidenceRequired: false,
+  });
+
+  const { data: orgOverview } = useQuery<OrgOverviewResponse>({
+    queryKey: ["org-overview"],
+    queryFn: () => apiFetch("/api/org/overview"),
+    staleTime: 5 * 60_000,
   });
 
   const { data: matters = [], isLoading } = useQuery<BoardMatter[]>({
@@ -171,6 +205,7 @@ export default function BoardPage() {
       qc.invalidateQueries({ queryKey: ["calendar"] });
       setOpen(false);
       setForm({
+        orgId: entityFilter !== "all" ? entityFilter : "board_of_trustees",
         title: "",
         summary: "",
         matterType: "governance",
@@ -198,23 +233,33 @@ export default function BoardPage() {
     onError: (e: Error) => toast({ title: "Board Matter update failed", description: e.message, variant: "destructive" }),
   });
 
+  const filteredMatters = useMemo(
+    () => entityFilter === "all" ? matters : matters.filter((matter) => matter.orgId === entityFilter),
+    [matters, entityFilter],
+  );
+
+  const trustEntities = useMemo(
+    () => (orgOverview?.orgs ?? []).filter((org) => ["tribal_trust", "charitable_trust"].includes(org.id)),
+    [orgOverview],
+  );
+
   const stats = useMemo(() => {
-    const openCount = matters.filter((m) => m.status !== "closed").length;
-    const urgent = matters.filter((m) => m.status !== "closed" && m.priority === "urgent").length;
-    const awaiting = matters.filter((m) => ["awaiting_action", "awaiting_evidence"].includes(m.status)).length;
-    const closed = matters.filter((m) => m.status === "closed").length;
+    const openCount = filteredMatters.filter((m) => m.status !== "closed").length;
+    const urgent = filteredMatters.filter((m) => m.status !== "closed" && m.priority === "urgent").length;
+    const awaiting = filteredMatters.filter((m) => ["awaiting_action", "awaiting_evidence"].includes(m.status)).length;
+    const closed = filteredMatters.filter((m) => m.status === "closed").length;
     return { openCount, urgent, awaiting, closed };
-  }, [matters]);
+  }, [filteredMatters]);
 
   const byStatus = useMemo(() => {
     const map = new Map<string, BoardMatter[]>();
     STATUS_FLOW.forEach((status) => map.set(status, []));
-    matters.forEach((matter) => {
+    filteredMatters.forEach((matter) => {
       const bucket = map.get(matter.status) ?? map.get("new")!;
       bucket.push(matter);
     });
     return map;
-  }, [matters]);
+  }, [filteredMatters]);
 
   return (
     <div className="space-y-6" data-testid="page-board-of-trustees">
@@ -244,6 +289,15 @@ export default function BoardPage() {
                 <div>
                   <Label>Summary</Label>
                   <Textarea value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} rows={4} placeholder="What is before the Board, and why?" />
+                </div>
+                <div>
+                  <Label>Related Entity</Label>
+                  <Select value={form.orgId} onValueChange={(value) => setForm({ ...form, orgId: value })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {BOARD_ENTITIES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div className="grid sm:grid-cols-2 gap-3">
                   <div>
@@ -310,6 +364,16 @@ export default function BoardPage() {
                   <div>
                     <p className="text-sm font-semibold">{editingMatter.title}</p>
                     {editingMatter.summary && <p className="text-xs text-muted-foreground mt-1 leading-relaxed">{editingMatter.summary}</p>}
+                  </div>
+
+                  <div>
+                    <Label>Related Entity</Label>
+                    <Select value={editForm.orgId} onValueChange={(value) => setEditForm({ ...editForm, orgId: value })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        {BOARD_ENTITIES.map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div className="grid sm:grid-cols-2 gap-3">
@@ -411,6 +475,7 @@ export default function BoardPage() {
                       onClick={() => updateMatter.mutate({
                         id: editingMatter.id,
                         patch: {
+                          orgId: editForm.orgId,
                           status: editForm.status,
                           priority: editForm.priority,
                           responsibleOffice: editForm.responsibleOffice || null,
@@ -451,6 +516,46 @@ export default function BoardPage() {
         ))}
       </div>
 
+      <div className="space-y-3">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <div>
+            <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground">Trust Entities Under Oversight</h2>
+            <p className="text-xs text-muted-foreground mt-1">Shared organization records — Board Matters attach to these existing entities rather than creating separate trust identities.</p>
+          </div>
+          <div className="flex gap-1.5 flex-wrap">
+            <Button size="sm" variant={entityFilter === "all" ? "default" : "outline"} onClick={() => setEntityFilter("all")}>All Matters</Button>
+            {BOARD_ENTITIES.map(([value, label]) => (
+              <Button key={value} size="sm" variant={entityFilter === value ? "default" : "outline"} onClick={() => setEntityFilter(value)}>{label.replace("Mathias El Tribe ", "")}</Button>
+            ))}
+          </div>
+        </div>
+        <div className="grid md:grid-cols-2 gap-4">
+          {trustEntities.map((org) => {
+            const openForEntity = matters.filter((m) => m.orgId === org.id && m.status !== "closed").length;
+            return (
+              <Card key={org.id} className={entityFilter === org.id ? "border-primary" : ""}>
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">{org.name}</CardTitle>
+                      {org.legalStatus && <p className="text-xs text-muted-foreground mt-1">{org.legalStatus}</p>}
+                    </div>
+                    <Badge variant="outline">{openForEntity} open matter{openForEntity === 1 ? "" : "s"}</Badge>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">{org.description ?? org.mission}</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href={org.navPath}><Button size="sm" variant="outline">Open Trust Workspace</Button></Link>
+                    <Button size="sm" variant="outline" onClick={() => setEntityFilter(org.id)}>View Board Matters</Button>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
       <div className="flex items-center gap-2 flex-wrap">
         <Link href="/tasks"><Button size="sm" variant="outline" className="gap-1.5"><CheckSquare className="h-3.5 w-3.5" /> Tasks</Button></Link>
         <Link href="/calendar"><Button size="sm" variant="outline" className="gap-1.5"><CalendarDays className="h-3.5 w-3.5" /> Calendar</Button></Link>
@@ -461,7 +566,7 @@ export default function BoardPage() {
 
       {isLoading ? (
         <Card><CardContent className="py-12 text-center text-muted-foreground">Loading Board Matters…</CardContent></Card>
-      ) : matters.length === 0 ? (
+      ) : filteredMatters.length === 0 ? (
         <Card>
           <CardContent className="py-12 text-center">
             <p className="font-medium">No Board Matters are open yet.</p>
@@ -488,7 +593,7 @@ export default function BoardPage() {
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
                           <p className="text-sm font-semibold leading-snug">{matter.title}</p>
-                          <p className="text-[10px] text-muted-foreground mt-0.5">Matter #{matter.id} · {matter.matterType.replace(/_/g, " ")}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Matter #{matter.id} · {ENTITY_LABELS[matter.orgId] ?? matter.orgId} · {matter.matterType.replace(/_/g, " ")}</p>
                         </div>
                         <Badge variant="outline" className={priorityClass(matter.priority)}>{matter.priority}</Badge>
                       </div>

@@ -7,9 +7,24 @@ import { AlertTriangle, CalendarDays, CheckSquare, ExternalLink, Scale, ShieldCh
 
 interface BoardMatter {
   id: number;
+  orgId: string;
   status: string;
   priority: string;
   dueDate: string | null;
+}
+
+interface OrgSummary {
+  id: string;
+  name: string;
+  shortName: string;
+  legalStatus?: string;
+  description?: string;
+  mission?: string;
+  navPath: string;
+}
+
+interface OrgOverviewResponse {
+  orgs: OrgSummary[];
 }
 
 const ITEMS = [
@@ -29,6 +44,16 @@ function authHeaders(): Record<string, string> {
 }
 
 export default function TrusteeDashboard() {
+  const { data: orgOverview } = useQuery<OrgOverviewResponse>({
+    queryKey: ["org-overview"],
+    queryFn: async () => {
+      const r = await fetch("/api/org/overview", { headers: authHeaders() });
+      if (!r.ok) return { orgs: [] };
+      return r.json();
+    },
+    staleTime: 5 * 60_000,
+  });
+
   const { data: matters = [] } = useQuery<BoardMatter[]>({
     queryKey: ["board-matters"],
     queryFn: async () => {
@@ -49,6 +74,7 @@ export default function TrusteeDashboard() {
     const due = new Date(m.dueDate).getTime();
     return due >= now && due - now <= sevenDays;
   });
+  const trustEntities = (orgOverview?.orgs ?? []).filter((org) => ["tribal_trust", "charitable_trust"].includes(org.id));
 
   return (
     <div data-testid="page-trustee-dashboard" className="space-y-6">
@@ -86,6 +112,35 @@ export default function TrusteeDashboard() {
             </CardContent>
           </Card>
         ))}
+      </div>
+
+      <div>
+        <h2 className="text-sm font-semibold uppercase tracking-widest text-muted-foreground mb-3">Trust Entities Under Administration</h2>
+        <div className="grid md:grid-cols-2 gap-4">
+          {trustEntities.map((org) => {
+            const entityMatters = openMatters.filter((matter) => matter.orgId === org.id).length;
+            return (
+              <Card key={org.id} className="h-full">
+                <CardHeader className="pb-2">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <CardTitle className="text-base">{org.name}</CardTitle>
+                      {org.legalStatus && <p className="text-xs text-muted-foreground mt-1">{org.legalStatus}</p>}
+                    </div>
+                    <span className="text-xs rounded-full border px-2 py-1 whitespace-nowrap">{entityMatters} open Board matter{entityMatters === 1 ? "" : "s"}</span>
+                  </div>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                  <p className="text-xs text-muted-foreground leading-relaxed">{org.description ?? org.mission}</p>
+                  <div className="flex gap-2 flex-wrap">
+                    <Link href={org.navPath}><Button size="sm" variant="outline">Open Trust</Button></Link>
+                    <a href={`/board?entity=${org.id}`}><Button size="sm" variant="outline">Board Oversight</Button></a>
+                  </div>
+                </CardContent>
+              </Card>
+            );
+          })}
+        </div>
       </div>
 
       <div>

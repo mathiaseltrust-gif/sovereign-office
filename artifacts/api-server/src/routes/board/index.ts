@@ -16,6 +16,12 @@ const STATUSES = new Set([
 ]);
 
 const PRIORITIES = new Set(["low", "normal", "high", "urgent"]);
+const BOARD_ENTITY_IDS = new Set(["board_of_trustees", "tribal_trust", "charitable_trust"]);
+
+function cleanOrgId(value: unknown, fallback = "board_of_trustees") {
+  const v = String(value ?? fallback).trim();
+  return BOARD_ENTITY_IDS.has(v) ? v : fallback;
+}
 
 function cleanStatus(value: unknown, fallback = "new") {
   const v = String(value ?? fallback).trim().toLowerCase();
@@ -86,7 +92,7 @@ router.post("/matters", requireAuth, requireTrustee, async (req, res, next) => {
           matterType: String(matterType ?? "governance"),
           sourceType: sourceType ? String(sourceType) : null,
           sourceId: sourceId ? String(sourceId) : null,
-          orgId: String(orgId ?? "board_of_trustees"),
+          orgId: cleanOrgId(orgId),
           status: cleanStatus(status),
           priority: cleanPriority(priority),
           assignedTo: assignedTo ? Number(assignedTo) : null,
@@ -175,7 +181,7 @@ router.put("/matters/:id", requireAuth, requireTrustee, async (req, res, next) =
           matterType: body.matterType != null ? String(body.matterType) : existing.matterType,
           sourceType: body.sourceType !== undefined ? (body.sourceType ? String(body.sourceType) : null) : existing.sourceType,
           sourceId: body.sourceId !== undefined ? (body.sourceId ? String(body.sourceId) : null) : existing.sourceId,
-          orgId: body.orgId != null ? String(body.orgId) : existing.orgId,
+          orgId: body.orgId != null ? cleanOrgId(body.orgId, existing.orgId) : existing.orgId,
           status: nextStatus,
           priority: body.priority != null ? cleanPriority(body.priority, existing.priority) : existing.priority,
           assignedTo: body.assignedTo !== undefined ? (body.assignedTo ? Number(body.assignedTo) : null) : existing.assignedTo,
