@@ -2,7 +2,7 @@ export interface LineageDocumentAccessInput {
   requesterId: number;
   targetLinkedProfileUserId?: number | null;
   targetUserId?: number | null;
-  roles: string[];
+  authorityKeys: string[];
 }
 
 const LINEAGE_DOCUMENT_REVIEW_ROLES = new Set([
@@ -24,5 +24,5 @@ export function canViewLineageDocuments(input: LineageDocumentAccessInput): bool
     return true;
   }
 
-  return input.roles.some((role) => LINEAGE_DOCUMENT_REVIEW_ROLES.has(role));
+  return input.authorityKeys.some((role) => LINEAGE_DOCUMENT_REVIEW_ROLES.has(role));
 }
