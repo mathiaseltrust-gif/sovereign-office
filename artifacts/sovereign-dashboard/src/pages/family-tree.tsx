@@ -2717,13 +2717,22 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
               >
                 {edges.map((edge) => {
                   const isPartner = edge.key.startsWith("partner-");
-                  const cx1 = edge.x1;
-                  const cy1 = edge.y1 + V_GAP * 0.4;
-                  const cx2 = edge.x2;
-                  const cy2 = edge.y2 - V_GAP * 0.4;
-                  const path = isPartner
-                    ? `M${edge.x1},${edge.y1} H${edge.x2}`
-                    : `M${edge.x1},${edge.y1} C${cx1},${cy1} ${cx2},${cy2} ${edge.x2},${edge.y2}`;
+                  const path = treeView === "tree"
+                    ? (() => {
+                        const dx = edge.x2 - edge.x1;
+                        const c1x = edge.x1 + dx * 0.45;
+                        const c2x = edge.x2 - dx * 0.45;
+                        return `M${edge.x1},${edge.y1} C${c1x},${edge.y1} ${c2x},${edge.y2} ${edge.x2},${edge.y2}`;
+                      })()
+                    : (() => {
+                        const cx1 = edge.x1;
+                        const cy1 = edge.y1 + V_GAP * 0.4;
+                        const cx2 = edge.x2;
+                        const cy2 = edge.y2 - V_GAP * 0.4;
+                        return isPartner
+                          ? `M${edge.x1},${edge.y1} H${edge.x2}`
+                          : `M${edge.x1},${edge.y1} C${cx1},${cy1} ${cx2},${cy2} ${edge.x2},${edge.y2}`;
+                      })();
                   return (
                     <path
                       key={edge.key}
