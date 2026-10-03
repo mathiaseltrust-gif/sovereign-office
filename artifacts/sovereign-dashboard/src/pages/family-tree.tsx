@@ -433,49 +433,56 @@ function computeLayout(
     byGen.set(gen, group);
   }
 
-  // Bounded packing prevents a single populous generation from becoming a
-  // 100k+ pixel strip. Wider generations wrap into additional rows while
-  // preserving family adjacency.
-  const MAX_COLUMNS = 18;
-  const ROW_GAP = 34;
-  const GEN_GAP = 88;
-  const sortedGens = [...byGen.keys()].sort((a, b) => b - a);
+  // Horizontal genealogy: descendants are to the left, the focal generation
+  // occupies the middle, and ancestors advance to the right. A populous
+  // generation may use a few adjacent sub-columns, but never one giant row.
+  const MAX_ROWS_PER_COLUMN = 12;
+  const ROW_GAP = 18;
+  const SUBCOLUMN_GAP = 20;
+  const GENERATION_GAP = 70;
+  const sortedGens = [...byGen.keys()].sort((a, b) => a - b);
 
   const packing = sortedGens.map((gen) => {
     const group = byGen.get(gen)!;
-    const columns = Math.max(1, Math.min(MAX_COLUMNS, Math.ceil(Math.sqrt(group.length * 2.2))));
-    const rows = Math.ceil(group.length / columns);
-    const width = columns * NODE_W + Math.max(0, columns - 1) * H_GAP;
-    const height = rows * NODE_H + Math.max(0, rows - 1) * ROW_GAP;
+    const columns = Math.max(1, Math.ceil(group.length / MAX_ROWS_PER_COLUMN));
+    const rows = Math.min(MAX_ROWS_PER_COLUMN, group.length);
+    const width =
+      columns * NODE_W
+      + Math.max(0, columns - 1) * SUBCOLUMN_GAP;
+    const height =
+      rows * NODE_H
+      + Math.max(0, rows - 1) * ROW_GAP;
     return { gen, group, columns, rows, width, height };
   });
 
-  const widest = Math.max(...packing.map((entry) => entry.width), NODE_W);
-  const totalW = CANVAS_PADDING * 2 + widest;
-  const totalH =
+  const tallest = Math.max(...packing.map((entry) => entry.height), NODE_H);
+  const totalW =
     CANVAS_PADDING * 2
-    + packing.reduce((sum, entry) => sum + entry.height, 0)
-    + Math.max(0, packing.length - 1) * GEN_GAP;
+    + packing.reduce((sum, entry) => sum + entry.width, 0)
+    + Math.max(0, packing.length - 1) * GENERATION_GAP;
+  const totalH = CANVAS_PADDING * 2 + tallest;
 
   const positioned: PositionedNode[] = [];
-  let y = CANVAS_PADDING;
+  let x = CANVAS_PADDING;
 
   for (const entry of packing) {
-    for (let row = 0; row < entry.rows; row++) {
-      const rowStart = row * entry.columns;
-      const rowNodes = entry.group.slice(rowStart, rowStart + entry.columns);
-      const rowWidth = rowNodes.length * NODE_W + Math.max(0, rowNodes.length - 1) * H_GAP;
-      const startX = (totalW - rowWidth) / 2;
+    for (let column = 0; column < entry.columns; column++) {
+      const columnStart = column * MAX_ROWS_PER_COLUMN;
+      const columnNodes = entry.group.slice(columnStart, columnStart + MAX_ROWS_PER_COLUMN);
+      const columnHeight =
+        columnNodes.length * NODE_H
+        + Math.max(0, columnNodes.length - 1) * ROW_GAP;
+      const startY = CANVAS_PADDING + Math.max(0, (tallest - columnHeight) / 2);
 
-      rowNodes.forEach((node, column) => {
+      columnNodes.forEach((node, row) => {
         positioned.push({
           ...node,
-          x: startX + column * (NODE_W + H_GAP),
-          y: y + row * (NODE_H + ROW_GAP),
+          x: x + column * (NODE_W + SUBCOLUMN_GAP),
+          y: startY + row * (NODE_H + ROW_GAP),
         });
       });
     }
-    y += entry.height + GEN_GAP;
+    x += entry.width + GENERATION_GAP;
   }
 
   return { positioned, totalW, totalH };
@@ -757,7 +764,15 @@ function buildEdges(positioned: PositionedNode[], familyUnits: FamilyUnit[] = []
     if (!parent || !child) return;
     added.add(key);
     const isAncestorLine = parent.protectionLevel === "ancestor" || child.protectionLevel === "ancestor";
-    edges.push({ key, x1: parent.x + NODE_W / 2, y1: parent.y + NODE_H, x2: child.x + NODE_W / 2, y2: child.y, isAncestorLine });
+    const parentIsRight = parent.x >= child.x;
+    edges.push({
+      key,
+      x1: parentIsRight ? parent.x : parent.x + NODE_W,
+      y1: parent.y + NODE_H / 2,
+      x2: parentIsRight ? child.x + NODE_W : child.x,
+      y2: child.y + NODE_H / 2,
+      isAncestorLine,
+    });
   }
 
   // FAM records first — they are the authoritative parent→child source
