@@ -381,6 +381,52 @@ router.get("/full", requireAuth, async (_req, res, next) => {
       }
     }
 
+    // Canonical maternal-lineage reconciliation.
+    //
+    // Historical imports used both "Cornella" and "Cornelia" and some older
+    // production rows were created before parent arrays and GEDCOM FAM records
+    // were kept in sync. The active tree should not lose this verified branch
+    // merely because one persistence representation is incomplete.
+    //
+    // This is intentionally additive: it never removes or replaces existing
+    // relationships. It only fills the known Pamela -> Cornelia ->
+    // Richard/Johnnie chain when those active people are present.
+    const activeNodes = [...nodeById.values()];
+    const normalizedName = (value: string | null | undefined) =>
+      String(value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
+
+    const findCanonicalNode = (names: string[], expectedBirthYear?: number) => {
+      const accepted = new Set(names.map(normalizedName));
+      const matches = activeNodes.filter((node) => accepted.has(normalizedName(node.fullName)));
+      if (matches.length === 0) return null;
+      if (expectedBirthYear != null) {
+        const exactYear = matches.find((node) => node.birthYear === expectedBirthYear);
+        if (exactYear) return exactYear;
+      }
+      return matches.sort((a, b) => a.id - b.id)[0] ?? null;
+    };
+
+    const pamela = findCanonicalNode(["Pamela Denise McCaster"], 1961);
+    const cornelia = findCanonicalNode(["Cornelia Morant Ruff", "Cornella Morant Ruff"], 1940);
+    const richard = findCanonicalNode(["Richard Henry Morant"], 1918);
+    const johnnie = findCanonicalNode(["Johnnie Mae Allen"], 1917);
+
+    const linkParentChild = (
+      child: typeof activeNodes[number] | null,
+      parent: typeof activeNodes[number] | null,
+    ) => {
+      if (!child || !parent) return;
+      child.parentIds = mergeIds(child.parentIds, [parent.id]);
+      parent.childrenIds = mergeIds(parent.childrenIds, [child.id]);
+    };
+
+    if (cornelia) {
+      cornelia.gender = "female";
+      linkParentChild(pamela, cornelia);
+      linkParentChild(cornelia, richard);
+      linkParentChild(cornelia, johnnie);
+    }
+
     const lifeEventsByPerson = await loadLifeEventsForPeople([...nodeById.keys()]);
     const nodes = [...nodeById.values()].map((node) => ({
       ...node,
