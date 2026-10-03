@@ -9,6 +9,7 @@ import { ObjectStorageService, ObjectNotFoundError } from "../../lib/objectStora
 import { Readable } from "stream";
 import { z } from "zod";
 import { SOVEREIGN_ORGS } from "../../engines/organizations";
+import { hasRole } from "../../engines/authority";
 
 const router = Router();
 const objectStorageService = new ObjectStorageService();
@@ -27,7 +28,22 @@ const DocumentCreateBody = z.object({
   filename: z.string().min(1).max(500),
   fileKey: z.string().max(500).optional(),
   label: z.string().min(1).max(200),
-  docType: z.enum(["ein_letter", "tax_exempt_cert", "527_reg", "501c3_cert", "tribal_license", "articles", "general"]).default("general"),
+  docType: z.enum([
+    "ein_letter",
+    "tax_exempt_cert",
+    "527_reg",
+    "501c3_cert",
+    "tribal_license",
+    "articles",
+    "charter",
+    "appointment",
+    "conflict",
+    "minutes",
+    "resolution",
+    "report",
+    "evidence",
+    "general",
+  ]).default("general"),
   description: z.string().max(1000).optional(),
 });
 
@@ -35,9 +51,16 @@ function isElevated(req: Request): boolean {
   return req.user?.roles?.some((r) => ELEVATED_ROLES.includes(r)) ?? false;
 }
 
+function canAccessOrg(req: Request, orgId: string): boolean {
+  if (orgId === "board_of_trustees") {
+    return req.user ? hasRole(req.user.roles ?? [], "trustee") : false;
+  }
+  return isElevated(req);
+}
+
 router.get("/:orgId/profile", requireAuth, async (req: Request, res: Response, next) => {
-  if (!isElevated(req)) {
-    res.status(403).json({ error: "Trustee or officer access required." });
+  if (!canAccessOrg(req, String(req.params.orgId))) {
+    res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required." : "Trustee or officer access required." });
     return;
   }
   try {
@@ -64,8 +87,8 @@ router.patch("/:orgId/profile", requireAuth, async (req: Request, res: Response,
       res.status(404).json({ error: "Organization not found" });
       return;
     }
-    if (!isElevated(req)) {
-      res.status(403).json({ error: "Trustee or officer access required." });
+    if (!canAccessOrg(req, String(req.params.orgId))) {
+      res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required." : "Trustee or officer access required." });
       return;
     }
     const parsed = ProfilePatchBody.safeParse(req.body);
@@ -93,8 +116,8 @@ router.patch("/:orgId/profile", requireAuth, async (req: Request, res: Response,
 });
 
 router.get("/:orgId/documents", requireAuth, async (req: Request, res: Response, next) => {
-  if (!isElevated(req)) {
-    res.status(403).json({ error: "Trustee or officer access required." });
+  if (!canAccessOrg(req, String(req.params.orgId))) {
+    res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required." : "Trustee or officer access required." });
     return;
   }
   try {
@@ -118,8 +141,8 @@ router.post("/:orgId/documents", requireAuth, async (req: Request, res: Response
       res.status(404).json({ error: "Organization not found" });
       return;
     }
-    if (!isElevated(req)) {
-      res.status(403).json({ error: "Trustee or officer access required to upload documents." });
+    if (!canAccessOrg(req, String(req.params.orgId))) {
+      res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required to upload Board records." : "Trustee or officer access required to upload documents." });
       return;
     }
     const parsed = DocumentCreateBody.safeParse(req.body);
@@ -159,8 +182,8 @@ router.post("/:orgId/documents", requireAuth, async (req: Request, res: Response
 router.delete("/:orgId/documents/:docId", requireAuth, async (req: Request, res: Response, next) => {
   try {
     const { orgId, docId } = req.params;
-    if (!isElevated(req)) {
-      res.status(403).json({ error: "Trustee or officer access required." });
+    if (!canAccessOrg(req, String(req.params.orgId))) {
+      res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required." : "Trustee or officer access required." });
       return;
     }
     const id = parseInt(String(docId), 10);
@@ -176,8 +199,8 @@ router.delete("/:orgId/documents/:docId", requireAuth, async (req: Request, res:
 });
 
 router.get("/:orgId/documents/:docId/download", requireAuth, async (req: Request, res: Response, next) => {
-  if (!isElevated(req)) {
-    res.status(403).json({ error: "Trustee or officer access required." });
+  if (!canAccessOrg(req, String(req.params.orgId))) {
+    res.status(403).json({ error: String(req.params.orgId) === "board_of_trustees" ? "Trustee access required." : "Trustee or officer access required." });
     return;
   }
   try {
