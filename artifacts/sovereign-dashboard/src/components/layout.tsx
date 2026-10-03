@@ -69,6 +69,7 @@ function getTrusteeNav(): NavSectionDef[] {
         { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
         { href: "/atlas",        label: "Urban Indian Atlas",       highlight: true, icon: Map, externalHref: "/atlas/" },
         { href: "/org",          label: "Organizations",            icon: Building2 },
+        { href: "/board",        label: "Board of Trustees",         highlight: true, icon: ShieldCheck },
         { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
       ],
     },
