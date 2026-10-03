@@ -618,7 +618,10 @@ function computeFocusedFamilyLayout(
     );
   }
 
-  // Focal <-> partner and each household's adults -> children.
+  // Focal <-> partner. Children descend from one shared household
+  // junction instead of drawing one parent-to-child line for every adult.
+  // This follows the conventional genealogy shape and prevents large families
+  // from becoming a dense parent × child "spiderweb".
   branchCenters.forEach(({ household }) => {
     const adultIds = [focal.id, ...household.adults];
     for (const adultId of household.adults) {
@@ -634,21 +637,27 @@ function computeFocusedFamilyLayout(
       );
     }
 
+    const adultCenters = adultIds
+      .map((adultId) => positionById.get(adultId))
+      .filter((adult): adult is PositionedNode => adult != null)
+      .map((adult) => adult.x + NODE_W / 2);
+
+    const unionX = adultCenters.length > 0
+      ? (Math.min(...adultCenters) + Math.max(...adultCenters)) / 2
+      : centerX + NODE_W / 2;
+    const unionY = focalY + NODE_H / 2;
+
     for (const childId of household.children) {
       const child = positionById.get(childId);
       if (!child) continue;
-      for (const adultId of adultIds) {
-        const adult = positionById.get(adultId);
-        if (!adult) continue;
-        addEdge(
-          `household-${household.id}-${adultId}-${childId}`,
-          adult.x + NODE_W / 2,
-          adult.y + NODE_H,
-          child.x + NODE_W / 2,
-          child.y,
-          false,
-        );
-      }
+      addEdge(
+        `household-${household.id}-union-${childId}`,
+        unionX,
+        unionY,
+        child.x + NODE_W / 2,
+        child.y,
+        false,
+      );
     }
   });
 
