@@ -4,10 +4,11 @@ import { logger } from "../lib/logger";
 
 export type ServiceCapability =
   | "m365:intake:submit"
-  | "m365:facts:extract";
+  | "m365:facts:extract"
+  | "github:intake:preview";
 
 export interface ServicePrincipal {
-  id: "m365-service";
+  id: "m365-service" | "github-intake-service";
   kind: "service";
   capabilities: ServiceCapability[];
 }
@@ -32,36 +33,52 @@ export function hasServiceCapability(req: Request, capability: ServiceCapability
 }
 
 export function serviceKeyMiddleware(req: Request, _res: Response, next: NextFunction): void {
-  const serviceKey = process.env.M365_SERVICE_KEY;
-  if (!serviceKey) {
-    next();
-    return;
-  }
-
   const apiKeyHeader = req.headers["x-api-key"] as string | undefined;
   if (!apiKeyHeader) {
     next();
     return;
   }
 
-  if (!safeEqualSecret(apiKeyHeader, serviceKey)) {
-    logger.warn({ ip: req.ip, path: req.path }, "Invalid M365 service key attempt");
+  const candidates: Array<{
+    secret: string | undefined;
+    principal: ServicePrincipal;
+  }> = [
+    {
+      secret: process.env.M365_SERVICE_KEY,
+      principal: {
+        id: "m365-service",
+        kind: "service",
+        capabilities: ["m365:intake:submit", "m365:facts:extract"],
+      },
+    },
+    {
+      secret: process.env.GITHUB_INTAKE_SERVICE_KEY,
+      principal: {
+        id: "github-intake-service",
+        kind: "service",
+        capabilities: ["github:intake:preview"],
+      },
+    },
+  ];
+
+  const matched = candidates.find(({ secret }) =>
+    !!secret && safeEqualSecret(apiKeyHeader, secret),
+  );
+
+  if (!matched) {
+    logger.warn({ ip: req.ip, path: req.path }, "Invalid service credential attempt");
     next();
     return;
   }
 
   // A machine integration is deliberately NOT a human Office user and receives
   // no Office role. It gets only the capabilities explicitly listed here.
-  req.servicePrincipal = {
-    id: "m365-service",
-    kind: "service",
-    capabilities: ["m365:intake:submit", "m365:facts:extract"],
-  };
+  req.servicePrincipal = matched.principal;
   req.isServiceAccount = true;
 
   logger.debug(
     { path: req.path, servicePrincipal: req.servicePrincipal.id },
-    "M365 service principal authenticated",
+    "Machine service principal authenticated",
   );
   next();
 }
