@@ -9,6 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Skeleton } from "@/components/ui/skeleton";
 import { useToast } from "@/hooks/use-toast";
 import { getCurrentBearerToken, useAuth } from "@/components/auth-provider";
+import { CheckCircle2 } from "lucide-react";
 
 interface OrgProfile {
   orgId: string;
@@ -16,6 +17,7 @@ interface OrgProfile {
   legalName: string | null;
   exemptType: string | null;
   notes: string | null;
+  updatedAt?: string;
 }
 
 interface OrgDocument {
@@ -147,6 +149,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
   const [uploadDocType, setUploadDocType] = useState<string>("general");
   const [showUploadForm, setShowUploadForm] = useState(false);
   const [showLinkExisting, setShowLinkExisting] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -189,7 +192,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: profileKey });
       setEditingEin(false);
-      toast({ title: "Profile updated" });
+      toast({ title: "Saved to Office Records", description: `${orgName} entity ID was saved successfully.` });
     },
     onError: (e: Error) => toast({ title: "Update failed", description: e.message, variant: "destructive" }),
   });
@@ -252,8 +255,9 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
       setShowUploadForm(false);
       setUploadLabel("");
       setUploadDocType("general");
+      setSelectedFile(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
-      toast({ title: "Document uploaded", description: `${file.name} added to ${orgName}.` });
+      toast({ title: "Saved to Office Records", description: `${file.name} is now stored in ${orgName}.` });
     } catch (e) {
       toast({ title: "Upload failed", description: (e as Error).message, variant: "destructive" });
     } finally {
@@ -269,9 +273,16 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
         className="pb-2 cursor-pointer select-none"
         onClick={() => setExpanded((v) => !v)}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-3">
           <div><p className="text-[10px] uppercase tracking-widest text-muted-foreground mb-0.5">{orgName}</p><CardTitle className="text-sm uppercase tracking-widest">Entity ID &amp; Organization Documents</CardTitle></div>
-          <span className="text-xs text-muted-foreground">{expanded ? "▲ collapse" : "▼ expand"}</span>
+          <div className="flex items-center gap-2">
+            {(profile?.ein || (docs && docs.length > 0)) && (
+              <span className="inline-flex items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2 py-1 text-[10px] font-semibold text-emerald-700">
+                <CheckCircle2 className="h-3 w-3" /> Saved to Office Records
+              </span>
+            )}
+            <span className="text-xs text-muted-foreground">{expanded ? "▲ collapse" : "▼ expand"}</span>
+          </div>
         </div>
       </CardHeader>
 
@@ -303,10 +314,15 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                   </Button>
                 </div>
               ) : (
-                <div className="flex items-center gap-3">
+                <div className="flex items-center gap-2 flex-wrap">
                   <span className="font-mono text-sm bg-muted px-3 py-1.5 rounded border">
                     {profile?.ein ?? <span className="text-muted-foreground italic">Not on file</span>}
                   </span>
+                  {profile?.ein && (
+                    <span className="inline-flex h-7 items-center gap-1 rounded-md border border-emerald-300 bg-emerald-50 px-2.5 text-xs font-medium text-emerald-700">
+                      <CheckCircle2 className="h-3.5 w-3.5" /> Saved
+                    </span>
+                  )}
                   {isElevated && (
                     <Button
                       size="sm"
@@ -321,7 +337,7 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
               )}
               {profile?.ein && (
                 <p className="text-xs text-muted-foreground">
-                  On file — used for bank accounts, grant applications, vendor agreements, and federal program access.
+                  Saved in Sovereign Office{profile.updatedAt ? ` · last updated ${new Date(profile.updatedAt).toLocaleString()}` : ""} — used for bank accounts, grant applications, vendor agreements, and federal program access.
                 </p>
               )}
             </div>
@@ -423,14 +439,23 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                     type="file"
                     accept=".pdf,.png,.jpg,.jpeg,.doc,.docx"
                     className="text-sm"
-                    onChange={(e) => {
-                      const file = e.target.files?.[0];
-                      if (file) handleUpload(file);
-                    }}
+                    onChange={(e) => setSelectedFile(e.target.files?.[0] ?? null)}
                     disabled={uploading}
                   />
+                  {selectedFile && (
+                    <p className="text-[11px] text-muted-foreground mt-1">Selected: {selectedFile.name}</p>
+                  )}
                 </div>
-                {uploading && <p className="text-xs text-muted-foreground">Uploading…</p>}
+                <div className="flex justify-end">
+                  <Button
+                    size="sm"
+                    className="h-8 text-xs gap-1.5"
+                    disabled={uploading || !selectedFile || !uploadLabel.trim()}
+                    onClick={() => selectedFile && handleUpload(selectedFile)}
+                  >
+                    {uploading ? "Saving…" : <><CheckCircle2 className="h-3.5 w-3.5" /> Save Document</>}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -451,8 +476,11 @@ export function OrgDocumentsPanel({ orgId, orgName, defaultExpanded = false }: P
                           <Badge variant="outline" className="text-[10px] shrink-0">
                             {DOC_TYPE_LABELS[doc.docType] ?? doc.docType}
                           </Badge>
+                          <Badge variant="outline" className="text-[10px] shrink-0 border-emerald-300 bg-emerald-50 text-emerald-700">
+                            <CheckCircle2 className="h-3 w-3 mr-1" /> Saved
+                          </Badge>
                         </div>
-                        <p className="text-xs text-muted-foreground mt-0.5">{doc.filename} · {new Date(doc.uploadedAt).toLocaleDateString()}</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">{doc.filename} · saved {new Date(doc.uploadedAt).toLocaleString()}</p>
                       </div>
                       <div className="flex gap-1 shrink-0">
                         {doc.fileKey && (
