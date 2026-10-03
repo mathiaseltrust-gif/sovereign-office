@@ -110,16 +110,30 @@ WITH edge_specs (child_name, child_year, parent_name, parent_year) AS (
     ('Johnnie Mae Allen', 1917, 'Rosa Leach Allen', 1896)
 ),
 resolved_edges AS (
-  SELECT
-    child.id AS child_id,
-    parent.id AS parent_id
+  SELECT child.id AS child_id, parent.id AS parent_id
   FROM edge_specs e
-  JOIN family_lineage child
-    ON lower(trim(child.full_name)) = lower(trim(e.child_name))
-   AND child.birth_year IS NOT DISTINCT FROM e.child_year
-  JOIN family_lineage parent
-    ON lower(trim(parent.full_name)) = lower(trim(e.parent_name))
-   AND parent.birth_year IS NOT DISTINCT FROM e.parent_year
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.child_name))
+      AND birth_year IS NOT DISTINCT FROM e.child_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) child
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.parent_name))
+      AND birth_year IS NOT DISTINCT FROM e.parent_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) parent
 ),
 parents_by_child AS (
   SELECT child_id, jsonb_agg(DISTINCT parent_id) AS parent_ids_to_add
@@ -156,16 +170,30 @@ WITH edge_specs (child_name, child_year, parent_name, parent_year) AS (
     ('Johnnie Mae Allen', 1917, 'Rosa Leach Allen', 1896)
 ),
 resolved_edges AS (
-  SELECT
-    child.id AS child_id,
-    parent.id AS parent_id
+  SELECT child.id AS child_id, parent.id AS parent_id
   FROM edge_specs e
-  JOIN family_lineage child
-    ON lower(trim(child.full_name)) = lower(trim(e.child_name))
-   AND child.birth_year IS NOT DISTINCT FROM e.child_year
-  JOIN family_lineage parent
-    ON lower(trim(parent.full_name)) = lower(trim(e.parent_name))
-   AND parent.birth_year IS NOT DISTINCT FROM e.parent_year
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.child_name))
+      AND birth_year IS NOT DISTINCT FROM e.child_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) child
+  CROSS JOIN LATERAL (
+    SELECT id
+    FROM family_lineage
+    WHERE lower(trim(full_name)) = lower(trim(e.parent_name))
+      AND birth_year IS NOT DISTINCT FROM e.parent_year
+    ORDER BY
+      CASE WHEN coalesce(source_type,'')='archived' THEN 1 ELSE 0 END,
+      CASE WHEN coalesce(membership_status,'')='rejected' THEN 1 ELSE 0 END,
+      id
+    LIMIT 1
+  ) parent
 ),
 children_by_parent AS (
   SELECT parent_id, jsonb_agg(DISTINCT child_id) AS child_ids_to_add
