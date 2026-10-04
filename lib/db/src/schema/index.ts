@@ -65,3 +65,5 @@ export * from "./trustee-agreement-acceptances";
 export * from "./document-associations";
 
 export * from "./sovereign-history";
+
+export * from "./household-authority";

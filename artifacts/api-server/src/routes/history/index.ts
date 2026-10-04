@@ -2,17 +2,23 @@ import { randomUUID } from "crypto";
 import { Router } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
-import { requireAuth, requireRegisteredUser, requireAnyRole } from "../../auth/entra-guard";
+import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
 import { associateDocument, recordListenerEvent } from "../../engines/document-association";
+import { canManageHouseholdPerson, hasHouseholdElevatedRole } from "../../engines/household-authority";
 
 const router = Router();
-const HISTORY_ROLES = ["officer", "trustee", "admin", "sovereign_admin", "chief_justice", "chief_justice_trustee"] as const;
 const RECORD_STATUSES = new Set(["asserted", "documented", "verified", "disputed", "superseded"]);
 const DATE_PRECISIONS = new Set(["exact", "day", "month", "year", "approximate", "range", "unknown"]);
 
 function eventRef() {
   const year = new Date().getUTCFullYear();
   return `HIST-${year}-${randomUUID().replace(/-/g, "").slice(0, 10).toUpperCase()}`;
+}
+
+async function canAccessHistoryEntity(userId: number, roles: string[], entityType: string | null, entityId: string | null) {
+  if (hasHouseholdElevatedRole(roles)) return true;
+  if (entityType !== "person" || !entityId || !/^\d+$/.test(entityId)) return false;
+  return canManageHouseholdPerson({ userId, roles, lineageId: Number(entityId) });
 }
 
 function asDate(value: unknown): Date | null {
@@ -25,12 +31,18 @@ router.get(
   "/events",
   requireAuth,
   requireRegisteredUser,
-  requireAnyRole([...HISTORY_ROLES]),
   async (req, res, next) => {
     try {
+      const userId = req.user!.dbId!;
+      const roles = req.user?.roles ?? [];
       const entityType = req.query.entityType ? String(req.query.entityType) : null;
       const entityId = req.query.entityId ? String(req.query.entityId) : null;
       const limit = Math.max(1, Math.min(250, Number(req.query.limit ?? 100) || 100));
+
+      if (!(await canAccessHistoryEntity(userId, roles, entityType, entityId))) {
+        res.status(403).json({ error: "This history is outside your authorized household scope." });
+        return;
+      }
 
       const result = await db.execute(sql`
         SELECT DISTINCT
@@ -87,10 +99,10 @@ router.post(
   "/events",
   requireAuth,
   requireRegisteredUser,
-  requireAnyRole([...HISTORY_ROLES]),
   async (req, res, next) => {
     try {
       const userId = req.user!.dbId!;
+      const roles = req.user?.roles ?? [];
       const body = (req.body ?? {}) as Record<string, unknown>;
       const title = String(body.title ?? "").trim();
       if (!title) {
@@ -98,7 +110,7 @@ router.post(
         return;
       }
 
-      const status = String(body.recordStatus ?? "asserted");
+      let status = String(body.recordStatus ?? "asserted");
       if (!RECORD_STATUSES.has(status)) {
         res.status(400).json({ error: "Invalid recordStatus." });
         return;
@@ -107,6 +119,25 @@ router.post(
       if (!DATE_PRECISIONS.has(precision)) {
         res.status(400).json({ error: "Invalid datePrecision." });
         return;
+      }
+
+      const entities = Array.isArray(body.entities) ? body.entities : [];
+      if (!hasHouseholdElevatedRole(roles)) {
+        if (entities.length === 0) {
+          res.status(400).json({ error: "A household history entry must identify the person it belongs to." });
+          return;
+        }
+        for (const raw of entities) {
+          const entity = raw as Record<string, unknown>;
+          const entityType = String(entity.entityType ?? "");
+          const entityId = String(entity.entityId ?? "");
+          if (!(await canAccessHistoryEntity(userId, roles, entityType, entityId))) {
+            res.status(403).json({ error: "You may only add history within your own household scope." });
+            return;
+          }
+        }
+        if (status === "verified") status = "documented";
+        if (status === "superseded") status = "asserted";
       }
 
       const occurredAt = asDate(body.occurredAt);
@@ -142,7 +173,6 @@ router.post(
       const event = inserted.rows[0] as Record<string, unknown>;
       const eventId = Number(event.id);
 
-      const entities = Array.isArray(body.entities) ? body.entities : [];
       for (const raw of entities) {
         const entity = raw as Record<string, unknown>;
         const entityType = String(entity.entityType ?? "").trim();

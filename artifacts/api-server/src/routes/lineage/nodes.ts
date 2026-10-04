@@ -1,12 +1,13 @@
 import { Router } from "express";
 import { db } from "@workspace/db";
-import { familyLineageTable, familyUnitsTable, profilesTable, usersTable } from "@workspace/db";
+import { familyLineageTable, familyUnitsTable, householdAuthorityTable, profilesTable, usersTable } from "@workspace/db";
 import { eq, desc, ne, or, and, inArray, notInArray, sql } from "drizzle-orm";
-import { requireAuth, requireRole } from "../../auth/entra-guard";
+import { requireAuth, requireRegisteredUser, requireRole } from "../../auth/entra-guard";
 import { hasRole, canReviewPendingLineage } from "../../engines/authority";
 import { logger } from "../../lib/logger";
 import { createNotification } from "../../engines/notification-engine";
 import { enrichLifeEventPlace } from "../../lib/place-normalization";
+import { getLinkedHouseholdHead, hasHouseholdElevatedRole } from "../../engines/household-authority";
 
 const CHIEF_ROLES = new Set(["trustee", "sovereign_admin", "admin", "elder", "officer", "chief_justice", "chief_justice_trustee"]);
 
@@ -554,74 +555,248 @@ router.get("/notes-structured-facts/dry-run", requireAuth, requireRole("trustee"
   }
 });
 
-// ── Add a lineage node to the current officer's household ────────────────
-// Appends the targetNodeId to the officer's own linked family_lineage record's
-// spouseIds or childrenIds array (used by the Atlas to classify household_member).
-router.post("/household/add", requireAuth, async (req, res, next) => {
+// ── Household authority ──────────────────────────────────────────────────────
+router.get("/household/scope", requireAuth, requireRegisteredUser, async (req, res, next) => {
   try {
-    const currentUserId = req.user?.dbId ?? null;
-    if (!currentUserId) { res.status(401).json({ error: "Not authenticated" }); return; }
-
-    const roles = req.user?.roles ?? [];
-    const canManageHousehold = roles.some((r) => ["trustee", "sovereign_admin", "admin", "elder", "officer"].includes(r));
-    if (!canManageHousehold) {
-      res.status(403).json({ error: "Officer or trustee role required to manage household" });
+    const userId = req.user!.dbId!;
+    const head = await getLinkedHouseholdHead(userId);
+    if (!head) {
+      res.json({ hasLinkedNode: false, head: null, members: [] });
       return;
     }
 
-    const { targetNodeId, relationship } = req.body as { targetNodeId?: number; relationship?: string };
-    if (!targetNodeId || !["spouse", "child", "dependent"].includes(relationship ?? "")) {
-      res.status(400).json({ error: "targetNodeId and relationship (spouse | child | dependent) are required" });
-      return;
-    }
-
-    // Find the current user's linked lineage node
-    const [userNode] = await db
+    const scopes = await db
       .select()
-      .from(familyLineageTable)
-      .where(eq(familyLineageTable.linkedProfileUserId, currentUserId))
-      .limit(1);
+      .from(householdAuthorityTable)
+      .where(and(
+        eq(householdAuthorityTable.ownerUserId, userId),
+        ne(householdAuthorityTable.status, "revoked"),
+      ))
+      .orderBy(householdAuthorityTable.createdAt);
 
-    if (!userNode) {
-      res.status(404).json({ error: "No lineage node is linked to your profile. Use 'This is me' on your node first." });
+    const ids = scopes.map((scope) => scope.memberLineageId);
+    const members = ids.length
+      ? await db.select({
+          id: familyLineageTable.id,
+          fullName: familyLineageTable.fullName,
+          birthYear: familyLineageTable.birthYear,
+          gender: familyLineageTable.gender,
+          membershipStatus: familyLineageTable.membershipStatus,
+          protectionLevel: familyLineageTable.protectionLevel,
+          pendingReview: familyLineageTable.pendingReview,
+          supportingDocumentName: familyLineageTable.supportingDocumentName,
+        }).from(familyLineageTable).where(inArray(familyLineageTable.id, ids))
+      : [];
+
+    res.json({
+      hasLinkedNode: true,
+      head: { id: head.id, fullName: head.fullName },
+      members: scopes.map((scope) => ({
+        ...scope,
+        person: members.find((member) => member.id === scope.memberLineageId) ?? null,
+      })),
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/household/member", requireAuth, requireRegisteredUser, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId!;
+    const roles = req.user?.roles ?? [];
+    const head = await getLinkedHouseholdHead(userId);
+    if (!head) {
+      res.status(409).json({ error: "Link your own lineage record before creating a household." });
       return;
     }
-    if (userNode.id === targetNodeId) {
+
+    const body = req.body as Record<string, unknown>;
+    const fullName = String(body.fullName ?? "").trim();
+    const relationship = String(body.relationship ?? "").trim();
+    const parentageType = body.parentageType ? String(body.parentageType) : null;
+    const validRelationships = new Set(["spouse", "child", "dependent", "stepchild", "ward"]);
+    const validParentage = new Set(["biological", "adoptive", "step", "guardian", "not_applicable"]);
+
+    if (!fullName) {
+      res.status(400).json({ error: "fullName is required." });
+      return;
+    }
+    if (!validRelationships.has(relationship)) {
+      res.status(400).json({ error: "relationship must be spouse, child, dependent, stepchild, or ward." });
+      return;
+    }
+    if (parentageType && !validParentage.has(parentageType)) {
+      res.status(400).json({ error: "Invalid parentageType." });
+      return;
+    }
+
+    const [person] = await db.insert(familyLineageTable).values({
+      fullName,
+      firstName: typeof body.firstName === "string" ? body.firstName : undefined,
+      lastName: typeof body.lastName === "string" ? body.lastName : undefined,
+      birthYear: typeof body.birthYear === "number" ? body.birthYear : undefined,
+      gender: typeof body.gender === "string" ? body.gender : undefined,
+      tribalNation: typeof body.tribalNation === "string" ? body.tribalNation : head.tribalNation ?? undefined,
+      notes: `Household relationship: ${relationship}${parentageType ? ` (${parentageType})` : ""}`,
+      parentIds: relationship === "child" || relationship === "stepchild" || relationship === "dependent"
+        ? [head.id]
+        : [],
+      childrenIds: [],
+      spouseIds: relationship === "spouse" ? [head.id] : [],
+      generationalPosition: relationship === "child" || relationship === "stepchild" || relationship === "dependent"
+        ? (head.generationalPosition ?? 0) - 1
+        : (head.generationalPosition ?? 0),
+      protectionLevel: "pending",
+      membershipStatus: "pending",
+      isDeceased: false,
+      isAncestor: false,
+      sourceType: "member_household",
+      pendingReview: true,
+      addedByMemberId: userId,
+      supportingDocumentName: typeof body.supportingDocumentName === "string" ? body.supportingDocumentName : undefined,
+      visibility: body.visibility === "tribal" ? "tribal" : "private",
+    }).returning();
+
+    await db.insert(householdAuthorityTable).values({
+      ownerUserId: userId,
+      headLineageId: head.id,
+      memberLineageId: person.id,
+      relationshipType: relationship,
+      parentageType,
+      status: "active",
+      metadata: { createdThrough: "member_household" },
+      createdBy: userId,
+      approvedBy: hasHouseholdElevatedRole(roles) ? userId : null,
+      approvedAt: hasHouseholdElevatedRole(roles) ? new Date() : null,
+    }).onConflictDoNothing();
+
+    if (relationship === "spouse") {
+      const current = Array.isArray(head.spouseIds) ? head.spouseIds as number[] : [];
+      if (!current.includes(person.id)) {
+        await db.update(familyLineageTable)
+          .set({ spouseIds: [...current, person.id], updatedAt: new Date() })
+          .where(eq(familyLineageTable.id, head.id));
+      }
+    } else {
+      const current = Array.isArray(head.childrenIds) ? head.childrenIds as number[] : [];
+      if (!current.includes(person.id)) {
+        await db.update(familyLineageTable)
+          .set({ childrenIds: [...current, person.id], updatedAt: new Date() })
+          .where(eq(familyLineageTable.id, head.id));
+      }
+    }
+
+    res.status(201).json({
+      success: true,
+      person,
+      householdAuthority: {
+        ownerUserId: userId,
+        headLineageId: head.id,
+        memberLineageId: person.id,
+        relationshipType: relationship,
+        parentageType,
+        status: "active",
+      },
+      institutionalReview: {
+        pending: true,
+        note: "Household management authority is active; membership/protection verification remains pending Office review.",
+      },
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post("/household/add", requireAuth, requireRegisteredUser, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId!;
+    const roles = req.user?.roles ?? [];
+    const { targetNodeId, relationship, parentageType } = req.body as {
+      targetNodeId?: number;
+      relationship?: string;
+      parentageType?: string | null;
+    };
+
+    if (!targetNodeId || !["spouse", "child", "dependent", "stepchild", "ward"].includes(relationship ?? "")) {
+      res.status(400).json({ error: "targetNodeId and a valid household relationship are required." });
+      return;
+    }
+
+    const head = await getLinkedHouseholdHead(userId);
+    if (!head) {
+      res.status(409).json({ error: "Link your own lineage record before managing a household." });
+      return;
+    }
+    if (head.id === targetNodeId) {
       res.status(400).json({ error: "You cannot add yourself to your own household." });
       return;
     }
 
-    // Verify target exists
-    const [targetNode] = await db
-      .select({ id: familyLineageTable.id, fullName: familyLineageTable.fullName })
-      .from(familyLineageTable)
-      .where(eq(familyLineageTable.id, targetNodeId))
-      .limit(1);
-    if (!targetNode) { res.status(404).json({ error: "Target lineage node not found" }); return; }
+    const [target] = await db.select({
+      id: familyLineageTable.id,
+      fullName: familyLineageTable.fullName,
+      addedByMemberId: familyLineageTable.addedByMemberId,
+    }).from(familyLineageTable).where(eq(familyLineageTable.id, targetNodeId)).limit(1);
 
-    const isSpouse = relationship === "spouse";
-    const currentArray: number[] = isSpouse
-      ? (Array.isArray(userNode.spouseIds)   ? (userNode.spouseIds   as number[]) : [])
-      : (Array.isArray(userNode.childrenIds) ? (userNode.childrenIds as number[]) : []);
-
-    if (currentArray.includes(targetNodeId)) {
-      res.json({ success: true, alreadyAdded: true, message: `${targetNode.fullName} is already in your household.` });
+    if (!target) {
+      res.status(404).json({ error: "Target lineage node not found." });
       return;
     }
 
-    const newArray = [...currentArray, targetNodeId];
-    if (isSpouse) {
-      await db.update(familyLineageTable)
-        .set({ spouseIds: newArray, updatedAt: new Date() })
-        .where(eq(familyLineageTable.id, userNode.id));
-    } else {
-      await db.update(familyLineageTable)
-        .set({ childrenIds: newArray, updatedAt: new Date() })
-        .where(eq(familyLineageTable.id, userNode.id));
+    const alreadyRelated =
+      (Array.isArray(head.spouseIds) && (head.spouseIds as number[]).includes(targetNodeId)) ||
+      (Array.isArray(head.childrenIds) && (head.childrenIds as number[]).includes(targetNodeId));
+
+    const active = hasHouseholdElevatedRole(roles) || target.addedByMemberId === userId || alreadyRelated;
+    const status = active ? "active" : "pending";
+
+    await db.insert(householdAuthorityTable).values({
+      ownerUserId: userId,
+      headLineageId: head.id,
+      memberLineageId: targetNodeId,
+      relationshipType: relationship!,
+      parentageType: parentageType ?? null,
+      status,
+      metadata: { createdThrough: "existing_lineage_link" },
+      createdBy: userId,
+      approvedBy: active ? userId : null,
+      approvedAt: active ? new Date() : null,
+    }).onConflictDoUpdate({
+      target: [householdAuthorityTable.ownerUserId, householdAuthorityTable.memberLineageId],
+      set: {
+        relationshipType: relationship!,
+        parentageType: parentageType ?? null,
+        status,
+        updatedAt: new Date(),
+      },
+    });
+
+    if (active) {
+      if (relationship === "spouse") {
+        const current = Array.isArray(head.spouseIds) ? head.spouseIds as number[] : [];
+        if (!current.includes(targetNodeId)) {
+          await db.update(familyLineageTable)
+            .set({ spouseIds: [...current, targetNodeId], updatedAt: new Date() })
+            .where(eq(familyLineageTable.id, head.id));
+        }
+      } else {
+        const current = Array.isArray(head.childrenIds) ? head.childrenIds as number[] : [];
+        if (!current.includes(targetNodeId)) {
+          await db.update(familyLineageTable)
+            .set({ childrenIds: [...current, targetNodeId], updatedAt: new Date() })
+            .where(eq(familyLineageTable.id, head.id));
+        }
+      }
     }
 
-    logger.info({ userNodeId: userNode.id, targetNodeId, relationship, userId: currentUserId }, "Added lineage node to household");
-    res.json({ success: true, alreadyAdded: false, message: `${targetNode.fullName} added to your household as ${relationship}.` });
+    res.json({
+      success: true,
+      status,
+      message: active
+        ? `${target.fullName} is now in your managed household.`
+        : `The relationship to ${target.fullName} is pending Office review before household authority becomes active.`,
+    });
   } catch (err) {
     next(err);
   }

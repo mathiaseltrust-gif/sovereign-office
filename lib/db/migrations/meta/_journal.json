@@ -246,6 +246,13 @@
       "when": 1791021660000,
       "tag": "0033_add_sovereign_history_ledger",
       "breakpoints": true
+    },
+    {
+      "idx": 35,
+      "version": "7",
+      "when": 1791025260000,
+      "tag": "0034_add_household_authority",
+      "breakpoints": true
     }
   ]
 }
