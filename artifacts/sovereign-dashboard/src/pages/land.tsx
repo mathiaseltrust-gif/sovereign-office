@@ -13,6 +13,7 @@ import {
   Map, FileArchive, CalendarDays, Users, Link2, Calendar, CheckCircle2, XCircle, ExternalLink, Search,
 } from "lucide-react";
 import { OpenInvestigationModal } from "@/components/OpenInvestigationModal";
+import { EntityHistoryPanel } from "@/components/EntityHistoryPanel";
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
@@ -1819,6 +1820,13 @@ function ParcelDetailDrawer({
                 </div>
               )}
             </div>
+
+            <EntityHistoryPanel
+              entityType="parcel"
+              entityId={parcel.id}
+              title="Parcel History"
+              defaultOpen
+            />
 
             {/* ── Location & Legal ── */}
             {([parcel.county, parcel.state, parcel.legal_description].some(Boolean) || parcel.plss_description) && (

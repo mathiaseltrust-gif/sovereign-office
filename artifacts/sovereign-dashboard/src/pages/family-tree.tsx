@@ -16,6 +16,7 @@ import {
   Flame, Star, Info, Home,
 } from "lucide-react";
 import { MapPickerModal } from "@/components/map-picker-modal";
+import { EntityHistoryPanel } from "@/components/EntityHistoryPanel";
 
 type Tab = "view-lineage" | "my-submissions" | "edit-ancestors" | "knowledge-of-self" | "deduplicate";
 
@@ -4202,6 +4203,12 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
               </p>
             )}
           </div>
+
+          <EntityHistoryPanel
+            entityType="person"
+            entityId={n.id}
+            title="Person & Household History"
+          />
 
           {lifeEvents.length > 0 && (
             <div className="border rounded-md px-3 py-2.5 space-y-2">
