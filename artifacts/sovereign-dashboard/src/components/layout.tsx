@@ -47,68 +47,60 @@ function getTrusteeNav(): NavSectionDef[] {
   return [
     {
       id: "office",
-      label: "Chief's Office",
+      label: "Office",
       defaultOpen: true,
       items: [
-        { href: "/hub",                 label: "Office Home",         highlight: true, icon: LayoutDashboard },
-        { href: "/sovereign-pipeline",  label: "AI Intake & Pipeline", highlight: true, icon: Zap },
-        { href: "/official-documents",  label: "Official Documents",  highlight: true, icon: ScrollText },
-        { href: "/documents",           label: "Court Documents",     icon: Gavel },
+        { href: "/hub",                label: "Office Home",          highlight: true, icon: LayoutDashboard },
+        { href: "/sovereign-pipeline", label: "Intake & Processing",  highlight: true, icon: Zap },
+        { href: "/official-documents", label: "Official Records",     highlight: true, icon: ScrollText },
+        { href: "/board",              label: "Board of Trustees",    highlight: true, icon: ShieldCheck },
+        { href: "/org",                label: "Organizations",        icon: Building2 },
       ],
     },
     {
-      id: "governance",
-      label: "Governance",
-      defaultOpen: true,
-      items: [
-        { href: "/files",        label: "Files",                    icon: FolderOpen },
-        { href: "/case-registry", label: "Case File Registry", icon: Scale, externalHref: "/authority/case-files", highlight: true },
-        { href: "/filings",      label: "Filings",                  icon: FileText },
-        { href: "/templates",    label: "Document Templates",       highlight: true, icon: FilePen },
-        { href: "/instruments",  label: "Trust Instruments",        icon: Scale },
-        { href: "/land",         label: "Land & Asset Management",  highlight: true, icon: Landmark },
-        { href: "/atlas",        label: "Urban Indian Atlas",       highlight: true, icon: Map, externalHref: "/atlas/" },
-        { href: "/org",          label: "Organizations",            icon: Building2 },
-        { href: "/board",        label: "Board of Trustees",         highlight: true, icon: ShieldCheck },
-        { href: "/nfr",          label: "Notice of Federal Review", icon: AlertTriangle },
-      ],
-    },
-    {
-      id: "community",
-      label: "Community",
+      id: "records-authority",
+      label: "Records & Authority",
       defaultOpen: false,
       items: [
-        { href: "/membership",           label: "Membership Status",      icon: BadgeCheck },
-        { href: "/family-tree",          label: "Family Tree & Lineage",  icon: TreePine },
-        { href: "/family-governance",    label: "Family Governance",      icon: Users },
-        { href: "/ancestral-memories",   label: "Ancestral Memory Bank",  icon: BookMarked },
-        { href: "/journal",              label: "Sovereign Journal",      icon: PenLine },
-        { href: "/complaints",           label: "Complaints",             icon: MessageSquare },
-        { href: "/medical-notes",        label: "Medical Notes",          icon: Stethoscope },
+        { href: "/case-registry", label: "Case Files", icon: Scale, externalHref: "/authority/case-files", highlight: true },
+        { href: "/filings",       label: "Filings", icon: FileText },
+        { href: "/documents",     label: "Court Documents", icon: Gavel },
+        { href: "/instruments",   label: "Trust Instruments", icon: Scale },
+        { href: "/land",          label: "Land & Assets", highlight: true, icon: Landmark },
+        { href: "/nfr",           label: "Federal Review", icon: AlertTriangle },
+        { href: "/files",         label: "Files", icon: FolderOpen },
+        { href: "/templates",     label: "Templates", icon: FilePen },
       ],
     },
     {
-      id: "admin",
-      label: "Administration",
+      id: "people",
+      label: "People & Community",
       defaultOpen: false,
       items: [
-        { href: "/trace",               label: "TRACE — APA/CFR Compliance", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
-        { href: "/law",                 label: "Law Library",          icon: BookOpen },
-        { href: "/tasks",               label: "Tasks",                icon: CheckSquare },
-        { href: "/lineage",             label: "Lineage Import",       icon: GitMerge },
-        { href: "/atlas-admin",         label: "Atlas Events",         icon: Map },
-        { href: "/m365",                label: "Microsoft 365",        icon: Monitor },
-        { href: "/github-intake-preview", label: "GitHub Intake Pipeline", highlight: true, icon: GitMerge },
-        { href: "/role-governors",      label: "Role Governor", highlight: true, icon: ShieldCheck },
+        { href: "/membership",         label: "Membership", icon: BadgeCheck },
+        { href: "/family-tree",        label: "Family & Lineage", icon: TreePine },
+        { href: "/family-governance",  label: "Family Governance", icon: Users },
+        { href: "/atlas",              label: "Urban Indian Atlas", highlight: true, icon: Map, externalHref: "/atlas/" },
+        { href: "/complaints",         label: "Complaints", icon: MessageSquare },
+        { href: "/ancestral-memories", label: "Ancestral Memory", icon: BookMarked },
+        { href: "/journal",            label: "Sovereign Journal", icon: PenLine },
+        { href: "/medical-notes",      label: "Medical Notes", icon: Stethoscope },
       ],
     },
     {
-      id: "comms-system",
-      label: "Communications & System",
+      id: "tools-admin",
+      label: "Tools & Administration",
       defaultOpen: false,
       items: [
-        { href: "/admin/operations",   label: "Office Operations",   highlight: true, icon: Monitor },
-        { href: "/admin/email-preview", label: "Email Preview",        icon: Mail },
+        { href: "/trace",                 label: "TRACE", highlight: true, icon: ClipboardList, externalHref: "/trace/" },
+        { href: "/law",                   label: "Law Library", icon: BookOpen },
+        { href: "/tasks",                 label: "Tasks", icon: CheckSquare },
+        { href: "/m365",                  label: "Microsoft 365", icon: Monitor },
+        { href: "/admin/operations",      label: "Office Operations", highlight: true, icon: Monitor },
+        { href: "/lineage",               label: "Lineage Import", icon: GitMerge },
+        { href: "/atlas-admin",           label: "Atlas Events", icon: Map },
+        { href: "/github-intake-preview", label: "GitHub Intake", icon: GitMerge },
+        { href: "/role-governors",        label: "Role Governor", icon: ShieldCheck },
       ],
     },
   ];
@@ -350,7 +342,9 @@ export function Layout({ children }: { children: React.ReactNode }) {
   }, [user]);
 
   const sections = getNavSections(activeRole);
-  const showOrgs = activeRole !== "visitor_media" && activeRole !== "medical_provider";
+  const isChiefView = activeRole === "sovereign_admin" || activeRole === "trustee";
+  const showOrgs = !isChiefView && activeRole !== "visitor_media" && activeRole !== "medical_provider";
+  const showEducation = !isChiefView && activeRole !== "visitor_media" && activeRole !== "medical_provider";
   const showPersonal = activeRole !== "visitor_media";
   const isFamilyTreeWorkspace = location === "/family-tree";
 
@@ -412,7 +406,7 @@ export function Layout({ children }: { children: React.ReactNode }) {
             />
           )}
 
-          {showOrgs && (
+          {showEducation && (
             <CollapsibleSection
               section={{ id: "education", label: "Education", defaultOpen: false, items: EDU_ITEMS }}
               location={location}
