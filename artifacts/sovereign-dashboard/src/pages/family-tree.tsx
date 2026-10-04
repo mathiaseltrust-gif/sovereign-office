@@ -1024,6 +1024,168 @@ export default function FamilyTreePage() {
   );
 }
 
+function HouseholdDocumentIntake({
+  personId,
+  personName,
+}: {
+  personId: number;
+  personName: string;
+}) {
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{
+    documentRef: string;
+    label: string;
+    confidence: string;
+    reviewRequired: boolean;
+  } | null>(null);
+
+  async function processFile(file: File) {
+    setBusy(true);
+    setResult(null);
+    try {
+      const token = getCurrentBearerToken() ?? "";
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const uploadRes = await fetch("/api/intake/upload", {
+        method: "POST",
+        headers: { Authorization: `Bearer ${token}` },
+        body: formData,
+      });
+      if (!uploadRes.ok) {
+        const body = await uploadRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Upload failed.");
+      }
+      const uploaded = await uploadRes.json() as {
+        text?: string;
+        document_ref?: string;
+      };
+      const text = uploaded.text ?? "";
+      const documentRef = uploaded.document_ref ?? "";
+      if (!documentRef) throw new Error("The canonical document reference was not returned.");
+
+      const classifyRes = await fetch("/api/intake/classify-and-route", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ text, filename: file.name }),
+      });
+      if (!classifyRes.ok) {
+        const body = await classifyRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Document classification failed.");
+      }
+      const classified = await classifyRes.json() as {
+        documentType: string;
+        documentTypeLabel: string;
+        confidence: string;
+        extractedFields?: Record<string, unknown>;
+        routingTargets?: string[];
+      };
+
+      const stageRes = await fetch("/api/intake/household-stage", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          documentRef,
+          householdPersonId: personId,
+          documentType: classified.documentType,
+          documentTypeLabel: classified.documentTypeLabel,
+          confidence: classified.confidence,
+          extractedFields: classified.extractedFields ?? {},
+          routingTargets: classified.routingTargets ?? [],
+        }),
+      });
+      if (!stageRes.ok) {
+        const body = await stageRes.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Could not stage this document for the household.");
+      }
+      const staged = await stageRes.json() as {
+        associationSummary?: { reviewRequired?: boolean };
+      };
+
+      setResult({
+        documentRef,
+        label: classified.documentTypeLabel,
+        confidence: classified.confidence,
+        reviewRequired: !!staged.associationSummary?.reviewRequired,
+      });
+      queryClient.invalidateQueries({ queryKey: ["lineage-linked-documents", personId] });
+      queryClient.invalidateQueries({ queryKey: ["association-review-queue"] });
+      toast({
+        title: "Document added",
+        description: staged.associationSummary?.reviewRequired
+          ? `Stored once and linked to ${personName}. Additional relationships were sent to Review & Route.`
+          : `Stored once and linked to ${personName}.`,
+      });
+    } catch (err) {
+      toast({
+        title: "Document intake failed",
+        description: err instanceof Error ? err.message : "Could not process the document.",
+        variant: "destructive",
+      });
+    } finally {
+      setBusy(false);
+      if (inputRef.current) inputRef.current.value = "";
+    }
+  }
+
+  return (
+    <div className="rounded-md border bg-muted/10 px-3 py-2.5">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div>
+          <p className="text-xs font-semibold flex items-center gap-1.5">
+            <Upload className="h-3.5 w-3.5" /> Supporting documents
+          </p>
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            PDF, photo, Word, text, or CSV · stored once in the canonical Office registry
+          </p>
+        </div>
+        <input
+          ref={inputRef}
+          type="file"
+          className="hidden"
+          accept=".pdf,.png,.jpg,.jpeg,.gif,.webp,.doc,.docx,.txt,.csv,application/pdf,image/*"
+          onChange={(e) => {
+            const file = e.target.files?.[0];
+            if (file) void processFile(file);
+          }}
+        />
+        <Button
+          type="button"
+          size="sm"
+          variant="outline"
+          className="h-8 text-xs gap-1.5"
+          disabled={busy}
+          onClick={() => inputRef.current?.click()}
+        >
+          <Upload className="h-3.5 w-3.5" />
+          {busy ? "Processing…" : "Upload evidence"}
+        </Button>
+      </div>
+      {result && (
+        <div className="mt-2 rounded border bg-background px-2.5 py-2">
+          <div className="flex items-center gap-2 flex-wrap">
+            <Badge variant="outline" className="text-[9px]">{result.label}</Badge>
+            <span className="text-[10px] text-muted-foreground capitalize">{result.confidence} confidence</span>
+            {result.reviewRequired && (
+              <Badge className="text-[9px] bg-amber-100 text-amber-800 border-amber-300">Review & Route</Badge>
+            )}
+          </div>
+          <p className="text-[9px] font-mono text-muted-foreground mt-1">{result.documentRef}</p>
+        </div>
+      )}
+    </div>
+  );
+}
+
 // ── My Household ──────────────────────────────────────────────────────────────
 function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
   const { toast } = useToast();
@@ -1374,6 +1536,7 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
                         </div>
                         {visibilityControl(node)}
                       </div>
+                      <HouseholdDocumentIntake personId={node.id} personName={node.fullName} />
                       <EntityHistoryPanel entityType="person" entityId={node.id} title="Household History" allowMemberAdd />
                     </CardContent>
                   </Card>
@@ -1395,6 +1558,7 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
                       </div>
                       {visibilityControl(node)}
                     </div>
+                    <HouseholdDocumentIntake personId={node.id} personName={node.fullName} />
                     <EntityHistoryPanel entityType="person" entityId={node.id} title="Person History" allowMemberAdd />
                   </CardContent>
                 </Card>
