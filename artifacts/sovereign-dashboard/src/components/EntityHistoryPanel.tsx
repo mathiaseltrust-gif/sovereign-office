@@ -64,11 +64,13 @@ export function EntityHistoryPanel({
   entityId,
   title = "History",
   defaultOpen = false,
+  allowMemberAdd = false,
 }: {
   entityType: string;
   entityId: string | number;
   title?: string;
   defaultOpen?: boolean;
+  allowMemberAdd?: boolean;
 }) {
   const { activeRole } = useAuth();
   const { toast } = useToast();
@@ -86,6 +88,7 @@ export function EntityHistoryPanel({
   });
 
   const elevated = ["officer", "trustee", "sovereign_admin", "admin"].includes(activeRole);
+  const canAdd = elevated || allowMemberAdd;
 
   const key = ["sovereign-history", entityType, String(entityId)];
   const query = useQuery<{ events: HistoryEvent[] }>({
@@ -179,7 +182,7 @@ export function EntityHistoryPanel({
           {open && !query.isLoading && <Badge variant="outline" className="text-[9px]">{events.length}</Badge>}
         </button>
         <div className="flex items-center gap-1">
-          {open && elevated && (
+          {open && canAdd && (
             <Button
               type="button"
               size="sm"
