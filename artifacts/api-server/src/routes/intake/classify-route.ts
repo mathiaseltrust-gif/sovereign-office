@@ -19,7 +19,8 @@ import { logger } from "../../lib/logger";
 import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 import { nextDocRef } from "../../lib/doc-ref";
 import { associateDocument, propagateDeterministicDocumentAssociations, recordListenerEvent } from "../../engines/document-association";
-import { ensureEntityAlias, persistResolvedAssociations } from "../../engines/entity-resolver";
+import { applyProtectedAssociationSensitivity, ensureEntityAlias, persistResolvedAssociations } from "../../engines/entity-resolver";
+import { canManageHouseholdPerson } from "../../engines/household-authority";
 
 const router = Router();
 
@@ -344,6 +345,162 @@ router.post("/classify-and-route", requireAuth, async (req, res, next) => {
       signalType,
       routingTargets,
       filename: name,
+    });
+  } catch (err) {
+    next(err);
+  }
+});
+
+// ── POST /api/intake/household-stage ────────────────────────────────────────
+// Member-safe household intake: preserve the original, classify it, attach it
+// to an authorized household person, and stage any additional relationships
+// for the normal SRAE review flow. This endpoint never creates domain records.
+router.post("/household-stage", requireAuth, requireRegisteredUser, async (req, res, next) => {
+  try {
+    const userId = req.user!.dbId!;
+    const roles = req.user?.roles ?? [];
+    const body = (req.body ?? {}) as Record<string, unknown>;
+    const documentRef = String(body.documentRef ?? "").trim();
+    const householdPersonId = Number(body.householdPersonId);
+    const documentType = String(body.documentType ?? "other");
+    const documentTypeLabel = String(body.documentTypeLabel ?? "Document");
+    const confidence = String(body.confidence ?? "low");
+    const fields = (body.extractedFields && typeof body.extractedFields === "object")
+      ? body.extractedFields as Record<string, unknown>
+      : {};
+    const routingTargets = Array.isArray(body.routingTargets) ? body.routingTargets.map(String) : [];
+
+    if (!documentRef || !Number.isFinite(householdPersonId) || householdPersonId <= 0) {
+      res.status(400).json({ error: "documentRef and householdPersonId are required." });
+      return;
+    }
+
+    const allowed = await canManageHouseholdPerson({
+      userId,
+      roles,
+      lineageId: householdPersonId,
+    });
+    if (!allowed) {
+      res.status(403).json({ error: "This person is outside your authorized household scope." });
+      return;
+    }
+
+    const owned = await db.execute(sql`
+      SELECT id, document_ref
+      FROM document_registry
+      WHERE document_ref = ${documentRef}
+        AND created_by = ${userId}
+      LIMIT 1
+    `);
+    const document = owned.rows[0] as Record<string, unknown> | undefined;
+    if (!document) {
+      res.status(403).json({ error: "The uploaded document is not owned by the authenticated member." });
+      return;
+    }
+    const documentId = Number(document.id);
+
+    await db.execute(sql`
+      UPDATE document_registry
+      SET classification = ${documentType},
+          metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({
+            intakeMode: "household",
+            householdPersonId,
+            documentTypeLabel,
+            classificationConfidence: confidence,
+            proposedRoutingTargets: routingTargets,
+          })}::jsonb,
+          updated_at = NOW()
+      WHERE id = ${documentId}
+    `);
+
+    const householdAssociation = await associateDocument({
+      documentId,
+      entityType: "person",
+      entityId: String(householdPersonId),
+      relationshipType: "supporting_evidence",
+      confidence: "exact",
+      resolutionMethod: "member_household_context",
+      metadata: {
+        documentType,
+        documentTypeLabel,
+        householdScoped: true,
+      },
+      verifiedBy: userId,
+    });
+
+    const householdStatusResult = await db.execute(sql`
+      SELECT status
+      FROM document_associations
+      WHERE document_id = ${documentId}
+        AND entity_type = 'person'
+        AND entity_id = ${String(householdPersonId)}
+        AND relationship_type = 'supporting_evidence'
+      LIMIT 1
+    `);
+    const householdStatus = String(
+      (householdStatusResult.rows[0] as Record<string, unknown> | undefined)?.status ?? householdAssociation?.status ?? "",
+    );
+
+    const protection = await applyProtectedAssociationSensitivity({
+      documentId,
+      entityType: "person",
+      entityId: String(householdPersonId),
+      associationStatus: householdStatus,
+      listenerName: "household-intake",
+    });
+
+    const resolution = await persistResolvedAssociations({
+      documentId,
+      fields,
+      verifiedBy: userId,
+    });
+
+    const propagation = await propagateDeterministicDocumentAssociations(documentId, userId);
+
+    await recordListenerEvent({
+      documentId,
+      listenerName: "household-intake",
+      eventType: "HOUSEHOLD_DOCUMENT_STAGED",
+      actionState: "review",
+      payload: {
+        householdPersonId,
+        documentType,
+        documentTypeLabel,
+        confidence,
+        routingTargets,
+        resolvedCandidates: resolution.candidates.length,
+        propagatedCount: propagation.projectedCount,
+      },
+    });
+
+    const summaryResult = await db.execute(sql`
+      SELECT
+        COUNT(*)::int AS total,
+        COUNT(*) FILTER (WHERE status = 'active')::int AS active,
+        COUNT(*) FILTER (WHERE status = 'proposed')::int AS proposed,
+        COUNT(*) FILTER (WHERE status = 'unresolved')::int AS unresolved
+      FROM document_associations
+      WHERE document_id = ${documentId}
+    `);
+    const summary = summaryResult.rows[0] as Record<string, unknown>;
+
+    res.json({
+      staged: true,
+      documentRef,
+      documentType,
+      documentTypeLabel,
+      confidence,
+      householdPersonId,
+      householdAssociationStatus: householdStatus,
+      protection,
+      associationSummary: {
+        total: Number(summary.total ?? 0),
+        active: Number(summary.active ?? 0),
+        proposed: Number(summary.proposed ?? 0),
+        unresolved: Number(summary.unresolved ?? 0),
+        reviewRequired: Number(summary.proposed ?? 0) + Number(summary.unresolved ?? 0) > 0,
+      },
+      propagation,
     });
   } catch (err) {
     next(err);
