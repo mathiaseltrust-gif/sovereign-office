@@ -280,7 +280,7 @@ interface KnowledgeOfSelf {
 
 const TAB_LABELS: Record<Tab, string> = {
   "view-lineage": "Visual Tree",
-  "my-submissions": "My Family",
+  "my-submissions": "My Household",
   "edit-ancestors": "Edit Ancestors",
   "knowledge-of-self": "Knowledge-of-Self Links",
   "deduplicate": "Find Duplicates",
@@ -1024,12 +1024,23 @@ export default function FamilyTreePage() {
   );
 }
 
-// ── My Family / Submissions Tab ───────────────────────────────────────────
+// ── My Household ──────────────────────────────────────────────────────────────
 function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
-  const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAdd, setShowAdd] = useState(false);
+  const [form, setForm] = useState({
+    fullName: "",
+    firstName: "",
+    lastName: "",
+    birthYear: "",
+    gender: "",
+    relationship: "child",
+    parentageType: "biological",
+    tribalNation: "",
+    supportingDocumentName: "",
+    visibility: "private",
+  });
 
   interface MyNode {
     id: number;
@@ -1041,6 +1052,7 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
     tribalNation?: string | null;
     notes?: string | null;
     membershipStatus?: string | null;
+    protectionLevel?: string | null;
     pendingReview?: boolean | null;
     visibility?: string | null;
     sourceType?: string | null;
@@ -1049,13 +1061,41 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
     createdAt?: string;
   }
 
-  const { data, isLoading, refetch } = useQuery<{ nodes: MyNode[] }>({
+  interface HouseholdScopeMember {
+    id: number;
+    ownerUserId: number;
+    headLineageId: number;
+    memberLineageId: number;
+    relationshipType: string;
+    parentageType?: string | null;
+    status: string;
+    person: MyNode | null;
+  }
+
+  interface HouseholdScope {
+    hasLinkedNode: boolean;
+    head: { id: number; fullName: string } | null;
+    members: HouseholdScopeMember[];
+  }
+
+  const scopeQ = useQuery<HouseholdScope>({
+    queryKey: ["my-household-scope"],
+    queryFn: async () => {
+      const r = await fetch("/api/lineage/nodes/household/scope", {
+        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
+      });
+      if (!r.ok) throw new Error("Failed to load household");
+      return r.json();
+    },
+  });
+
+  const submissionsQ = useQuery<{ nodes: MyNode[] }>({
     queryKey: ["my-submissions"],
     queryFn: async () => {
       const r = await fetch("/api/lineage/nodes/my", {
         headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}` },
       });
-      if (!r.ok) throw new Error("Failed to load your submissions");
+      if (!r.ok) throw new Error("Failed to load your family records");
       return r.json();
     },
   });
@@ -1064,7 +1104,10 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
     mutationFn: async ({ id, visibility }: { id: number; visibility: string }) => {
       const r = await fetch(`/api/lineage/nodes/member/${id}`, {
         method: "PATCH",
-        headers: { Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`, "Content-Type": "application/json" },
+        headers: {
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify({ visibility }),
       });
       if (!r.ok) throw new Error((await r.json() as { error?: string }).error ?? "Update failed");
@@ -1076,143 +1119,295 @@ function MySubmissionsTab({ onDataChange }: { onDataChange: () => void }) {
       queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
     },
     onError: (err: Error) => {
-      toast({ title: "Error", description: err.message, variant: "destructive" });
+      toast({ title: "Could not update visibility", description: err.message, variant: "destructive" });
     },
   });
 
-  const nodes = data?.nodes ?? [];
+  const addHouseholdMember = useMutation({
+    mutationFn: async () => {
+      const birthYear = form.birthYear.trim() ? Number(form.birthYear) : undefined;
+      const r = await fetch("/api/lineage/nodes/household/member", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${getCurrentBearerToken() ?? ""}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          fullName: form.fullName.trim(),
+          firstName: form.firstName.trim() || undefined,
+          lastName: form.lastName.trim() || undefined,
+          birthYear: Number.isFinite(birthYear) ? birthYear : undefined,
+          gender: form.gender || undefined,
+          relationship: form.relationship,
+          parentageType: form.relationship === "spouse" ? "not_applicable" : form.parentageType,
+          tribalNation: form.tribalNation.trim() || undefined,
+          supportingDocumentName: form.supportingDocumentName.trim() || undefined,
+          visibility: form.visibility,
+        }),
+      });
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Could not add household member.");
+      }
+      return r.json();
+    },
+    onSuccess: () => {
+      setShowAdd(false);
+      setForm({
+        fullName: "",
+        firstName: "",
+        lastName: "",
+        birthYear: "",
+        gender: "",
+        relationship: "child",
+        parentageType: "biological",
+        tribalNation: "",
+        supportingDocumentName: "",
+        visibility: "private",
+      });
+      queryClient.invalidateQueries({ queryKey: ["my-household-scope"] });
+      queryClient.invalidateQueries({ queryKey: ["my-submissions"] });
+      queryClient.invalidateQueries({ queryKey: ["lineage-nodes"] });
+      onDataChange();
+      toast({
+        title: "Household member added",
+        description: "You can manage the household record now; institutional membership/protection review remains separate.",
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Could not add household member", description: err.message, variant: "destructive" });
+    },
+  });
 
-  function statusBadge(node: MyNode) {
-    if (node.membershipStatus === "verified" || node.membershipStatus === "descendant") {
-      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-800">Approved</span>;
+  const scope = scopeQ.data;
+  const owned = submissionsQ.data?.nodes ?? [];
+  const scopedIds = new Set((scope?.members ?? []).map((entry) => entry.memberLineageId));
+  const legacy = owned.filter((node) => !scopedIds.has(node.id));
+  const isLoading = scopeQ.isLoading || submissionsQ.isLoading;
+
+  function statusBadge(node: MyNode | null, authorityStatus?: string) {
+    if (authorityStatus === "pending") {
+      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">Relationship Review</span>;
     }
-    if (node.membershipStatus === "rejected") {
-      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-100 text-red-800">Rejected</span>;
+    if (node?.membershipStatus === "verified" || node?.membershipStatus === "descendant") {
+      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-green-100 text-green-800">Verified</span>;
     }
-    return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Pending Review</span>;
+    if (node?.membershipStatus === "rejected") {
+      return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-red-100 text-red-800">Not Verified</span>;
+    }
+    return <span className="text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full bg-yellow-100 text-yellow-800">Office Review Pending</span>;
+  }
+
+  function visibilityControl(node: MyNode) {
+    return (
+      <div className="shrink-0 flex flex-col items-end gap-1">
+        <span className="text-[9px] uppercase tracking-widest text-muted-foreground">Visibility</span>
+        <div className="flex rounded-md border overflow-hidden text-[10px]">
+          {(["private", "tribal"] as const).map((visibility) => (
+            <button
+              key={visibility}
+              type="button"
+              className={[
+                "px-2.5 py-1 font-medium capitalize",
+                (node.visibility ?? "private") === visibility
+                  ? visibility === "private" ? "bg-slate-800 text-white" : "bg-emerald-700 text-white"
+                  : "text-muted-foreground hover:bg-muted",
+              ].join(" ")}
+              onClick={() => {
+                if ((node.visibility ?? "private") !== visibility) {
+                  visibilityMutation.mutate({ id: node.id, visibility });
+                }
+              }}
+              disabled={visibilityMutation.isPending}
+            >
+              {visibility}
+            </button>
+          ))}
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-start justify-between gap-4">
+    <div className="space-y-4 max-w-5xl">
+      <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h2 className="text-lg font-semibold">My Family Members</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">
-            People you've added to the tribal tree. Control who can see each entry — private entries are only visible to you and the Chief Justice.
+          <h2 className="text-lg font-semibold">My Household</h2>
+          <p className="text-sm text-muted-foreground mt-0.5 max-w-2xl">
+            Manage the people in your immediate household, their relationship to you,
+            supporting records, and household history. Office verification is tracked separately.
           </p>
+          {scope?.head && (
+            <p className="text-xs mt-2">
+              Household home: <span className="font-semibold">{scope.head.fullName}</span>
+            </p>
+          )}
         </div>
-        <Button size="sm" onClick={() => setShowAddModal(true)} className="shrink-0">
-          + Add Family Member
+        <Button size="sm" onClick={() => setShowAdd((value) => !value)} className="gap-1.5">
+          {showAdd ? <X className="h-3.5 w-3.5" /> : <Plus className="h-3.5 w-3.5" />}
+          {showAdd ? "Cancel" : "Add Household Member"}
         </Button>
       </div>
 
-      {isLoading ? (
-        <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
-      ) : nodes.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center text-muted-foreground">
-            <p className="text-sm">You haven't added any family members yet.</p>
-            <p className="text-xs mt-1">Click "Add Family Member" to contribute to the tribal family tree.</p>
+      {!scopeQ.isLoading && scope && !scope.hasLinkedNode && (
+        <Card className="border-amber-300">
+          <CardContent className="p-4">
+            <p className="text-sm font-semibold">Link your own place in the family tree first</p>
+            <p className="text-xs text-muted-foreground mt-1">
+              The household needs a focal person. Use the Visual Tree and choose “This is me” on your record, then return here.
+            </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="space-y-3">
-          {nodes.map((node) => (
-            <Card key={node.id} className="overflow-hidden">
-              <CardContent className="p-4">
-                <div className="flex items-start gap-4">
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <span className="font-semibold text-sm">{node.fullName}</span>
-                      {statusBadge(node)}
-                    </div>
-                    <div className="text-xs text-muted-foreground space-y-0.5">
-                      {node.notes && <p className="truncate">{node.notes}</p>}
-                      {node.birthYear && <p>Born {node.birthYear}</p>}
-                      {node.tribalNation && <p>{node.tribalNation}</p>}
-                      {node.supportingDocumentName && (
-                        <p className="text-blue-600">📄 {node.supportingDocumentName}</p>
-                      )}
-                      {node.createdAt && (
-                        <p>Submitted {new Date(node.createdAt).toLocaleDateString()}</p>
-                      )}
-                    </div>
-                  </div>
+      )}
 
-                  {/* Visibility toggle */}
-                  <div className="shrink-0 flex flex-col items-end gap-2">
-                    <div className="text-[10px] text-muted-foreground font-medium uppercase tracking-widest">Visibility</div>
-                    <div className="flex rounded-lg border overflow-hidden text-xs">
-                      <button
-                        className={[
-                          "px-3 py-1.5 font-medium transition-colors",
-                          (node.visibility ?? "private") === "private"
-                            ? "bg-slate-800 text-white"
-                            : "bg-transparent text-muted-foreground hover:bg-muted",
-                        ].join(" ")}
-                        onClick={() => {
-                          if ((node.visibility ?? "private") !== "private") {
-                            visibilityMutation.mutate({ id: node.id, visibility: "private" });
-                          }
-                        }}
-                        disabled={visibilityMutation.isPending}
-                        title="Only you and administration can see this"
-                      >
-                        🔒 Private
-                      </button>
-                      <button
-                        className={[
-                          "px-3 py-1.5 font-medium transition-colors border-l",
-                          (node.visibility ?? "private") === "tribal"
-                            ? "bg-emerald-700 text-white"
-                            : "bg-transparent text-muted-foreground hover:bg-muted",
-                        ].join(" ")}
-                        onClick={() => {
-                          if ((node.visibility ?? "private") !== "tribal") {
-                            visibilityMutation.mutate({ id: node.id, visibility: "tribal" });
-                          }
-                        }}
-                        disabled={visibilityMutation.isPending}
-                        title="Name and relationship visible to all tribal members"
-                      >
-                        🌿 Tribal
-                      </button>
-                    </div>
-                    {(node.visibility ?? "private") === "tribal" && (
-                      <p className="text-[9px] text-emerald-700 text-right max-w-[140px] leading-tight">
-                        Name visible to all members. Details remain private.
-                      </p>
-                    )}
-                    {(node.visibility ?? "private") === "private" && (
-                      <p className="text-[9px] text-muted-foreground text-right max-w-[140px] leading-tight">
-                        Only you and the Chief Justice can see this.
-                      </p>
-                    )}
-                  </div>
+      {showAdd && scope?.hasLinkedNode && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm">Add household member</CardTitle>
+            <p className="text-xs text-muted-foreground">
+              Household management authority and Office verification are recorded separately.
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            <div className="grid md:grid-cols-3 gap-3">
+              <div className="md:col-span-3">
+                <Label className="text-xs">Full name</Label>
+                <Input className="h-9 mt-1" value={form.fullName} onChange={(e) => setForm((v) => ({ ...v, fullName: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">First name</Label>
+                <Input className="h-9 mt-1" value={form.firstName} onChange={(e) => setForm((v) => ({ ...v, firstName: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Last name</Label>
+                <Input className="h-9 mt-1" value={form.lastName} onChange={(e) => setForm((v) => ({ ...v, lastName: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Birth year</Label>
+                <Input className="h-9 mt-1" inputMode="numeric" value={form.birthYear} onChange={(e) => setForm((v) => ({ ...v, birthYear: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Relationship</Label>
+                <select className="w-full h-9 mt-1 rounded-md border bg-background px-2 text-sm" value={form.relationship} onChange={(e) => setForm((v) => ({ ...v, relationship: e.target.value }))}>
+                  <option value="spouse">Spouse / partner</option>
+                  <option value="child">Child</option>
+                  <option value="stepchild">Stepchild</option>
+                  <option value="dependent">Dependent</option>
+                  <option value="ward">Ward / guardianship</option>
+                </select>
+              </div>
+              {form.relationship !== "spouse" && (
+                <div>
+                  <Label className="text-xs">Relationship basis</Label>
+                  <select className="w-full h-9 mt-1 rounded-md border bg-background px-2 text-sm" value={form.parentageType} onChange={(e) => setForm((v) => ({ ...v, parentageType: e.target.value }))}>
+                    <option value="biological">Biological</option>
+                    <option value="adoptive">Adoptive</option>
+                    <option value="step">Step</option>
+                    <option value="guardian">Guardian</option>
+                  </select>
                 </div>
+              )}
+              <div>
+                <Label className="text-xs">Gender</Label>
+                <select className="w-full h-9 mt-1 rounded-md border bg-background px-2 text-sm" value={form.gender} onChange={(e) => setForm((v) => ({ ...v, gender: e.target.value }))}>
+                  <option value="">Not specified</option>
+                  <option value="male">Male</option>
+                  <option value="female">Female</option>
+                  <option value="other">Other</option>
+                </select>
+              </div>
+              <div>
+                <Label className="text-xs">Tribal nation / affiliation</Label>
+                <Input className="h-9 mt-1" value={form.tribalNation} onChange={(e) => setForm((v) => ({ ...v, tribalNation: e.target.value }))} />
+              </div>
+              <div>
+                <Label className="text-xs">Supporting record</Label>
+                <Input className="h-9 mt-1" value={form.supportingDocumentName} onChange={(e) => setForm((v) => ({ ...v, supportingDocumentName: e.target.value }))} placeholder="Birth certificate, adoption order, etc." />
+              </div>
+              <div>
+                <Label className="text-xs">Visibility</Label>
+                <select className="w-full h-9 mt-1 rounded-md border bg-background px-2 text-sm" value={form.visibility} onChange={(e) => setForm((v) => ({ ...v, visibility: e.target.value }))}>
+                  <option value="private">Private household record</option>
+                  <option value="tribal">Visible to tribal members</option>
+                </select>
+              </div>
+            </div>
+            <Button size="sm" disabled={!form.fullName.trim() || addHouseholdMember.isPending} onClick={() => addHouseholdMember.mutate()}>
+              {addHouseholdMember.isPending ? "Adding…" : "Add to household"}
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
+      {isLoading ? (
+        <div className="space-y-3">{[...Array(3)].map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+      ) : (
+        <>
+          {(scope?.members ?? []).length === 0 && legacy.length === 0 ? (
+            <Card>
+              <CardContent className="py-10 text-center">
+                <Users className="h-8 w-8 mx-auto text-muted-foreground mb-2" />
+                <p className="text-sm font-medium">No household members recorded yet.</p>
+                <p className="text-xs text-muted-foreground mt-1">Add a spouse, child, adopted child, stepchild, dependent, or ward.</p>
               </CardContent>
             </Card>
-          ))}
-        </div>
+          ) : (
+            <div className="space-y-3">
+              {(scope?.members ?? []).map((entry) => {
+                const node = entry.person;
+                if (!node) return null;
+                return (
+                  <Card key={entry.id}>
+                    <CardContent className="p-4 space-y-3">
+                      <div className="flex items-start justify-between gap-3 flex-wrap">
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className="font-semibold text-sm">{node.fullName}</span>
+                            {statusBadge(node, entry.status)}
+                          </div>
+                          <p className="text-xs text-muted-foreground mt-1 capitalize">
+                            {entry.relationshipType.replace(/_/g, " ")}
+                            {entry.parentageType && entry.parentageType !== "not_applicable" ? ` · ${entry.parentageType.replace(/_/g, " ")}` : ""}
+                          </p>
+                          {node.birthYear && <p className="text-xs text-muted-foreground">Born {node.birthYear}</p>}
+                          {node.supportingDocumentName && <p className="text-xs text-blue-600 mt-1">📄 {node.supportingDocumentName}</p>}
+                        </div>
+                        {visibilityControl(node)}
+                      </div>
+                      <EntityHistoryPanel entityType="person" entityId={node.id} title="Household History" allowMemberAdd />
+                    </CardContent>
+                  </Card>
+                );
+              })}
+
+              {legacy.map((node) => (
+                <Card key={`legacy-${node.id}`} className="border-dashed">
+                  <CardContent className="p-4 space-y-3">
+                    <div className="flex items-start justify-between gap-3 flex-wrap">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-semibold text-sm">{node.fullName}</span>
+                          {statusBadge(node)}
+                          <Badge variant="outline" className="text-[9px]">Earlier family record</Badge>
+                        </div>
+                        {node.notes && <p className="text-xs text-muted-foreground mt-1">{node.notes}</p>}
+                        {node.supportingDocumentName && <p className="text-xs text-blue-600 mt-1">📄 {node.supportingDocumentName}</p>}
+                      </div>
+                      {visibilityControl(node)}
+                    </div>
+                    <EntityHistoryPanel entityType="person" entityId={node.id} title="Person History" allowMemberAdd />
+                  </CardContent>
+                </Card>
+              ))}
+            </div>
+          )}
+        </>
       )}
 
       <div className="text-xs text-muted-foreground border rounded-lg p-3 bg-muted/30">
-        <p className="font-semibold mb-1">How the tribal tree works</p>
-        <p>Each member contributes their own family connections. Your entries are yours to manage — they never overwrite anyone else's. The Chief Justice can see all contributions regardless of visibility setting, and uses them to build the collective tribal picture.</p>
+        <p className="font-semibold mb-1">Household authority is not Office verification</p>
+        <p>You may maintain records for your own household. Membership, protection, legal status, and other institutional determinations remain separately reviewable by the Office.</p>
       </div>
-
-      {showAddModal && (
-        <MemberAddFamilyModal
-          allNodes={[]}
-          onClose={() => setShowAddModal(false)}
-          onSuccess={() => {
-            setShowAddModal(false);
-            refetch();
-            onDataChange();
-            toast({ title: "Family member submitted", description: "Pending review. You can adjust visibility at any time." });
-          }}
-        />
-      )}
     </div>
   );
 }
