@@ -102,6 +102,7 @@ import grampsRouter from "./gramps";
 import boardRouter from "./board/index";
 import trusteeAgreementRouter from "./trustee-agreement/index";
 import mcpRouter from "./mcp/index";
+import sovereignHistoryRouter from "./history/index";
 
 const router: IRouter = Router();
 
@@ -209,5 +210,6 @@ router.use("/gramps", grampsRouter);
 router.use("/board", boardRouter);
 router.use("/trustee-agreement", trusteeAgreementRouter);
 router.use("/mcp", mcpRouter);
+router.use("/history", sovereignHistoryRouter);
 
 export default router;

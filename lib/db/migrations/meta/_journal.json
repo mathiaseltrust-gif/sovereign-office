@@ -239,6 +239,13 @@
       "when": 1791018060000,
       "tag": "0032_ensure_full_known_ancestor_chain",
       "breakpoints": true
+    },
+    {
+      "idx": 34,
+      "version": "7",
+      "when": 1791021660000,
+      "tag": "0033_add_sovereign_history_ledger",
+      "breakpoints": true
     }
   ]
 }
