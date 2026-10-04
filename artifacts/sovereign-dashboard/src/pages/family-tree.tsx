@@ -13,7 +13,7 @@ import { useAuth, useIsTrustee, useCanReviewLineage, useIsOfficer, getCurrentBea
 import {
   SlidersHorizontal, Maximize2, Plus, Minus, UserPlus, Users, Upload, X, MapPin,
   BookOpen, Clock, ChevronDown, ChevronRight, AlertTriangle, Shield, Scroll,
-  Flame, Star, Info,
+  Flame, Star, Info, Home,
 } from "lucide-react";
 import { MapPickerModal } from "@/components/map-picker-modal";
 
@@ -1989,7 +1989,7 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   const [showMemberAddModal, setShowMemberAddModal] = useState(false);
   const [editingNode, setEditingNode] = useState<LineageNode | null>(null);
   const [mergingNode, setMergingNode] = useState<LineageNode | null>(null);
-  const [treeView, setTreeView] = useState<TreeViewMode>("tree");
+  const [treeView, setTreeView] = useState<TreeViewMode>("family");
   const [pedigreePreference, setPedigreePreference] = useState<PedigreePreference>("auto");
   const [selectedHistoricalEvent, setSelectedHistoricalEvent] = useState<FamilyTimelineAtlasEvent | null>(null);
   const importRef = useRef<HTMLInputElement>(null);
@@ -2701,13 +2701,13 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
 
         {/* View mode switcher */}
         <div className="flex items-center rounded-md border border-input divide-x divide-input overflow-hidden">
-          {(["tree", "family", "pedigree", "fan", "timeline"] as TreeViewMode[]).map((mode) => {
-            const labels: Record<TreeViewMode, string> = { tree: "Tree", family: "Family", pedigree: "Pedigree", fan: "Fan", timeline: "Timeline" };
+          {(["family", "fan", "pedigree", "tree", "timeline"] as TreeViewMode[]).map((mode) => {
+            const labels: Record<TreeViewMode, string> = { tree: "Lineage Map", family: "Family", pedigree: "Pedigree", fan: "Fan", timeline: "Timeline" };
             const titles: Record<TreeViewMode, string> = {
-              tree: "Full connected family tree — zoom and pan across the whole lineage",
-              family: "Person-centered household view — click a person to make them the focus",
+              tree: "Lineage Map — bird's-eye view of the full connected family network",
+              family: "Family home — person-centered household view; click a person to make them the focus",
               pedigree: "Direct ancestors — readable horizontal view or compact root-at-bottom overview",
-              fan: "Fan chart — radial ancestor wheel",
+              fan: "Ancestry fan — radial ancestor wheel",
               timeline: "Family lifespans and recorded events aligned with Urban Indian Atlas history",
             };
             return (
@@ -2766,8 +2766,20 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
         {/* View controls */}
         {treeView !== "timeline" && (
           <>
-        <Button size="sm" variant="outline" onClick={centerOnSelf} className="gap-1 h-8" title="Center on my node">
-          <Users className="h-3.5 w-3.5" /> Me
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => {
+            if (!preferredRootId) return;
+            setFocusedPersonId(preferredRootId);
+            setSelectedNodeId(preferredRootId);
+            setTreeView("family");
+            setTransform({ x: 0, y: 0, scale: 1 });
+          }}
+          className="gap-1 h-8"
+          title="Family Home — return to me as the focal person"
+        >
+          <Home className="h-3.5 w-3.5" /> Home
         </Button>
         <Button size="sm" variant="outline" onClick={fitToScreen} className="gap-1 h-8" title="Fit current view to screen">
           <Maximize2 className="h-3.5 w-3.5" /> Fit
@@ -3622,6 +3634,12 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
           <NodeDetailPanel
             node={selectedNode}
             canEdit={canEdit}
+            onFocusFamily={(personId) => {
+              setFocusedPersonId(personId);
+              setSelectedNodeId(personId);
+              setTreeView("family");
+              setTransform({ x: 0, y: 0, scale: 1 });
+            }}
             canApprove={canApprove}
             isOfficer={isOfficer}
             currentUserId={user?.dbId ?? null}
@@ -3681,9 +3699,10 @@ function InteractiveTreeTab({ canEdit, onDataChange }: { canEdit: boolean; onDat
   );
 }
 
-function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, onClose, onEdit, onMerge, onRefresh }: {
+function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, onClose, onEdit, onMerge, onRefresh, onFocusFamily }: {
   node: PositionedNode;
   canEdit: boolean;
+  onFocusFamily: (personId: number) => void;
   canApprove: boolean;
   isOfficer: boolean;
   currentUserId?: number | null;
@@ -4030,6 +4049,16 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             <span className="text-xs text-muted-foreground capitalize">{n.membershipStatus ?? "unknown"}</span>
           </div>
 
+          <div className="flex items-center gap-2 flex-wrap">
+            <button
+              type="button"
+              onClick={() => onFocusFamily(n.id)}
+              className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted w-fit"
+              title="Open this person's immediate family and household as the focused view"
+            >
+              <Home className="h-3.5 w-3.5" />
+              Focus family
+            </button>
           <a
             href={"/atlas/?mode=atlas&person=" + n.id}
             className="inline-flex items-center gap-1.5 rounded-md border px-2.5 py-1.5 text-xs font-medium hover:bg-muted w-fit"
@@ -4038,6 +4067,7 @@ function NodeDetailPanel({ node, canEdit, canApprove, isOfficer, currentUserId, 
             <MapPin className="h-3.5 w-3.5" />
             View in Atlas
           </a>
+          </div>
 
           <div className="space-y-1">
             {n.firstName && <div className="flex gap-2"><span className="text-muted-foreground w-28 shrink-0">First name</span><span>{n.firstName}</span></div>}
