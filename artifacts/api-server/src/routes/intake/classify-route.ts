@@ -419,11 +419,12 @@ router.post("/household-stage", requireAuth, requireRegisteredUser, async (req, 
       entityId: String(householdPersonId),
       relationshipType: "supporting_evidence",
       confidence: "exact",
-      resolutionMethod: "member_household_context",
+      resolutionMethod: "manual",
       metadata: {
         documentType,
         documentTypeLabel,
         householdScoped: true,
+        associationSource: "member_household_context",
       },
       verifiedBy: userId,
     });
