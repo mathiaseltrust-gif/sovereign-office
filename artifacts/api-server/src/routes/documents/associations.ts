@@ -2,7 +2,7 @@ import { Router } from "express";
 import { sql } from "drizzle-orm";
 import { db } from "@workspace/db";
 import { requireAuth, requireRegisteredUser } from "../../auth/entra-guard";
-import { recordListenerEvent } from "../../engines/document-association";
+import { propagateDeterministicDocumentAssociations, recordListenerEvent } from "../../engines/document-association";
 import { canReviewCanonicalDocument } from "../../security/canonical-document-access";
 import { resolveAuthorityContext } from "../../engines/authority-context";
 import { applyProtectedAssociationSensitivity } from "../../engines/entity-resolver";
@@ -193,6 +193,7 @@ router.patch(
       }));
 
       let protectionEscalation = null;
+      let propagation: Awaited<ReturnType<typeof propagateDeterministicDocumentAssociations>> | null = null;
       if (decision === "approve") {
         protectionEscalation = await applyProtectedAssociationSensitivity({
           documentId,
@@ -201,6 +202,10 @@ router.patch(
           associationStatus: newStatus,
           listenerName: "association-review",
         });
+
+        // Approval can unlock deterministic downstream relationships. Project
+        // those relationships now; rejected candidates never propagate.
+        propagation = await propagateDeterministicDocumentAssociations(documentId, userId);
       }
 
       res.json({
@@ -208,6 +213,7 @@ router.patch(
         decision,
         association: updated.rows[0],
         protectionEscalation,
+        propagation,
         aclProjection,
       });
     } catch (err) {

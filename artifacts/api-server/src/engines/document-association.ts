@@ -1,5 +1,5 @@
 import { randomUUID } from "crypto";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   db,
   documentAssociationsTable,
@@ -168,4 +168,157 @@ export async function recordListenerEvent(input: {
   }).returning();
 
   return event;
+}
+
+
+/**
+ * Project only relationships that are explicit in authoritative Office records.
+ *
+ * This intentionally does not infer household, trust, case, or property links
+ * from resemblance, names, or AI output. Fuzzy matches remain reviewable.
+ */
+export async function propagateDeterministicDocumentAssociations(
+  documentId: number,
+  verifiedBy?: number | null,
+) {
+  const projected: Array<{
+    fromEntityType: string;
+    fromEntityId: string;
+    entityType: string;
+    entityId: string;
+    relationshipType: string;
+  }> = [];
+
+  for (let pass = 0; pass < 4; pass++) {
+    const active = await db.execute(sql`
+      SELECT entity_type, entity_id
+      FROM document_associations
+      WHERE document_id = ${documentId}
+        AND status = 'active'
+      ORDER BY id ASC
+    `);
+
+    let insertedThisPass = 0;
+
+    for (const row of active.rows as Record<string, unknown>[]) {
+      const sourceType = String(row.entity_type ?? "");
+      const sourceId = String(row.entity_id ?? "");
+      const targets: Array<{
+        entityType: string;
+        entityId: string;
+        relationshipType: string;
+        metadata: Record<string, unknown>;
+      }> = [];
+
+      if (sourceType === "board_matter" && /^\d+$/.test(sourceId)) {
+        const linked = await db.execute(sql`
+          SELECT org_id
+          FROM board_matters
+          WHERE id = ${Number(sourceId)}
+          LIMIT 1
+        `);
+        const orgId = (linked.rows[0] as Record<string, unknown> | undefined)?.org_id;
+        if (orgId) {
+          targets.push({
+            entityType: "organization",
+            entityId: String(orgId),
+            relationshipType: "oversight_context",
+            metadata: { derivedFrom: "board_matter", sourceEntityId: sourceId },
+          });
+        }
+      }
+
+      if (sourceType === "encumbrance" && /^\d+$/.test(sourceId)) {
+        const linked = await db.execute(sql`
+          SELECT parcel_id
+          FROM land_encumbrances
+          WHERE id = ${Number(sourceId)}
+          LIMIT 1
+        `);
+        const parcelId = (linked.rows[0] as Record<string, unknown> | undefined)?.parcel_id;
+        if (parcelId) {
+          targets.push({
+            entityType: "parcel",
+            entityId: String(parcelId),
+            relationshipType: "related_property",
+            metadata: { derivedFrom: "encumbrance", sourceEntityId: sourceId },
+          });
+        }
+      }
+
+      if (sourceType === "court_document" && /^\d+$/.test(sourceId)) {
+        const linked = await db.execute(sql`
+          SELECT case_details ->> 'parcelLinked' AS parcel_id
+          FROM court_documents
+          WHERE id = ${Number(sourceId)}
+          LIMIT 1
+        `);
+        const parcelId = (linked.rows[0] as Record<string, unknown> | undefined)?.parcel_id;
+        if (parcelId && /^\d+$/.test(String(parcelId))) {
+          targets.push({
+            entityType: "parcel",
+            entityId: String(parcelId),
+            relationshipType: "related_property",
+            metadata: { derivedFrom: "court_document", sourceEntityId: sourceId },
+          });
+        }
+      }
+
+      for (const target of targets) {
+        const association = await associateDocument({
+          documentId,
+          entityType: target.entityType,
+          entityId: target.entityId,
+          relationshipType: target.relationshipType,
+          confidence: "exact",
+          resolutionMethod: "system_created",
+          metadata: {
+            ...target.metadata,
+            propagation: "deterministic_listener",
+          },
+          verifiedBy: verifiedBy ?? null,
+        });
+
+        if (!association) continue;
+        insertedThisPass += 1;
+        projected.push({
+          fromEntityType: sourceType,
+          fromEntityId: sourceId,
+          entityType: target.entityType,
+          entityId: target.entityId,
+          relationshipType: target.relationshipType,
+        });
+
+        await recordListenerEvent({
+          documentId,
+          listenerName: "relationship-projector",
+          eventType: "DOCUMENT_ASSOCIATION_PROPAGATED",
+          actionState: "active",
+          payload: {
+            fromEntityType: sourceType,
+            fromEntityId: sourceId,
+            entityType: target.entityType,
+            entityId: target.entityId,
+            relationshipType: target.relationshipType,
+          },
+        });
+      }
+    }
+
+    if (insertedThisPass === 0) break;
+  }
+
+  if (projected.length > 0) {
+    await recomputeCanonicalObjectAcl(documentId).catch(() => null);
+  }
+
+  await recordListenerEvent({
+    documentId,
+    listenerName: "relationship-projector",
+    eventType: "DOCUMENT_LISTENER_PASS_COMPLETED",
+    actionState: "complete",
+    payload: { projectedCount: projected.length, projected },
+  });
+
+  return { projectedCount: projected.length, projected };
 }

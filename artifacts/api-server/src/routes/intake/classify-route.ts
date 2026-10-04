@@ -18,7 +18,7 @@ import { sql } from "drizzle-orm";
 import { logger } from "../../lib/logger";
 import { triggerReviewEngine, auditLog, type ReviewSignalType } from "../../engines/nfr-review-engine";
 import { nextDocRef } from "../../lib/doc-ref";
-import { associateDocument, recordListenerEvent } from "../../engines/document-association";
+import { associateDocument, propagateDeterministicDocumentAssociations, recordListenerEvent } from "../../engines/document-association";
 import { ensureEntityAlias, persistResolvedAssociations } from "../../engines/entity-resolver";
 
 const router = Router();
@@ -645,6 +645,13 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
         verifiedBy: userId ?? null,
       });
 
+      // Listener projection runs only after deterministic/system associations
+      // and resolver candidates have been persisted.
+      const propagation = await propagateDeterministicDocumentAssociations(
+        canonicalDocumentId,
+        userId ?? null,
+      );
+
       const statuses = await db.execute(sql`
         SELECT status, COUNT(*)::int AS count
         FROM document_associations
@@ -674,6 +681,7 @@ router.post("/apply-filing", requireAuth, requireRegisteredUser, async (req, res
           documentType,
           routingTargets: targets,
           candidateCount: resolution.candidates.length,
+          propagatedCount: propagation.projectedCount,
           associationSummary,
         },
       });
