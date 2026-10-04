@@ -14,7 +14,7 @@ import {
   FileText, Shield, Eye, BookOpen, Archive, Stamp,
   CheckCircle2, Clock, AlertTriangle, ChevronRight, Printer, RotateCcw, List,
   Mic, MicOff, Upload, X, Loader2,
-  Send, MapPin, PackageCheck, CreditCard, Info, Zap, Activity, ChevronDown, ChevronUp
+  Send, MapPin, PackageCheck, CreditCard, Info, Zap, Activity, ChevronDown, ChevronUp, GitMerge
 } from "lucide-react";
 
 const API = import.meta.env.VITE_API_BASE_URL ?? "";
@@ -161,6 +161,45 @@ interface RecordSummary {
   printCount: number;
   sealApplied: boolean;
   createdAt: string;
+}
+
+
+interface AssociationReviewItem {
+  id: number;
+  entityType: string;
+  entityId: string;
+  relationshipType: string;
+  confidence: string;
+  resolutionMethod: string;
+  status: "proposed" | "unresolved";
+  metadata?: {
+    displayLabel?: string;
+    matchedField?: string;
+    matchedValue?: string;
+    [key: string]: unknown;
+  };
+  createdAt: string;
+}
+
+interface AssociationReviewDocument {
+  documentRef: string;
+  title: string | null;
+  originalFilename: string;
+  classification: string | null;
+  verificationState: string;
+  sensitivityLevel: string;
+  createdAt: string;
+  associations: AssociationReviewItem[];
+}
+
+interface AssociationReviewQueue {
+  summary: {
+    documents: number;
+    associations: number;
+    proposed: number;
+    unresolved: number;
+  };
+  documents: AssociationReviewDocument[];
 }
 
 // ── Constants ─────────────────────────────────────────────────────────────────
@@ -655,6 +694,169 @@ function DocumentDeliveryFlow({
   );
 }
 
+
+function AssociationReviewQueuePanel() {
+  const { toast } = useToast();
+  const qc = useQueryClient();
+
+  const { data, isLoading, error } = useQuery<AssociationReviewQueue>({
+    queryKey: ["association-review-queue"],
+    queryFn: async () => {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(`${API}/api/documents/registry/review-queue`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!r.ok) throw new Error("Could not load the association review queue.");
+      return r.json();
+    },
+    staleTime: 15_000,
+  });
+
+  const decision = useMutation({
+    mutationFn: async (input: { documentRef: string; associationId: number; decision: "approve" | "reject" }) => {
+      const token = getCurrentBearerToken() ?? "";
+      const r = await fetch(
+        `${API}/api/documents/registry/${encodeURIComponent(input.documentRef)}/associations/${input.associationId}`,
+        {
+          method: "PATCH",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ decision: input.decision }),
+        },
+      );
+      if (!r.ok) {
+        const body = await r.json().catch(() => ({})) as { error?: string };
+        throw new Error(body.error ?? "Review action failed.");
+      }
+      return r.json() as Promise<{ propagation?: { projectedCount?: number } | null }>;
+    },
+    onSuccess: (result, input) => {
+      qc.invalidateQueries({ queryKey: ["association-review-queue"] });
+      qc.invalidateQueries({ queryKey: ["canonical-document-associations", input.documentRef] });
+      toast({
+        title: input.decision === "approve" ? "Association approved" : "Association rejected",
+        description:
+          input.decision === "approve" && (result.propagation?.projectedCount ?? 0) > 0
+            ? `${result.propagation!.projectedCount} deterministic relationship(s) routed automatically.`
+            : "The canonical record and review history were updated.",
+      });
+    },
+    onError: (err: Error) => {
+      toast({ title: "Review failed", description: err.message, variant: "destructive" });
+    },
+  });
+
+  if (isLoading) {
+    return (
+      <Card><CardContent className="p-6 text-sm text-muted-foreground text-center">Loading review queue…</CardContent></Card>
+    );
+  }
+
+  if (error) {
+    return (
+      <Card><CardContent className="p-6 text-sm text-destructive text-center">Could not load the review queue.</CardContent></Card>
+    );
+  }
+
+  if (!data || data.summary.associations === 0) {
+    return (
+      <Card>
+        <CardContent className="p-8 text-center">
+          <CheckCircle2 className="h-8 w-8 mx-auto text-green-600 mb-2" />
+          <p className="font-semibold text-sm">Review queue clear</p>
+          <p className="text-xs text-muted-foreground mt-1">No proposed or unresolved document relationships require review.</p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="grid sm:grid-cols-4 gap-3">
+        {[
+          ["Documents", data.summary.documents],
+          ["Needs review", data.summary.associations],
+          ["Proposed", data.summary.proposed],
+          ["Unresolved", data.summary.unresolved],
+        ].map(([label, value]) => (
+          <Card key={String(label)}>
+            <CardContent className="p-3">
+              <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">{label}</p>
+              <p className="text-xl font-bold mt-0.5">{value}</p>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {data.documents.map((doc) => (
+        <Card key={doc.documentRef} className="overflow-hidden">
+          <CardHeader className="pb-3 border-b bg-muted/20">
+            <div className="flex items-start justify-between gap-3 flex-wrap">
+              <div className="min-w-0">
+                <CardTitle className="text-sm truncate">{doc.title || doc.originalFilename}</CardTitle>
+                <p className="text-[10px] font-mono text-muted-foreground mt-1">{doc.documentRef}</p>
+              </div>
+              <div className="flex gap-1.5 flex-wrap">
+                {doc.classification && <Badge variant="outline" className="text-[9px]">{doc.classification}</Badge>}
+                <Badge variant="outline" className="text-[9px]">{doc.sensitivityLevel}</Badge>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="p-0 divide-y">
+            {doc.associations.map((assoc) => {
+              const label = assoc.metadata?.displayLabel || `${assoc.entityType} ${assoc.entityId}`;
+              return (
+                <div key={assoc.id} className="p-4 flex items-start justify-between gap-4 flex-wrap">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <Badge className={assoc.status === "unresolved"
+                        ? "bg-red-100 text-red-800 border-red-300"
+                        : "bg-amber-100 text-amber-800 border-amber-300"}>
+                        {assoc.status}
+                      </Badge>
+                      <span className="font-semibold text-sm">{String(label)}</span>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {assoc.relationshipType.replace(/_/g, " ")} · {assoc.confidence} confidence · {assoc.resolutionMethod.replace(/_/g, " ")}
+                    </p>
+                    {(assoc.metadata?.matchedField || assoc.metadata?.matchedValue) && (
+                      <p className="text-[11px] text-muted-foreground mt-1 font-mono break-all">
+                        Match: {String(assoc.metadata?.matchedField ?? "field")}
+                        {assoc.metadata?.matchedValue ? ` = ${String(assoc.metadata.matchedValue)}` : ""}
+                      </p>
+                    )}
+                  </div>
+                  <div className="flex gap-2 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={decision.isPending}
+                      onClick={() => decision.mutate({ documentRef: doc.documentRef, associationId: assoc.id, decision: "reject" })}
+                      className="h-8 text-xs"
+                    >
+                      <X className="h-3.5 w-3.5 mr-1" /> Reject
+                    </Button>
+                    <Button
+                      size="sm"
+                      disabled={decision.isPending}
+                      onClick={() => decision.mutate({ documentRef: doc.documentRef, associationId: assoc.id, decision: "approve" })}
+                      className="h-8 text-xs"
+                    >
+                      <CheckCircle2 className="h-3.5 w-3.5 mr-1" /> Approve & Route
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </CardContent>
+        </Card>
+      ))}
+    </div>
+  );
+}
+
 // ── Page ──────────────────────────────────────────────────────────────────────
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
@@ -689,7 +891,7 @@ export default function SovereignPipelinePage() {
   });
   const [activeStep, setActiveStep] = useState(0);
   const [result, setResult] = useState<PipelineResult | null>(null);
-  const [view, setView] = useState<"pipeline" | "log">("pipeline");
+  const [view, setView] = useState<"pipeline" | "review" | "log">("pipeline");
 
   // Stripe return state
   const deliveryParam = new URLSearchParams(window.location.search).get("delivery");
@@ -897,6 +1099,14 @@ export default function SovereignPipelinePage() {
             <FileText className="h-3.5 w-3.5" /> Pipeline
           </Button>
           <Button
+            variant={view === "review" ? "default" : "outline"}
+            size="sm"
+            onClick={() => setView("review")}
+            className="gap-1.5 text-xs"
+          >
+            <GitMerge className="h-3.5 w-3.5" /> Review & Route
+          </Button>
+          <Button
             variant={view === "log" ? "default" : "outline"}
             size="sm"
             onClick={() => setView("log")}
@@ -910,6 +1120,10 @@ export default function SovereignPipelinePage() {
       {/* Intelligence Picture — collapsed accordion, shown when actions exist */}
       {intelData && intelData.actionQueue && intelData.actionQueue.length > 0 && (
         <IntelPanel intel={intelData} />
+      )}
+
+      {view === "review" && (
+        <AssociationReviewQueuePanel />
       )}
 
       {view === "log" && (

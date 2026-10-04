@@ -37,6 +37,110 @@ async function resolveAuthorizedDocument(
   };
 }
 
+
+router.get(
+  "/review-queue",
+  requireAuth,
+  requireRegisteredUser,
+  async (req, res, next) => {
+    try {
+      const userId = req.user!.dbId!;
+      const roles = req.user!.roles ?? [];
+      const authority = await resolveAuthorityContext({ userId, baseRoles: roles });
+
+      const result = await db.execute(sql`
+        SELECT
+          da.id AS association_id,
+          da.document_id,
+          da.entity_type,
+          da.entity_id,
+          da.relationship_type,
+          da.confidence,
+          da.resolution_method,
+          da.status,
+          da.metadata,
+          da.created_at AS association_created_at,
+          dr.document_ref,
+          dr.original_filename,
+          dr.title,
+          dr.classification,
+          dr.verification_state,
+          dr.sensitivity_level,
+          dr.created_by,
+          dr.created_at AS document_created_at
+        FROM document_associations da
+        JOIN document_registry dr ON dr.id = da.document_id
+        WHERE da.status IN ('proposed', 'unresolved')
+        ORDER BY
+          CASE da.status WHEN 'proposed' THEN 0 ELSE 1 END,
+          da.created_at ASC
+        LIMIT 250
+      `);
+
+      const items = (result.rows as Record<string, unknown>[]).filter((row) =>
+        canReviewCanonicalDocument({
+          requesterId: userId,
+          documentCreatedBy: row.created_by == null ? null : Number(row.created_by),
+          sensitivityLevel: row.sensitivity_level == null ? null : String(row.sensitivity_level),
+          authorityKeys: authority.authorityKeys,
+        }),
+      );
+
+      const byDocument = new Map<string, {
+        documentRef: string;
+        title: string | null;
+        originalFilename: string;
+        classification: string | null;
+        verificationState: string;
+        sensitivityLevel: string;
+        createdAt: unknown;
+        associations: Record<string, unknown>[];
+      }>();
+
+      for (const row of items) {
+        const documentRef = String(row.document_ref);
+        if (!byDocument.has(documentRef)) {
+          byDocument.set(documentRef, {
+            documentRef,
+            title: row.title == null ? null : String(row.title),
+            originalFilename: String(row.original_filename ?? ""),
+            classification: row.classification == null ? null : String(row.classification),
+            verificationState: String(row.verification_state ?? "unverified"),
+            sensitivityLevel: String(row.sensitivity_level ?? "internal"),
+            createdAt: row.document_created_at,
+            associations: [],
+          });
+        }
+
+        byDocument.get(documentRef)!.associations.push({
+          id: Number(row.association_id),
+          entityType: String(row.entity_type),
+          entityId: String(row.entity_id),
+          relationshipType: String(row.relationship_type),
+          confidence: String(row.confidence),
+          resolutionMethod: String(row.resolution_method),
+          status: String(row.status),
+          metadata: row.metadata ?? {},
+          createdAt: row.association_created_at,
+        });
+      }
+
+      const documents = [...byDocument.values()];
+      res.json({
+        summary: {
+          documents: documents.length,
+          associations: items.length,
+          proposed: items.filter((row) => row.status === "proposed").length,
+          unresolved: items.filter((row) => row.status === "unresolved").length,
+        },
+        documents,
+      });
+    } catch (err) {
+      next(err);
+    }
+  },
+);
+
 router.get(
   "/:documentRef/associations",
   requireAuth,
